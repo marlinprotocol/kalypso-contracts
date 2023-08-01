@@ -3,6 +3,8 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
+  Error,
+  Error__factory,
   GeneratorRegistry,
   GeneratorRegistry__factory,
   MockToken,
@@ -13,6 +15,8 @@ import {
   ProofMarketPlace__factory,
 } from "../typechain-types";
 import { bytesToHexString, generateRandomBytes } from "../helpers";
+
+import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Proof market place", () => {
   let signers: Signer[];
@@ -30,9 +34,13 @@ describe("Proof market place", () => {
   let generatorStakingAmount = new BigNumber(10).pow(21).multipliedBy(6);
   let generatorSlashingPenalty = new BigNumber(10).pow(20).multipliedBy(2);
 
+  let minRewardForGenerator = new BigNumber(10).pow(18).multipliedBy(100);
+
   let proofMarketPlace: ProofMarketPlace;
   let generatorRegistry: GeneratorRegistry;
   let mockVerifier: MockVerifier;
+
+  let errorLibrary: Error;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -42,6 +50,8 @@ describe("Proof market place", () => {
     marketCreator = signers[4];
 
     marketPlaceAddress = signers[8];
+
+    errorLibrary = await new Error__factory(admin).deploy();
 
     mockToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
     mockVerifier = await new MockVerifier__factory(admin).deploy();
@@ -89,6 +99,8 @@ describe("Proof market place", () => {
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
+
+    expect(await proofMarketPlace.getMarketVerifier(marketId)).to.eq(await mockVerifier.getAddress());
   });
 
   it("Update Marketplace address", async () => {
@@ -125,7 +137,7 @@ describe("Proof market place", () => {
       await proofMarketPlace.connect(marketCreator).createMarketPlace(marketBytes, await mockVerifier.getAddress());
     });
 
-    it("Create", async () => {
+    it("Create Ask Request", async () => {
       await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
 
@@ -141,10 +153,35 @@ describe("Proof market place", () => {
           expiry: assignmentExpiry + latestBlock,
           timeTakenForProofGeneration,
           deadline: latestBlock + maxTimeForProofGeneration,
+          proverRefundAddress: await prover.getAddress(),
         }),
       )
         .to.emit(proofMarketPlace, "AskCreated")
         .withArgs(askIdToBeGenerated);
+
+      expect((await proofMarketPlace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
+    });
+
+    it("Should Fail: when try creating market in invalid market", async () => {
+      await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
+      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
+
+      const latestBlock = await ethers.provider.getBlockNumber();
+
+      const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 2)); // 10 MB
+      const invalidMarketId = ethers.keccak256(marketBytes);
+
+      await expect(
+        proofMarketPlace.connect(prover).createAsk({
+          marketId: invalidMarketId,
+          proverData: proverBytes,
+          reward: reward.toFixed(),
+          expiry: assignmentExpiry + latestBlock,
+          timeTakenForProofGeneration,
+          deadline: latestBlock + maxTimeForProofGeneration,
+          proverRefundAddress: await prover.getAddress(),
+        }),
+      ).to.be.revertedWith(await errorLibrary.DOES_NOT_EXISTS());
     });
 
     describe("Generator", () => {
@@ -164,9 +201,15 @@ describe("Proof market place", () => {
 
       it("Check generator data", async () => {
         await expect(
-          generatorRegistry
-            .connect(generator)
-            .register({ rewardAddress: await generator.getAddress(), generatorData, amountLocked: 0 }, marketId),
+          generatorRegistry.connect(generator).register(
+            {
+              rewardAddress: await generator.getAddress(),
+              generatorData,
+              amountLocked: 0,
+              minReward: minRewardForGenerator.toFixed(),
+            },
+            marketId,
+          ),
         )
           .to.emit(generatorRegistry, "RegisteredGenerator")
           .withArgs(await generator.getAddress(), marketId);
@@ -174,6 +217,8 @@ describe("Proof market place", () => {
         const rewardAddress = (await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId))
           .generator.rewardAddress;
         expect(rewardAddress).to.eq(await generator.getAddress());
+
+        expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
       });
 
       describe("Task", () => {
@@ -199,11 +244,18 @@ describe("Proof market place", () => {
             expiry: latestBlock + assignmentExpiry,
             timeTakenForProofGeneration,
             deadline: latestBlock + maxTimeForProofGeneration,
+            proverRefundAddress: await prover.getAddress(),
           });
 
-          await generatorRegistry
-            .connect(generator)
-            .register({ rewardAddress: await generator.getAddress(), generatorData, amountLocked: 0 }, marketId);
+          await generatorRegistry.connect(generator).register(
+            {
+              rewardAddress: await generator.getAddress(),
+              generatorData,
+              amountLocked: 0,
+              minReward: minRewardForGenerator.toFixed(),
+            },
+            marketId,
+          );
         });
 
         it("Matching engine assings", async () => {
@@ -213,6 +265,9 @@ describe("Proof market place", () => {
           )
             .to.emit(proofMarketPlace, "TaskCreated")
             .withArgs(askId, taskId);
+
+          expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
+          expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(3); // 3 means WIP
         });
 
         describe("Submit Proof", () => {
@@ -230,6 +285,28 @@ describe("Proof market place", () => {
 
           it("submit proof", async () => {
             await proofMarketPlace.submitProof(taskId, proof);
+
+            expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(4); // 4 means COMPLETE
+            expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); // 1 means JOINED and idle now
+          });
+
+          describe("Failed submiited proof", () => {
+            let slasher: Signer;
+
+            beforeEach(async () => {
+              slasher = signers[19];
+              await mine(maxTimeForProofGeneration);
+            });
+
+            it("State should be deadline crossed", async () => {
+              expect(await proofMarketPlace.getAskState(askId.toString())).to.eq(5);
+            });
+
+            it("When deadline is crossed, it is slashable", async () => {
+              await expect(proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()))
+                .to.emit(proofMarketPlace, "ProofNotGenerated")
+                .withArgs(taskId);
+            });
           });
         });
       });

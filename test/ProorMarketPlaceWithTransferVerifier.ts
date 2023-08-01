@@ -44,6 +44,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
+  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -82,6 +83,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       generator,
       generatorData,
       matchingEngine,
+      minRewardByGenerator,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
@@ -118,6 +120,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
         expiry: assignmentExpiry + latestBlock,
         timeTakenForProofGeneration,
         deadline: latestBlock + maxTimeForProofGeneration,
+        proverRefundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry },
     );

@@ -19,4 +19,9 @@ library Error {
 
     string public constant SHOULD_BE_IN_CROSSED_DEADLINE_STATE = "11";
     string public constant INVALID_GENERATOR = "12";
+
+    string public constant CAN_N0T_BE_SLASHED = "13";
+    string public constant ONLY_WORKING_GENERATORS = "14";
+
+    string public constant INSUFFICIENT_REWARD = "15";
 }

@@ -65,6 +65,7 @@ export const rawSetup = async (
   generator: Signer,
   generatorData: string,
   matchingEngine: Signer,
+  minRewardForGenerator: BigNumber,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -109,9 +110,15 @@ export const rawSetup = async (
 
   const marketId = ethers.keccak256(marketSetupBytes);
 
-  await generatorRegistry
-    .connect(generator)
-    .register({ rewardAddress: await generator.getAddress(), generatorData, amountLocked: 0 }, marketId);
+  await generatorRegistry.connect(generator).register(
+    {
+      rewardAddress: await generator.getAddress(),
+      generatorData,
+      amountLocked: 0,
+      minReward: minRewardForGenerator.toFixed(),
+    },
+    marketId,
+  );
 
   await proofMarketPlace
     .connect(admin)

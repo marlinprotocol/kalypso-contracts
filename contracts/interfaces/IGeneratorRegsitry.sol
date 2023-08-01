@@ -11,11 +11,16 @@ interface IGeneratorRegistry {
 
     function deregister(bytes32 marketId) external;
 
-    function getGeneratorState(address generator, bytes32 marketId) external view returns (GeneratorState);
-
-    function getGeneratorRewardAddress(address generator, bytes32 marketId) external view returns (address);
+    function getGeneratorDetails(
+        address generator,
+        bytes32 marketId
+    ) external view returns (GeneratorState, uint256, address);
 
     function slashGenerator(address generator, bytes32 marketId, address rewardAddress) external returns (uint256);
+
+    function completeGeneratorTask(address generator, bytes32 marketId) external;
+
+    function assignGeneratorTask(address generator, bytes32 marketId) external;
 
     enum GeneratorState {
         NULL,
@@ -33,8 +38,9 @@ interface IGeneratorRegistry {
     /// compute allocation allocation per market
     struct Generator {
         address rewardAddress;
-        bytes generatorData;
         uint256 amountLocked;
+        uint256 minReward;
+        bytes generatorData;
     }
 
     struct GeneratorWithState {

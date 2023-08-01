@@ -9,7 +9,8 @@
     "prettier-contracts": "npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "prettier-others": "npx prettier --write .",
     "prettier": "npm run prettier-contracts && npm run prettier-others",
-    "compile": "npx hardhat compile"
+    "compile": "npx hardhat compile",
+    "coverage": "npx hardhat coverage"
   },
   "repository": {
     "type": "git",

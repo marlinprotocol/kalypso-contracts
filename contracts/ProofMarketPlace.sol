@@ -18,7 +18,7 @@ import "./interfaces/IVerifier.sol";
 
 import "./lib/Error.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract ProofMarketPlace is
     Initializable,
@@ -175,7 +175,7 @@ contract ProofMarketPlace is
         AskWithState memory askWithState = listOfAsk[askId];
 
         if (askWithState.state == AskState.NULL) {
-            return askWithState.state;
+            return AskState.NULL;
         }
 
         if (askWithState.state == AskState.CREATE) {
@@ -200,15 +200,16 @@ contract ProofMarketPlace is
     // Todo: Optimise the function
     function assignTask(uint256 askId, address generator) external onlyRole(MATCHING_ENGINE_ROLE) {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
-        require(
-            generatorRegistry.getGeneratorState(generator, listOfAsk[askId].ask.marketId) ==
-                IGeneratorRegistry.GeneratorState.JOINED,
-            Error.ONLY_TO_IDLE_GENERATORS
-        );
+        (, uint256 minRewardForGenerator, ) = generatorRegistry
+            .getGeneratorDetails(generator, listOfAsk[askId].ask.marketId);
+
+        require(listOfAsk[askId].ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
         listOfAsk[askId].state = AskState.ASSIGNED;
         listOfAsk[askId].ask.deadline = block.number + listOfAsk[askId].ask.timeTakenForProofGeneration;
 
         listOfTask[taskCounter] = Task(askId, generator);
+
+        generatorRegistry.assignGeneratorTask(generator, listOfAsk[askId].ask.marketId);
         emit TaskCreated(askId, taskCounter);
 
         taskCounter++;
@@ -221,7 +222,7 @@ contract ProofMarketPlace is
         bytes32 marketId = askWithState.ask.marketId;
         IVerifier proofVerifier = IVerifier(verifier[marketId]);
 
-        address generatorRewardAddress = generatorRegistry.getGeneratorRewardAddress(
+        (, uint256 minRewardForGenerator, address generatorRewardAddress) = generatorRegistry.getGeneratorDetails(
             task.generator,
             askWithState.ask.marketId
         );
@@ -234,8 +235,15 @@ contract ProofMarketPlace is
         require(proofVerifier.verify(inputAndProof), Error.INVALID_PROOF);
         listOfAsk[task.askId].state = AskState.COMPLETE;
 
-        paymentToken.safeTransfer(generatorRewardAddress, askWithState.ask.reward);
+        uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
 
+        paymentToken.safeTransfer(generatorRewardAddress, minRewardForGenerator);
+
+        if (toBackToProver != 0) {
+            paymentToken.safeTransfer(askWithState.ask.proverRefundAddress, toBackToProver);
+        }
+
+        generatorRegistry.completeGeneratorTask(task.generator, marketId);
         emit ProofCreated(taskId);
     }
 
@@ -245,6 +253,8 @@ contract ProofMarketPlace is
         require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
         listOfAsk[task.askId].state = AskState.COMPLETE;
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
+
+        emit ProofNotGenerated(taskId);
         return generatorRegistry.slashGenerator(task.generator, marketId, rewardAddress);
     }
 }

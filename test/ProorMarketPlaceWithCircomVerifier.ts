@@ -17,7 +17,7 @@ import { setup } from "../helpers";
 import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.json";
 import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
 
-describe.skip("Proof Market Place for Circom Verifier", () => {
+describe("Proof Market Place for Circom Verifier", () => {
   let proofMarketPlace: ProofMarketPlace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
@@ -44,6 +44,7 @@ describe.skip("Proof Market Place for Circom Verifier", () => {
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
+  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -82,6 +83,7 @@ describe.skip("Proof Market Place for Circom Verifier", () => {
       generator,
       generatorData,
       matchingEngine,
+      minRewardByGenerator,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
@@ -90,7 +92,7 @@ describe.skip("Proof Market Place for Circom Verifier", () => {
   it("Check circom verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs]]);
+    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
     // console.log({ inputBytes });
     const latestBlock = await ethers.provider.getBlockNumber();
     let assignmentExpiry = 100; // in blocks
@@ -107,6 +109,7 @@ describe.skip("Proof Market Place for Circom Verifier", () => {
         expiry: assignmentExpiry + latestBlock,
         timeTakenForProofGeneration,
         deadline: latestBlock + maxTimeForProofGeneration,
+        proverRefundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry },
     );
@@ -118,7 +121,10 @@ describe.skip("Proof Market Place for Circom Verifier", () => {
       generator,
     );
 
-    let proofBytes = abiCoder.encode(["uint[2]", "uint[2][2]", "uint[2]"], [[circom_verifier_proof]]);
+    let proofBytes = abiCoder.encode(
+      ["uint[2]", "uint[2][2]", "uint[2]"],
+      [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
+    );
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
       .withArgs(taskId);

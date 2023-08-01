@@ -16,13 +16,14 @@ interface IProofMarketPlace {
 
     struct Ask {
         bytes32 marketId;
-        bytes proverData;
         uint256 reward;
         // the block number by which the ask should be assigned by matching engine
         uint256 expiry;
         // TODO: try to remove one the variable below
         uint256 timeTakenForProofGeneration;
         uint256 deadline;
+        address proverRefundAddress;
+        bytes proverData;
     }
 
     struct AskWithState {
@@ -42,6 +43,7 @@ interface IProofMarketPlace {
     event AskCreated(uint256 indexed askId);
     event TaskCreated(uint256 indexed askId, uint256 indexed taskId);
     event ProofCreated(uint256 indexed taskId);
+    event ProofNotGenerated(uint256 indexed taskId);
 
     event MarketPlaceCreated(bytes32 indexed marketId);
 
