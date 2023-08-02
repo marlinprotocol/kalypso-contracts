@@ -10,6 +10,8 @@ import {
   GeneratorRegistry__factory,
   IVerifier,
   IProofMarketPlace,
+  PriorityLog,
+  PriorityLog__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -17,6 +19,7 @@ interface SetupTemplate {
   mockToken: MockToken;
   generatorRegistry: GeneratorRegistry;
   proofMarketPlace: ProofMarketPlace;
+  priorityLog: PriorityLog;
 }
 
 export const createTask = async (
@@ -123,9 +126,12 @@ export const rawSetup = async (
   await proofMarketPlace
     .connect(admin)
     .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress());
+
+  const priorityLog = await new PriorityLog__factory(admin).deploy();
   return {
     mockToken,
     generatorRegistry,
     proofMarketPlace,
+    priorityLog,
   };
 };

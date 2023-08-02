@@ -200,8 +200,10 @@ contract ProofMarketPlace is
     // Todo: Optimise the function
     function assignTask(uint256 askId, address generator) external onlyRole(MATCHING_ENGINE_ROLE) {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
-        (, uint256 minRewardForGenerator, ) = generatorRegistry
-            .getGeneratorDetails(generator, listOfAsk[askId].ask.marketId);
+        (, uint256 minRewardForGenerator, ) = generatorRegistry.getGeneratorDetails(
+            generator,
+            listOfAsk[askId].ask.marketId
+        );
 
         require(listOfAsk[askId].ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
         listOfAsk[askId].state = AskState.ASSIGNED;
