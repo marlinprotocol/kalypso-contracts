@@ -1,0 +1,6 @@
+{
+  "tokenSupply": "100000000000000000000000000000",
+  "generatorStakingAmount": "1000000000000000000000",
+  "generatorSlashingPenalty": "10000000000000000000",
+  "marketCreationCost": "100000000000000000000"
+}

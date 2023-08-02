@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import * as fs from "fs";
 
 export function generateRandomBytes(length: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -58,3 +59,27 @@ export function hexStringToGeneratorData(hexString: string): GeneratorData {
 }
 
 export * as setup from "./setup";
+
+// Function to check if a file exists at the given path
+export function checkFileExists(filePath: string): boolean {
+  try {
+    fs.accessSync(filePath, fs.constants.F_OK);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Function to create a file at the given path if it doesn't exist
+export function createFileIfNotExists(filePath: string): void {
+  if (!checkFileExists(filePath)) {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify({ proxy: {}, implementation: {} }, null, 4), "utf-8");
+      console.log(`File created at path: ${filePath}`);
+    } catch (err) {
+      console.error(`Error creating file: ${err}`);
+    }
+  } else {
+    console.log(`File already exists at path: ${filePath}`);
+  }
+}

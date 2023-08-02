@@ -16,13 +16,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const provider = hre.ethers.provider;
 
   for (const account of accounts) {
-    console.log(
-      "%s (%i ETH)",
-      account.address,
-      new BigNumber((await provider.getBalance(account.address)).toString())
-        .dividedBy(new BigNumber(10).pow(18))
-        .toFixed(4),
-    );
+    console.log("%s (%i wei)", account.address, new BigNumber((await provider.getBalance(account.address)).toString()));
   }
 });
 
@@ -38,6 +32,17 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       blockGasLimit: 500000000000,
+    },
+    sepolia: {
+      url: `${process.env.SEPOLIA_RPC_URL}`,
+      accounts: [
+        `${process.env.SEPOLIA_ADMIN}`,
+        `${process.env.SEPOLIA_TOKEN_HOLDER}`,
+        `${process.env.SEPOLIA_TREASURY}`,
+        `${process.env.SEPOLIA_MARKET_CREATOR}`,
+        `${process.env.SEPOLIA_GENERATOR}`,
+        `${process.env.SEPOLIA_MATCHING_ENGINE}`,
+      ],
     },
   },
 };
