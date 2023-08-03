@@ -70,11 +70,15 @@ contract ProofMarketPlace is
     //-------------------------------- Constants and Immutable start --------------------------------//
     bytes32 public constant UPDATER_ROLE = bytes32(uint256(keccak256("updater")) - 1);
     bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("matching engine")) - 1);
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IERC20Upgradeable public immutable paymentToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    uint256 public immutable marketCreationCost;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    IERC20Upgradeable public paymentToken;
-    uint256 public marketCreationCost;
     address public treasury;
 
     mapping(bytes32 => bytes) public marketmetadata;
@@ -90,38 +94,23 @@ contract ProofMarketPlace is
 
     //-------------------------------- State variables end --------------------------------//
 
-    function initialize(
-        address _admin,
-        IERC20Upgradeable _paymentToken,
-        address _treasury,
-        uint256 _marketCreationCost,
-        IGeneratorRegistry _generatorRegistry
-    ) public initializer {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(IERC20Upgradeable _paymentToken, uint256 _marketCreationCost) {
+        paymentToken = _paymentToken;
+        marketCreationCost = _marketCreationCost;
+    }
+
+    function initialize(address _admin, address _treasury, IGeneratorRegistry _generatorRegistry) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
-        paymentToken = _paymentToken;
+
         treasury = _treasury;
-        marketCreationCost = _marketCreationCost;
         generatorRegistry = _generatorRegistry;
     }
 
     modifier onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), Error.ONLY_ADMIN_CAN_CALL);
         _;
-    }
-
-    function changePaymentToken(IERC20Upgradeable _newPaymentToken) public onlyRole(UPDATER_ROLE) {
-        require(_newPaymentToken != paymentToken, Error.CANNOT_BE_SAME);
-        IERC20Upgradeable _oldToken = paymentToken;
-        paymentToken = _newPaymentToken;
-        emit PaymentTokenChanged(_oldToken, _newPaymentToken);
-    }
-
-    function changeMarketCreationCost(uint256 _newCost) public onlyRole(UPDATER_ROLE) {
-        require(_newCost != marketCreationCost, Error.CANNOT_BE_SAME);
-        uint256 _oldCost = marketCreationCost;
-        marketCreationCost = _newCost;
-        emit MarketCreationCostChanged(_oldCost, _newCost);
     }
 
     function changeTreasuryAddressChanged(address _newAddress) public onlyRole(UPDATER_ROLE) {
@@ -174,10 +163,6 @@ contract ProofMarketPlace is
     function getAskState(uint256 askId) public view returns (AskState) {
         AskWithState memory askWithState = listOfAsk[askId];
 
-        if (askWithState.state == AskState.NULL) {
-            return AskState.NULL;
-        }
-
         if (askWithState.state == AskState.CREATE) {
             if (askWithState.ask.expiry > block.number) {
                 return AskState.CREATE;
@@ -200,21 +185,33 @@ contract ProofMarketPlace is
     // Todo: Optimise the function
     function assignTask(uint256 askId, address generator) external onlyRole(MATCHING_ENGINE_ROLE) {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
+
+        AskWithState storage askWithState = listOfAsk[askId];
         (, uint256 minRewardForGenerator, ) = generatorRegistry.getGeneratorDetails(
             generator,
-            listOfAsk[askId].ask.marketId
+            askWithState.ask.marketId
         );
 
-        require(listOfAsk[askId].ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
-        listOfAsk[askId].state = AskState.ASSIGNED;
-        listOfAsk[askId].ask.deadline = block.number + listOfAsk[askId].ask.timeTakenForProofGeneration;
+        require(askWithState.ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
+        askWithState.state = AskState.ASSIGNED;
+        askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
 
         listOfTask[taskCounter] = Task(askId, generator);
 
-        generatorRegistry.assignGeneratorTask(generator, listOfAsk[askId].ask.marketId);
+        generatorRegistry.assignGeneratorTask(generator, askWithState.ask.marketId);
         emit TaskCreated(askId, taskCounter);
 
         taskCounter++;
+    }
+
+    function cancelAsk(uint256 askId) external {
+        require(getAskState(askId) == AskState.UNASSIGNED, Error.SHOULD_BE_IN_EXPIRED_STATE);
+        AskWithState storage askWithState = listOfAsk[askId];
+        askWithState.state = AskState.COMPLETE;
+
+        paymentToken.safeTransfer(askWithState.ask.proverRefundAddress, askWithState.ask.reward);
+
+        emit AskCancelled(askId);
     }
 
     function submitProof(uint256 taskId, bytes calldata proof) external {

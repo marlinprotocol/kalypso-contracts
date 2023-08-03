@@ -36,8 +36,6 @@ interface IProofMarketPlace {
         address generator;
     }
 
-    event PaymentTokenChanged(IERC20Upgradeable indexed oldToken, IERC20Upgradeable indexed newToken);
-    event MarketCreationCostChanged(uint256 indexed oldCost, uint256 indexed newCost);
     event TreasuryAddressChanged(address indexed oldAddress, address indexed newAddress);
     event GeneratorRegistryChanged(address indexed oldAddress, address indexed newAddress);
     event AskCreated(uint256 indexed askId);
@@ -46,6 +44,8 @@ interface IProofMarketPlace {
     event ProofNotGenerated(uint256 indexed taskId);
 
     event MarketPlaceCreated(bytes32 indexed marketId);
+
+    event AskCancelled(uint256 indexed askId);
 
     function createMarketPlace(bytes calldata marketmetadata, address verifier) external;
 

@@ -90,14 +90,8 @@ export const rawSetup = async (
   const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
   const proxy = await upgrades.deployProxy(
     ProofMarketPlace,
-    [
-      await admin.getAddress(),
-      await mockToken.getAddress(),
-      treasury,
-      marketCreationCost.toFixed(),
-      await generatorRegistry.getAddress(),
-    ],
-    { kind: "uups", constructorArgs: [] },
+    [await admin.getAddress(), treasury, await generatorRegistry.getAddress()],
+    { kind: "uups", constructorArgs: [await mockToken.getAddress(), marketCreationCost.toFixed()] },
   );
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 

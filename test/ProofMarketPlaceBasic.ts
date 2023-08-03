@@ -71,14 +71,8 @@ describe("Proof market place", () => {
     const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
     const proxy = await upgrades.deployProxy(
       ProofMarketPlace,
-      [
-        await admin.getAddress(),
-        await mockToken.getAddress(),
-        await treasury.getAddress(),
-        marketCreationCost.toFixed(),
-        await generatorRegistry.getAddress(),
-      ],
-      { kind: "uups", constructorArgs: [] },
+      [await admin.getAddress(), await treasury.getAddress(), await generatorRegistry.getAddress()],
+      { kind: "uups", constructorArgs: [await mockToken.getAddress(), marketCreationCost.toString()] },
     );
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
 
@@ -221,6 +215,22 @@ describe("Proof market place", () => {
         expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
       });
 
+      it("Deregister generator data", async () => {
+        await generatorRegistry.connect(generator).register(
+          {
+            rewardAddress: await generator.getAddress(),
+            generatorData,
+            amountLocked: 0,
+            minReward: minRewardForGenerator.toFixed(),
+          },
+          marketId,
+        );
+
+        await expect(generatorRegistry.connect(generator).deregister(marketId))
+          .to.emit(generatorRegistry, "DeregisteredGenerator")
+          .withArgs(await generator.getAddress(), marketId);
+      });
+
       describe("Task", () => {
         let proverBytes: string;
         let latestBlock: number;
@@ -270,6 +280,22 @@ describe("Proof market place", () => {
           expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(3); // 3 means WIP
         });
 
+        it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
+          await mine(assignmentExpiry);
+          await expect(
+            proofMarketPlace.connect(marketPlaceAddress).assignTask(askId.toString(), await generator.getAddress()),
+          ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
+        });
+
+        it("Can cancel ask once the ask is expired", async () => {
+          await mine(assignmentExpiry);
+          await expect(proofMarketPlace.connect(admin).cancelAsk(askId.toString()))
+            .to.emit(proofMarketPlace, "AskCancelled")
+            .withArgs(askId)
+            .to.emit(mockToken, "Transfer")
+            .withArgs(await proofMarketPlace.getAddress(), await prover.getAddress(), reward.toFixed());
+        });
+
         describe("Submit Proof", () => {
           let proof: string;
           let taskId: string;
@@ -284,7 +310,19 @@ describe("Proof market place", () => {
           });
 
           it("submit proof", async () => {
-            await proofMarketPlace.submitProof(taskId, proof);
+            const generatorAddress = await generator.getAddress();
+            const expectedGeneratorReward = (await generatorRegistry.generatorRegistry(generatorAddress, marketId))
+              .generator.minReward;
+            const proverRefundAddress = await prover.getAddress();
+            const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
+
+            await expect(proofMarketPlace.submitProof(taskId, proof))
+              .to.emit(proofMarketPlace, "ProofCreated")
+              .withArgs(taskId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), proverRefundAddress, expectedProverRefund);
 
             expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(4); // 4 means COMPLETE
             expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); // 1 means JOINED and idle now

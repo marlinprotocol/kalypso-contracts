@@ -24,4 +24,6 @@ library Error {
     string public constant ONLY_WORKING_GENERATORS = "14";
 
     string public constant INSUFFICIENT_REWARD = "15";
+
+    string public constant SHOULD_BE_IN_EXPIRED_STATE = "16";
 }

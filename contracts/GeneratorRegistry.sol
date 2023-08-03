@@ -152,14 +152,15 @@ contract GeneratorRegistry is
         GeneratorState state = getGeneratorState(_msgSender, marketId);
         require(state != GeneratorState.NULL, Error.CANNOT_BE_ZERO);
 
+        GeneratorWithState storage generatorWithState = generatorRegistry[_msgSender][marketId];
+
         if (state == GeneratorState.WIP) {
-            generatorRegistry[_msgSender][marketId].state = GeneratorState.REQUESTED_FOR_EXIT;
+            generatorWithState.state = GeneratorState.REQUESTED_FOR_EXIT;
             return;
         }
 
         require(state != GeneratorState.WIP && state != GeneratorState.REQUESTED_FOR_EXIT, Error.HAS_A_PENDING_WORK); //i.e generator is in joined state
 
-        GeneratorWithState memory generatorWithState = generatorRegistry[_msgSender][marketId];
         stakingToken.safeTransfer(
             generatorWithState.generator.rewardAddress,
             generatorWithState.generator.amountLocked

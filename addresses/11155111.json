@@ -1,13 +1,13 @@
 {
-    "proxy": {
-        "mockToken": "0x4935ea37F0ADd47B9567A36D0806a28459761b60",
-        "generatorRegistry": "0xFC02897B76538F2897e48146453027fFF8338BaA",
-        "proofMarketPlace": "0x56d030Fe5D75211DB0Ca84fcC1ee19615FA19105",
-        "transferVerifierWrapper": "0x39DD4dDD0e7756c8f54eB5e1339e02b16D89995D"
-    },
-    "implementation": {
-        "generatorRegistry": "0x8147e610aF918807C393d865F3C26A6d3f41ddAE",
-        "proofMarketPlace": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806"
-    },
-    "marketId": "0xb839d5bc3d6a60bb59136cf24a77c2c39952ea51a65898a886b33bbe38d7d8a8"
+  "proxy": {
+    "mockToken": "0x4935ea37F0ADd47B9567A36D0806a28459761b60",
+    "generatorRegistry": "0xFC02897B76538F2897e48146453027fFF8338BaA",
+    "proofMarketPlace": "0x56d030Fe5D75211DB0Ca84fcC1ee19615FA19105",
+    "transferVerifierWrapper": "0x39DD4dDD0e7756c8f54eB5e1339e02b16D89995D"
+  },
+  "implementation": {
+    "generatorRegistry": "0x8147e610aF918807C393d865F3C26A6d3f41ddAE",
+    "proofMarketPlace": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806"
+  },
+  "marketId": "0xb839d5bc3d6a60bb59136cf24a77c2c39952ea51a65898a886b33bbe38d7d8a8"
 }

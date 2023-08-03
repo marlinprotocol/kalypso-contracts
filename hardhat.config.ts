@@ -35,6 +35,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `${process.env.SEPOLIA_RPC_URL}`,
+      // NOTE: don't change the order of elements in the array, add new elements at the last.
       accounts: [
         `${process.env.SEPOLIA_ADMIN}`,
         `${process.env.SEPOLIA_TOKEN_HOLDER}`,
@@ -42,6 +43,7 @@ const config: HardhatUserConfig = {
         `${process.env.SEPOLIA_MARKET_CREATOR}`,
         `${process.env.SEPOLIA_GENERATOR}`,
         `${process.env.SEPOLIA_MATCHING_ENGINE}`,
+        `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
       ],
     },
   },
