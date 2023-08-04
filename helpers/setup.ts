@@ -20,6 +20,7 @@ interface SetupTemplate {
   generatorRegistry: GeneratorRegistry;
   proofMarketPlace: ProofMarketPlace;
   priorityLog: PriorityLog;
+  platformToken: MockToken;
 }
 
 export const createTask = async (
@@ -48,6 +49,16 @@ export const createAsk = async (
     .connect(prover)
     .approve(await setupTemplate.proofMarketPlace.getAddress(), ask.reward.toString());
 
+  const proverBytes = ask.proverData;
+  const platformFee = new BigNumber((await setupTemplate.proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+    (proverBytes.length - 2) / 2,
+  );
+
+  await setupTemplate.platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+  await setupTemplate.platformToken
+    .connect(prover)
+    .approve(await setupTemplate.proofMarketPlace.getAddress(), platformFee.toFixed());
+
   const askId = await setupTemplate.proofMarketPlace.askCounter();
   await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask);
 
@@ -75,6 +86,11 @@ export const rawSetup = async (
     totalTokenSupply.toFixed(),
   );
 
+  const platformToken = await new MockToken__factory(admin).deploy(
+    await tokenHolder.getAddress(),
+    totalTokenSupply.toFixed(),
+  );
+
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
@@ -91,7 +107,10 @@ export const rawSetup = async (
   const proxy = await upgrades.deployProxy(
     ProofMarketPlace,
     [await admin.getAddress(), treasury, await generatorRegistry.getAddress()],
-    { kind: "uups", constructorArgs: [await mockToken.getAddress(), marketCreationCost.toFixed()] },
+    {
+      kind: "uups",
+      constructorArgs: [await mockToken.getAddress(), await platformToken.getAddress(), marketCreationCost.toFixed()],
+    },
   );
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
@@ -122,10 +141,12 @@ export const rawSetup = async (
     .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress());
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
+
   return {
     mockToken,
     generatorRegistry,
     proofMarketPlace,
     priorityLog,
+    platformToken,
   };
 };

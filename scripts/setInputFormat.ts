@@ -27,11 +27,11 @@ async function main(): Promise<any> {
       addresses.proxy.inputAndProofFormat,
       admin,
     );
-    const marketId = addresses.marketId;
-    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["uint256[5]"]);
+    const marketId = addresses.circomMarketId;
+    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["uint[1]"]);
     await tx.wait();
 
-    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["uint256[8]"]);
+    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["uint[2]", "uint[2][2]", "uint[2]"]);
     await tx.wait();
 
     const inputsArrayLength = await inputAndProofFormat.inputArrayLength(marketId);

@@ -16,13 +16,14 @@ import {
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
 import * as fs from "fs";
 
-import {a as plonkInputs} from '../helpers/sample/plonk/verification_params.json'
+import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
 const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
 
 describe("Proof Market Place for Plonk Verifier", () => {
   let proofMarketPlace: ProofMarketPlace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
+  let platformToken: MockToken;
   let priorityLog: PriorityLog;
 
   let signers: Signer[];
@@ -103,6 +104,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
+    platformToken = data.platformToken;
     priorityLog = data.priorityLog;
   });
   it("Check plonk verifier", async () => {
@@ -127,12 +129,12 @@ describe("Proof Market Place for Plonk Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         proverRefundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
     );
 
     const taskId = await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
       askId,
       generator,
     );

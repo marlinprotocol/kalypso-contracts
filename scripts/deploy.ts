@@ -51,6 +51,17 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.platformToken) {
+    const platformToken = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      config.tokenSupply,
+    );
+    await platformToken.waitForDeployment();
+    addresses.proxy.platformToken = await platformToken.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.generatorRegistry) {
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {

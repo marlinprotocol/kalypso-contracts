@@ -75,7 +75,12 @@ contract ProofMarketPlace is
     IERC20Upgradeable public immutable paymentToken;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IERC20Upgradeable public immutable platformToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable marketCreationCost;
+
+    uint256 public constant costPerInputBytes = 10e15;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -95,8 +100,9 @@ contract ProofMarketPlace is
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _paymentToken, uint256 _marketCreationCost) {
+    constructor(IERC20Upgradeable _paymentToken, IERC20Upgradeable _platformToken, uint256 _marketCreationCost) {
         paymentToken = _paymentToken;
+        platformToken = _platformToken;
         marketCreationCost = _marketCreationCost;
     }
 
@@ -113,12 +119,12 @@ contract ProofMarketPlace is
         _;
     }
 
-    function changeTreasuryAddressChanged(address _newAddress) public onlyRole(UPDATER_ROLE) {
-        require(_newAddress != treasury, Error.ALREADY_EXISTS);
-        address _oldAddress = treasury;
-        treasury = _newAddress;
-        emit TreasuryAddressChanged(_oldAddress, _newAddress);
-    }
+    // function changeTreasuryAddressChanged(address _newAddress) public onlyRole(UPDATER_ROLE) {
+    //     require(_newAddress != treasury, Error.ALREADY_EXISTS);
+    //     address _oldAddress = treasury;
+    //     treasury = _newAddress;
+    //     emit TreasuryAddressChanged(_oldAddress, _newAddress);
+    // }
 
     function changeGeneratorRegsitry(address _newAddress) public onlyRole(UPDATER_ROLE) {
         require(_newAddress != address(generatorRegistry), Error.ALREADY_EXISTS);
@@ -150,7 +156,13 @@ contract ProofMarketPlace is
 
     function createAsk(Ask calldata ask) external override {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
-        paymentToken.safeTransferFrom(_msgSender(), address(this), ask.reward);
+        require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
+
+        address _msgSender = _msgSender();
+        uint256 platformFee = ask.proverData.length * costPerInputBytes;
+
+        paymentToken.safeTransferFrom(_msgSender, address(this), ask.reward);
+        platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
 
         require(marketmetadata[ask.marketId].length != 0, Error.DOES_NOT_EXISTS);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE);

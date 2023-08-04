@@ -1,7 +1,12 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
 import { checkFileExists, marketDataToBytes } from "../helpers";
-import { MockToken__factory, ProofMarketPlace__factory, Xor2_verifier_wrapper__factory, XorVerifier__factory } from "../typechain-types";
+import {
+  MockToken__factory,
+  ProofMarketPlace__factory,
+  Xor2_verifier_wrapper__factory,
+  XorVerifier__factory,
+} from "../typechain-types";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -43,14 +48,16 @@ async function main(): Promise<string> {
     throw new Error("Mock Token Is Not Deployed");
   }
 
-  if(!addresses.proxy.circomVerifierWrapper){
-    const ciromVerifier = await new XorVerifier__factory(marketCreator).deploy()
-    await ciromVerifier.waitForDeployment()
+  if (!addresses.proxy.circomVerifierWrapper) {
+    const ciromVerifier = await new XorVerifier__factory(marketCreator).deploy();
+    await ciromVerifier.waitForDeployment();
 
-    const ciromVerifierWrapper = await new Xor2_verifier_wrapper__factory(marketCreator).deploy(await ciromVerifier.getAddress())
-    await ciromVerifierWrapper.waitForDeployment()
+    const ciromVerifierWrapper = await new Xor2_verifier_wrapper__factory(marketCreator).deploy(
+      await ciromVerifier.getAddress(),
+    );
+    await ciromVerifierWrapper.waitForDeployment();
 
-    addresses.proxy.circomVerifierWrapper = await ciromVerifierWrapper.getAddress()
+    addresses.proxy.circomVerifierWrapper = await ciromVerifierWrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

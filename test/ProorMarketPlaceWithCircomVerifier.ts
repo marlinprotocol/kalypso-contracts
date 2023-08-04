@@ -22,6 +22,7 @@ describe("Proof Market Place for Circom Verifier", () => {
   let proofMarketPlace: ProofMarketPlace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
+  let platformToken: MockToken;
   let priorityLog: PriorityLog;
 
   let signers: Signer[];
@@ -102,6 +103,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
+    platformToken = data.platformToken;
     priorityLog = data.priorityLog;
   });
   it("Check circom verifier", async () => {
@@ -126,12 +128,12 @@ describe("Proof Market Place for Circom Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         proverRefundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
     );
 
     const taskId = await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
       askId,
       generator,
     );
