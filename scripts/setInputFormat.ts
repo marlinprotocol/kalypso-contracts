@@ -45,7 +45,7 @@ async function main(): Promise<any> {
     }
 
     for (let index = 0; index < proofArrayLength; index++) {
-        proofFormat.push(await inputAndProofFormat.proofs(marketId, index));
+      proofFormat.push(await inputAndProofFormat.proofs(marketId, index));
     }
 
     return { inputFormat, proofFormat };
