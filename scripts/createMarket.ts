@@ -22,12 +22,8 @@ async function main(): Promise<string> {
   }
 
   const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-  let admin = signers[0];
   let tokenHolder = signers[1];
-  let treasury = signers[2];
   let marketCreator = signers[3];
-  let generator = signers[4];
-  let matchingEngine = signers[5];
 
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);

@@ -3,7 +3,9 @@ import * as fs from "fs";
 
 import {
   GeneratorRegistry__factory,
+  InputAndProofFormatRegistry__factory,
   MockToken__factory,
+  PriorityLog__factory,
   ProofMarketPlace__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
@@ -32,14 +34,15 @@ async function main(): Promise<string> {
   let admin = signers[0];
   let tokenHolder = signers[1];
   let treasury = signers[2];
-  let marketCreator = signers[3];
-  let generator = signers[4];
+  // let marketCreator = signers[3];
+  // let generator = signers[4];
   let matchingEngine = signers[5];
 
   const path = `./addresses/${chainId}.json`;
   createFileIfNotExists(path);
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+
   if (!addresses.proxy.mockToken) {
     const mockToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
     await mockToken.waitForDeployment();
@@ -69,14 +72,8 @@ async function main(): Promise<string> {
     const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
     const proxy = await upgrades.deployProxy(
       ProofMarketPlace,
-      [
-        await admin.getAddress(),
-        addresses.proxy.mockToken,
-        await treasury.getAddress(),
-        config.marketCreationCost,
-        addresses.proxy.generatorRegistry,
-      ],
-      { kind: "uups", constructorArgs: [] },
+      [await admin.getAddress(), await treasury.getAddress(), addresses.proxy.generatorRegistry],
+      { kind: "uups", constructorArgs: [addresses.proxy.mockToken, config.marketCreationCost] },
     );
     await proxy.waitForDeployment();
 
@@ -85,11 +82,11 @@ async function main(): Promise<string> {
       addresses.proxy.proofMarketPlace,
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
 
-  const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
-  const tx = await generatorRegistry.initialize(await admin.getAddress(), addresses.proxy.proofMarketPlace);
-  await tx.wait();
+    const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
+    const tx = await generatorRegistry.initialize(await admin.getAddress(), addresses.proxy.proofMarketPlace);
+    await tx.wait();
+  }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.transferVerifierWrapper) {
@@ -104,13 +101,36 @@ async function main(): Promise<string> {
   }
 
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, matchingEngine);
-  await (
-    await proofMarketPlace
-      .connect(admin)
-      .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress())
-  ).wait();
+  const hasMatchingEngineRole = await proofMarketPlace.hasRole(
+    await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+    await matchingEngine.getAddress(),
+  );
+  if (!hasMatchingEngineRole) {
+    await (
+      await proofMarketPlace
+        .connect(admin)
+        .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress())
+    ).wait();
+  }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.priorityList) {
+    const priorityList = await new PriorityLog__factory(admin).deploy();
+    await priorityList.waitForDeployment();
+    addresses.proxy.priorityList = await priorityList.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.inputAndProofFormat) {
+    const inputAndProofFormat = await new InputAndProofFormatRegistry__factory(admin).deploy(await admin.getAddress());
+    await inputAndProofFormat.waitForDeployment();
+
+    addresses.proxy.inputAndProofFormat = await inputAndProofFormat.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8")); // for next steps
   return "done";
 }
 

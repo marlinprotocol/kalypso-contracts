@@ -16,20 +16,7 @@ async function main(): Promise<string> {
     throw new Error("Atleast 6 signers are required for deployment");
   }
 
-  const configPath = `./config/${chainId}.json`;
-  const configurationExists = checkFileExists(configPath);
-
-  if (!configurationExists) {
-    throw new Error(`Config doesn't exists for chainId: ${chainId}`);
-  }
-
-  const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   let admin = signers[0];
-  let tokenHolder = signers[1];
-  let treasury = signers[2];
-  let marketCreator = signers[3];
-  let generator = signers[4];
-  let matchingEngine = signers[5];
   let prover = signers[6];
 
   const path = `./addresses/${chainId}.json`;

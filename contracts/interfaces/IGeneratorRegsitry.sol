@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 interface IGeneratorRegistry {
     event RegisteredGenerator(address indexed generator, bytes32 indexed marketId);
     event DeregisteredGenerator(address indexed generator, bytes32 indexed marketId);
-    event AddExtraStash(address indexed generator, uint256 amount);
+    event AddExtraStash(address indexed generator, bytes32 indexed marketId, uint256 amount);
 
     function register(Generator calldata generator, bytes32 marketId) external;
 

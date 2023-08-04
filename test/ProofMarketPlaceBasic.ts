@@ -231,6 +231,29 @@ describe("Proof market place", () => {
           .withArgs(await generator.getAddress(), marketId);
       });
 
+      it("extra stash can be added to generator by anyone", async () => {
+        await generatorRegistry.connect(generator).register(
+          {
+            rewardAddress: await generator.getAddress(),
+            generatorData,
+            amountLocked: 0,
+            minReward: minRewardForGenerator.toFixed(),
+          },
+          marketId,
+        );
+
+        const extraStash = "112987298347983";
+        await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
+
+        await expect(
+          generatorRegistry.connect(tokenHolder).addStash(await generator.getAddress(), marketId, extraStash),
+        )
+          .to.emit(generatorRegistry, "AddExtraStash")
+          .withArgs(await generator.getAddress(), marketId, extraStash)
+          .to.emit(mockToken, "Transfer")
+          .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
+      });
+
       describe("Task", () => {
         let proverBytes: string;
         let latestBlock: number;

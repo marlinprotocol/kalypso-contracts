@@ -159,7 +159,7 @@ contract GeneratorRegistry is
             return;
         }
 
-        require(state != GeneratorState.WIP && state != GeneratorState.REQUESTED_FOR_EXIT, Error.HAS_A_PENDING_WORK); //i.e generator is in joined state
+        require(state != GeneratorState.REQUESTED_FOR_EXIT, Error.HAS_A_PENDING_WORK); //i.e generator is in joined state
 
         stakingToken.safeTransfer(
             generatorWithState.generator.rewardAddress,
@@ -217,12 +217,12 @@ contract GeneratorRegistry is
     }
 
     function addStash(address _generator, bytes32 marketId, uint256 _amount) external {
-        stakingToken.safeTransferFrom(_msgSender(), address(this), _amount);
         GeneratorState state = getGeneratorState(_generator, marketId);
 
-        require(state == GeneratorState.JOINED || state == GeneratorState.JOINED, Error.INVALID_GENERATOR);
+        require(state == GeneratorState.JOINED, Error.INVALID_GENERATOR);
         generatorRegistry[_generator][marketId].generator.amountLocked += _amount;
 
-        emit AddExtraStash(_generator, _amount);
+        stakingToken.safeTransferFrom(_msgSender(), address(this), _amount);
+        emit AddExtraStash(_generator, marketId, _amount);
     }
 }
