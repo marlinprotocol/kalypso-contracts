@@ -29,4 +29,19 @@ contract plonk_verifier_wrapper is IVerifier {
 
         return iverifier.verify(_proof, _publicInputs);
     }
+
+    function encodeInputs(bytes32[] memory inputs) public pure returns (bytes memory) {
+        return abi.encode(inputs);
+    }
+
+    function encodeProof(bytes memory proof) public pure returns (bytes memory) {
+        return abi.encode(proof);
+    }
+
+    function encodeInputAndProofForVerification(
+        bytes32[] memory inputs,
+        bytes memory proof
+    ) public pure returns (bytes memory) {
+        return abi.encode(encodeInputs(inputs), encodeProof(proof));
+    }
 }

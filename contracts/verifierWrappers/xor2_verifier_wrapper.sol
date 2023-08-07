@@ -33,4 +33,21 @@ contract xor2_verifier_wrapper is IVerifier {
 
         return iverifier.verifyProof(a, b, c, input);
     }
+
+    function encodeInputs(uint[1] memory inputs) public pure returns (bytes memory) {
+        return abi.encode(inputs);
+    }
+
+    function encodeProof(uint[2] memory a, uint[2][2] memory b, uint[2] memory c) public pure returns (bytes memory) {
+        return abi.encode(a, b, c);
+    }
+
+    function encodeInputAndProofForVerification(
+        uint[1] memory inputs,
+        uint[2] memory a,
+        uint[2][2] memory b,
+        uint[2] memory c
+    ) public pure returns (bytes memory) {
+        return abi.encode(encodeInputs(inputs), encodeProof(a, b, c));
+    }
 }
