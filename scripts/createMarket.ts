@@ -4,8 +4,8 @@ import { checkFileExists, marketDataToBytes } from "../helpers";
 import {
   MockToken__factory,
   ProofMarketPlace__factory,
-  Xor2_verifier_wrapper__factory,
-  XorVerifier__factory,
+  Plonk_verifier_wrapper__factory,
+  UltraVerifier__factory,
 } from "../typechain-types";
 
 async function main(): Promise<string> {
@@ -48,27 +48,27 @@ async function main(): Promise<string> {
     throw new Error("Mock Token Is Not Deployed");
   }
 
-  if (!addresses.proxy.circomVerifierWrapper) {
-    const ciromVerifier = await new XorVerifier__factory(marketCreator).deploy();
-    await ciromVerifier.waitForDeployment();
+  if (!addresses.proxy.plonkVerifierWrapper) {
+    const plonk_vk = await new UltraVerifier__factory(marketCreator).deploy();
+    await plonk_vk.waitForDeployment();
 
-    const ciromVerifierWrapper = await new Xor2_verifier_wrapper__factory(marketCreator).deploy(
-      await ciromVerifier.getAddress(),
+    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(marketCreator).deploy(
+      await plonk_vk.getAddress(),
     );
-    await ciromVerifierWrapper.waitForDeployment();
+    await plonkVerifierWrapper.waitForDeployment();
 
-    addresses.proxy.circomVerifierWrapper = await ciromVerifierWrapper.getAddress();
+    addresses.proxy.plonkVerifierWrapper = await plonkVerifierWrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.circomMarketId) {
+  if (!addresses.plonkMarketId) {
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData = {
-      zkAppName: "circom verifier",
+      zkAppName: "plonk/noir verifier",
       proverCode: "url of the prover code",
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
@@ -76,13 +76,13 @@ async function main(): Promise<string> {
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const circomMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const plonkMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.circomVerifierWrapper);
+      .createMarketPlace(marketSetupBytes, addresses.proxy.plonkVerifierWrapper);
     await tx.wait();
-    addresses.circomMarketId = circomMarketId;
+    addresses.plonkMarketId = plonkMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
