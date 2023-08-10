@@ -18,7 +18,7 @@ contract plonk_verifier_wrapper is IVerifier {
         iverifier = _iverifier;
     }
 
-    function verify(bytes calldata encodedData) public view returns (bool) {
+    function verify(bytes calldata encodedData) public view override returns (bool) {
         bytes32[] memory _publicInputs;
         bytes memory _proof;
 
@@ -28,6 +28,11 @@ contract plonk_verifier_wrapper is IVerifier {
         (_proof) = abi.decode(encodedProofs, (bytes));
 
         return iverifier.verify(_proof, _publicInputs);
+    }
+
+    function verifyInputs(bytes calldata inputs) public pure override returns (bool) {
+        abi.decode(inputs, (bytes32[]));
+        return true;
     }
 
     function encodeInputs(bytes32[] memory inputs) public pure returns (bytes memory) {

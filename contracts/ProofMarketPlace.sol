@@ -167,6 +167,9 @@ contract ProofMarketPlace is
         require(marketmetadata[ask.marketId].length != 0, Error.DOES_NOT_EXISTS);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE);
 
+        IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
+        require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
+
         emit AskCreated(askCounter);
         askCounter++;
     }

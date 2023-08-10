@@ -26,4 +26,6 @@ library Error {
     string public constant INSUFFICIENT_REWARD = "15";
 
     string public constant SHOULD_BE_IN_EXPIRED_STATE = "16";
+
+    string public constant INVALID_INPUTS = "17";
 }

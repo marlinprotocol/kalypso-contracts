@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.9;
 
-interface IVerifier {
-    function verify(bytes calldata encodedPublicAndPrivateInputs) external view returns (bool);
+abstract contract IVerifier {
+    function verify(bytes calldata encodedPublicInputsAndProofs) external view virtual returns (bool);
+
+    function verifyInputs(bytes calldata inputs) external view virtual returns (bool);
 }

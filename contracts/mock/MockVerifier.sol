@@ -8,4 +8,8 @@ contract MockVerifier is IVerifier {
     function verify(bytes calldata) public pure override returns (bool) {
         return true;
     }
+
+    function verifyInputs(bytes calldata) public pure override returns (bool) {
+        return true;
+    }
 }

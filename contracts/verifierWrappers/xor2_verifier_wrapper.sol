@@ -20,7 +20,7 @@ contract xor2_verifier_wrapper is IVerifier {
         iverifier = _iverifier;
     }
 
-    function verify(bytes calldata encodedData) public view returns (bool) {
+    function verify(bytes calldata encodedData) public view override returns (bool) {
         uint[2] memory a;
         uint[2][2] memory b;
         uint[2] memory c;
@@ -32,6 +32,11 @@ contract xor2_verifier_wrapper is IVerifier {
         (a, b, c) = abi.decode(encodedProofs, (uint[2], uint[2][2], uint[2]));
 
         return iverifier.verifyProof(a, b, c, input);
+    }
+
+    function verifyInputs(bytes calldata inputs) public pure override returns (bool) {
+        abi.decode(inputs, (bytes32[]));
+        return true;
     }
 
     function encodeInputs(uint[1] memory inputs) public pure returns (bytes memory) {

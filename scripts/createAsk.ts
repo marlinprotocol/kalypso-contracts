@@ -68,7 +68,7 @@ async function main(): Promise<string> {
     );
 
     const tx = await proofMarketPlace.createAsk({
-      marketId: addresses.marketId,
+      marketId: addresses.plonkMarketId,
       proverData: inputBytes,
       reward,
       expiry: latestBlock + assignmentExpiry,

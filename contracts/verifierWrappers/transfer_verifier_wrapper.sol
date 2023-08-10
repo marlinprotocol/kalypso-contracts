@@ -18,7 +18,7 @@ contract transfer_verifier_wrapper is IVerifier {
         iverifier = _iverifier;
     }
 
-    function verify(bytes calldata encodedData) public view returns (bool) {
+    function verify(bytes calldata encodedData) public view override returns (bool) {
         uint256[5] memory input;
         uint256[8] memory p;
 
@@ -28,6 +28,11 @@ contract transfer_verifier_wrapper is IVerifier {
         (p) = abi.decode(encodedProofs, (uint256[8]));
 
         return iverifier.verifyProof(input, p);
+    }
+
+    function verifyInputs(bytes calldata inputs) public pure override returns (bool) {
+        abi.decode(inputs, (uint256[5]));
+        return true;
     }
 
     function encodeInputs(uint256[5] memory inputs) public pure returns (bytes memory) {
