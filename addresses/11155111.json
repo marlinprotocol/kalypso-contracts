@@ -1,19 +1,19 @@
 {
-    "proxy": {
-        "mockToken": "0x4935ea37F0ADd47B9567A36D0806a28459761b60",
-        "generatorRegistry": "0xFC02897B76538F2897e48146453027fFF8338BaA",
-        "proofMarketPlace": "0x56d030Fe5D75211DB0Ca84fcC1ee19615FA19105",
-        "transferVerifierWrapper": "0x39DD4dDD0e7756c8f54eB5e1339e02b16D89995D",
-        "priorityList": "0x879c498dA74f969112a4f290291A870C9e996730",
-        "inputAndProofFormat": "0xA0Fbd852C6226b3E97eA141c72713dCb851DaCdE",
-        "circomVerifierWrapper": "0x0ED9A004104346CBF8120aE5d911C0f4E52E1f15",
-        "plonkVerifierWrapper": "0x2e2CA5fF6feA2859a0Ba89C0e91b3071688df0f8"
-    },
-    "implementation": {
-        "generatorRegistry": "0x8147e610aF918807C393d865F3C26A6d3f41ddAE",
-        "proofMarketPlace": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806"
-    },
-    "marketId": "0xb839d5bc3d6a60bb59136cf24a77c2c39952ea51a65898a886b33bbe38d7d8a8",
-    "circomMarketId": "0x690f485be3e230c7dbe7a67593672c91152277b3484c2f96bcefe9606d5c77d9",
-    "plonkMarketId": "0xfbc2bb92a741de6f00a5a06821a4ddae09f4fe84f3c3c0c82e42930d5abf2db6"
+  "proxy": {
+    "mockToken": "0x4935ea37F0ADd47B9567A36D0806a28459761b60",
+    "generatorRegistry": "0xFC02897B76538F2897e48146453027fFF8338BaA",
+    "proofMarketPlace": "0x56d030Fe5D75211DB0Ca84fcC1ee19615FA19105",
+    "transferVerifierWrapper": "0x39DD4dDD0e7756c8f54eB5e1339e02b16D89995D",
+    "priorityList": "0x879c498dA74f969112a4f290291A870C9e996730",
+    "inputAndProofFormat": "0xA0Fbd852C6226b3E97eA141c72713dCb851DaCdE",
+    "circomVerifierWrapper": "0x0ED9A004104346CBF8120aE5d911C0f4E52E1f15",
+    "plonkVerifierWrapper": "0x2e2CA5fF6feA2859a0Ba89C0e91b3071688df0f8"
+  },
+  "implementation": {
+    "generatorRegistry": "0x8147e610aF918807C393d865F3C26A6d3f41ddAE",
+    "proofMarketPlace": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806"
+  },
+  "marketId": "0xb839d5bc3d6a60bb59136cf24a77c2c39952ea51a65898a886b33bbe38d7d8a8",
+  "circomMarketId": "0x690f485be3e230c7dbe7a67593672c91152277b3484c2f96bcefe9606d5c77d9",
+  "plonkMarketId": "0xfbc2bb92a741de6f00a5a06821a4ddae09f4fe84f3c3c0c82e42930d5abf2db6"
 }

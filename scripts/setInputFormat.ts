@@ -22,16 +22,16 @@ async function main(): Promise<any> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (addresses.marketId && addresses?.proxy?.inputAndProofFormat) {
+  if (addresses?.proxy?.inputAndProofFormat) {
     const inputAndProofFormat = InputAndProofFormatRegistry__factory.connect(
       addresses.proxy.inputAndProofFormat,
       admin,
     );
-    const marketId = addresses.circomMarketId;
-    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["uint[1]"]);
+    const marketId = addresses.plonkMarketId;
+    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["bytes32[]"]);
     await tx.wait();
 
-    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["uint[2]", "uint[2][2]", "uint[2]"]);
+    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["bytes"]);
     await tx.wait();
 
     const inputsArrayLength = await inputAndProofFormat.inputArrayLength(marketId);

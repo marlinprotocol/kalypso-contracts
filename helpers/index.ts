@@ -39,7 +39,7 @@ export function marketDataToBytes(marketData: MarketData): string {
 }
 
 export function hexStringToMarketData(hexString: string): MarketData {
-  let buffer = Buffer.from(hexString, "hex");
+  let buffer = Buffer.from(hexString.split("x")[1], "hex");
   const data = buffer.toString("utf-8");
 
   return JSON.parse(data) as MarketData;
