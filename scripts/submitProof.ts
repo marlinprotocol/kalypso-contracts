@@ -1,0 +1,70 @@
+import { ethers } from "hardhat";
+import * as fs from "fs";
+import { checkFileExists, marketDataToBytes } from "../helpers";
+import {
+  MockToken__factory,
+  ProofMarketPlace__factory,
+  Plonk_verifier_wrapper__factory,
+  UltraVerifier__factory,
+} from "../typechain-types";
+
+async function main(): Promise<string> {
+  const chainId = (await ethers.provider.getNetwork()).chainId.toString();
+  console.log("deploying on chain id:", chainId);
+
+  const signers = await ethers.getSigners();
+  console.log("available signers", signers.length);
+
+  if (signers.length < 6) {
+    throw new Error("Atleast 6 signers are required for deployment");
+  }
+
+  const configPath = `./config/${chainId}.json`;
+  const configurationExists = checkFileExists(configPath);
+
+  if (!configurationExists) {
+    throw new Error(`Config doesn't exists for chainId: ${chainId}`);
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  const tokenHolder = signers[1];
+
+  const path = `./addresses/${chainId}.json`;
+  const addressesExists = checkFileExists(path);
+
+  if (!addressesExists) {
+    throw new Error(`Address file doesn't exists for ChainId: ${chainId}`);
+  }
+
+  let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+
+  if (!addresses?.proxy?.proofMarketPlace) {
+    throw new Error("Proof Market Place Is Not Deployed");
+  }
+  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, tokenHolder);
+
+  const taskId = 161;
+
+  const taskDetails = await proofMarketPlace.connect(tokenHolder).listOfTask(161);
+  console.log(taskDetails);
+  const askId = taskDetails.askId;
+
+  const askDetails = await proofMarketPlace.connect(tokenHolder).listOfAsk(askId);
+  console.log(askDetails);
+
+  const askState = await proofMarketPlace.connect(tokenHolder).getAskState(askId);
+  console.log({ askState });
+
+  let abiCoder = new ethers.AbiCoder();
+
+  const plonkProof =
+    "0x1084c0ed33c69921b728b2fb6ad5dd52aca284ea319b98bd42aa4d3fd367c4a30d7896f7bb51e80c7214f9ccc884cfcb2af763d50d521d925b4ab63bfb239c0b09bde213b0c748fec692ac96779f5ec7d0d741a6d541bd7e2b3b00d7a1006480302c1b6e5b8cdc8823753c53a90af4dd6b5fc22f98189a9832c90a9ef4af8e44202002e80b9272b3c9890515fb8ec6ec9246e9625451c23ef023a2a70105b7f005e75511ea8d6adc91b610eb9ab7d7b69e69ae9039541a118d9ac68b9514c8ea2cdfcdb94cd9d68a6a9536af610f6553803d6453d4b14abc93507dd58ffbfd452626c76443177258eb1012910ac0e35cf3a42d5d26d13d0f372470dc14fa7dc42149a3b5293f570cf29b890569657cf3ad7c44458fec6a1429eff63f0814bc86128ffe25d0a79b1e00c1187e746f6019df462340b2348d793d34b1d96fb8e2e30f81f64ca3ddc4f7edf9cf199e05d72f35c739b2a272f547733f7f2a05d126ff14f39438c4a166799664b3e9a239845f7d8bcf3f7ade31de60a1fcb008e4aa7d0d251da3137fb66dbb167f56cc32ffb510f13dc8a73bddd69b04dd6f48f210f40bf2827b276b4a636bc16bc31d718c6e11ac08c3468da90c3b96db6cb3f7c27b2cc034a6464e492e46f32c6f62d3cc9ce49492bd02cb7f0d6f528d8799aa4e0614fa11870fc8ba9254fa25e1102f29a26f7f12d6330f9ca6bec1ababd211ef6e1b390827e78d4074f8a1bf324580723bc355e6c806f0a2c19fd122a9d742edd609b8bba5c0cade1957a82d93c6dbe9853d2e1695276348270e2a6d083ed3f60f02cda9c58a2740a36ae14cba5960153f5cecd81cb69b46b784ec5febff88c9c816a22056134cddffe05be5aadc3bfd1863e6c667cef82190311bda856e0424ca2b2efe80c24581f7a040bcb9484f73a93cd9f7eb8d954a8ce78afd786dd810d61e08118051afbad30b6d1884137a60c52ddb842b3e40f462e975f5fc7ba1c641183125121b1af9e26c7447c5fcf02e38e1eab15e55ca70f32a683059242c24642e89432a69e8f7a5a856f780ecbc4771850d881f4e2aa91b22095fe1e3a08bea2863f487f513a73f937105c0d544c2af5d4ab4372bfc72c5345817985f8e9b8905beb1ed2965b160eebd384fcd4eca9aaa960805891de2cc7bcc160d35d50f512f349aceec0725e17b570ebdc45b711c63dbbb6ea50f8ad79f24477c0b453b9500516e32079a1d4988c9217e4d830105a0415630c18c97e6e4b4580e3ecfa2ae224c67e29c24e74b701cc12dc2842923108d5c35505e61a9d40487411f8d74af231a62385de3870a6cefe2c24ea743114341b3d5a84babb0c115c6374e7eeb560a7fb340e63b35dbfba453643ad54311b910e41277be050bd454ec3482d40698128cec383b0d274601b29f5e0cea0ea619e1a8b9460d7d77bb8acc561a2d850a176ace540961b86503c1201865233ad816600b116ae1fba1bd328491549d03172d7f7b18c88e16fa25173392c52be416e96b4ba80483c191f0e1646f0c9ac894272ff72bfaa7399998cc514996f6c60f711afe2eb9b2cf0c15bf64c3148a24ea2991b66e484600a81c85e1750a93bd0564881303ddf0bad8f445a903f30e81e70ee9910bd0f41424f78a895dfc1c391ab6d51c7105bdfb490a3b79667e5727410f9fc3559c30a73f2970d0c25ae888508d9a20ed3c13f585c8dfe1c867c0166e26de18594a8501036384952910584cf4af341a0b5c68982a8b9612aea50e51d0005864c98c6bc71146849e1b8fdb8ab1d269702e5e893aa16245173e95daab2b12bca18c2174a0e81f423870d492986d9da8921e7eaf8d33d404d7f32c7799b60de530a2ba0d00345236141272b7bc074bb99bdd77876b9845647fa84e2f4c122489b7f97d1237d007f090459b3d93b7f06d431a3c425297e12c9e11d28609422640f20c09d08d2c9b6cc67bad96f11eeb149bf6a699e5ffd5682e5ff99b91f90f8aaa74e996670c95e5755de1570102d5c047e9693379e8601e1fa09db107f123ce7837d00287363124856f2d9f57214c3e56aef8f00d0ce1693a6fd4adc11509602fe60e77c5006a23bc92f6ca1160a19e2afb375cef6dc91e7bd5c27ed27d0b5420c0f1ac971ebadf0abd8dafdbc25c6afa2b767a4134e4b1674ae9c7b7bc1e934160ddf93d10f99cee94040626dea7d2a8fe2deef33506ece6d1096d121f250c11aab89820f0265e0f8e639c3f88dbcdd435db17a5408d8281371a48a24c069ab06053881830bcd7d46980317cf35fa65998a5d88ba7524e80debc509b5b190235082c3a9ec44f2aa3f66bdefa1099ac1dc9602a89fd9ef45013efd7667a09910ec139ffadafea2bddf2b9d3f21ebe2a027313614a7fe372864fba4df8cf14e03f165c76031af6357292b21336ab64634c5ceeddcfa159a5da7b4b4fe6bb2d1cdca973b5ea53f13ca355445dd6e43486e3245fd09c0dade1c19bdef31a411997849f883d7e27ae26b4262d0311e4efbc31e800e2e0c28ebe1745aff3858a1f7a68062acc90a2dc89f031c48b1937270ce332159ca968f0055ad4b14e828b157e439c9c949384869c5c1b04b8fff62401cd130f54708f7a54495258e985e10cd68b47777b34d5e293484bd6b20f53e98a1e073b43ede68a670dc1799ef7bc1877b1bd84c017fb0ebc0234f819c491c831b23eb1bf353fa2b4589a117096fe2523fc18b55ff6503800c5ae59c7ae2d469c1fedb638fd6a2f995b150934ac1819fc8e3cdaca5b1e285367075ad258e713ae87f64ccde2eb2e490cc45321bdf91fdfc7c1702f5b04d51520868e8f2915a46a3927fc2381a370f55a149eb0eebf195f87793767acc3029f996edd39ad5fe66ab6423c573e621d919436273ed1e504f72a0d111998d3a4164717d376b69914a3d99e9be9ce679e5517438f37c11e12ecd883ff5368c051aaab420e52b0b1760758033e8296e82e999f979e6814370e004354969de57bd869184c251e57cbdde04d363fc45473e70a8be984f65829";
+  let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+  const tx = await proofMarketPlace.connect(tokenHolder).submitProof(taskId, proofBytes);
+  const receipt = await tx.wait();
+  console.log("receipt hash", receipt?.hash);
+
+  return `${receipt?.hash}`;
+}
+
+main().then(console.log).catch(console.log);
