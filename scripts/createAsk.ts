@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { checkFileExists } from "../helpers";
 import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -38,8 +38,8 @@ async function main(): Promise<string> {
   const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, prover);
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, prover);
 
-  if (!addresses.marketId) {
-    throw new Error("Market not created");
+  if (!addresses.plonkMarketId) {
+    throw new Error("plonkMarketId not created");
   }
 
   for (let index = 0; index < 20; index++) {
@@ -54,18 +54,7 @@ async function main(): Promise<string> {
 
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
-        [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
-        ],
-      ],
-    );
+    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
 
     const tx = await proofMarketPlace.createAsk({
       marketId: addresses.plonkMarketId,

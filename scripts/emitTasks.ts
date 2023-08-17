@@ -6,7 +6,8 @@ import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
 
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
+const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -41,7 +42,7 @@ async function main(): Promise<string> {
   let matchingEngine = signers[5];
   let prover = signers[6];
 
-  const eventsToEmit = 100;
+  const eventsToEmit = 5;
   for (let index = 0; index < eventsToEmit; index++) {
     const id = randomBytes(32).toString("hex");
     const privateKey = "0x" + id;
@@ -50,7 +51,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "1489249850000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "3995640715293152" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -78,25 +79,15 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.marketId,
+      addresses.plonkMarketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
-        [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
-        ],
-      ],
-    );
+    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
+
     const reward = "100000000000000000";
     tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
@@ -113,7 +104,7 @@ async function main(): Promise<string> {
 
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk({
-      marketId: addresses.marketId,
+      marketId: addresses.plonkMarketId,
       proverData: inputBytes,
       reward,
       expiry: latestBlock + assignmentExpiry,
@@ -123,8 +114,13 @@ async function main(): Promise<string> {
     });
     console.log("create new ask", (await tx.wait())?.hash);
 
+    const taskId = await proofMarketPlace.taskCounter();
     tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address);
     console.log("Created Task", (await tx.wait())?.hash, "index", index);
+
+    // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+    // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);
+    // console.log("Proof Submitted", (await tx.wait())?.hash, "index", index);
   }
   return "Emit Tasks";
 }
