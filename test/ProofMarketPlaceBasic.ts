@@ -11,6 +11,7 @@ import {
   MockToken__factory,
   MockVerifier,
   MockVerifier__factory,
+  PrivateInputRegistry__factory,
   ProofMarketPlace,
   ProofMarketPlace__factory,
 } from "../typechain-types";
@@ -174,6 +175,38 @@ describe("Proof market place", () => {
         .withArgs(await prover.getAddress(), await treasury.getAddress(), platformFee);
 
       expect((await proofMarketPlace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
+    });
+
+    it("Private Inputs can be added", async () => {
+      const latestBlock = await ethers.provider.getBlockNumber();
+
+      await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
+
+      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
+      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+        (proverBytes.length - 2) / 2,
+      );
+      await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+      await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+
+      const askIdToBeGenerated = await proofMarketPlace.askCounter();
+      await proofMarketPlace.connect(prover).createAsk({
+        marketId,
+        proverData: proverBytes,
+        reward: reward.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        proverRefundAddress: await prover.getAddress(),
+      });
+
+      const privateInputRegistry = await new PrivateInputRegistry__factory(admin).deploy(
+        await proofMarketPlace.getAddress(),
+      );
+      await expect(privateInputRegistry.connect(prover).addPrivateInputs(askIdToBeGenerated, "0x12341234")).to.emit(
+        privateInputRegistry,
+        "AddPrivateInputs",
+      );
     });
 
     it("Should Fail: when try creating market in invalid market", async () => {
