@@ -6,6 +6,7 @@ import {
   InputAndProofFormatRegistry__factory,
   MockToken__factory,
   PriorityLog__factory,
+  PrivateInputRegistry__factory,
   ProofMarketPlace__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
@@ -141,6 +142,15 @@ async function main(): Promise<string> {
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if(!addresses.proxy.privateInputRegistry) {
+    const privateInputRegistry = await new PrivateInputRegistry__factory(admin).deploy(addresses.proxy.proofMarketPlace);
+    await privateInputRegistry.waitForDeployment();
+
+    addresses.proxy.privateInputRegistry = await privateInputRegistry.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+  
   addresses = JSON.parse(fs.readFileSync(path, "utf-8")); // for next steps
   return "done";
 }
