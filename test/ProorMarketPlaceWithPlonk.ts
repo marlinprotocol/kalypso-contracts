@@ -139,7 +139,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       generator,
     );
 
-    console.log({ plonkProof });
+    // console.log({ plonkProof });
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")

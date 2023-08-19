@@ -143,14 +143,16 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if(!addresses.proxy.privateInputRegistry) {
-    const privateInputRegistry = await new PrivateInputRegistry__factory(admin).deploy(addresses.proxy.proofMarketPlace);
+  if (!addresses.proxy.privateInputRegistry) {
+    const privateInputRegistry = await new PrivateInputRegistry__factory(admin).deploy(
+      addresses.proxy.proofMarketPlace,
+    );
     await privateInputRegistry.waitForDeployment();
 
     addresses.proxy.privateInputRegistry = await privateInputRegistry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
-  
+
   addresses = JSON.parse(fs.readFileSync(path, "utf-8")); // for next steps
   return "done";
 }

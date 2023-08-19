@@ -46,16 +46,24 @@ export function hexStringToMarketData(hexString: string): MarketData {
 }
 
 export function generatorDataToBytes(generatorData: GeneratorData): string {
-  const data = JSON.stringify(generatorData);
-  let buffer = Buffer.from(data, "utf-8");
-  return "0x" + bytesToHexString(buffer);
+  return jsonToBytes(generatorData);
 }
 
 export function hexStringToGeneratorData(hexString: string): GeneratorData {
+  return hexStringToJson(hexString);
+}
+
+export function hexStringToJson<M>(hexString: string): M {
   let buffer = Buffer.from(hexString, "hex");
   const data = buffer.toString("utf-8");
 
-  return JSON.parse(data) as GeneratorData;
+  return JSON.parse(data) as M;
+}
+
+export function jsonToBytes<M>(json: M): string {
+  const data = JSON.stringify(json);
+  let buffer = Buffer.from(data, "utf-8");
+  return "0x" + bytesToHexString(buffer);
 }
 
 export * as setup from "./setup";
@@ -82,4 +90,49 @@ export function createFileIfNotExists(filePath: string): void {
   } else {
     console.log(`File already exists at path: ${filePath}`);
   }
+}
+
+export function splitHexString(hexString: string, n: number): string[] {
+  if (n <= 0) {
+    throw new Error("The value of n should be a positive integer.");
+  }
+
+  // Remove any "0x" prefix
+  const cleanHexString = hexString.startsWith("0x") ? hexString.slice(2) : hexString;
+
+  // Check if the hexString is valid
+  if (!/^([a-fA-F0-9]+)$/.test(cleanHexString)) {
+    throw new Error("Invalid hex string.");
+  }
+
+  const buffer = Buffer.from(cleanHexString, "hex");
+  const chunkSize = Math.ceil(buffer.length / n);
+
+  const chunks: string[] = [];
+  for (let i = 0; i < buffer.length; i += chunkSize) {
+    // Slice the buffer and convert it back to a hex string with "0x" prefix
+    chunks.push("0x" + buffer.slice(i, i + chunkSize).toString("hex"));
+  }
+
+  return chunks;
+}
+
+export function combineHexStrings(hexStrings: string[]): string {
+  // Convert each hex string in the array to a buffer
+  const buffers = hexStrings.map((hexString) => {
+    const cleanHexString = hexString.startsWith("0x") ? hexString.slice(2) : hexString;
+
+    // Check if each string in the array is a valid hex string
+    if (!/^([a-fA-F0-9]+)$/.test(cleanHexString)) {
+      throw new Error("Invalid hex string in the array.");
+    }
+
+    return Buffer.from(cleanHexString, "hex");
+  });
+
+  // Concatenate all the buffers
+  const combinedBuffer = Buffer.concat(buffers);
+
+  // Convert the buffer back to a hex string with "0x" prefix
+  return "0x" + combinedBuffer.toString("hex");
 }

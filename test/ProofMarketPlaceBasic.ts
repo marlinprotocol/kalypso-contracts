@@ -15,9 +15,10 @@ import {
   ProofMarketPlace,
   ProofMarketPlace__factory,
 } from "../typechain-types";
-import { bytesToHexString, generateRandomBytes } from "../helpers";
+import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
+import * as secret from "../data/transferVerifier/1/secret.json";
 
 describe("Proof market place", () => {
   let signers: Signer[];
@@ -203,10 +204,17 @@ describe("Proof market place", () => {
       const privateInputRegistry = await new PrivateInputRegistry__factory(admin).deploy(
         await proofMarketPlace.getAddress(),
       );
-      await expect(privateInputRegistry.connect(prover).addPrivateInputs(askIdToBeGenerated, "0x12341234")).to.emit(
-        privateInputRegistry,
-        "AddPrivateInputs",
-      );
+
+      const secretString = jsonToBytes(secret);
+      const splitStrings = splitHexString(secretString, 10);
+      console.log(splitStrings);
+      for (let index = 0; index < splitStrings.length; index++) {
+        const element = splitStrings[index];
+        await privateInputRegistry.connect(prover).addPrivateInputs(askIdToBeGenerated, element);
+      }
+      await privateInputRegistry.connect(prover).completeInputs(askIdToBeGenerated);
+      const length = await privateInputRegistry.privateInputLength(askIdToBeGenerated);
+      expect(length).to.eq(10);
     });
 
     it("Should Fail: when try creating market in invalid market", async () => {
