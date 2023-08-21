@@ -40,6 +40,7 @@ interface IProofMarketPlace {
     event GeneratorRegistryChanged(address indexed oldAddress, address indexed newAddress);
     event AskCreated(uint256 indexed askId);
     event TaskCreated(uint256 indexed askId, uint256 indexed taskId);
+    // TODO: add ask ID also
     event ProofCreated(uint256 indexed taskId);
     event ProofNotGenerated(uint256 indexed taskId);
 

@@ -27,11 +27,11 @@ async function main(): Promise<any> {
       addresses.proxy.inputAndProofFormat,
       admin,
     );
-    const marketId = addresses.plonkMarketId;
-    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["bytes32[]"]);
+    const marketId = addresses.marketId;
+    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["uint256[5]"]);
     await tx.wait();
 
-    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["bytes"]);
+    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["uint256[8]"]);
     await tx.wait();
 
     const inputsArrayLength = await inputAndProofFormat.inputArrayLength(marketId);
