@@ -207,7 +207,7 @@ describe("Proof market place", () => {
 
       const secretString = jsonToBytes(secret);
       const splitStrings = splitHexString(secretString, 10);
-      console.log(splitStrings);
+      // console.log(splitStrings);
       for (let index = 0; index < splitStrings.length; index++) {
         const element = splitStrings[index];
         await privateInputRegistry.connect(prover).addPrivateInputs(askIdToBeGenerated, element);
