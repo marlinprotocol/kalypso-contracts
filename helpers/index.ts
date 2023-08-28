@@ -136,3 +136,24 @@ export function combineHexStrings(hexStrings: string[]): string {
   // Convert the buffer back to a hex string with "0x" prefix
   return "0x" + combinedBuffer.toString("hex");
 }
+
+// TODO: if possible find inbuilt functions for this
+export function utf8ToHex(str: string): string {
+  let hex = "";
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    const n = code.toString(16);
+    hex += n.length < 2 ? "0" + n : n;
+  }
+  return hex;
+}
+
+// TODO: if possible find inbuilt functions for this
+export function hexToUtf8(hex: string): string {
+  let str = "";
+  for (let i = 0; i < hex.length; i += 2) {
+    const code = parseInt(hex.substr(i, 2), 16);
+    str += String.fromCharCode(code);
+  }
+  return str;
+}

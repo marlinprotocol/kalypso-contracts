@@ -162,13 +162,7 @@
           },
           "t_enum(GeneratorState)5757": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -509,14 +503,7 @@
           },
           "t_enum(AskState)5051": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -833,13 +820,7 @@
           },
           "t_enum(GeneratorState)5774": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1140,14 +1121,7 @@
           },
           "t_enum(AskState)5801": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
