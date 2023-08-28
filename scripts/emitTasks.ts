@@ -8,12 +8,7 @@ import {
   jsonToBytes,
   splitHexString,
 } from "../helpers";
-import {
-  GeneratorRegistry__factory,
-  MockToken__factory,
-  ProofMarketPlace__factory,
-  PrivateInputRegistry__factory,
-} from "../typechain-types";
+import { GeneratorRegistry__factory, MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
@@ -118,32 +113,27 @@ async function main(): Promise<string> {
     const maxTimeForProofGeneration = 10000000;
 
     const askId = await proofMarketPlace.askCounter();
-    tx = await proofMarketPlace.connect(prover).createAsk({
-      marketId: addresses.marketId,
-      proverData: inputBytes,
-      reward,
-      expiry: latestBlock + assignmentExpiry,
-      timeTakenForProofGeneration,
-      deadline: latestBlock + maxTimeForProofGeneration,
-      proverRefundAddress: await prover.getAddress(),
-    });
+    tx = await proofMarketPlace.connect(prover).createAsk(
+      {
+        marketId: addresses.marketId,
+        proverData: inputBytes,
+        reward,
+        expiry: latestBlock + assignmentExpiry,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      false,
+      0,
+      "0x",
+      "0x",
+    );
     console.log(`create new ask ID: ${askId}`, (await tx.wait())?.hash);
 
-    const privateInputRegistry = PrivateInputRegistry__factory.connect(addresses.proxy.privateInputRegistry, prover);
-
     const secretString = jsonToBytes(secret);
-    const splitSecrets = splitHexString(secretString, 2);
-
-    for (let index = 0; index < splitSecrets.length; index++) {
-      const element = splitSecrets[index];
-      tx = await privateInputRegistry.addPrivateInputs(askId, element);
-      console.log(`create private inputs ${askId}`, (await tx.wait())?.hash, `secret part ${index}`);
-    }
-    tx = await privateInputRegistry.completeInputs(askId);
-    console.log(`complete private input for ask id ${askId}`, (await tx.wait())?.hash);
 
     const taskId = await proofMarketPlace.taskCounter();
-    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address);
+    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, "0x");
     console.log(`Created Task taskId ${taskId}`, (await tx.wait())?.hash);
 
     // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);

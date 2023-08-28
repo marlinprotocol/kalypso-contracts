@@ -56,15 +56,21 @@ async function main(): Promise<string> {
 
     let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
 
-    const tx = await proofMarketPlace.createAsk({
-      marketId: addresses.plonkMarketId,
-      proverData: inputBytes,
-      reward,
-      expiry: latestBlock + assignmentExpiry,
-      timeTakenForProofGeneration,
-      deadline: latestBlock + maxTimeForProofGeneration,
-      proverRefundAddress: await prover.getAddress(),
-    });
+    const tx = await proofMarketPlace.createAsk(
+      {
+        marketId: addresses.plonkMarketId,
+        proverData: inputBytes,
+        reward,
+        expiry: latestBlock + assignmentExpiry,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      false,
+      0,
+      "0x",
+      "0x",
+    );
 
     const receipt = await tx.wait();
     console.log("ask number", index, receipt?.hash);

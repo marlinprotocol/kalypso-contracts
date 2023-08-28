@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { checkFileExists, marketDataToBytes } from "../helpers";
 import { ProofMarketPlace__factory } from "../typechain-types";
 
-import * as proof from "../data/transferVerifier/1/proof.json";
+import * as proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();

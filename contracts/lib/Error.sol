@@ -32,4 +32,6 @@ library Error {
     string public constant SHOULD_BE_CREATED = "18";
 
     string public constant INVAlID_SENDER = "19";
+
+    string public constant ALREADY_COMPLETE = "20";
 }

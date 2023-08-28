@@ -1,10 +1,5 @@
 import { ethers } from "hardhat";
-import {
-  GeneratorRegistry__factory,
-  MockToken__factory,
-  ProofMarketPlace__factory,
-  PrivateInputRegistry__factory,
-} from "../typechain-types";
+import { ProofMarketPlace__factory } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
@@ -42,7 +37,7 @@ async function main(): Promise<string> {
 
   const askId = 604;
   const generator = "0x027828B38F8d97Bc85243a50501F10dA721d2Fe0";
-  const tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId, generator);
+  const tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId, generator, "0x");
   console.log("assignment transaction", (await tx.wait())?.hash);
   return "Done";
 }
