@@ -42,7 +42,7 @@ async function main(): Promise<string> {
   let matchingEngine = signers[5];
   let prover = signers[6];
 
-  const eventsToEmit = 5;
+  const eventsToEmit = 1;
   for (let index = 0; index < eventsToEmit; index++) {
     const id = randomBytes(32).toString("hex");
     const privateKey = "0x" + id;
@@ -51,7 +51,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "3995640715293152" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "15005640715293152" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
