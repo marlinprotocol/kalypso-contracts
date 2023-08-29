@@ -1,13 +1,20 @@
 import { ethers } from "hardhat";
 import { randomBytes } from "crypto";
-import { bytesToHexString, checkFileExists, generateRandomBytes, generatorDataToBytes } from "../helpers";
+import {
+  bytesToHexString,
+  checkFileExists,
+  generateRandomBytes,
+  generatorDataToBytes,
+  jsonToBytes,
+  splitHexString,
+} from "../helpers";
 import { GeneratorRegistry__factory, MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
 
-import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
-const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
+import * as input from "../data/transferVerifier/1/public.json";
+import * as secret from "../data/transferVerifier/1/secret.json";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -51,7 +58,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "15005640715293152" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "6995640715293152" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -79,16 +86,19 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.plonkMarketId,
+      addresses.marketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
+    );
 
-    const reward = "100000000000000000";
+    const reward = "1000001";
     tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
@@ -103,20 +113,28 @@ async function main(): Promise<string> {
     const maxTimeForProofGeneration = 10000000;
 
     const askId = await proofMarketPlace.askCounter();
-    tx = await proofMarketPlace.connect(prover).createAsk({
-      marketId: addresses.plonkMarketId,
-      proverData: inputBytes,
-      reward,
-      expiry: latestBlock + assignmentExpiry,
-      timeTakenForProofGeneration,
-      deadline: latestBlock + maxTimeForProofGeneration,
-      proverRefundAddress: await prover.getAddress(),
-    });
-    console.log("create new ask", (await tx.wait())?.hash);
+    tx = await proofMarketPlace.connect(prover).createAsk(
+      {
+        marketId: addresses.marketId,
+        proverData: inputBytes,
+        reward,
+        expiry: latestBlock + assignmentExpiry,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      false,
+      0,
+      "0x",
+      "0x",
+    );
+    console.log(`create new ask ID: ${askId}`, (await tx.wait())?.hash);
+
+    const secretString = jsonToBytes(secret);
 
     const taskId = await proofMarketPlace.taskCounter();
-    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address);
-    console.log("Created Task", (await tx.wait())?.hash, "index", index);
+    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, "0x");
+    console.log(`Created Task taskId ${taskId}`, (await tx.wait())?.hash);
 
     // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);

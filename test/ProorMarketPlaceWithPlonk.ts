@@ -127,7 +127,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
         expiry: assignmentExpiry + latestBlock,
         timeTakenForProofGeneration,
         deadline: latestBlock + maxTimeForProofGeneration,
-        proverRefundAddress: await prover.getAddress(),
+        refundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
     );
@@ -139,10 +139,10 @@ describe("Proof Market Place for Plonk Verifier", () => {
       generator,
     );
 
-    console.log({ plonkProof });
+    // console.log({ plonkProof });
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(taskId);
+      .withArgs(askId, taskId);
   });
 });

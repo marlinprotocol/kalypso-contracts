@@ -80,14 +80,19 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable marketCreationCost;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address immutable treasury;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IGeneratorRegistry public immutable generatorRegistry;
+
     uint256 public constant costPerInputBytes = 10e15;
+
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    address public treasury;
-
     mapping(bytes32 => bytes) public marketmetadata;
-    mapping(bytes32 => address) public verifier; // verifier address for the market place
+    mapping(bytes32 => address) public override verifier; // verifier address for the market place
 
     uint256 public askCounter;
     mapping(uint256 => AskWithState) public listOfAsk;
@@ -95,23 +100,26 @@ contract ProofMarketPlace is
     uint256 public taskCounter;
     mapping(uint256 => Task) public listOfTask;
 
-    IGeneratorRegistry public generatorRegistry;
-
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _paymentToken, IERC20Upgradeable _platformToken, uint256 _marketCreationCost) {
+    constructor(
+        IERC20Upgradeable _paymentToken,
+        IERC20Upgradeable _platformToken,
+        uint256 _marketCreationCost,
+        address _treasury,
+        IGeneratorRegistry _generatorRegistry
+    ) {
         paymentToken = _paymentToken;
         platformToken = _platformToken;
         marketCreationCost = _marketCreationCost;
-    }
-
-    function initialize(address _admin, address _treasury, IGeneratorRegistry _generatorRegistry) public initializer {
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-        _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
-
         treasury = _treasury;
         generatorRegistry = _generatorRegistry;
+    }
+
+    function initialize(address _admin) public initializer {
+        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
     modifier onlyAdmin() {
@@ -126,12 +134,12 @@ contract ProofMarketPlace is
     //     emit TreasuryAddressChanged(_oldAddress, _newAddress);
     // }
 
-    function changeGeneratorRegsitry(address _newAddress) public onlyRole(UPDATER_ROLE) {
-        require(_newAddress != address(generatorRegistry), Error.ALREADY_EXISTS);
-        IGeneratorRegistry _oldAddress = generatorRegistry;
-        generatorRegistry = IGeneratorRegistry(_newAddress);
-        emit GeneratorRegistryChanged(address(_oldAddress), _newAddress);
-    }
+    // function changeGeneratorRegsitry(address _newAddress) public onlyRole(UPDATER_ROLE) {
+    //     require(_newAddress != address(generatorRegistry), Error.ALREADY_EXISTS);
+    //     IGeneratorRegistry _oldAddress = generatorRegistry;
+    //     generatorRegistry = IGeneratorRegistry(_newAddress);
+    //     emit GeneratorRegistryChanged(address(_oldAddress), _newAddress);
+    // }
 
     /// TODO: Confirm with V and K
     /// inside marketmetadata store the following
@@ -150,11 +158,13 @@ contract ProofMarketPlace is
         emit MarketPlaceCreated(marketId);
     }
 
-    function getMarketVerifier(bytes32 marketId) public view returns (address) {
-        return verifier[marketId];
-    }
-
-    function createAsk(Ask calldata ask) external override {
+    function createAsk(
+        Ask calldata ask,
+        bool hasPrivateInputs,
+        SecretType,
+        bytes calldata,
+        bytes calldata
+    ) external override {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -165,12 +175,12 @@ contract ProofMarketPlace is
         platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
 
         require(marketmetadata[ask.marketId].length != 0, Error.DOES_NOT_EXISTS);
-        listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE);
+        listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, _msgSender);
 
         IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        emit AskCreated(askCounter);
+        emit AskCreated(askCounter, hasPrivateInputs);
         askCounter++;
     }
 
@@ -180,7 +190,7 @@ contract ProofMarketPlace is
 
         if (askWithState.state == AskState.CREATE) {
             if (askWithState.ask.expiry > block.number) {
-                return AskState.CREATE;
+                return askWithState.state;
             }
 
             return AskState.UNASSIGNED;
@@ -198,7 +208,7 @@ contract ProofMarketPlace is
     }
 
     // Todo: Optimise the function
-    function assignTask(uint256 askId, address generator) external onlyRole(MATCHING_ENGINE_ROLE) {
+    function assignTask(uint256 askId, address generator, bytes calldata) external onlyRole(MATCHING_ENGINE_ROLE) {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
@@ -224,7 +234,7 @@ contract ProofMarketPlace is
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        paymentToken.safeTransfer(askWithState.ask.proverRefundAddress, askWithState.ask.reward);
+        paymentToken.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
     }
@@ -254,11 +264,11 @@ contract ProofMarketPlace is
         paymentToken.safeTransfer(generatorRewardAddress, minRewardForGenerator);
 
         if (toBackToProver != 0) {
-            paymentToken.safeTransfer(askWithState.ask.proverRefundAddress, toBackToProver);
+            paymentToken.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
         }
 
         generatorRegistry.completeGeneratorTask(task.generator, marketId);
-        emit ProofCreated(taskId);
+        emit ProofCreated(task.askId, taskId);
     }
 
     function slashGenerator(uint256 taskId, address rewardAddress) external returns (uint256) {
@@ -268,7 +278,7 @@ contract ProofMarketPlace is
         listOfAsk[task.askId].state = AskState.COMPLETE;
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
 
-        emit ProofNotGenerated(taskId);
+        emit ProofNotGenerated(task.askId, taskId);
         return generatorRegistry.slashGenerator(task.generator, marketId, rewardAddress);
     }
 }

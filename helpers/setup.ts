@@ -32,7 +32,7 @@ export const createTask = async (
   const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), await generator.getAddress());
+    .assignTask(askId.toString(), await generator.getAddress(), "0x");
 
   return taskId;
 };
@@ -60,7 +60,7 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), platformFee.toFixed());
 
   const askId = await setupTemplate.proofMarketPlace.askCounter();
-  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask);
+  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
 
   return askId.toString();
 };
@@ -104,14 +104,16 @@ export const rawSetup = async (
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
 
   const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-  const proxy = await upgrades.deployProxy(
-    ProofMarketPlace,
-    [await admin.getAddress(), treasury, await generatorRegistry.getAddress()],
-    {
-      kind: "uups",
-      constructorArgs: [await mockToken.getAddress(), await platformToken.getAddress(), marketCreationCost.toFixed()],
-    },
-  );
+  const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+    kind: "uups",
+    constructorArgs: [
+      await mockToken.getAddress(),
+      await platformToken.getAddress(),
+      marketCreationCost.toFixed(),
+      treasury,
+      await generatorRegistry.getAddress(),
+    ],
+  });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());

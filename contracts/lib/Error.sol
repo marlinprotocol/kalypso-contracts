@@ -28,4 +28,10 @@ library Error {
     string public constant SHOULD_BE_IN_EXPIRED_STATE = "16";
 
     string public constant INVALID_INPUTS = "17";
+
+    string public constant SHOULD_BE_CREATED = "18";
+
+    string public constant INVAlID_SENDER = "19";
+
+    string public constant ALREADY_COMPLETE = "20";
 }
