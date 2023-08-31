@@ -72,7 +72,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "699564071529315" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "1000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -186,17 +186,20 @@ async function main(): Promise<string> {
       matching_engine_privatekey,
       secret_operations.hexToBase64(aclData.split("x")[1]),
     );
-    const new_acl_hex = "0x" + secret_operations.encryptRSA(generator_publickey, cipher);
+    const new_acl_hex =
+      "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
 
     const taskId = await proofMarketPlace.taskCounter();
     tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, new_acl_hex);
-    console.log(`Created Task taskId ${taskId}`, (await tx.wait())?.hash);
+    const assignTxHash = (await tx.wait())?.hash;
+    console.log(`Created Task taskId ${taskId}`, assignTxHash);
 
+    const assignTransaction = await admin.provider.getTransaction(assignTxHash as string);
     const generatorDecodedData = proofMarketPlace.interface.decodeFunctionData(
       "assignTask",
-      transaction?.data as BytesLike,
+      assignTransaction?.data as BytesLike,
     );
-    const generator_acl = generatorDecodedData[decodedData.length - 1];
+    const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
 
     const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
       secretData.split("x")[1],
@@ -205,7 +208,7 @@ async function main(): Promise<string> {
     );
 
     console.log("************** data seen by generator (start) *************");
-    console.log(decryptedDataForGenerator);
+    console.log(JSON.parse(decryptedDataForGenerator));
     console.log("************** data seen by generator (end) *************");
     // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);
