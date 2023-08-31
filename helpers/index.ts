@@ -1,6 +1,8 @@
 import { randomBytes } from "crypto";
 import * as fs from "fs";
 
+export * as secret_operations from "./secretInputOperation";
+
 export function generateRandomBytes(length: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     randomBytes(length, (err, buf) => {
