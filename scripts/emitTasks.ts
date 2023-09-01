@@ -106,7 +106,7 @@ async function main(): Promise<string> {
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
     const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, wallet);
-    const rsaPubBytes = utf8ToHex(matching_engine_publicKey);
+    const rsaPubBytes = utf8ToHex(generator_publickey);
     tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
     console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
 
