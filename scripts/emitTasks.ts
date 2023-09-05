@@ -22,7 +22,6 @@ import * as fs from "fs";
 
 import * as input from "../data/transferVerifier/1/public.json";
 import * as secret from "../data/transferVerifier/1/secret.json";
-import { BytesLike } from "ethers";
 
 const matching_engine_publicKey = fs.readFileSync("./data/matching_engine/public_key_2048.pem", "utf-8");
 const matching_engine_privatekey = fs.readFileSync("./data/matching_engine/private_key_2048.pem", "utf-8");
@@ -72,7 +71,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "1000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "5000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -110,6 +109,8 @@ async function main(): Promise<string> {
     tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
     console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
 
+    const contractBytes = await rsaRegistry.rsa_pub_key(wallet.address);
+    console.log("Bytes from contract", contractBytes);
     let abiCoder = new ethers.AbiCoder();
 
     let inputBytes = abiCoder.encode(
@@ -117,7 +118,7 @@ async function main(): Promise<string> {
       [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
     );
 
-    const reward = "1000001";
+    const reward = "1200431";
     tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
@@ -132,7 +133,7 @@ async function main(): Promise<string> {
 
     const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
     tx = await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-    console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
+    console.log("send platform tokens to prover", (await tx.wait())?.hash);
 
     tx = await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
     console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
@@ -166,53 +167,53 @@ async function main(): Promise<string> {
     const transactionhash = (await tx.wait())?.hash as string;
     console.log(`create new ask ID: ${askId}`, transactionhash);
 
-    const transaction = await admin.provider.getTransaction(transactionhash);
-    const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
+    // const transaction = await admin.provider.getTransaction(transactionhash);
+    // const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
 
-    const secretData = decodedData[decodedData.length - 2];
-    const aclData = decodedData[decodedData.length - 1];
+    // const secretData = decodedData[decodedData.length - 2];
+    // const aclData = decodedData[decodedData.length - 1];
 
-    const decryptedData = await secret_operations.decryptDataWithRSAandAES(
-      secretData.split("x")[1],
-      secret_operations.hexToBase64(aclData.split("x")[1]),
-      matching_engine_privatekey,
-    );
+    // const decryptedData = await secret_operations.decryptDataWithRSAandAES(
+    //   secretData.split("x")[1],
+    //   secret_operations.hexToBase64(aclData.split("x")[1]),
+    //   matching_engine_privatekey,
+    // );
 
-    console.log("************** data seen by matching engine (start) *************");
-    console.log(JSON.parse(decryptedData));
-    console.log("************** data seen by matching engine (end) *************");
+    // console.log("************** data seen by matching engine (start) *************");
+    // console.log(JSON.parse(decryptedData));
+    // console.log("************** data seen by matching engine (end) *************");
 
-    const cipher = await secret_operations.decryptRSA(
-      matching_engine_privatekey,
-      secret_operations.hexToBase64(aclData.split("x")[1]),
-    );
-    const new_acl_hex =
-      "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
+    // const cipher = await secret_operations.decryptRSA(
+    //   matching_engine_privatekey,
+    //   secret_operations.hexToBase64(aclData.split("x")[1]),
+    // );
+    // const new_acl_hex =
+    //   "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
 
-    const taskId = await proofMarketPlace.taskCounter();
-    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, new_acl_hex);
-    const assignTxHash = (await tx.wait())?.hash;
-    console.log(`Created Task taskId ${taskId}`, assignTxHash);
+    // const taskId = await proofMarketPlace.taskCounter();
+    // tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, new_acl_hex);
+    // const assignTxHash = (await tx.wait())?.hash;
+    // console.log(`Created Task taskId ${taskId}`, assignTxHash);
 
-    const assignTransaction = await admin.provider.getTransaction(assignTxHash as string);
-    const generatorDecodedData = proofMarketPlace.interface.decodeFunctionData(
-      "assignTask",
-      assignTransaction?.data as BytesLike,
-    );
-    const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
+    // const assignTransaction = await admin.provider.getTransaction(assignTxHash as string);
+    // const generatorDecodedData = proofMarketPlace.interface.decodeFunctionData(
+    //   "assignTask",
+    //   assignTransaction?.data as BytesLike,
+    // );
+    // const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
 
-    const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
-      secretData.split("x")[1],
-      secret_operations.hexToBase64(generator_acl.split("x")[1]),
-      generator_privatekey,
-    );
+    // const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
+    //   secretData.split("x")[1],
+    //   secret_operations.hexToBase64(generator_acl.split("x")[1]),
+    //   generator_privatekey,
+    // );
 
-    console.log("************** data seen by generator (start) *************");
-    console.log(JSON.parse(decryptedDataForGenerator));
-    console.log("************** data seen by generator (end) *************");
-    // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
-    // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);
-    // console.log("Proof Submitted", (await tx.wait())?.hash, "index", index);
+    // console.log("************** data seen by generator (start) *************");
+    // console.log(JSON.parse(decryptedDataForGenerator));
+    // console.log("************** data seen by generator (end) *************");
+    // // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+    // // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);
+    // // console.log("Proof Submitted", (await tx.wait())?.hash, "index", index);
   }
   return "Emit Tasks";
 }
