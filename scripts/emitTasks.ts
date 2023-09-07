@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import { gzip } from "node-gzip";
 import { randomBytes } from "crypto";
 import {
   bytesToHexString,
@@ -146,6 +147,7 @@ async function main(): Promise<string> {
     const result = await secret_operations.encryptDataWithRSAandAES(secretString, matching_engine_publicKey);
     const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
     const encryptedSecretInputs = "0x" + result.encryptedData;
+    const secretCompressed = await gzip(encryptedSecretInputs);
 
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
@@ -160,7 +162,7 @@ async function main(): Promise<string> {
       },
       true,
       1,
-      encryptedSecretInputs,
+      secretCompressed,
       aclHex,
     );
     const transactionhash = (await tx.wait())?.hash as string;
