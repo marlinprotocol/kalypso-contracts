@@ -37,12 +37,12 @@ async function main(): Promise<string> {
   (await admin.sendTransaction({ to: transferTo, value: "10000000000000000" })).wait();
 
   const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "10000000000000000000");
+  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "123000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
   const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
-  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "10000000000000000000");
+  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "154000000000000000000");
   receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
