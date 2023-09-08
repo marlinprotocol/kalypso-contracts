@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { gzip } from "node-gzip";
+import { gzip, ungzip } from "node-gzip";
 import { randomBytes } from "crypto";
 import {
   bytesToHexString,
@@ -73,7 +73,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "1000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "6000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -148,6 +148,7 @@ async function main(): Promise<string> {
     const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
     const encryptedSecretInputs = "0x" + result.encryptedData;
     const secretCompressed = await gzip(encryptedSecretInputs);
+    console.log("Secret Compressed :", secretCompressed);
 
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
@@ -171,11 +172,14 @@ async function main(): Promise<string> {
     const transaction = await admin.provider.getTransaction(transactionhash);
     const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
 
-    const secretData = decodedData[decodedData.length - 2];
+    const secretDataComp = decodedData[decodedData.length - 2];
+    console.log("Secret data received :", secretDataComp);
+    const secretData = await ungzip(secretDataComp);
+    console.log("Secret data decompressed :", secretData);
     const aclData = decodedData[decodedData.length - 1];
 
     const decryptedData = await secret_operations.decryptDataWithRSAandAES(
-      secretData.split("x")[1],
+      secretData.toString().split("x")[1],
       secret_operations.hexToBase64(aclData.split("x")[1]),
       matching_engine_privatekey,
     );
@@ -204,7 +208,7 @@ async function main(): Promise<string> {
     const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
 
     const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
-      secretData.split("x")[1],
+      secretData.toString().split("x")[1],
       secret_operations.hexToBase64(generator_acl.split("x")[1]),
       generator_privatekey,
     );
