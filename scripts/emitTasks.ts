@@ -73,7 +73,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "5000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "50000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -101,7 +101,7 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.marketId,
+      addresses.zkbMarketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
@@ -111,8 +111,6 @@ async function main(): Promise<string> {
     tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
     console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
 
-    const contractBytes = await rsaRegistry.rsa_pub_key(wallet.address);
-    console.log("Bytes from contract", contractBytes);
     let abiCoder = new ethers.AbiCoder();
 
     let inputBytes = abiCoder.encode(
@@ -120,7 +118,7 @@ async function main(): Promise<string> {
       [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
     );
 
-    const reward = "1200431";
+    const reward = "1000001";
     tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
@@ -135,7 +133,7 @@ async function main(): Promise<string> {
 
     const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
     tx = await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-    console.log("send platform tokens to prover", (await tx.wait())?.hash);
+    console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
 
     tx = await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
     console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
@@ -153,7 +151,7 @@ async function main(): Promise<string> {
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,

@@ -50,10 +50,10 @@ async function main(): Promise<string> {
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData = {
-      zkAppName: "transfer verifier updated - 2",
-      proverCode: "url of the prover code",
-      verifierCode: "url of the verifier code",
-      proverOysterImage: "oyster image link for the prover",
+      zkAppName: "zkbob",
+      proverCode: "url of the zkbob prover code",
+      verifierCode: "url of the verifier zkbob code",
+      proverOysterImage: "oyster image link for the zkbob prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
     };
 
