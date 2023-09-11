@@ -21,7 +21,7 @@ async function main(): Promise<string> {
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0xCc9F0defA87Ecba1dFb6D7C9103F01fEAF547dba";
+  const transferTo = "0xFeA0C81B2835E15fD7d2f77D861afE22D3263C98";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -37,12 +37,12 @@ async function main(): Promise<string> {
   (await admin.sendTransaction({ to: transferTo, value: "10000000000000000" })).wait();
 
   const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "10000000000000000000");
+  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
   const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
-  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "10000000000000000000");
+  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

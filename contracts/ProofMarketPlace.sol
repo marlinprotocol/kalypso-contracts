@@ -204,7 +204,7 @@ contract ProofMarketPlace is
             return AskState.ASSIGNED;
         }
 
-        return AskState.NULL;
+        return askWithState.state;
     }
 
     // Todo: Optimise the function

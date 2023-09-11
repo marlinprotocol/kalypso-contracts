@@ -16,6 +16,7 @@ import {
   ProofMarketPlace__factory,
   RsaRegistry__factory,
 } from "../typechain-types";
+
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";

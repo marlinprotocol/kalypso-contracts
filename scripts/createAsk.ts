@@ -1,18 +1,17 @@
 import { ethers } from "hardhat";
-import * as fs from "fs";
 import { checkFileExists, secret_operations } from "../helpers";
 import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
+import BigNumber from "bignumber.js";
+
+import * as fs from "fs";
 
 import * as input from "../data/transferVerifier/1/public.json";
 import * as secret from "../data/transferVerifier/1/secret.json";
-import BigNumber from "bignumber.js";
 
 const matching_engine_publicKey = fs.readFileSync("./data/matching_engine/public_key_2048.pem", "utf-8");
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
-  console.log("transacting on chain id:", chainId);
-
   const signers = await ethers.getSigners();
   console.log("available signers", signers.length);
 
@@ -20,9 +19,11 @@ async function main(): Promise<string> {
     throw new Error("Atleast 6 signers are required for deployment");
   }
 
-  let admin = signers[0];
-  let tokenHolder = signers[1];
-  let prover = signers[6];
+  const configPath = `./config/${chainId}.json`;
+  const configurationExists = checkFileExists(configPath);
+  if (!configurationExists) {
+    throw new Error(`Config doesn't exists for chainId: ${chainId}`);
+  }
 
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
@@ -31,56 +32,45 @@ async function main(): Promise<string> {
     throw new Error(`Address file doesn't exists for ChainId: ${chainId}`);
   }
 
-  let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.mockToken) {
-    throw new Error("token contract not deployed");
-  }
+  const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses.proxy.proofMarketPlace) {
-    throw new Error("proofMarketPlace contract not deployed");
-  }
-  const reward = "1200431";
-  const runs = 20;
+  const admin = signers[0];
+  const tokenHolder = signers[1];
+  let prover = signers[6];
 
-  const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, prover);
-  const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
+  console.log("using token holder", await tokenHolder.getAddress());
+  console.log("using prover", await prover.getAddress());
+  const eventsToEmit = 20;
+  for (let index = 0; index < eventsToEmit; index++) {
+    const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
 
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, prover);
+    let abiCoder = new ethers.AbiCoder();
 
-  let abiCoder = new ethers.AbiCoder();
-  let inputBytes = abiCoder.encode(
-    ["uint256[5]"],
-    [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
-  );
-  const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-    (inputBytes.length - 2) / 2,
-  );
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
+    );
 
-  let tx = await platformToken
-    .connect(tokenHolder)
-    .transfer(await prover.getAddress(), platformFee.multipliedBy(runs).toFixed());
-  console.log("send platform tokens to prover", (await tx.wait())?.hash);
+    const reward = "1200431";
+    let tx = await mockToken.transfer(prover.address, reward);
+    console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
-  tx = await platformToken
-    .connect(prover)
-    .approve(await proofMarketPlace.getAddress(), platformFee.multipliedBy(runs).toFixed());
-  console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
+    tx = await mockToken.connect(prover).approve(addresses.proxy.proofMarketPlace, reward);
+    console.log("prover allowance to proof marketplace", (await tx.wait())?.hash);
 
-  tx = await mockToken
-    .connect(tokenHolder)
-    .transfer(prover.address, new BigNumber(reward).multipliedBy(runs).toFixed());
-  console.log("Send mock tokens to prover", (await tx.wait())?.hash);
+    const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, prover);
 
-  tx = await mockToken
-    .connect(prover)
-    .approve(addresses.proxy.proofMarketPlace, new BigNumber(reward).multipliedBy(runs).toFixed());
-  console.log("prover allowance to proof marketplace", (await tx.wait())?.hash);
+    const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+      (inputBytes.length - 2) / 2,
+    );
 
-  if (!addresses.marketId) {
-    throw new Error("marketId not created");
-  }
+    const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
+    tx = await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+    console.log("send platform tokens to prover", (await tx.wait())?.hash);
 
-  for (let index = 0; index < runs; index++) {
+    tx = await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+    console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
+
     const assignmentExpiry = 10000000;
     const latestBlock = await admin.provider.getBlockNumber();
     const timeTakenForProofGeneration = 10000000;
@@ -92,7 +82,7 @@ async function main(): Promise<string> {
     const encryptedSecretInputs = "0x" + result.encryptedData;
 
     const askId = await proofMarketPlace.askCounter();
-    const tx = await proofMarketPlace.connect(prover).createAsk(
+    tx = await proofMarketPlace.connect(prover).createAsk(
       {
         marketId: addresses.marketId,
         proverData: inputBytes,
@@ -109,10 +99,8 @@ async function main(): Promise<string> {
     );
     const transactionhash = (await tx.wait())?.hash as string;
     console.log(`create new ask ID: ${askId}`, transactionhash);
-    console.log("ask number", index, transactionhash);
   }
-
-  return `Done`;
+  return "Emit Tasks";
 }
 
 main().then(console.log).catch(console.log);
