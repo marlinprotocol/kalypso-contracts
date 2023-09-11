@@ -72,7 +72,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "10000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "50000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -106,7 +106,7 @@ async function main(): Promise<string> {
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
     const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, wallet);
-    const rsaPubBytes = utf8ToHex(matching_engine_publicKey);
+    const rsaPubBytes = utf8ToHex(generator_publickey);
     tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
     console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
 
