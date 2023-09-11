@@ -9,11 +9,13 @@
         "generatorRegistry": "0x8221f510a3dAa5FAd802b9485AaE5d86C94dC2e9",
         "proofMarketPlace": "0x57d8B74EB5c758C3D6809038E714A1c76c938076",
         "RsaRegistry": "0xf99c8cb69064497D38802f112e7865BD3F3dDB93",
-        "transferVerifierWrapper": "0x59f743EC629464824876117FaDb39B35A618D01B"
+        "transferVerifierWrapper": "0xD90a7bf5FB385A8Ae76CFFEeCDA71f8ceC3aC36B",
+        "zkbVerifierWrapper": "0x59f743EC629464824876117FaDb39B35A618D01B"
     },
     "implementation": {
         "generatorRegistry": "0x23fc59b6732448701F73D2bf222D62f036Af54Ac",
         "proofMarketPlace": "0x71121D08762a5157277A6A8039E9a3853735a10c"
     },
-    "marketId": "0x765c9c3e2c6866af029f0db0dffefa1ff536decd75866cb7c8c418943dfd7ad8"
+    "marketId": "0x027f76939e5bed90c45d0d1809796f033f6481011d554502d4c63f7878c9ee83",
+    "zkbMarketId": "0x765c9c3e2c6866af029f0db0dffefa1ff536decd75866cb7c8c418943dfd7ad8"
 }

@@ -101,7 +101,7 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.marketId,
+      addresses.zkbMarketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
@@ -151,7 +151,7 @@ async function main(): Promise<string> {
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,
