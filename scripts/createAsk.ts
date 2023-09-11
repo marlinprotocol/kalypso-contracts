@@ -1,12 +1,6 @@
 import { ethers } from "hardhat";
-import {
-  checkFileExists,
-  secret_operations,
-} from "../helpers";
-import {
-  MockToken__factory,
-  ProofMarketPlace__factory,
-} from "../typechain-types";
+import { checkFileExists, secret_operations } from "../helpers";
+import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
@@ -30,7 +24,6 @@ async function main(): Promise<string> {
   if (!configurationExists) {
     throw new Error(`Config doesn't exists for chainId: ${chainId}`);
   }
-  const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
@@ -45,7 +38,9 @@ async function main(): Promise<string> {
   const tokenHolder = signers[1];
   let prover = signers[6];
 
-  const eventsToEmit = 15;
+  console.log("using token holder", await tokenHolder.getAddress());
+  console.log("using prover", await prover.getAddress());
+  const eventsToEmit = 20;
   for (let index = 0; index < eventsToEmit; index++) {
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
 
