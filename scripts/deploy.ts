@@ -7,6 +7,7 @@ import {
   MockToken__factory,
   PriorityLog__factory,
   ProofMarketPlace__factory,
+  RsaRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
@@ -81,11 +82,16 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proofMarketPlace) {
     const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-    const proxy = await upgrades.deployProxy(
-      ProofMarketPlace,
-      [await admin.getAddress(), await treasury.getAddress(), addresses.proxy.generatorRegistry],
-      { kind: "uups", constructorArgs: [addresses.proxy.mockToken, config.marketCreationCost] },
-    );
+    const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+      kind: "uups",
+      constructorArgs: [
+        addresses.proxy.mockToken,
+        addresses.proxy.platformToken,
+        config.marketCreationCost,
+        await treasury.getAddress(),
+        addresses.proxy.generatorRegistry,
+      ],
+    });
     await proxy.waitForDeployment();
 
     addresses.proxy.proofMarketPlace = await proxy.getAddress();
@@ -138,6 +144,15 @@ async function main(): Promise<string> {
     await inputAndProofFormat.waitForDeployment();
 
     addresses.proxy.inputAndProofFormat = await inputAndProofFormat.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.RsaRegistry) {
+    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(addresses.proxy.proofMarketPlace);
+    await rsaRegistry.waitForDeployment();
+
+    addresses.proxy.RsaRegistry = await rsaRegistry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

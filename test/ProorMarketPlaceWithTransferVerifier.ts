@@ -137,7 +137,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
         expiry: assignmentExpiry + latestBlock,
         timeTakenForProofGeneration,
         deadline: latestBlock + maxTimeForProofGeneration,
-        proverRefundAddress: await prover.getAddress(),
+        refundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
     );
@@ -166,6 +166,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
     );
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(taskId);
+      .withArgs(askId, taskId);
   });
 });

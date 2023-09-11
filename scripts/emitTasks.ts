@@ -1,13 +1,35 @@
 import { ethers } from "hardhat";
 import { randomBytes } from "crypto";
-import { bytesToHexString, checkFileExists, generateRandomBytes, generatorDataToBytes } from "../helpers";
-import { GeneratorRegistry__factory, MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
+import {
+  bytesToHexString,
+  checkFileExists,
+  generateRandomBytes,
+  generatorDataToBytes,
+  jsonToBytes,
+  secret_operations,
+  splitHexString,
+  utf8ToHex,
+} from "../helpers";
+import {
+  GeneratorRegistry__factory,
+  MockToken__factory,
+  ProofMarketPlace__factory,
+  RsaRegistry__factory,
+} from "../typechain-types";
+
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
 
-import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
-const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
+import * as input from "../data/transferVerifier/1/public.json";
+import * as secret from "../data/transferVerifier/1/secret.json";
+import { BytesLike } from "ethers";
+
+const matching_engine_publicKey = fs.readFileSync("./data/matching_engine/public_key_2048.pem", "utf-8");
+const matching_engine_privatekey = fs.readFileSync("./data/matching_engine/private_key_2048.pem", "utf-8");
+
+const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
+const generator_privatekey = fs.readFileSync("./data/demo_generator/private_key.pem", "utf-8");
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -42,7 +64,7 @@ async function main(): Promise<string> {
   let matchingEngine = signers[5];
   let prover = signers[6];
 
-  const eventsToEmit = 5;
+  const eventsToEmit = 1;
   for (let index = 0; index < eventsToEmit; index++) {
     const id = randomBytes(32).toString("hex");
     const privateKey = "0x" + id;
@@ -51,7 +73,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "3995640715293152" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "50000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -79,16 +101,24 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.plonkMarketId,
+      addresses.zkbMarketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
+    const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, wallet);
+    const rsaPubBytes = utf8ToHex(generator_publickey);
+    tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
+    console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
+
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [[input.root, input.nullifier, input.out_commit, input.delta, input.memo]],
+    );
 
-    const reward = "100000000000000000";
+    const reward = "1000001";
     tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
@@ -97,27 +127,90 @@ async function main(): Promise<string> {
 
     const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, prover);
 
+    const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+      (inputBytes.length - 2) / 2,
+    );
+
+    const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
+    tx = await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+    console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
+
+    tx = await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+    console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
+
     const assignmentExpiry = 10000000;
     const latestBlock = await admin.provider.getBlockNumber();
     const timeTakenForProofGeneration = 10000000;
     const maxTimeForProofGeneration = 10000000;
 
+    const secretString = JSON.stringify(secret);
+    const result = await secret_operations.encryptDataWithRSAandAES(secretString, matching_engine_publicKey);
+    const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
+    const encryptedSecretInputs = "0x" + result.encryptedData;
+
     const askId = await proofMarketPlace.askCounter();
-    tx = await proofMarketPlace.connect(prover).createAsk({
-      marketId: addresses.plonkMarketId,
-      proverData: inputBytes,
-      reward,
-      expiry: latestBlock + assignmentExpiry,
-      timeTakenForProofGeneration,
-      deadline: latestBlock + maxTimeForProofGeneration,
-      proverRefundAddress: await prover.getAddress(),
-    });
-    console.log("create new ask", (await tx.wait())?.hash);
+    tx = await proofMarketPlace.connect(prover).createAsk(
+      {
+        marketId: addresses.zkbMarketId,
+        proverData: inputBytes,
+        reward,
+        expiry: latestBlock + assignmentExpiry,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      true,
+      1,
+      encryptedSecretInputs,
+      aclHex,
+    );
+    const transactionhash = (await tx.wait())?.hash as string;
+    console.log(`create new ask ID: ${askId}`, transactionhash);
+
+    const transaction = await admin.provider.getTransaction(transactionhash);
+    const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
+
+    const secretData = decodedData[decodedData.length - 2];
+    const aclData = decodedData[decodedData.length - 1];
+
+    const decryptedData = await secret_operations.decryptDataWithRSAandAES(
+      secretData.split("x")[1],
+      secret_operations.hexToBase64(aclData.split("x")[1]),
+      matching_engine_privatekey,
+    );
+
+    console.log("************** data seen by matching engine (start) *************");
+    console.log(JSON.parse(decryptedData));
+    console.log("************** data seen by matching engine (end) *************");
+
+    const cipher = await secret_operations.decryptRSA(
+      matching_engine_privatekey,
+      secret_operations.hexToBase64(aclData.split("x")[1]),
+    );
+    const new_acl_hex =
+      "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
 
     const taskId = await proofMarketPlace.taskCounter();
-    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address);
-    console.log("Created Task", (await tx.wait())?.hash, "index", index);
+    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, new_acl_hex);
+    const assignTxHash = (await tx.wait())?.hash;
+    console.log(`Created Task taskId ${taskId}`, assignTxHash);
 
+    const assignTransaction = await admin.provider.getTransaction(assignTxHash as string);
+    const generatorDecodedData = proofMarketPlace.interface.decodeFunctionData(
+      "assignTask",
+      assignTransaction?.data as BytesLike,
+    );
+    const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
+
+    const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
+      secretData.split("x")[1],
+      secret_operations.hexToBase64(generator_acl.split("x")[1]),
+      generator_privatekey,
+    );
+
+    console.log("************** data seen by generator (start) *************");
+    console.log(JSON.parse(decryptedDataForGenerator));
+    console.log("************** data seen by generator (end) *************");
     // let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     // tx = await proofMarketPlace.connect(admin).submitProof(taskId, proofBytes);
     // console.log("Proof Submitted", (await tx.wait())?.hash, "index", index);

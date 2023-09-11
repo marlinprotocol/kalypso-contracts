@@ -103,7 +103,7 @@ contract GeneratorRegistry is
     }
 
     function register(Generator calldata generator, bytes32 marketId) external override {
-        address verifierAddress = proofMarketPlace.getMarketVerifier(marketId);
+        address verifierAddress = proofMarketPlace.verifier(marketId);
 
         require(verifierAddress != address(0), Error.CANNOT_BE_ZERO);
         address _msgSender = _msgSender();

@@ -1,12 +1,7 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
 import { checkFileExists, marketDataToBytes } from "../helpers";
-import {
-  MockToken__factory,
-  ProofMarketPlace__factory,
-  Plonk_verifier_wrapper__factory,
-  UltraVerifier__factory,
-} from "../typechain-types";
+import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -48,41 +43,28 @@ async function main(): Promise<string> {
     throw new Error("Mock Token Is Not Deployed");
   }
 
-  if (!addresses.proxy.plonkVerifierWrapper) {
-    const plonk_vk = await new UltraVerifier__factory(marketCreator).deploy();
-    await plonk_vk.waitForDeployment();
-
-    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(marketCreator).deploy(
-      await plonk_vk.getAddress(),
-    );
-    await plonkVerifierWrapper.waitForDeployment();
-
-    addresses.proxy.plonkVerifierWrapper = await plonkVerifierWrapper.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.plonkMarketId) {
+  if (!addresses.marketId) {
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData = {
-      zkAppName: "plonk/noir verifier",
-      proverCode: "url of the prover code",
-      verifierCode: "url of the verifier code",
-      proverOysterImage: "oyster image link for the prover",
+      zkAppName: "zkbob",
+      proverCode: "url of the zkbob prover code",
+      verifierCode: "url of the verifier zkbob code",
+      proverOysterImage: "oyster image link for the zkbob prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const plonkMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.plonkVerifierWrapper);
+      .createMarketPlace(marketSetupBytes, addresses.proxy.transferVerifierWrapper);
     await tx.wait();
-    addresses.plonkMarketId = plonkMarketId;
+    addresses.marketId = marketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
