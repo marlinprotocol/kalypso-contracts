@@ -17,6 +17,7 @@ import {
   ProofMarketPlace__factory,
   RsaRegistry__factory,
 } from "../typechain-types";
+
 import BigNumber from "bignumber.js";
 
 import * as fs from "fs";
@@ -73,7 +74,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "6000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "50000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -101,7 +102,7 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.marketId,
+      addresses.zkbMarketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
@@ -154,7 +155,7 @@ async function main(): Promise<string> {
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,
