@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import { gzip, ungzip } from "node-gzip";
 import { randomBytes } from "crypto";
 import {
   bytesToHexString,
@@ -73,7 +74,7 @@ async function main(): Promise<string> {
     var wallet = new ethers.Wallet(privateKey, admin.provider);
     console.log("Address: " + wallet.address);
 
-    let tx = await admin.sendTransaction({ to: wallet.address, value: "50000000000000000" });
+    let tx = await admin.sendTransaction({ to: wallet.address, value: "5000000000000000" });
     console.log("send dust ether to newly created wallet", (await tx.wait())?.hash);
 
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
@@ -101,7 +102,7 @@ async function main(): Promise<string> {
         amountLocked: 0,
         minReward: new BigNumber(10).pow(6).toFixed(0),
       },
-      addresses.zkbMarketId,
+      addresses.marketId,
     );
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
@@ -147,11 +148,12 @@ async function main(): Promise<string> {
     const result = await secret_operations.encryptDataWithRSAandAES(secretString, matching_engine_publicKey);
     const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
     const encryptedSecretInputs = "0x" + result.encryptedData;
+    const secretCompressed = await gzip(encryptedSecretInputs);
 
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.zkbMarketId,
+        marketId: addresses.marketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,
@@ -161,7 +163,7 @@ async function main(): Promise<string> {
       },
       true,
       1,
-      encryptedSecretInputs,
+      secretCompressed,
       aclHex,
     );
     const transactionhash = (await tx.wait())?.hash as string;
@@ -169,8 +171,10 @@ async function main(): Promise<string> {
 
     const transaction = await admin.provider.getTransaction(transactionhash);
     const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
-
-    const secretData = decodedData[decodedData.length - 2];
+    const secretDataComp = decodedData[decodedData.length - 2].toString();
+    const buffer_decoded = Buffer.from(secretDataComp.split("x")[1], 'hex');
+    const recovered_secret = await ungzip(buffer_decoded);
+    const secretData = recovered_secret.toString();
     const aclData = decodedData[decodedData.length - 1];
 
     const decryptedData = await secret_operations.decryptDataWithRSAandAES(
