@@ -172,7 +172,7 @@ async function main(): Promise<string> {
     const transaction = await admin.provider.getTransaction(transactionhash);
     const decodedData = proofMarketPlace.interface.decodeFunctionData("createAsk", transaction?.data as BytesLike);
     const secretDataComp = decodedData[decodedData.length - 2].toString();
-    const buffer_decoded = Buffer.from(secretDataComp.split("x")[1], 'hex');
+    const buffer_decoded = Buffer.from(secretDataComp.split("x")[1], "hex");
     const recovered_secret = await ungzip(buffer_decoded);
     const secretData = recovered_secret.toString();
     const aclData = decodedData[decodedData.length - 1];

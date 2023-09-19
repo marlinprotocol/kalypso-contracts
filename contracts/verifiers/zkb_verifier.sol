@@ -15,8 +15,8 @@ library Pairing {
     }
 
     /*
-        * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
-        */
+     * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
+     */
     function negate(G1Point memory p) internal pure returns (G1Point memory) {
         // The prime q in the base field F_q for G1
         if (p.X == 0 && p.Y == 0) {
@@ -27,8 +27,8 @@ library Pairing {
     }
 
     /*
-        * @return r the sum of two points of G1
-        */
+     * @return r the sum of two points of G1
+     */
     function plus(G1Point memory p1, G1Point memory p2) internal view returns (G1Point memory r) {
         uint256[4] memory input;
         input[0] = p1.X;
@@ -41,16 +41,18 @@ library Pairing {
             success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
         require(success, "pairing-add-failed");
     }
 
     /*
-        * @return r the product of a point on G1 and a scalar, i.e.
-        *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
-        *         points p.
-        */
+     * @return r the product of a point on G1 and a scalar, i.e.
+     *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
+     *         points p.
+     */
     function scalar_mul(G1Point memory p, uint256 s) internal view returns (G1Point memory r) {
         uint256[3] memory input;
         input[0] = p.X;
@@ -62,16 +64,18 @@ library Pairing {
             success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
         require(success, "pairing-mul-failed");
     }
 
     /* @return The result of computing the pairing check
-        *         e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
-        *         For example,
-        *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
-        */
+     *         e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
+     *         For example,
+     *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
+     */
     function pairing(
         G1Point memory a1,
         G2Point memory a2,
@@ -81,11 +85,7 @@ library Pairing {
         G2Point memory c2,
         G1Point memory d1,
         G2Point memory d2
-    )
-        internal
-        view
-        returns (bool)
-    {
+    ) internal view returns (bool) {
         G1Point[4] memory p1 = [a1, b1, c1, d1];
         G2Point[4] memory p2 = [a2, b2, c2, d2];
         uint256 inputSize = 24;
@@ -106,7 +106,9 @@ library Pairing {
             success := staticcall(sub(gas(), 2000), 8, add(input, 0x20), mul(inputSize, 0x20), out, 0x20)
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
         require(success, "pairing-opcode-failed");
         return out[0] != 0;
@@ -195,9 +197,9 @@ contract ZkbVerifier {
     }
 
     /*
-        * @returns Whether the proof is valid given the hardcoded verifying key
-        *          above and the public inputs
-        */
+     * @returns Whether the proof is valid given the hardcoded verifying key
+     *          above and the public inputs
+     */
     function verifyProof(uint256[5] memory input, uint256[8] memory p) public view returns (bool) {
         // Make sure that each element in the proof is less than the prime q
         for (uint8 i = 0; i < p.length; i++) {
@@ -216,8 +218,16 @@ contract ZkbVerifier {
             require(input[i] < SNARK_SCALAR_FIELD, "verifier-gte-snark-scalar-field");
             vk_x = Pairing.plus(vk_x, Pairing.scalar_mul(vk.IC[i + 1], input[i]));
         }
-        return Pairing.pairing(
-            Pairing.negate(_proof.A), _proof.B, vk.alfa1, vk.beta2, vk_x, vk.gamma2, _proof.C, vk.delta2
-        );
+        return
+            Pairing.pairing(
+                Pairing.negate(_proof.A),
+                _proof.B,
+                vk.alfa1,
+                vk.beta2,
+                vk_x,
+                vk.gamma2,
+                _proof.C,
+                vk.delta2
+            );
     }
 }

@@ -167,12 +167,12 @@ describe("Proof market place", () => {
           },
           false,
           0,
-          "0x",
-          "0x",
+          "0x2345",
+          "0x21",
         ),
       )
         .to.emit(proofMarketPlace, "AskCreated")
-        .withArgs(askIdToBeGenerated, false)
+        .withArgs(askIdToBeGenerated, false, "0x2345", "0x21")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketPlace.getAddress(), reward)
         .to.emit(platformToken, "Transfer")
@@ -378,10 +378,10 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), await generator.getAddress(), "0x"),
+              .assignTask(askId.toString(), await generator.getAddress(), "0x1234"),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
-            .withArgs(askId, taskId);
+            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
 
           expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
           expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(3); // 3 means WIP

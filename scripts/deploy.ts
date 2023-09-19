@@ -10,6 +10,7 @@ import {
   RsaRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
+  ZkbVerifier__factory,
 } from "../typechain-types";
 import { checkFileExists, createFileIfNotExists } from "../helpers";
 
@@ -117,6 +118,17 @@ async function main(): Promise<string> {
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.zkbVerifierWrapper) {
+    const ZkbVerifier = await new ZkbVerifier__factory(admin).deploy();
+    await ZkbVerifier.waitForDeployment();
+    const ZkbVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await ZkbVerifier.getAddress(),
+    );
+    await ZkbVerifierWrapper.waitForDeployment();
+    addresses.proxy.zkbVerifierWrapper = await ZkbVerifierWrapper.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, matchingEngine);
   const hasMatchingEngineRole = await proofMarketPlace.hasRole(
     await proofMarketPlace.MATCHING_ENGINE_ROLE(),

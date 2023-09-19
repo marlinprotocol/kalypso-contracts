@@ -17,7 +17,7 @@ interface IProofMarketPlace {
     enum SecretType {
         NULL,
         CALLDATA,
-        EXTERNAl
+        EXTERNAL
     }
 
     struct Ask {
@@ -45,8 +45,8 @@ interface IProofMarketPlace {
 
     event TreasuryAddressChanged(address indexed oldAddress, address indexed newAddress);
     event GeneratorRegistryChanged(address indexed oldAddress, address indexed newAddress);
-    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs);
-    event TaskCreated(uint256 indexed askId, uint256 indexed taskId);
+    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event TaskCreated(uint256 indexed askId, uint256 indexed taskId, address indexed generator, bytes new_acl);
     // TODO: add ask ID also
     event ProofCreated(uint256 indexed askId, uint256 indexed taskId);
     event ProofNotGenerated(uint256 indexed askId, uint256 indexed taskId);

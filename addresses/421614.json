@@ -1,0 +1,18 @@
+{
+    "proxy": {
+        "mockToken": "0x8147e610aF918807C393d865F3C26A6d3f41ddAE",
+        "platformToken": "0xFC02897B76538F2897e48146453027fFF8338BaA",
+        "generatorRegistry": "0x56d030Fe5D75211DB0Ca84fcC1ee19615FA19105",
+        "proofMarketPlace": "0x6595525c6E7036d015dEfa3eD74Fa05065d15205",
+        "transferVerifierWrapper": "0x7a96Bf8113159bcf1C65f32E73C9dF9bBfF8dc61",
+        "priorityList": "0xcDd3E2C33A6E066359a7C35dc22248A19e80E6B0",
+        "inputAndProofFormat": "0x879c498dA74f969112a4f290291A870C9e996730",
+        "RsaRegistry": "0x78293427b9b6832a7903B9886Bae62Ae391857Df",
+        "zkbVerifierWrapper": "0xfcCaFF5576B911C07197A8e90F62199f290aeb14"
+    },
+    "implementation": {
+        "generatorRegistry": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806",
+        "proofMarketPlace": "0x48aE47856628Dc7f46CA6716D882793d37B55114"
+    },
+    "zkbMarketId": "0x51cbad9bdb9cfe3bd0a756f90ae4ade99e13bdf22709e734092beaec80c356b2"
+}

@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 library Error {
+    string public constant CANNOT_BE_ADMIN_LESS = "0";
     string public constant ONLY_ADMIN_CAN_CALL = "1";
     string public constant CANNOT_BE_SAME = "2";
     string public constant ALREADY_EXISTS = "3";
@@ -34,4 +35,6 @@ library Error {
     string public constant INVAlID_SENDER = "19";
 
     string public constant ALREADY_COMPLETE = "20";
+
+    string public constant ONLY_TASKS_GENERATOR = "21";
 }

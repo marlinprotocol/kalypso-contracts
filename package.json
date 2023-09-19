@@ -5,12 +5,13 @@
   "main": "index.js",
   "scripts": {
     "accounts": "npx hardhat accounts",
-    "test": "npx hardhat test",
+    "clean": "npx hardhat clean && forge clean",
+    "compile": "npx hardhat compile",
+    "coverage": "npx hardhat coverage",
     "prettier-contracts": "npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "prettier-others": "npx prettier --write .",
     "prettier": "npm run prettier-contracts && npm run prettier-others",
-    "compile": "npx hardhat compile",
-    "coverage": "npx hardhat coverage"
+    "test": "npx hardhat test"
   },
   "repository": {
     "type": "git",

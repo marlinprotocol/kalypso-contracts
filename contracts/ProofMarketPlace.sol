@@ -60,7 +60,7 @@ contract ProofMarketPlace is
         super._revokeRole(role, account);
 
         // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, "Cannot be adminless");
+        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyAdmin {}
@@ -127,25 +127,6 @@ contract ProofMarketPlace is
         _;
     }
 
-    // function changeTreasuryAddressChanged(address _newAddress) public onlyRole(UPDATER_ROLE) {
-    //     require(_newAddress != treasury, Error.ALREADY_EXISTS);
-    //     address _oldAddress = treasury;
-    //     treasury = _newAddress;
-    //     emit TreasuryAddressChanged(_oldAddress, _newAddress);
-    // }
-
-    // function changeGeneratorRegsitry(address _newAddress) public onlyRole(UPDATER_ROLE) {
-    //     require(_newAddress != address(generatorRegistry), Error.ALREADY_EXISTS);
-    //     IGeneratorRegistry _oldAddress = generatorRegistry;
-    //     generatorRegistry = IGeneratorRegistry(_newAddress);
-    //     emit GeneratorRegistryChanged(address(_oldAddress), _newAddress);
-    // }
-
-    /// TODO: Confirm with V and K
-    /// inside marketmetadata store the following
-    /// - github link for the generator code
-    /// - public and private input formats
-    /// - minimum computation requirement for the proof to be generated for this circuit
     function createMarketPlace(bytes calldata _marketmetadata, address _verifier) external override {
         paymentToken.safeTransferFrom(_msgSender(), treasury, marketCreationCost);
 
@@ -162,8 +143,8 @@ contract ProofMarketPlace is
         Ask calldata ask,
         bool hasPrivateInputs,
         SecretType,
-        bytes calldata,
-        bytes calldata
+        bytes calldata secret_inputs,
+        bytes calldata acl
     ) external override {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
@@ -180,7 +161,7 @@ contract ProofMarketPlace is
         IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        emit AskCreated(askCounter, hasPrivateInputs);
+        emit AskCreated(askCounter, hasPrivateInputs, secret_inputs, acl);
         askCounter++;
     }
 
@@ -208,7 +189,11 @@ contract ProofMarketPlace is
     }
 
     // Todo: Optimise the function
-    function assignTask(uint256 askId, address generator, bytes calldata) external onlyRole(MATCHING_ENGINE_ROLE) {
+    function assignTask(
+        uint256 askId,
+        address generator,
+        bytes calldata new_acl
+    ) external onlyRole(MATCHING_ENGINE_ROLE) {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
@@ -224,7 +209,7 @@ contract ProofMarketPlace is
         listOfTask[taskCounter] = Task(askId, generator);
 
         generatorRegistry.assignGeneratorTask(generator, askWithState.ask.marketId);
-        emit TaskCreated(askId, taskCounter);
+        emit TaskCreated(askId, taskCounter, generator, new_acl);
 
         taskCounter++;
     }
@@ -275,6 +260,17 @@ contract ProofMarketPlace is
         Task memory task = listOfTask[taskId];
 
         require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
+        return _slashGenerator(taskId, task, rewardAddress);
+    }
+
+    function discardRequest(uint256 taskId) external returns (uint256) {
+        Task memory task = listOfTask[taskId];
+        require(getAskState(task.askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
+        require(task.generator == msg.sender, Error.ONLY_TASKS_GENERATOR);
+        return _slashGenerator(taskId, task, treasury);
+    }
+
+    function _slashGenerator(uint256 taskId, Task memory task, address rewardAddress) internal returns (uint256) {
         listOfAsk[task.askId].state = AskState.COMPLETE;
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
 
