@@ -48,13 +48,13 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.zkbMarketId) {
+  if (!addresses.marketId) {
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData = {
-      zkAppName: "zkbob arb sepolia",
+      zkAppName: "transfer verifier arb sepolia",
       proverCode: "url of the zkbob prover code",
       verifierCode: "url of the verifier zkbob code",
       proverOysterImage: "oyster image link for the zkbob prover",
@@ -62,13 +62,13 @@ async function main(): Promise<string> {
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.zkbVerifierWrapper);
+      .createMarketPlace(marketSetupBytes, addresses.proxy.transferVerifierWrapper);
     await tx.wait();
-    addresses.zkbMarketId = zkbMarketId;
+    addresses.marketId = marketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

@@ -14,5 +14,6 @@
         "generatorRegistry": "0xdC2E14cD44ed4797F5072c6A76DA6ac5a64B3806",
         "proofMarketPlace": "0x48aE47856628Dc7f46CA6716D882793d37B55114"
     },
-    "zkbMarketId": "0x51cbad9bdb9cfe3bd0a756f90ae4ade99e13bdf22709e734092beaec80c356b2"
+    "zkbMarketId": "0x51cbad9bdb9cfe3bd0a756f90ae4ade99e13bdf22709e734092beaec80c356b2",
+    "marketId": "0x6c2ec35f8128c43e710a84adb6c7de8978238ab2d2e2b9790847dbab464b54f6"
 }
