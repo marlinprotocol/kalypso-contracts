@@ -21,7 +21,7 @@ async function main(): Promise<string> {
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0xe689d465c31fddfe687f69b55549b57abadb57b7";
+  const transferTo = "0x31e1780992dd80af4fb8674701589a7dbd0e08ed";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 

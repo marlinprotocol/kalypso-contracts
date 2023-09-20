@@ -437,6 +437,19 @@ describe("Proof market place", () => {
             expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); // 1 means JOINED and idle now
           });
 
+          it("Generator can ignore the request", async () => {
+            await expect(proofMarketPlace.connect(generator).discardRequest(taskId))
+              .to.emit(proofMarketPlace, "ProofNotGenerated")
+              .withArgs(askId, taskId);
+          });
+
+          it("Can't slash request before deadline", async () => {
+            let slasher = signers[19];
+            await expect(
+              proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()),
+            ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
+          });
+
           describe("Failed submiited proof", () => {
             let slasher: Signer;
 

@@ -37,4 +37,6 @@ library Error {
     string public constant ALREADY_COMPLETE = "20";
 
     string public constant ONLY_TASKS_GENERATOR = "21";
+
+    string public constant CANT_BE_IN_PAST = "22";
 }
