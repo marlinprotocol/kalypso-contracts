@@ -2,18 +2,15 @@
 
 pragma solidity ^0.8.9;
 
-import "./interfaces/IProofMarketPlace.sol";
 import "./interfaces/IAttestationVerifier.sol";
 
 contract RsaRegistry {
-    IProofMarketPlace public immutable proofMarketPlace;
     IAttestationVerifier public immutable attestationVerifier;
 
     mapping(address => bytes) public rsa_pub_key;
     mapping(address => bytes32) public rsa_pub_key_hash;
 
-    constructor(IProofMarketPlace _proofMarketPlace, IAttestationVerifier _attestationVerifier) {
-        proofMarketPlace = _proofMarketPlace;
+    constructor(IAttestationVerifier _attestationVerifier) {
         attestationVerifier = _attestationVerifier;
     }
 

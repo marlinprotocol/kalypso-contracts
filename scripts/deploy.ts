@@ -4,6 +4,7 @@ import * as fs from "fs";
 import {
   GeneratorRegistry__factory,
   InputAndProofFormatRegistry__factory,
+  MockAttestationVerifier__factory,
   MockToken__factory,
   PriorityLog__factory,
   ProofMarketPlace__factory,
@@ -156,6 +157,15 @@ async function main(): Promise<string> {
     await inputAndProofFormat.waitForDeployment();
 
     addresses.proxy.inputAndProofFormat = await inputAndProofFormat.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.attestationVerifier) {
+    const attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+    await attestationVerifier.waitForDeployment();
+
+    addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
