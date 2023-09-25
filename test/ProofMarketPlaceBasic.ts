@@ -35,7 +35,7 @@ describe("Proof market place", () => {
   let marketCreationCost: BigNumber = new BigNumber(10).pow(20).multipliedBy(5);
 
   let generatorStakingAmount = new BigNumber(10).pow(21).multipliedBy(6);
-  let generatorSlashingPenalty = new BigNumber(10).pow(20).multipliedBy(2);
+  let generatorSlashingPenalty = new BigNumber(10).pow(16).multipliedBy(2);
 
   let minRewardForGenerator = new BigNumber(10).pow(18).multipliedBy(100);
 
@@ -264,65 +264,43 @@ describe("Proof market place", () => {
       });
 
       it("Check generator data", async () => {
-        await expect(
-          generatorRegistry.connect(generator).register(
-            {
-              rewardAddress: await generator.getAddress(),
-              generatorData,
-              amountLocked: generatorStakingAmount.toFixed(),
-              proofGenerationCost: minRewardForGenerator.toFixed(),
-              proposedTime: 100,
-            },
-            marketId,
-          ),
-        )
+        await expect(generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData))
           .to.emit(generatorRegistry, "RegisteredGenerator")
+          .withArgs(await generator.getAddress());
+        await expect(
+          generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0)),
+        )
+          .to.emit(generatorRegistry, "AddedStash")
+          .withArgs(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+        await expect(
+          generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1),
+        )
+          .to.emit(generatorRegistry, "JoinedMarketPlace")
           .withArgs(await generator.getAddress(), marketId);
 
-        const rewardAddress = (await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId))
-          .generator.rewardAddress;
+        const rewardAddress = (await generatorRegistry.generatorRegistry(await generator.getAddress())).rewardAddress;
         expect(rewardAddress).to.eq(await generator.getAddress());
 
-        expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
+        expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
       });
 
       it("Deregister generator data", async () => {
-        await generatorRegistry.connect(generator).register(
-          {
-            rewardAddress: await generator.getAddress(),
-            generatorData,
-            amountLocked: generatorStakingAmount.toFixed(),
-            proofGenerationCost: minRewardForGenerator.toFixed(),
-            proposedTime: 100,
-          },
-          marketId,
-        );
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), marketId);
 
-        await expect(generatorRegistry.connect(generator).deregister(marketId))
+        await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress()))
           .to.emit(generatorRegistry, "DeregisteredGenerator")
-          .withArgs(await generator.getAddress(), marketId);
+          .withArgs(await generator.getAddress());
       });
 
       it("extra stash can be added to generator by anyone", async () => {
-        await generatorRegistry.connect(generator).register(
-          {
-            rewardAddress: await generator.getAddress(),
-            generatorData,
-            amountLocked: generatorStakingAmount.toFixed(),
-            proofGenerationCost: minRewardForGenerator.toFixed(),
-            proposedTime: 100,
-          },
-          marketId,
-        );
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
 
         const extraStash = "112987298347983";
         await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
 
-        await expect(
-          generatorRegistry.connect(tokenHolder).addStash(await generator.getAddress(), marketId, extraStash),
-        )
-          .to.emit(generatorRegistry, "AddExtraStash")
-          .withArgs(await generator.getAddress(), marketId, extraStash)
+        await expect(generatorRegistry.connect(tokenHolder).stake(await generator.getAddress(), extraStash))
+          .to.emit(generatorRegistry, "AddedStash")
+          .withArgs(await generator.getAddress(), extraStash)
           .to.emit(mockToken, "Transfer")
           .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
       });
@@ -330,6 +308,8 @@ describe("Proof market place", () => {
       describe("Task", () => {
         let proverBytes: string;
         let latestBlock: number;
+
+        let supportedVcpus: number = 3;
 
         let askId: BigNumber;
         beforeEach(async () => {
@@ -365,16 +345,13 @@ describe("Proof market place", () => {
             "0x",
           );
 
-          await generatorRegistry.connect(generator).register(
-            {
-              rewardAddress: await generator.getAddress(),
-              generatorData,
-              amountLocked: generatorStakingAmount.toFixed(),
-              proofGenerationCost: minRewardForGenerator.toFixed(),
-              proposedTime: 100,
-            },
-            marketId,
-          );
+          await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+          await generatorRegistry
+            .connect(generator)
+            .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+          await generatorRegistry
+            .connect(generator)
+            .joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, supportedVcpus);
         });
 
         it("Matching engine assings", async () => {
@@ -388,7 +365,55 @@ describe("Proof market place", () => {
             .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
 
           expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
-          expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(3); // 3 means WIP
+          expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
+            3,
+          ); // 3 means WIP
+        });
+
+        it("Matching Engine can't assign more than vcpus", async () => {
+          await proofMarketPlace
+            .connect(marketPlaceAddress)
+            .assignTask(askId.toString(), await generator.getAddress(), "0x1234");
+
+          for (let index = 0; index < supportedVcpus; index++) {
+            let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
+            let anotherProverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
+            const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+              (anotherProverBytes.length - 2) / 2,
+            );
+            await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+            await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+
+            await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), reward.toFixed());
+            await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
+            await proofMarketPlace.connect(prover).createAsk(
+              {
+                marketId,
+                proverData: anotherProverBytes,
+                reward: reward.toFixed(),
+                expiry: latestBlock + assignmentExpiry,
+                timeTakenForProofGeneration,
+                deadline: latestBlock + maxTimeForProofGeneration,
+                refundAddress: await prover.getAddress(),
+              },
+              false,
+              0,
+              "0x",
+              "0x",
+            );
+
+            if (index == supportedVcpus - 1) {
+              await expect(
+                proofMarketPlace
+                  .connect(marketPlaceAddress)
+                  .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234"),
+              ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_CAPACITY());
+            } else {
+              await proofMarketPlace
+                .connect(marketPlaceAddress)
+                .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234");
+            }
+          }
         });
 
         it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
@@ -424,8 +449,8 @@ describe("Proof market place", () => {
 
           it("submit proof", async () => {
             const generatorAddress = await generator.getAddress();
-            const expectedGeneratorReward = (await generatorRegistry.generatorRegistry(generatorAddress, marketId))
-              .generator.proofGenerationCost;
+            const expectedGeneratorReward = (await generatorRegistry.generatorInfoPerMarket(generatorAddress, marketId))
+              .proofGenerationCost;
             const proverRefundAddress = await prover.getAddress();
             const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
@@ -438,7 +463,9 @@ describe("Proof market place", () => {
               .withArgs(await proofMarketPlace.getAddress(), proverRefundAddress, expectedProverRefund);
 
             expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(4); // 4 means COMPLETE
-            expect((await generatorRegistry.generatorRegistry(await generator.getAddress(), marketId)).state).to.eq(1); // 1 means JOINED and idle now
+            expect(
+              (await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state,
+            ).to.eq(1); // 1 means JOINED and idle now
           });
 
           it("Generator can ignore the request", async () => {

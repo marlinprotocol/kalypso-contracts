@@ -84,19 +84,20 @@ async function main(): Promise<string> {
       computeAllocation: 100,
     };
     const geneatorDataString = generatorDataToBytes(generatorData);
-    tx = await generatorRegistry.connect(generator).register(
-      {
-        rewardAddress: await generator.getAddress(),
-        generatorData: geneatorDataString,
-        amountLocked: 0,
-        proofGenerationCost: new BigNumber(10)
-          .pow(19)
-          .multipliedBy(index + 1)
-          .toFixed(),
-        proposedTime: 1000,
-      },
+    tx = await generatorRegistry.connect(generator).register(await generator.getAddress(), geneatorDataString);
+    await tx.wait();
+    tx = await generatorRegistry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
+    await tx.wait();
+    await generatorRegistry.connect(generator).joinMarketPlace(
       addresses.marketId,
+      new BigNumber(10)
+        .pow(19)
+        .multipliedBy(index + 1)
+        .toFixed(),
+      1000,
+      index + 1,
     );
+
     console.log("generator registration transaction", (await tx.wait())?.hash);
   }
   return "Done";

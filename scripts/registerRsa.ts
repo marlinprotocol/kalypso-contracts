@@ -36,7 +36,7 @@ async function main(): Promise<string> {
   const rsaPubBytes = utf8ToHex(matchingEngineRsaPub);
   const rsaRecovered = hexToUtf8(rsaPubBytes);
 
-  const tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
+  const tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes, "0x");
   await tx.wait();
 
   const rsaPubBytesFetched = await rsaRegistry.rsa_pub_key(await matchingEngine.getAddress());

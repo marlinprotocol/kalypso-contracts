@@ -95,21 +95,26 @@ async function main(): Promise<string> {
 
     const geneatorDataString = generatorDataToBytes(generatorData);
     const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
-    tx = await generatorRegistry.connect(wallet).register(
-      {
-        rewardAddress: await wallet.getAddress(),
-        generatorData: geneatorDataString,
-        amountLocked: 0,
-        minReward: new BigNumber(10).pow(6).toFixed(0),
-      },
+    tx = await generatorRegistry.connect(wallet).register(await wallet.getAddress(), geneatorDataString);
+    await tx.wait();
+    tx = await generatorRegistry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
+    await tx.wait();
+    tx = await generatorRegistry.connect(wallet).joinMarketPlace(
       addresses.marketId,
+      new BigNumber(10)
+        .pow(19)
+        .multipliedBy(index + 1)
+        .toFixed(),
+      1000,
+      index + 1,
     );
+
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
     const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, wallet);
     const rsaPubBytes = utf8ToHex(generator_publickey);
-    tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
+    tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes, "0x");
     console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
 
     let abiCoder = new ethers.AbiCoder();

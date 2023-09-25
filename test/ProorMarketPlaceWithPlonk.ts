@@ -44,7 +44,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
-  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(18).multipliedBy(93).minus(182723423); // use any random number
+  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);

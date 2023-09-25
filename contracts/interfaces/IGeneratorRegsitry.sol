@@ -3,55 +3,76 @@
 pragma solidity ^0.8.9;
 
 interface IGeneratorRegistry {
-    event RegisteredGenerator(address indexed generator, bytes32 indexed marketId);
-    event DeregisteredGenerator(address indexed generator, bytes32 indexed marketId);
-    event AddExtraStash(address indexed generator, bytes32 indexed marketId, uint256 amount);
+    event RegisteredGenerator(address indexed generator);
+    event DeregisteredGenerator(address indexed generator);
 
-    function register(Generator calldata generator, bytes32 marketId) external;
+    event JoinedMarketPlace(address indexed generator, bytes32 indexed marketId);
+    event RequestExitMarketPlace(address indexed generator, bytes32 indexed marketId);
+    event LeftMarketplace(address indexed generator, bytes32 indexed marketId);
 
-    function deregister(bytes32 marketId) external;
-
-    function getGeneratorDetails(
-        address generator,
-        bytes32 marketId
-    ) external view returns (GeneratorState, uint256, address, uint256);
-
-    function slashGenerator(address generator, bytes32 marketId, address rewardAddress) external returns (uint256);
-
-    function completeGeneratorTask(address generator, bytes32 marketId) external;
-
-    function assignGeneratorTask(address generator, bytes32 marketId) external;
-
-    function getGeneratorRewardDetails(address _generator, bytes32 marketId) external view returns (address, uint256);
-
-    function getGeneratorAssignmentDetails(
-        address _generator,
-        bytes32 marketId
-    ) external view returns (uint256, uint256);
+    event AddedStash(address indexed generator, uint256 amount);
 
     enum GeneratorState {
         NULL,
-        JOINED, /// INACTIVE
+        JOINED,
         LOW_STAKE,
-        WIP, /// BUSY
+        WIP,
         REQUESTED_FOR_EXIT
     }
 
     struct Generator {
-        // Address on which generator will receive reward
         address rewardAddress;
-        // Total Amount Staked
-        uint256 amountLocked;
-        // number of tokens charged for generating a proof
-        uint256 proofGenerationCost;
-        // proposed time in which generator is ready to generator proofs for everyone (in blocks)
-        uint256 proposedTime;
-        // generator meta data
+        uint256 numberOfSupportedMarkets;
+        uint256 totalStake;
         bytes generatorData;
     }
 
-    struct GeneratorWithState {
+    struct GeneratorInfoPerMarket {
         GeneratorState state;
-        Generator generator;
+        uint256 proofGenerationCost;
+        uint256 proposedTime;
+        uint256 maxParallelRequestsSupported;
+        uint256 currentActiveRequest;
     }
+
+    function register(address rewardAddress, bytes memory generatorData) external;
+
+    function deregister(address refundAddress) external;
+
+    function stake(address generator, uint256 amount) external;
+
+    function joinMarketPlace(
+        bytes32 marketId,
+        uint256 proofGenerationCost,
+        uint256 proposedTime,
+        uint256 maxParallelRequestsSupported
+    ) external;
+
+    function leaveMarketPlace(bytes32 marketId) external;
+
+    // return the state of the generator for a given market, and number of parallel calls available
+    function getGeneratorState(
+        address generatorAddress,
+        bytes32 marketId
+    ) external view returns (GeneratorState, uint256);
+
+    function slashGenerator(
+        address generatorAddress,
+        bytes32 marketId,
+        address rewardAddress
+    ) external returns (uint256);
+
+    function assignGeneratorTask(address generatorAddress, bytes32 marketId) external;
+
+    function completeGeneratorTask(address generatorAddress, bytes32 marketId) external;
+
+    function getGeneratorAssignmentDetails(
+        address generatorAddress,
+        bytes32 marketId
+    ) external view returns (uint256, uint256);
+
+    function getGeneratorRewardDetails(
+        address generatorAddress,
+        bytes32 marketId
+    ) external view returns (address, uint256);
 }

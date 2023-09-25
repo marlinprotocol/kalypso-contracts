@@ -128,16 +128,9 @@ export const rawSetup = async (
 
   const marketId = ethers.keccak256(marketSetupBytes);
 
-  await generatorRegistry.connect(generator).register(
-    {
-      rewardAddress: await generator.getAddress(),
-      generatorData,
-      amountLocked: await generatorRegistry.minStakingAmount(),
-      proofGenerationCost: minRewardForGenerator.toFixed(),
-      proposedTime: 100000,
-    },
-    marketId,
-  );
+  await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+  await generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+  await generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1);
 
   await proofMarketPlace
     .connect(admin)

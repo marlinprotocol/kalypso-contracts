@@ -45,4 +45,10 @@ library Error {
     string public constant INSUFFICIENT_STAKE = "24";
 
     string public constant ENCLAVE_KEY_NOT_VERIFIED = "25";
+
+    string public constant SHOULD_BE_LESS_THAN_OR_EQUAL = "26";
+
+    string public constant SHOULD_BE_ZERO = "27";
+
+    string public constant INSUFFICIENT_GENERATOR_CAPACITY = "28";
 }
