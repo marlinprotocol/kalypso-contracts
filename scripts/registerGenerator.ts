@@ -89,10 +89,11 @@ async function main(): Promise<string> {
         rewardAddress: await generator.getAddress(),
         generatorData: geneatorDataString,
         amountLocked: 0,
-        minReward: new BigNumber(10)
+        proofGenerationCost: new BigNumber(10)
           .pow(19)
           .multipliedBy(index + 1)
           .toFixed(),
+        proposedTime: 1000,
       },
       addresses.marketId,
     );
