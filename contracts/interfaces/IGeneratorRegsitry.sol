@@ -14,13 +14,20 @@ interface IGeneratorRegistry {
     function getGeneratorDetails(
         address generator,
         bytes32 marketId
-    ) external view returns (GeneratorState, uint256, address);
+    ) external view returns (GeneratorState, uint256, address, uint256);
 
     function slashGenerator(address generator, bytes32 marketId, address rewardAddress) external returns (uint256);
 
     function completeGeneratorTask(address generator, bytes32 marketId) external;
 
     function assignGeneratorTask(address generator, bytes32 marketId) external;
+
+    function getGeneratorRewardDetails(address _generator, bytes32 marketId) external view returns (address, uint256);
+
+    function getGeneratorAssignmentDetails(
+        address _generator,
+        bytes32 marketId
+    ) external view returns (uint256, uint256);
 
     enum GeneratorState {
         NULL,
@@ -30,16 +37,16 @@ interface IGeneratorRegistry {
         REQUESTED_FOR_EXIT
     }
 
-    /// TODO: Confirm with V and K
-    /// what is to be added to generator data
-    /// list of markets which generator wants to participate
-    /// generator's time limit promise
-    /// generator minimum fee
-    /// compute allocation allocation per market
     struct Generator {
+        // Address on which generator will receive reward
         address rewardAddress;
+        // Total Amount Staked
         uint256 amountLocked;
-        uint256 minReward;
+        // number of tokens charged for generating a proof
+        uint256 proofGenerationCost;
+        // proposed time in which generator is ready to generator proofs for everyone (in blocks)
+        uint256 proposedTime;
+        // generator meta data
         bytes generatorData;
     }
 

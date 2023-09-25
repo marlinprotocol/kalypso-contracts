@@ -21,7 +21,7 @@ async function main(): Promise<string> {
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0x31e1780992dd80af4fb8674701589a7dbd0e08ed";
+  const transferTo = "0x0f66B3C451A906E4B691bCf9E95569b8fCBe4C9f";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -34,15 +34,15 @@ async function main(): Promise<string> {
     throw new Error("token contract not deployed");
   }
 
-  (await admin.sendTransaction({ to: transferTo, value: "10000000000000000" })).wait();
+  (await admin.sendTransaction({ to: transferTo, value: "100000000000000000" })).wait();
 
   const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "100000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
   const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
-  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "100000000000000000000");
   receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

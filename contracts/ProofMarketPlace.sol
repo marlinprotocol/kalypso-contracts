@@ -148,6 +148,7 @@ contract ProofMarketPlace is
     ) external override {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
+        require(ask.expiry > block.number, Error.CANT_BE_IN_PAST);
 
         address _msgSender = _msgSender();
         uint256 platformFee = ask.proverData.length * costPerInputBytes;
@@ -169,6 +170,7 @@ contract ProofMarketPlace is
     function getAskState(uint256 askId) public view returns (AskState) {
         AskWithState memory askWithState = listOfAsk[askId];
 
+        // time before which matching engine should assign the task to generator
         if (askWithState.state == AskState.CREATE) {
             if (askWithState.ask.expiry > block.number) {
                 return askWithState.state;
@@ -177,6 +179,7 @@ contract ProofMarketPlace is
             return AskState.UNASSIGNED;
         }
 
+        // time before which generator should submit the proof
         if (askWithState.state == AskState.ASSIGNED) {
             if (askWithState.ask.deadline < block.number) {
                 return AskState.DEADLINE_CROSSED;
@@ -197,12 +200,14 @@ contract ProofMarketPlace is
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
-        (, uint256 minRewardForGenerator, ) = generatorRegistry.getGeneratorDetails(
-            generator,
-            askWithState.ask.marketId
-        );
+        (uint256 minRewardForGenerator, uint256 generatorProposedTime) = generatorRegistry
+            .getGeneratorAssignmentDetails(generator, askWithState.ask.marketId);
 
         require(askWithState.ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
+        require(
+            askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime,
+            Error.PROOF_REQUESTED_IN_LESS_TIME
+        );
         askWithState.state = AskState.ASSIGNED;
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
 
@@ -231,7 +236,7 @@ contract ProofMarketPlace is
         bytes32 marketId = askWithState.ask.marketId;
         IVerifier proofVerifier = IVerifier(verifier[marketId]);
 
-        (, uint256 minRewardForGenerator, address generatorRewardAddress) = generatorRegistry.getGeneratorDetails(
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = generatorRegistry.getGeneratorRewardDetails(
             task.generator,
             askWithState.ask.marketId
         );
@@ -246,7 +251,9 @@ contract ProofMarketPlace is
 
         uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
 
-        paymentToken.safeTransfer(generatorRewardAddress, minRewardForGenerator);
+        if (minRewardForGenerator != 0) {
+            paymentToken.safeTransfer(generatorRewardAddress, minRewardForGenerator);
+        }
 
         if (toBackToProver != 0) {
             paymentToken.safeTransfer(askWithState.ask.refundAddress, toBackToProver);

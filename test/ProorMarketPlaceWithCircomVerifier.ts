@@ -69,9 +69,6 @@ describe("Proof Market Place for Circom Verifier", () => {
 
     generatorData = {
       name: "some custom name for the generator",
-      time: 10000,
-      generatorOysterPubKey: "0x128971298347982137492749871329847928174982719abcd",
-      computeAllocation: 100,
     };
 
     marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
@@ -113,7 +110,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     // console.log({ inputBytes });
     const latestBlock = await ethers.provider.getBlockNumber();
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 1000; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
     const askId = await setup.createAsk(

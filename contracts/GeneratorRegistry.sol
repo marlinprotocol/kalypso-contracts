@@ -69,7 +69,7 @@ contract GeneratorRegistry is
     IERC20Upgradeable public immutable stakingToken;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable stakingAmount;
+    uint256 public immutable minStakingAmount;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable slashingPenalty;
@@ -87,7 +87,7 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IERC20Upgradeable _stakingToken, uint256 _stakingAmount, uint256 _slashingPenalty) {
         stakingToken = _stakingToken;
-        stakingAmount = _stakingAmount;
+        minStakingAmount = _stakingAmount;
         slashingPenalty = _slashingPenalty;
     }
 
@@ -106,14 +106,28 @@ contract GeneratorRegistry is
         address verifierAddress = proofMarketPlace.verifier(marketId);
 
         require(verifierAddress != address(0), Error.CANNOT_BE_ZERO);
+        require(generator.proposedTime != 0, Error.CANNOT_BE_ZERO);
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        uint256 amountToBeLocked = generator.amountLocked;
+        require(amountToBeLocked >= minStakingAmount, Error.INSUFFICIENT_STAKE);
+
         address _msgSender = _msgSender();
-        stakingToken.safeTransferFrom(_msgSender, address(this), stakingAmount);
+        if (amountToBeLocked != 0) {
+            stakingToken.safeTransferFrom(_msgSender, address(this), amountToBeLocked);
+        }
 
         require(generatorRegistry[_msgSender][marketId].generator.generatorData.length == 0, Error.ALREADY_EXISTS);
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
         generatorRegistry[_msgSender][marketId] = GeneratorWithState(
             GeneratorState.JOINED,
-            Generator(generator.rewardAddress, stakingAmount, generator.minReward, generator.generatorData)
+            Generator(
+                generator.rewardAddress,
+                minStakingAmount,
+                generator.proofGenerationCost,
+                generator.proposedTime,
+                generator.generatorData
+            )
         );
 
         emit RegisteredGenerator(_msgSender, marketId);
@@ -143,8 +157,8 @@ contract GeneratorRegistry is
         return GeneratorState.NULL;
     }
 
-    function getGeneratorMinReward(address _generator, bytes32 marketId) public view returns (uint256) {
-        return generatorRegistry[_generator][marketId].generator.minReward;
+    function getGeneratorProofGenerationCost(address _generator, bytes32 marketId) public view returns (uint256) {
+        return generatorRegistry[_generator][marketId].generator.proofGenerationCost;
     }
 
     function deregister(bytes32 marketId) external override {
@@ -170,20 +184,38 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender, marketId);
     }
 
-    // TODO: optimise this to avoid readine state multiple times
     function getGeneratorDetails(
         address _generator,
         bytes32 marketId
-    ) public view override returns (GeneratorState, uint256, address) {
+    ) public view override returns (GeneratorState, uint256, address, uint256) {
+        GeneratorWithState memory generatorWithState = generatorRegistry[_generator][marketId];
         return (
             getGeneratorState(_generator, marketId),
-            getGeneratorMinReward(_generator, marketId),
-            getGeneratorRewardAddress(_generator, marketId)
+            generatorWithState.generator.proofGenerationCost,
+            generatorWithState.generator.rewardAddress,
+            generatorWithState.generator.proposedTime
         );
     }
 
-    function getGeneratorRewardAddress(address _generator, bytes32 marketId) public view returns (address) {
-        return generatorRegistry[_generator][marketId].generator.rewardAddress;
+    function getGeneratorAssignmentDetails(
+        address _generator,
+        bytes32 marketId
+    ) public view returns (uint256, uint256) {
+        GeneratorWithState memory generatorWithState = generatorRegistry[_generator][marketId];
+
+        return (generatorWithState.generator.proofGenerationCost, generatorWithState.generator.proposedTime);
+    }
+
+    function getProofGenerationProposedTime(address _generator, bytes32 marketId) public view returns (uint256) {
+        return generatorRegistry[_generator][marketId].generator.proposedTime;
+    }
+
+    function getGeneratorRewardDetails(
+        address _generator,
+        bytes32 marketId
+    ) public view override returns (address, uint256) {
+        GeneratorWithState memory generatorWithState = generatorRegistry[_generator][marketId];
+        return (generatorWithState.generator.rewardAddress, generatorWithState.generator.proofGenerationCost);
     }
 
     // TODO: current _rewardAddress gets all the slash, slashing economics not implemented

@@ -269,8 +269,9 @@ describe("Proof market place", () => {
             {
               rewardAddress: await generator.getAddress(),
               generatorData,
-              amountLocked: 0,
-              minReward: minRewardForGenerator.toFixed(),
+              amountLocked: generatorStakingAmount.toFixed(),
+              proofGenerationCost: minRewardForGenerator.toFixed(),
+              proposedTime: 100,
             },
             marketId,
           ),
@@ -290,8 +291,9 @@ describe("Proof market place", () => {
           {
             rewardAddress: await generator.getAddress(),
             generatorData,
-            amountLocked: 0,
-            minReward: minRewardForGenerator.toFixed(),
+            amountLocked: generatorStakingAmount.toFixed(),
+            proofGenerationCost: minRewardForGenerator.toFixed(),
+            proposedTime: 100,
           },
           marketId,
         );
@@ -306,8 +308,9 @@ describe("Proof market place", () => {
           {
             rewardAddress: await generator.getAddress(),
             generatorData,
-            amountLocked: 0,
-            minReward: minRewardForGenerator.toFixed(),
+            amountLocked: generatorStakingAmount.toFixed(),
+            proofGenerationCost: minRewardForGenerator.toFixed(),
+            proposedTime: 100,
           },
           marketId,
         );
@@ -366,8 +369,9 @@ describe("Proof market place", () => {
             {
               rewardAddress: await generator.getAddress(),
               generatorData,
-              amountLocked: 0,
-              minReward: minRewardForGenerator.toFixed(),
+              amountLocked: generatorStakingAmount.toFixed(),
+              proofGenerationCost: minRewardForGenerator.toFixed(),
+              proposedTime: 100,
             },
             marketId,
           );
@@ -421,7 +425,7 @@ describe("Proof market place", () => {
           it("submit proof", async () => {
             const generatorAddress = await generator.getAddress();
             const expectedGeneratorReward = (await generatorRegistry.generatorRegistry(generatorAddress, marketId))
-              .generator.minReward;
+              .generator.proofGenerationCost;
             const proverRefundAddress = await prover.getAddress();
             const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 

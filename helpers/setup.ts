@@ -132,8 +132,9 @@ export const rawSetup = async (
     {
       rewardAddress: await generator.getAddress(),
       generatorData,
-      amountLocked: 0,
-      minReward: minRewardForGenerator.toFixed(),
+      amountLocked: await generatorRegistry.minStakingAmount(),
+      proofGenerationCost: minRewardForGenerator.toFixed(),
+      proposedTime: 100000,
     },
     marketId,
   );

@@ -39,4 +39,8 @@ library Error {
     string public constant ONLY_TASKS_GENERATOR = "21";
 
     string public constant CANT_BE_IN_PAST = "22";
+
+    string public constant PROOF_REQUESTED_IN_LESS_TIME = "23";
+
+    string public constant INSUFFICIENT_STAKE = "24";
 }
