@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "./interfaces/IAttestationVerifier.sol";
+import "./lib/Error.sol";
 
 contract RsaRegistry {
     IAttestationVerifier public immutable attestationVerifier;
@@ -20,7 +21,7 @@ contract RsaRegistry {
         bytes32 hash = keccak256(rsa_pub);
         address sender = msg.sender;
 
-        require(attestationVerifier.verifyEnclaveKey(attestation_data), "Enclave Key is not verified");
+        require(attestationVerifier.verifyEnclaveKey(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         rsa_pub_key[sender] = rsa_pub;
 
         emit UpdateRSA(sender, hash);

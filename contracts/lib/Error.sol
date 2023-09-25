@@ -43,4 +43,6 @@ library Error {
     string public constant PROOF_REQUESTED_IN_LESS_TIME = "23";
 
     string public constant INSUFFICIENT_STAKE = "24";
+
+    string public constant ENCLAVE_KEY_NOT_VERIFIED = "25";
 }
