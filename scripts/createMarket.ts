@@ -48,7 +48,7 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.marketId) {
+  if (!addresses.zkbMarketId) {
     const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
@@ -62,13 +62,13 @@ async function main(): Promise<string> {
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
       .createMarketPlace(marketSetupBytes, addresses.proxy.transferVerifierWrapper);
     await tx.wait();
-    addresses.marketId = marketId;
+    addresses.zkbMarketId = zkbMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

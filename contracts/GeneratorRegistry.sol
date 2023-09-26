@@ -245,6 +245,10 @@ contract GeneratorRegistry is
 
         require(idleCapacity > 0, Error.INSUFFICIENT_GENERATOR_CAPACITY);
 
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        require(generator.totalStake >= minStakingAmount, Error.INSUFFICIENT_STAKE);
+
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
         info.currentActiveRequest++;
         if (info.state == GeneratorState.JOINED) {

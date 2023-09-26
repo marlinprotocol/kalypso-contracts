@@ -10,6 +10,16 @@
       "address": "0x6595525c6E7036d015dEfa3eD74Fa05065d15205",
       "txHash": "0x8e75ff25fc3051a118464e1a4e7559243d8ee9bba7cbd7619302d66d73fa3503",
       "kind": "uups"
+    },
+    {
+      "address": "0x3A97a6dF767620fB89e79070Fe6c1E7d90c2d923",
+      "txHash": "0xd414ad6a11e70677f41e86753d63a199794d7b303a33e2b86097b7f2b25d6813",
+      "kind": "uups"
+    },
+    {
+      "address": "0x3f18C0cE048aD0531070e56192387bb5f38C5cb9",
+      "txHash": "0xf91f4dee87b5b6eb1733be4d83aae91c22edf10a25a948161f4f74934e556109",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -152,7 +162,13 @@
           },
           "t_enum(GeneratorState)6678": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -453,7 +469,14 @@
           },
           "t_enum(AskState)6727": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -609,6 +632,673 @@
             "numberOfBytes": "64"
           },
           "t_struct(Task)6760_storage": {
+            "label": "struct IProofMarketPlace.Task",
+            "members": [
+              {
+                "label": "askId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "generator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "cbe75c6b5dc57961ddf8bf4de52379052d6e698610bef7d47714bbd13b3063bf": {
+      "address": "0x4a7006516159161E7D8B73802237D29d231a51D4",
+      "txHash": "0xe42b0914269b55a7c8eb305eb478475c23e1b3d5536e7a60760d5a35b5765dbf",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)179_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_roleMembers",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)3802_storage)",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:76"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "generatorRegistry",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_mapping(t_address,t_struct(Generator)5126_storage)",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:85"
+          },
+          {
+            "label": "generatorInfoPerMarket",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_mapping(t_address,t_mapping(t_bytes32,t_struct(GeneratorInfoPerMarket)5138_storage))",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:86"
+          },
+          {
+            "label": "proofMarketPlace",
+            "offset": 0,
+            "slot": "303",
+            "type": "t_contract(IProofMarketPlace)5346",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:88"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IProofMarketPlace)5346": {
+            "label": "contract IProofMarketPlace",
+            "numberOfBytes": "20"
+          },
+          "t_enum(GeneratorState)5117": {
+            "label": "enum IGeneratorRegistry.GeneratorState",
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_bytes32,t_struct(GeneratorInfoPerMarket)5138_storage))": {
+            "label": "mapping(address => mapping(bytes32 => struct IGeneratorRegistry.GeneratorInfoPerMarket))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(Generator)5126_storage)": {
+            "label": "mapping(address => struct IGeneratorRegistry.Generator)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(AddressSet)3802_storage)": {
+            "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(GeneratorInfoPerMarket)5138_storage)": {
+            "label": "mapping(bytes32 => struct IGeneratorRegistry.GeneratorInfoPerMarket)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)179_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AddressSet)3802_storage": {
+            "label": "struct EnumerableSetUpgradeable.AddressSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)3487_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Generator)5126_storage": {
+            "label": "struct IGeneratorRegistry.Generator",
+            "members": [
+              {
+                "label": "rewardAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "numberOfSupportedMarkets",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "totalStake",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "generatorData",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(GeneratorInfoPerMarket)5138_storage": {
+            "label": "struct IGeneratorRegistry.GeneratorInfoPerMarket",
+            "members": [
+              {
+                "label": "state",
+                "type": "t_enum(GeneratorState)5117",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "proofGenerationCost",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "proposedTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "maxParallelRequestsSupported",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "currentActiveRequest",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(RoleData)179_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Set)3487_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "417489dbe15e67b16d8b2d46c6afee45f82ad3fbf1a73273bacf07823528ff14": {
+      "address": "0xB3A85AdFcdE7BdA5a4CAa91F467D391800E48f2d",
+      "txHash": "0xb77c51e10d80b23536ad04f838adbefb39e57cbab83250fd25f8f5d974f26e2b",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)179_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_roleMembers",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)3802_storage)",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:76"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "marketmetadata",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_mapping(t_bytes32,t_bytes_storage)",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:94"
+          },
+          {
+            "label": "verifier",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_mapping(t_bytes32,t_address)",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:95"
+          },
+          {
+            "label": "askCounter",
+            "offset": 0,
+            "slot": "303",
+            "type": "t_uint256",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:97"
+          },
+          {
+            "label": "listOfAsk",
+            "offset": 0,
+            "slot": "304",
+            "type": "t_mapping(t_uint256,t_struct(AskWithState)7136_storage)",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:98"
+          },
+          {
+            "label": "taskCounter",
+            "offset": 0,
+            "slot": "305",
+            "type": "t_uint256",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:100"
+          },
+          {
+            "label": "listOfTask",
+            "offset": 0,
+            "slot": "306",
+            "type": "t_mapping(t_uint256,t_struct(Task)7141_storage)",
+            "contract": "ProofMarketPlace",
+            "src": "contracts/ProofMarketPlace.sol:101"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_enum(AskState)7108": {
+            "label": "enum IProofMarketPlace.AskState",
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_address)": {
+            "label": "mapping(bytes32 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bytes_storage)": {
+            "label": "mapping(bytes32 => bytes)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(AddressSet)3802_storage)": {
+            "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)179_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(AskWithState)7136_storage)": {
+            "label": "mapping(uint256 => struct IProofMarketPlace.AskWithState)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Task)7141_storage)": {
+            "label": "mapping(uint256 => struct IProofMarketPlace.Task)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AddressSet)3802_storage": {
+            "label": "struct EnumerableSetUpgradeable.AddressSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)3487_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Ask)7127_storage": {
+            "label": "struct IProofMarketPlace.Ask",
+            "members": [
+              {
+                "label": "marketId",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "reward",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "expiry",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "timeTakenForProofGeneration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "deadline",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "refundAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "proverData",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_struct(AskWithState)7136_storage": {
+            "label": "struct IProofMarketPlace.AskWithState",
+            "members": [
+              {
+                "label": "ask",
+                "type": "t_struct(Ask)7127_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "state",
+                "type": "t_enum(AskState)7108",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "requester",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "7"
+              }
+            ],
+            "numberOfBytes": "256"
+          },
+          "t_struct(RoleData)179_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Set)3487_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Task)7141_storage": {
             "label": "struct IProofMarketPlace.Task",
             "members": [
               {

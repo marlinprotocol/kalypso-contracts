@@ -84,7 +84,7 @@ async function main(): Promise<string> {
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,

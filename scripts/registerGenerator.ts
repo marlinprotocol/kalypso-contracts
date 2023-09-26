@@ -51,7 +51,7 @@ async function main(): Promise<string> {
     throw new Error("generatorRegistry contract not deployed");
   }
 
-  if (!addresses.marketId) {
+  if (!addresses.zkbMarketId) {
     throw new Error("Market not created");
   }
 
@@ -89,7 +89,7 @@ async function main(): Promise<string> {
     tx = await generatorRegistry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
     await tx.wait();
     await generatorRegistry.connect(generator).joinMarketPlace(
-      addresses.marketId,
+      addresses.zkbMarketId,
       new BigNumber(10)
         .pow(19)
         .multipliedBy(index + 1)

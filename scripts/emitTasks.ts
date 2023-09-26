@@ -100,7 +100,7 @@ async function main(): Promise<string> {
     tx = await generatorRegistry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
     await tx.wait();
     tx = await generatorRegistry.connect(wallet).joinMarketPlace(
-      addresses.marketId,
+      addresses.zkbMarketId,
       new BigNumber(10)
         .pow(19)
         .multipliedBy(index + 1)
@@ -158,7 +158,7 @@ async function main(): Promise<string> {
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,
