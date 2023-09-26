@@ -69,7 +69,7 @@ async function main(): Promise<string> {
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
       kind: "uups",
-      constructorArgs: [addresses.proxy.mockToken, config.generatorStakingAmount, config.generatorSlashingPenalty],
+      constructorArgs: [addresses.proxy.mockToken, config.generatorStakingAmount],
       initializer: false,
     });
     await generatorProxy.waitForDeployment();
@@ -78,6 +78,24 @@ async function main(): Promise<string> {
     addresses.implementation.generatorRegistry = await upgrades.erc1967.getImplementationAddress(
       addresses.proxy.generatorRegistry,
     );
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.attestationVerifier) {
+    const attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+    await attestationVerifier.waitForDeployment();
+
+    addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+  
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.RsaRegistry) {
+    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(addresses.proxy.attestationVerifier);
+    await rsaRegistry.waitForDeployment();
+
+    addresses.proxy.RsaRegistry = await rsaRegistry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
@@ -92,6 +110,7 @@ async function main(): Promise<string> {
         config.marketCreationCost,
         await treasury.getAddress(),
         addresses.proxy.generatorRegistry,
+        addresses.proxy.RsaRegistry,
       ],
     });
     await proxy.waitForDeployment();
@@ -139,7 +158,11 @@ async function main(): Promise<string> {
     await (
       await proofMarketPlace
         .connect(admin)
-        .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress())
+        ["grantRole(bytes32,address,bytes)"](
+          await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+          await matchingEngine.getAddress(),
+          "0x",
+        )
     ).wait();
   }
 
@@ -157,24 +180,6 @@ async function main(): Promise<string> {
     await inputAndProofFormat.waitForDeployment();
 
     addresses.proxy.inputAndProofFormat = await inputAndProofFormat.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.attestationVerifier) {
-    const attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-    await attestationVerifier.waitForDeployment();
-
-    addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.RsaRegistry) {
-    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(addresses.proxy.proofMarketPlace);
-    await rsaRegistry.waitForDeployment();
-
-    addresses.proxy.RsaRegistry = await rsaRegistry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

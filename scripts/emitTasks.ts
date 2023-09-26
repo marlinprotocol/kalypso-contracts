@@ -200,7 +200,9 @@ async function main(): Promise<string> {
       "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
 
     const taskId = await proofMarketPlace.taskCounter();
-    tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId.toString(), wallet.address, new_acl_hex);
+    tx = await proofMarketPlace
+      .connect(matchingEngine)
+      .assignTask(askId.toString(), taskId, wallet.address, new_acl_hex);
     const assignTxHash = (await tx.wait())?.hash;
     console.log(`Created Task taskId ${taskId}`, assignTxHash);
 

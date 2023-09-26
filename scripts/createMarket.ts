@@ -66,7 +66,12 @@ async function main(): Promise<string> {
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.transferVerifierWrapper);
+      .createMarketPlace(
+        marketSetupBytes,
+        addresses.proxy.transferVerifierWrapper,
+        config.generatorStakingAmount,
+        config.generatorSlashingPenalty,
+      );
     await tx.wait();
     addresses.zkbMarketId = zkbMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
