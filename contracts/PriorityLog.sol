@@ -6,7 +6,6 @@ import "./interfaces/IPriorityLog.sol";
 
 /// Optional contract to be used by request creator where
 /// he can set on what priority his requests should be processed by matching engine
-/// TODO: Add more logic here to determine complex priorities
 contract PriorityLog is IPriorityLog {
     mapping(address => Priority) public override priorityStore;
 

@@ -71,9 +71,6 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable minStakingAmount;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable slashingPenalty; // slashing penalty percentage
-
     bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("slasher")) - 1);
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
@@ -90,11 +87,9 @@ contract GeneratorRegistry is
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken, uint256 _stakingAmount, uint256 _slashingPenalty) {
+    constructor(IERC20Upgradeable _stakingToken, uint256 _stakingAmount) {
         stakingToken = _stakingToken;
         minStakingAmount = _stakingAmount;
-        require(_slashingPenalty < EXPONENT, Error.SHOULD_BE_LESS_THAN_OR_EQUAL);
-        slashingPenalty = _slashingPenalty;
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
@@ -158,10 +153,13 @@ contract GeneratorRegistry is
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
 
+        require(proofMarketPlace.verifier(marketId) != address(0), Error.DOES_NOT_EXISTS);
         require(info.state == GeneratorState.NULL, Error.ALREADY_EXISTS);
 
         require(proposedTime != 0, Error.CANNOT_BE_ZERO);
         require(maxParallelRequestsSupported <= PARALLEL_REQUESTS_UPPER_LIMIT, Error.SHOULD_BE_LESS_THAN_OR_EQUAL);
+
+        require(generator.totalStake >= proofMarketPlace.minStakeToJoin(marketId), Error.INSUFFICIENT_STAKE);
 
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
             GeneratorState.JOINED,
@@ -202,6 +200,8 @@ contract GeneratorRegistry is
     }
 
     function leaveMarketPlace(bytes32 marketId) external override {
+        require(proofMarketPlace.verifier(marketId) != address(0), Error.DOES_NOT_EXISTS);
+
         address generatorAddress = msg.sender;
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
@@ -231,7 +231,13 @@ contract GeneratorRegistry is
         require(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT, Error.CAN_N0T_BE_SLASHED);
 
         uint256 proofGenerationCost = generatorInfoPerMarket[generatorAddress][marketId].proofGenerationCost;
+
+        uint256 slashingPenalty = proofMarketPlace.slashingPenalty(marketId);
         uint256 penalty = (slashingPenalty * proofGenerationCost) / EXPONENT;
+
+        penalty = penalty < generatorRegistry[generatorAddress].totalStake
+            ? generatorRegistry[generatorAddress].totalStake
+            : penalty;
 
         generatorRegistry[generatorAddress].totalStake -= penalty;
         stakingToken.safeTransfer(rewardAddress, penalty);

@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -15,6 +16,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./interfaces/IProofMarketPlace.sol";
 import "./interfaces/IGeneratorRegsitry.sol";
 import "./interfaces/IVerifier.sol";
+import "./interfaces/IRsaRegistry.sol";
 
 import "./lib/Error.sol";
 
@@ -53,6 +55,22 @@ contract ProofMarketPlace is
         super._grantRole(role, account);
     }
 
+    function grantRole(bytes32, address) public virtual override(AccessControlUpgradeable, IAccessControlUpgradeable) {
+        revert(Error.CAN_NOT_GRANT_ROLE_WITHOUT_ATTESTATION);
+    }
+
+    function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
+        if (role == DEFAULT_ADMIN_ROLE) {
+            // this does not need attestation
+            super._grantRole(role, account);
+        } else {
+            // TODO: use the actual data
+            bytes memory data = abi.encode(account, attestation_data);
+            require(rsaRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            super._grantRole(role, account);
+        }
+    }
+
     function _revokeRole(
         bytes32 role,
         address account
@@ -86,18 +104,26 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IGeneratorRegistry public immutable generatorRegistry;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IRsaRegistry public immutable rsaRegistry;
+
     uint256 public constant costPerInputBytes = 10e15;
+
+    uint256 private constant MIN_STAKE_FOR_PARTICIPATING = 1e18;
+    uint256 private constant EXPONENT = 1e18;
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
     mapping(bytes32 => bytes) public marketmetadata;
     mapping(bytes32 => address) public override verifier; // verifier address for the market place
+    mapping(bytes32 => uint256) public override minStakeToJoin;
+    mapping(bytes32 => uint256) public slashingPenalty;
 
     uint256 public askCounter;
     mapping(uint256 => AskWithState) public listOfAsk;
 
-    uint256 public taskCounter;
+    uint256 public taskCounter; // taskCounter also acts as nonce for matching engine.
     mapping(uint256 => Task) public listOfTask;
 
     //-------------------------------- State variables end --------------------------------//
@@ -108,13 +134,15 @@ contract ProofMarketPlace is
         IERC20Upgradeable _platformToken,
         uint256 _marketCreationCost,
         address _treasury,
-        IGeneratorRegistry _generatorRegistry
+        IGeneratorRegistry _generatorRegistry,
+        IRsaRegistry _rsaRegistry
     ) {
         paymentToken = _paymentToken;
         platformToken = _platformToken;
         marketCreationCost = _marketCreationCost;
         treasury = _treasury;
         generatorRegistry = _generatorRegistry;
+        rsaRegistry = _rsaRegistry;
     }
 
     function initialize(address _admin) public initializer {
@@ -127,14 +155,25 @@ contract ProofMarketPlace is
         _;
     }
 
-    function createMarketPlace(bytes calldata _marketmetadata, address _verifier) external override {
+    function createMarketPlace(
+        bytes calldata _marketmetadata,
+        address _verifier,
+        uint256 _minStake,
+        uint256 _slashingPenalty
+    ) external override {
+        require(_minStake >= MIN_STAKE_FOR_PARTICIPATING, Error.INSUFFICIENT_STAKE);
+        require(_slashingPenalty <= EXPONENT, Error.SHOULD_BE_LESS_THAN_OR_EQUAL); // 1e18 means 100% stake will be slashed
+
         paymentToken.safeTransferFrom(_msgSender(), treasury, marketCreationCost);
 
         bytes32 marketId = keccak256(_marketmetadata);
         require(marketmetadata[marketId].length == 0, Error.ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
+
         marketmetadata[marketId] = _marketmetadata;
         verifier[marketId] = _verifier;
+        minStakeToJoin[marketId] = _minStake;
+        slashingPenalty[marketId] = _slashingPenalty;
 
         emit MarketPlaceCreated(marketId);
     }
@@ -191,12 +230,67 @@ contract ProofMarketPlace is
         return askWithState.state;
     }
 
-    // Todo: Optimise the function
+    function updateEncryptionKey(
+        bytes memory rsa_pub,
+        bytes memory attestation_data
+    ) external onlyRole(MATCHING_ENGINE_ROLE) {
+        rsaRegistry.updatePubkey(rsa_pub, attestation_data);
+    }
+
+    function relayBatchAssignTasks(
+        uint256[] memory askIds,
+        uint256[] memory newTaskIds,
+        address[] memory generators,
+        bytes[] memory new_acls,
+        bytes calldata signature
+    ) public {
+        require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);
+        require(askIds.length == generators.length, Error.ARITY_MISMATCH);
+        require(askIds.length == new_acls.length, Error.ARITY_MISMATCH);
+
+        bytes32 messageHash = keccak256(abi.encode(askIds, newTaskIds, generators, new_acls));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
+
+        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.INVAlID_SENDER);
+        for (uint256 index = 0; index < askIds.length; index++) {
+            _assignTask(askIds[index], newTaskIds[index], generators[index], new_acls[index]);
+        }
+    }
+
+    function relayAssignTask(
+        uint256 askId,
+        uint256 newTaskId,
+        address generator,
+        bytes calldata new_acl,
+        bytes calldata signature
+    ) public {
+        bytes32 messageHash = keccak256(abi.encode(askId, newTaskId, generator, new_acl));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
+
+        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.INVAlID_SENDER);
+        _assignTask(askId, newTaskId, generator, new_acl);
+    }
+
     function assignTask(
         uint256 askId,
+        uint256 newTaskId,
         address generator,
         bytes calldata new_acl
     ) external onlyRole(MATCHING_ENGINE_ROLE) {
+        _assignTask(askId, newTaskId, generator, new_acl);
+    }
+
+    function _assignTask(
+        uint256 askId,
+        uint256 newTaskId, // acts as nonce,
+        address generator,
+        bytes memory new_acl
+    ) internal {
+        require(newTaskId == taskCounter, Error.SHOULD_BE_SAME); //protection against replay
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
@@ -229,7 +323,14 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProof(uint256 taskId, bytes calldata proof) external {
+    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {
+        require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
+        for (uint256 index = 0; index < taskIds.length; index++) {
+            submitProof(taskIds[index], proofs[index]);
+        }
+    }
+
+    function submitProof(uint256 taskId, bytes calldata proof) public {
         Task memory task = listOfTask[taskId];
         AskWithState memory askWithState = listOfAsk[task.askId];
 

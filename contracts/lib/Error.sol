@@ -51,4 +51,10 @@ library Error {
     string public constant SHOULD_BE_ZERO = "27";
 
     string public constant INSUFFICIENT_GENERATOR_CAPACITY = "28";
+
+    string public constant CAN_NOT_GRANT_ROLE_WITHOUT_ATTESTATION = "29";
+
+    string public constant SHOULD_BE_SAME = "30";
+
+    string public constant ARITY_MISMATCH = "31";
 }

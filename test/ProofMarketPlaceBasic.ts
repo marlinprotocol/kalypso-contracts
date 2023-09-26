@@ -7,12 +7,14 @@ import {
   Error__factory,
   GeneratorRegistry,
   GeneratorRegistry__factory,
+  MockAttestationVerifier__factory,
   MockToken,
   MockToken__factory,
   MockVerifier,
   MockVerifier__factory,
   ProofMarketPlace,
   ProofMarketPlace__factory,
+  RsaRegistry__factory,
 } from "../typechain-types";
 import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
 
@@ -35,7 +37,6 @@ describe("Proof market place", () => {
   let marketCreationCost: BigNumber = new BigNumber(10).pow(20).multipliedBy(5);
 
   let generatorStakingAmount = new BigNumber(10).pow(21).multipliedBy(6);
-  let generatorSlashingPenalty = new BigNumber(10).pow(16).multipliedBy(2);
 
   let minRewardForGenerator = new BigNumber(10).pow(18).multipliedBy(100);
 
@@ -44,6 +45,9 @@ describe("Proof market place", () => {
   let mockVerifier: MockVerifier;
 
   let errorLibrary: Error;
+
+  const enclave_key_attestation_bytes = "0x";
+  const exponent = new BigNumber(10).pow(18);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -60,14 +64,13 @@ describe("Proof market place", () => {
     platformToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
     mockVerifier = await new MockVerifier__factory(admin).deploy();
 
+    const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(await mockAttestationVerifier.getAddress());
+
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
       kind: "uups",
-      constructorArgs: [
-        await mockToken.getAddress(),
-        generatorStakingAmount.toFixed(),
-        generatorSlashingPenalty.toFixed(),
-      ],
+      constructorArgs: [await mockToken.getAddress(), generatorStakingAmount.toFixed()],
       initializer: false,
     });
     generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), signers[0]);
@@ -81,6 +84,7 @@ describe("Proof market place", () => {
         marketCreationCost.toString(),
         await treasury.getAddress(),
         await generatorRegistry.getAddress(),
+        await rsaRegistry.getAddress(),
       ],
     });
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
@@ -98,7 +102,14 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
     await expect(
-      proofMarketPlace.connect(marketCreator).createMarketPlace(marketBytes, await mockVerifier.getAddress()),
+      proofMarketPlace
+        .connect(marketCreator)
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.toFixed(0),
+          exponent.div(100).toFixed(0),
+        ),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -109,7 +120,11 @@ describe("Proof market place", () => {
   it("Update Marketplace address", async () => {
     await proofMarketPlace
       .connect(admin)
-      .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await marketPlaceAddress.getAddress());
+      ["grantRole(bytes32,address,bytes)"](
+        await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+        await marketPlaceAddress.getAddress(),
+        enclave_key_attestation_bytes,
+      );
 
     expect(
       await proofMarketPlace.hasRole(
@@ -137,7 +152,14 @@ describe("Proof market place", () => {
       marketId = ethers.keccak256(marketBytes);
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-      await proofMarketPlace.connect(marketCreator).createMarketPlace(marketBytes, await mockVerifier.getAddress());
+      await proofMarketPlace
+        .connect(marketCreator)
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.toFixed(0),
+          exponent.div(100).toFixed(0),
+        );
     });
 
     it("Create Ask Request", async () => {
@@ -324,7 +346,11 @@ describe("Proof market place", () => {
 
           await proofMarketPlace
             .connect(admin)
-            .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await marketPlaceAddress.getAddress());
+            ["grantRole(bytes32,address,bytes)"](
+              await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+              await marketPlaceAddress.getAddress(),
+              enclave_key_attestation_bytes,
+            );
 
           askId = new BigNumber((await proofMarketPlace.askCounter()).toString());
 
@@ -359,7 +385,71 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), await generator.getAddress(), "0x1234"),
+              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234"),
+          )
+            .to.emit(proofMarketPlace, "TaskCreated")
+            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
+
+          expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
+          expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
+            3,
+          ); // 3 means WIP
+        });
+
+        it("Matching engine should assign tasks using relayer", async () => {
+          const taskId = await proofMarketPlace.taskCounter();
+          const newTaskId = taskId;
+
+          const types = ["uint256", "uint256", "address", "bytes"];
+
+          const values = [askId.toFixed(0), newTaskId.toString(), await generator.getAddress(), "0x1234"];
+
+          const abicode = new ethers.AbiCoder();
+          const encoded = abicode.encode(types, values);
+          const digest = ethers.keccak256(encoded);
+          const signature = await marketPlaceAddress.signMessage(ethers.getBytes(digest));
+
+          const someRandomRelayer = admin;
+
+          await expect(
+            proofMarketPlace
+              .connect(someRandomRelayer)
+              .relayAssignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234", signature),
+          )
+            .to.emit(proofMarketPlace, "TaskCreated")
+            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
+
+          expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
+          expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
+            3,
+          ); // 3 means WIP
+        });
+
+        it("Matching Engine should assign using relayers [multiple tasks]", async () => {
+          const taskId = await proofMarketPlace.taskCounter();
+          const newTaskId = taskId;
+
+          const types = ["uint256[]", "uint256[]", "address[]", "bytes[]"];
+
+          const values = [[askId.toFixed(0)], [newTaskId.toString()], [await generator.getAddress()], ["0x1234"]];
+
+          const abicode = new ethers.AbiCoder();
+          const encoded = abicode.encode(types, values);
+          const digest = ethers.keccak256(encoded);
+          const signature = await marketPlaceAddress.signMessage(ethers.getBytes(digest));
+
+          const someRandomRelayer = admin;
+
+          await expect(
+            proofMarketPlace
+              .connect(someRandomRelayer)
+              .relayBatchAssignTasks(
+                [askId.toString()],
+                [taskId],
+                [await generator.getAddress()],
+                ["0x1234"],
+                signature,
+              ),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
             .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
@@ -371,11 +461,13 @@ describe("Proof market place", () => {
         });
 
         it("Matching Engine can't assign more than vcpus", async () => {
+          const taskId = await proofMarketPlace.taskCounter();
           await proofMarketPlace
             .connect(marketPlaceAddress)
-            .assignTask(askId.toString(), await generator.getAddress(), "0x1234");
+            .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234");
 
           for (let index = 0; index < supportedVcpus; index++) {
+            const taskId = await proofMarketPlace.taskCounter();
             let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
             let anotherProverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
             const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
@@ -406,22 +498,23 @@ describe("Proof market place", () => {
               await expect(
                 proofMarketPlace
                   .connect(marketPlaceAddress)
-                  .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234"),
+                  .assignTask(anotherAskId.toString(), taskId, await generator.getAddress(), "0x1234"),
               ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_CAPACITY());
             } else {
               await proofMarketPlace
                 .connect(marketPlaceAddress)
-                .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234");
+                .assignTask(anotherAskId.toString(), taskId, await generator.getAddress(), "0x1234");
             }
           }
         });
 
         it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
           await mine(assignmentExpiry);
+          const taskId = await proofMarketPlace.taskCounter();
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), await generator.getAddress(), "0x"),
+              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x"),
           ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
         });
 
@@ -444,7 +537,7 @@ describe("Proof market place", () => {
             taskId = (await proofMarketPlace.taskCounter()).toString();
             await proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), await generator.getAddress(), "0x");
+              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
           });
 
           it("submit proof", async () => {
@@ -455,6 +548,27 @@ describe("Proof market place", () => {
             const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
             await expect(proofMarketPlace.submitProof(taskId, proof))
+              .to.emit(proofMarketPlace, "ProofCreated")
+              .withArgs(askId, taskId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), proverRefundAddress, expectedProverRefund);
+
+            expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(4); // 4 means COMPLETE
+            expect(
+              (await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state,
+            ).to.eq(1); // 1 means JOINED and idle now
+          });
+
+          it("Submit Proof via array", async () => {
+            const generatorAddress = await generator.getAddress();
+            const expectedGeneratorReward = (await generatorRegistry.generatorInfoPerMarket(generatorAddress, marketId))
+              .proofGenerationCost;
+            const proverRefundAddress = await prover.getAddress();
+            const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
+
+            await expect(proofMarketPlace.submitProofs([taskId], [proof]))
               .to.emit(proofMarketPlace, "ProofCreated")
               .withArgs(askId, taskId)
               .to.emit(mockToken, "Transfer")

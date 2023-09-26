@@ -8,8 +8,4 @@ contract MockAttestationVerifier is IAttestationVerifier {
     function verify(bytes memory data) public returns (bool) {
         return true;
     }
-
-    function verifyEnclaveKey(bytes memory data) public returns (bool) {
-        return true;
-    }
 }

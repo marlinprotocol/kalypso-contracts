@@ -12,6 +12,8 @@ import {
   IProofMarketPlace,
   PriorityLog,
   PriorityLog__factory,
+  MockAttestationVerifier__factory,
+  RsaRegistry__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -32,7 +34,7 @@ export const createTask = async (
   const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), await generator.getAddress(), "0x");
+    .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
 
   return taskId;
 };
@@ -91,14 +93,13 @@ export const rawSetup = async (
     totalTokenSupply.toFixed(),
   );
 
+  const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+  const rsaRegistry = await new RsaRegistry__factory(admin).deploy(await mockAttestationVerifier.getAddress());
+
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [
-      await mockToken.getAddress(),
-      generatorStakingAmount.toFixed(),
-      generatorSlashingPenalty.toFixed(),
-    ],
+    constructorArgs: [await mockToken.getAddress(), generatorStakingAmount.toFixed()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
@@ -112,6 +113,7 @@ export const rawSetup = async (
       marketCreationCost.toFixed(),
       treasury,
       await generatorRegistry.getAddress(),
+      await rsaRegistry.getAddress(),
     ],
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
@@ -120,7 +122,14 @@ export const rawSetup = async (
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-  await proofMarketPlace.connect(marketCreator).createMarketPlace(marketSetupBytes, await iverifier.getAddress());
+  await proofMarketPlace
+    .connect(marketCreator)
+    .createMarketPlace(
+      marketSetupBytes,
+      await iverifier.getAddress(),
+      generatorStakingAmount.toFixed(0),
+      generatorSlashingPenalty.toFixed(0),
+    );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 
@@ -134,7 +143,11 @@ export const rawSetup = async (
 
   await proofMarketPlace
     .connect(admin)
-    .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress());
+    ["grantRole(bytes32,address,bytes)"](
+      await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+      await matchingEngine.getAddress(),
+      "0x",
+    );
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 

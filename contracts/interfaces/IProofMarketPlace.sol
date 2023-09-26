@@ -25,7 +25,6 @@ interface IProofMarketPlace {
         uint256 reward;
         // the block number by which the ask should be assigned by matching engine
         uint256 expiry;
-        // TODO: try to remove one the variable below
         uint256 timeTakenForProofGeneration;
         uint256 deadline;
         address refundAddress;
@@ -35,7 +34,7 @@ interface IProofMarketPlace {
     struct AskWithState {
         Ask ask;
         AskState state;
-        address requester; // TODO: remove this field if not used in future
+        address requester;
     }
 
     struct Task {
@@ -53,7 +52,12 @@ interface IProofMarketPlace {
 
     event AskCancelled(uint256 indexed askId);
 
-    function createMarketPlace(bytes calldata marketmetadata, address verifier) external;
+    function createMarketPlace(
+        bytes calldata marketmetadata,
+        address verifier,
+        uint256 _minStake,
+        uint256 _slashingPenalty
+    ) external;
 
     function createAsk(
         Ask calldata ask,
@@ -63,5 +67,9 @@ interface IProofMarketPlace {
         bytes calldata acl
     ) external;
 
-    function verifier(bytes32 marketId) external returns (address);
+    function verifier(bytes32 marketId) external view returns (address);
+
+    function minStakeToJoin(bytes32 marketId) external view returns (uint256);
+
+    function slashingPenalty(bytes32 marketId) external view returns (uint256);
 }

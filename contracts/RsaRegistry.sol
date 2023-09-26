@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.9;
 
+import "./interfaces/IRsaRegistry.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
 
-contract RsaRegistry {
+contract RsaRegistry is IRsaRegistry {
     IAttestationVerifier public immutable attestationVerifier;
 
     mapping(address => bytes) public rsa_pub_key;
@@ -21,7 +22,8 @@ contract RsaRegistry {
         bytes32 hash = keccak256(rsa_pub);
         address sender = msg.sender;
 
-        require(attestationVerifier.verifyEnclaveKey(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        // TODO: Use the actual data
+        require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         rsa_pub_key[sender] = rsa_pub;
 
         emit UpdateRSA(sender, hash);
