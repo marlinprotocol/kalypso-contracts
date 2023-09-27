@@ -190,10 +190,13 @@ contract ProofMarketPlace is
         require(ask.expiry > block.number, Error.CANT_BE_IN_PAST);
 
         address _msgSender = _msgSender();
-        uint256 platformFee = ask.proverData.length * costPerInputBytes;
+
+        if (costPerInputBytes != 0) {
+            uint256 platformFee = ask.proverData.length * costPerInputBytes;
+            platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
+        }
 
         paymentToken.safeTransferFrom(_msgSender, address(this), ask.reward);
-        platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
 
         require(marketmetadata[ask.marketId].length != 0, Error.DOES_NOT_EXISTS);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, _msgSender);
