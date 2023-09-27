@@ -364,7 +364,7 @@ contract ProofMarketPlace is
         }
 
         generatorRegistry.completeGeneratorTask(task.generator, marketId);
-        emit ProofCreated(task.askId, taskId);
+        emit ProofCreated(task.askId, taskId, proof);
     }
 
     function slashGenerator(uint256 taskId, address rewardAddress) external returns (uint256) {

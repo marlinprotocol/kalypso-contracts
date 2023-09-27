@@ -140,6 +140,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId);
+      .withArgs(askId, taskId, proofBytes);
   });
 });

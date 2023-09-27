@@ -45,7 +45,7 @@ interface IProofMarketPlace {
     event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
     event TaskCreated(uint256 indexed askId, uint256 indexed taskId, address indexed generator, bytes new_acl);
     // TODO: add ask ID also
-    event ProofCreated(uint256 indexed askId, uint256 indexed taskId);
+    event ProofCreated(uint256 indexed askId, uint256 indexed taskId, bytes proof);
     event ProofNotGenerated(uint256 indexed askId, uint256 indexed taskId);
 
     event MarketPlaceCreated(bytes32 indexed marketId);

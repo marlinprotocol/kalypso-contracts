@@ -585,7 +585,7 @@ describe("Proof market place", () => {
 
             await expect(proofMarketPlace.submitProof(taskId, proof))
               .to.emit(proofMarketPlace, "ProofCreated")
-              .withArgs(askId, taskId)
+              .withArgs(askId, taskId, proof)
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
               .to.emit(mockToken, "Transfer")
@@ -606,7 +606,7 @@ describe("Proof market place", () => {
 
             await expect(proofMarketPlace.submitProofs([taskId], [proof]))
               .to.emit(proofMarketPlace, "ProofCreated")
-              .withArgs(askId, taskId)
+              .withArgs(askId, taskId, proof)
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
               .to.emit(mockToken, "Transfer")

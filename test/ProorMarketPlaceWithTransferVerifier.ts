@@ -163,6 +163,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
     );
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId);
+      .withArgs(askId, taskId, proofBytes);
   });
 });

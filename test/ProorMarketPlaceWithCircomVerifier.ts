@@ -141,6 +141,6 @@ describe("Proof Market Place for Circom Verifier", () => {
     );
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId);
+      .withArgs(askId, taskId, proofBytes);
   });
 });
