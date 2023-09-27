@@ -48,6 +48,8 @@ interface IGeneratorRegistry {
         uint256 maxParallelRequestsSupported
     ) external;
 
+    function leaveMarketPlaces(bytes32[] calldata marketIds) external;
+
     function leaveMarketPlace(bytes32 marketId) external;
 
     // return the state of the generator for a given market, and number of parallel calls available

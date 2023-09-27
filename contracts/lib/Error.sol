@@ -48,7 +48,7 @@ library Error {
 
     string public constant SHOULD_BE_LESS_THAN_OR_EQUAL = "26";
 
-    string public constant SHOULD_BE_ZERO = "27";
+    string public constant CAN_NOT_DEREGISTER_WITH_ACTIVE_MARKET = "27";
 
     string public constant INSUFFICIENT_GENERATOR_CAPACITY = "28";
 

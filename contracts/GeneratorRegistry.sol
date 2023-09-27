@@ -121,7 +121,10 @@ contract GeneratorRegistry is
     function deregister(address refundAddress) external override {
         address _msgSender = msg.sender;
 
-        require(generatorRegistry[_msgSender].numberOfSupportedMarkets == 0, Error.SHOULD_BE_ZERO);
+        require(
+            generatorRegistry[_msgSender].numberOfSupportedMarkets == 0,
+            Error.CAN_NOT_DEREGISTER_WITH_ACTIVE_MARKET
+        );
         stakingToken.safeTransfer(refundAddress, generatorRegistry[_msgSender].totalStake);
 
         delete generatorRegistry[_msgSender];
@@ -188,7 +191,7 @@ contract GeneratorRegistry is
         }
 
         if (info.state == GeneratorState.JOINED) {
-            return (GeneratorState.WIP, info.maxParallelRequestsSupported);
+            return (GeneratorState.JOINED, info.maxParallelRequestsSupported);
         }
 
         if (info.state == GeneratorState.WIP) {
@@ -199,7 +202,17 @@ contract GeneratorRegistry is
         return (GeneratorState.NULL, 0);
     }
 
-    function leaveMarketPlace(bytes32 marketId) external override {
+    function leaveMarketPlaces(bytes32[] calldata marketIds) external override {
+        for (uint256 index = 0; index < marketIds.length; index++) {
+            _leaveMarketPlace(marketIds[index]);
+        }
+    }
+
+    function leaveMarketPlace(bytes32 marketId) external {
+        _leaveMarketPlace(marketId);
+    }
+
+    function _leaveMarketPlace(bytes32 marketId) internal {
         require(proofMarketPlace.verifier(marketId) != address(0), Error.DOES_NOT_EXISTS);
 
         address generatorAddress = msg.sender;
@@ -214,7 +227,7 @@ contract GeneratorRegistry is
         }
 
         require(state == GeneratorState.JOINED || state == GeneratorState.REQUESTED_FOR_EXIT, Error.HAS_A_PENDING_WORK);
-        require(generatorInfoPerMarket[generatorAddress][marketId].currentActiveRequest == 0, Error.SHOULD_BE_ZERO);
+        require(generatorInfoPerMarket[generatorAddress][marketId].currentActiveRequest == 0, Error.HAS_A_PENDING_WORK);
 
         generatorRegistry[generatorAddress].numberOfSupportedMarkets--; // will throw underflow if no market is supported
 

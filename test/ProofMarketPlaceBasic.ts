@@ -306,6 +306,42 @@ describe("Proof market place", () => {
         expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
       });
 
+      it("leave market place", async () => {
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+        await generatorRegistry
+          .connect(generator)
+          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+        await generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1);
+
+        await expect(generatorRegistry.connect(generator).leaveMarketPlace(marketId))
+          .to.emit(generatorRegistry, "LeftMarketplace")
+          .withArgs(await generator.getAddress(), marketId);
+      });
+
+      it("leave multiple markets", async () => {
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+        await generatorRegistry
+          .connect(generator)
+          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+        await generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1);
+
+        await expect(generatorRegistry.connect(generator).leaveMarketPlaces([marketId]))
+          .to.emit(generatorRegistry, "LeftMarketplace")
+          .withArgs(await generator.getAddress(), marketId);
+      });
+
+      it("Can't de-register if generator is active part of proof market", async () => {
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+        await generatorRegistry
+          .connect(generator)
+          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+        await generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1);
+
+        await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress())).to.be.revertedWith(
+          await errorLibrary.CAN_NOT_DEREGISTER_WITH_ACTIVE_MARKET(),
+        );
+      });
+
       it("Deregister generator data", async () => {
         await generatorRegistry.connect(generator).register(await generator.getAddress(), marketId);
 

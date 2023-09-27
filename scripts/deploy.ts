@@ -89,7 +89,7 @@ async function main(): Promise<string> {
     addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
-  
+
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.RsaRegistry) {
     const rsaRegistry = await new RsaRegistry__factory(admin).deploy(addresses.proxy.attestationVerifier);
