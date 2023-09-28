@@ -60,13 +60,11 @@ contract ProofMarketPlace is
     }
 
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
-        if (role == DEFAULT_ADMIN_ROLE) {
-            // this does not need attestation
-            super._grantRole(role, account);
-        } else {
-            // TODO: use the actual data
+        if(role == MATCHING_ENGINE_ROLE){
             bytes memory data = abi.encode(account, attestation_data);
             require(rsaRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            super._grantRole(role, account);
+        }else{
             super._grantRole(role, account);
         }
     }
@@ -86,7 +84,6 @@ contract ProofMarketPlace is
     //-------------------------------- Overrides end --------------------------------//
 
     //-------------------------------- Constants and Immutable start --------------------------------//
-    bytes32 public constant UPDATER_ROLE = bytes32(uint256(keccak256("updater")) - 1);
     bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("matching engine")) - 1);
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
