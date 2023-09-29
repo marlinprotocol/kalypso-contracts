@@ -48,6 +48,7 @@ describe("Proof Market Place for Circom Verifier", () => {
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
+  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -96,6 +97,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       generatorDataToBytes(generatorData),
       matchingEngine,
       minRewardByGenerator,
+      generatorComputeAllocation,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;

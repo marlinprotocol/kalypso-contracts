@@ -60,11 +60,11 @@ contract ProofMarketPlace is
     }
 
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
-        if(role == MATCHING_ENGINE_ROLE){
+        if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
             require(rsaRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
             super._grantRole(role, account);
-        }else{
+        } else {
             super._grantRole(role, account);
         }
     }
@@ -107,7 +107,6 @@ contract ProofMarketPlace is
     uint256 public constant costPerInputBytes = 10e15;
 
     uint256 private constant MIN_STAKE_FOR_PARTICIPATING = 1e18;
-    uint256 private constant EXPONENT = 1e18;
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
@@ -158,13 +157,13 @@ contract ProofMarketPlace is
         uint256 _minStake,
         uint256 _slashingPenalty
     ) external override {
-        require(_minStake >= MIN_STAKE_FOR_PARTICIPATING, Error.INSUFFICIENT_STAKE);
-        require(_slashingPenalty <= EXPONENT, Error.SHOULD_BE_LESS_THAN_OR_EQUAL); // 1e18 means 100% stake will be slashed
+        require(_minStake >= MIN_STAKE_FOR_PARTICIPATING, "remove this");
+        require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
 
         paymentToken.safeTransferFrom(_msgSender(), treasury, marketCreationCost);
 
         bytes32 marketId = keccak256(_marketmetadata);
-        require(marketmetadata[marketId].length == 0, Error.ALREADY_EXISTS);
+        require(marketmetadata[marketId].length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
 
         marketmetadata[marketId] = _marketmetadata;
@@ -184,7 +183,7 @@ contract ProofMarketPlace is
     ) external override {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
-        require(ask.expiry > block.number, Error.CANT_BE_IN_PAST);
+        require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
 
         address _msgSender = _msgSender();
 
@@ -195,7 +194,7 @@ contract ProofMarketPlace is
 
         paymentToken.safeTransferFrom(_msgSender, address(this), ask.reward);
 
-        require(marketmetadata[ask.marketId].length != 0, Error.DOES_NOT_EXISTS);
+        require(marketmetadata[ask.marketId].length != 0, Error.INVALID_MARKET);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, _msgSender);
 
         IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
@@ -253,7 +252,7 @@ contract ProofMarketPlace is
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
-        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.INVAlID_SENDER);
+        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], newTaskIds[index], generators[index], new_acls[index]);
         }
@@ -271,7 +270,7 @@ contract ProofMarketPlace is
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
-        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.INVAlID_SENDER);
+        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
         _assignTask(askId, newTaskId, generator, new_acl);
     }
 
@@ -290,31 +289,31 @@ contract ProofMarketPlace is
         address generator,
         bytes memory new_acl
     ) internal {
-        require(newTaskId == taskCounter, Error.SHOULD_BE_SAME); //protection against replay
+        require(newTaskId == taskCounter, Error.INVALID_TASK_ID); //protection against replay
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
-        (uint256 minRewardForGenerator, uint256 generatorProposedTime) = generatorRegistry
-            .getGeneratorAssignmentDetails(generator, askWithState.ask.marketId);
-
-        require(askWithState.ask.reward > minRewardForGenerator, Error.INSUFFICIENT_REWARD);
-        require(
-            askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime,
-            Error.PROOF_REQUESTED_IN_LESS_TIME
+        (uint256 proofGenerationCost, uint256 generatorProposedTime) = generatorRegistry.getGeneratorAssignmentDetails(
+            generator,
+            askWithState.ask.marketId
         );
+
+        require(askWithState.ask.reward >= proofGenerationCost, Error.PROOF_PRICE_MISMATCH);
+        require(askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime, Error.PROOF_TIME_MISMATCH);
         askWithState.state = AskState.ASSIGNED;
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
 
         listOfTask[taskCounter] = Task(askId, generator);
 
-        generatorRegistry.assignGeneratorTask(generator, askWithState.ask.marketId);
+        uint256 generatorAmountToLock = slashingPenalty[askWithState.ask.marketId];
+        generatorRegistry.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
         emit TaskCreated(askId, taskCounter, generator, new_acl);
 
         taskCounter++;
     }
 
     function cancelAsk(uint256 askId) external {
-        require(getAskState(askId) == AskState.UNASSIGNED, Error.SHOULD_BE_IN_EXPIRED_STATE);
+        require(getAskState(askId) == AskState.UNASSIGNED, Error.ONLY_EXPIRED_ASKS_CAN_BE_CANCELLED);
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
@@ -323,7 +322,7 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {
+    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) public {
         require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
         for (uint256 index = 0; index < taskIds.length; index++) {
             submitProof(taskIds[index], proofs[index]);
@@ -343,7 +342,7 @@ contract ProofMarketPlace is
         );
 
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(task.askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
+        require(getAskState(task.askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
         // check what needs to be encoded from proof, ask and task for proof to be verified
 
         bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
@@ -360,7 +359,8 @@ contract ProofMarketPlace is
             paymentToken.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
         }
 
-        generatorRegistry.completeGeneratorTask(task.generator, marketId);
+        uint256 generatorAmountToRelease = slashingPenalty[marketId];
+        generatorRegistry.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
         emit ProofCreated(task.askId, taskId, proof);
     }
 
@@ -374,7 +374,7 @@ contract ProofMarketPlace is
     function discardRequest(uint256 taskId) external returns (uint256) {
         Task memory task = listOfTask[taskId];
         require(getAskState(task.askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
-        require(task.generator == msg.sender, Error.ONLY_TASKS_GENERATOR);
+        require(task.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
         return _slashGenerator(taskId, task, treasury);
     }
 
@@ -383,6 +383,6 @@ contract ProofMarketPlace is
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
 
         emit ProofNotGenerated(task.askId, taskId);
-        return generatorRegistry.slashGenerator(task.generator, marketId, rewardAddress);
+        return generatorRegistry.slashGenerator(task.generator, marketId, slashingPenalty[marketId], rewardAddress);
     }
 }

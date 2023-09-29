@@ -82,6 +82,7 @@ export const rawSetup = async (
   generatorData: string,
   matchingEngine: Signer,
   minRewardForGenerator: BigNumber,
+  totalComputeAllocation: BigNumber,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -99,7 +100,7 @@ export const rawSetup = async (
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await mockToken.getAddress(), generatorStakingAmount.toFixed()],
+    constructorArgs: [await mockToken.getAddress()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
@@ -137,9 +138,13 @@ export const rawSetup = async (
 
   const marketId = ethers.keccak256(marketSetupBytes);
 
-  await generatorRegistry.connect(generator).register(await generator.getAddress(), generatorData);
+  await generatorRegistry
+    .connect(generator)
+    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorData);
   await generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
-  await generatorRegistry.connect(generator).joinMarketPlace(marketId, minRewardForGenerator.toFixed(), 100, 1);
+  await generatorRegistry
+    .connect(generator)
+    .joinMarketPlace(marketId, totalComputeAllocation.toFixed(0), minRewardForGenerator.toFixed(), 100);
 
   await proofMarketPlace
     .connect(admin)

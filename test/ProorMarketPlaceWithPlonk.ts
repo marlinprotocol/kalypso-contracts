@@ -46,6 +46,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
   const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
+  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
@@ -97,6 +98,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       generatorDataToBytes(generatorData),
       matchingEngine,
       minRewardByGenerator,
+      generatorComputeAllocation,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
