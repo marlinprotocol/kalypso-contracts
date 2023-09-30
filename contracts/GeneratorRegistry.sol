@@ -105,6 +105,7 @@ contract GeneratorRegistry is
 
         require(generatorData.length != 0, Error.CANNOT_BE_ZERO);
         require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        require(declaredCompute != 0, Error.CANNOT_BE_ZERO);
 
         require(generator.generatorData.length == 0, Error.GENERATOR_ALREADY_EXISTS);
         require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
@@ -129,6 +130,7 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+        require(amount != 0, Error.CANNOT_BE_ZERO);
 
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         generator.totalStake += amount;

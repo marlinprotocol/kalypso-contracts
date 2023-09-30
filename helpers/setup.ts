@@ -125,12 +125,7 @@ export const rawSetup = async (
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
   await proofMarketPlace
     .connect(marketCreator)
-    .createMarketPlace(
-      marketSetupBytes,
-      await iverifier.getAddress(),
-      generatorStakingAmount.toFixed(0),
-      generatorSlashingPenalty.toFixed(0),
-    );
+    .createMarketPlace(marketSetupBytes, await iverifier.getAddress(), generatorSlashingPenalty.toFixed(0));
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 

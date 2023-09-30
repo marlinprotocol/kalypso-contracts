@@ -113,7 +113,6 @@ contract ProofMarketPlace is
     //-------------------------------- State variables start --------------------------------//
     mapping(bytes32 => bytes) public marketmetadata;
     mapping(bytes32 => address) public override verifier; // verifier address for the market place
-    mapping(bytes32 => uint256) public override minStakeToJoin;
     mapping(bytes32 => uint256) public slashingPenalty;
 
     uint256 public askCounter;
@@ -154,10 +153,8 @@ contract ProofMarketPlace is
     function createMarketPlace(
         bytes calldata _marketmetadata,
         address _verifier,
-        uint256 _minStake,
         uint256 _slashingPenalty
     ) external override {
-        require(_minStake >= MIN_STAKE_FOR_PARTICIPATING, "remove this");
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
 
         paymentToken.safeTransferFrom(_msgSender(), treasury, marketCreationCost);
@@ -168,7 +165,6 @@ contract ProofMarketPlace is
 
         marketmetadata[marketId] = _marketmetadata;
         verifier[marketId] = _verifier;
-        minStakeToJoin[marketId] = _minStake;
         slashingPenalty[marketId] = _slashingPenalty;
 
         emit MarketPlaceCreated(marketId);

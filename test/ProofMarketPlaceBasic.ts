@@ -104,12 +104,7 @@ describe("Proof market place", () => {
     await expect(
       proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.toFixed(0),
-          exponent.div(100).toFixed(0),
-        ),
+        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0)),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -156,12 +151,7 @@ describe("Proof market place", () => {
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
       await proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.toFixed(0),
-          exponent.div(100).toFixed(0),
-        );
+        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0));
     });
 
     it("Create Ask Request", async () => {

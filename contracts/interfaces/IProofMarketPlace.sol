@@ -52,12 +52,7 @@ interface IProofMarketPlace {
 
     event AskCancelled(uint256 indexed askId);
 
-    function createMarketPlace(
-        bytes calldata marketmetadata,
-        address verifier,
-        uint256 _minStake,
-        uint256 _slashingPenalty
-    ) external;
+    function createMarketPlace(bytes calldata marketmetadata, address verifier, uint256 _slashingPenalty) external;
 
     function createAsk(
         Ask calldata ask,
@@ -68,8 +63,6 @@ interface IProofMarketPlace {
     ) external;
 
     function verifier(bytes32 marketId) external view returns (address);
-
-    function minStakeToJoin(bytes32 marketId) external view returns (uint256);
 
     function slashingPenalty(bytes32 marketId) external view returns (uint256);
 }
