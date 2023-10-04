@@ -23,7 +23,7 @@ contract RsaRegistry is IRsaRegistry {
         address sender = msg.sender;
 
         // TODO: Use the actual data
-        require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        require(attestationVerifier.safeVerify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         rsa_pub_key[sender] = rsa_pub;
 
         emit UpdateRSA(sender, hash);

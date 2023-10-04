@@ -62,7 +62,7 @@ contract ProofMarketPlace is
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
         if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
-            require(rsaRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            require(rsaRegistry.attestationVerifier().safeVerify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
             super._grantRole(role, account);
         } else {
             super._grantRole(role, account);
