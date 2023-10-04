@@ -14,6 +14,8 @@ import {
   PriorityLog__factory,
   MockAttestationVerifier__factory,
   RsaRegistry__factory,
+  Error,
+  Error__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -23,6 +25,7 @@ interface SetupTemplate {
   proofMarketPlace: ProofMarketPlace;
   priorityLog: PriorityLog;
   platformToken: MockToken;
+  errorLibrary: Error;
 }
 
 export const createTask = async (
@@ -83,6 +86,7 @@ export const rawSetup = async (
   matchingEngine: Signer,
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
+  computeToNewMarket: BigNumber,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -139,7 +143,7 @@ export const rawSetup = async (
   await generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
   await generatorRegistry
     .connect(generator)
-    .joinMarketPlace(marketId, totalComputeAllocation.toFixed(0), minRewardForGenerator.toFixed(), 100);
+    .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
 
   await proofMarketPlace
     .connect(admin)
@@ -151,11 +155,13 @@ export const rawSetup = async (
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 
+  const errorLibrary = await new Error__factory(admin).deploy();
   return {
     mockToken,
     generatorRegistry,
     proofMarketPlace,
     priorityLog,
     platformToken,
+    errorLibrary,
   };
 };

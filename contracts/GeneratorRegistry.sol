@@ -17,6 +17,8 @@ import "./interfaces/IProofMarketPlace.sol";
 import "./interfaces/IGeneratorRegsitry.sol";
 import "./lib/Error.sol";
 
+// import "hardhat/console.sol";
+
 contract GeneratorRegistry is
     Initializable,
     ContextUpgradeable,

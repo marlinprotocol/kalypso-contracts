@@ -11,6 +11,7 @@ import {
   ProofMarketPlace,
   UltraVerifier__factory,
   Plonk_verifier_wrapper__factory,
+  Error,
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
@@ -25,6 +26,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
   let tokenToUse: MockToken;
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
+  let errorLibrary: Error;
 
   let signers: Signer[];
   let admin: Signer;
@@ -47,6 +49,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
   const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
   const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+
+  const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
@@ -99,12 +103,14 @@ describe("Proof Market Place for Plonk Verifier", () => {
       matchingEngine,
       minRewardByGenerator,
       generatorComputeAllocation,
+      computeGivenToNewMarket,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
+    errorLibrary = data.errorLibrary;
   });
   it("Check plonk verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -128,12 +134,12 @@ describe("Proof Market Place for Plonk Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
     const taskId = await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
       generator,
     );

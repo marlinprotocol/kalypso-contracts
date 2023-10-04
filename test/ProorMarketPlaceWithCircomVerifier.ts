@@ -11,6 +11,7 @@ import {
   XorVerifier__factory,
   Xor2_verifier_wrapper__factory,
   PriorityLog,
+  Error,
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
@@ -24,6 +25,7 @@ describe("Proof Market Place for Circom Verifier", () => {
   let tokenToUse: MockToken;
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
+  let errorLibrary: Error;
 
   let signers: Signer[];
   let admin: Signer;
@@ -49,6 +51,8 @@ describe("Proof Market Place for Circom Verifier", () => {
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
   const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+
+  const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -98,12 +102,14 @@ describe("Proof Market Place for Circom Verifier", () => {
       matchingEngine,
       minRewardByGenerator,
       generatorComputeAllocation,
+      computeGivenToNewMarket,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
+    errorLibrary = data.errorLibrary;
   });
   it("Check circom verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -127,12 +133,12 @@ describe("Proof Market Place for Circom Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
     const taskId = await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
       generator,
     );

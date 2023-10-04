@@ -1,231 +1,279 @@
-import { ethers, platform, upgrades } from "hardhat";
-import { Signer, keccak256 } from "ethers";
+import { expect } from "chai";
+import { ethers, upgrades } from "hardhat";
+import { Signer } from "ethers";
+import { BigNumber } from "bignumber.js";
 import {
   Error,
-  Error__factory,
   GeneratorRegistry,
-  GeneratorRegistry__factory,
+  IVerifier,
+  IVerifier__factory,
   MockToken,
-  MockToken__factory,
+  PriorityLog,
   ProofMarketPlace,
-  ProofMarketPlace__factory,
-  MockAttestationVerifier__factory,
-  RsaRegistry__factory,
-  MockVerifier__factory,
+  TransferVerifier__factory,
+  Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
-import BigNumber from "bignumber.js";
-import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
-import { expect } from "chai";
 
-const zeroAddress = "0x0000000000000000000000000000000000000000";
-describe("Generator", () => {
-  let signers: Signer[];
-  let admin: Signer;
-  let generator: Signer;
-  let tokenHolder: Signer;
-  let treasury: Signer;
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
 
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+
+describe("Checking Generator's multiple compute", () => {
+  let proofMarketPlace: ProofMarketPlace;
+  let generatorRegistry: GeneratorRegistry;
+  let tokenToUse: MockToken;
+  let platformToken: MockToken;
+  let priorityLog: PriorityLog;
   let errorLibrary: Error;
 
-  let generatorRegistry: GeneratorRegistry;
-  let stakingToken: MockToken;
-  let paymentToken: MockToken;
+  let signers: Signer[];
+  let admin: Signer;
+  let tokenHolder: Signer;
+  let treasury: Signer;
+  let prover: Signer;
+  let generator: Signer;
+  let matchingEngine: Signer;
 
-  let tokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(4);
-  let marketCreationCost: BigNumber = new BigNumber(10).pow(20).multipliedBy(5);
+  let marketCreator: Signer;
+  let marketSetupData: MarketData;
+  let marketId: string;
+
+  let generatorData: GeneratorData;
+
+  let iverifier: IVerifier;
+
+  const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
+  const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
+  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
+  const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
+  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+
+  const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
+
+  const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
+  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
     admin = signers[0];
     tokenHolder = signers[1];
-    generator = signers[2];
-    treasury = signers[3];
+    treasury = signers[2];
+    marketCreator = signers[3];
+    prover = signers[4];
+    generator = signers[5];
+    matchingEngine = signers[6];
 
-    errorLibrary = await new Error__factory(admin).deploy();
-    stakingToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
-    paymentToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
+    marketSetupData = {
+      zkAppName: "transfer verifier",
+      proverCode: "url of the prover code",
+      verifierCode: "url of the verifier code",
+      proverOysterImage: "oyster image link for the prover",
+      setupCeremonyData: ["first phase", "second phase", "third phase"],
+    };
 
-    const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
-    const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
-      kind: "uups",
-      constructorArgs: [await stakingToken.getAddress()],
-      initializer: false,
-    });
-    generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), signers[0]);
+    generatorData = {
+      name: "some custom name for the generator",
+    };
+
+    marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+
+    const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await transferVerifier.getAddress(),
+    );
+
+    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+
+    let treasuryAddress = await treasury.getAddress();
+    let data = await setup.rawSetup(
+      admin,
+      tokenHolder,
+      totalTokenSupply,
+      generatorStakingAmount,
+      generatorSlashingPenalty,
+      treasuryAddress,
+      marketCreationCost,
+      marketCreator,
+      marketDataToBytes(marketSetupData),
+      iverifier,
+      generator,
+      generatorDataToBytes(generatorData),
+      matchingEngine,
+      minRewardByGenerator,
+      generatorComputeAllocation,
+      computeGivenToNewMarket,
+    );
+    proofMarketPlace = data.proofMarketPlace;
+    generatorRegistry = data.generatorRegistry;
+    tokenToUse = data.mockToken;
+    priorityLog = data.priorityLog;
+    platformToken = data.platformToken;
+    errorLibrary = data.errorLibrary;
   });
+  it("Using Simple Transfer Verifier", async () => {
+    let abiCoder = new ethers.AbiCoder();
 
-  describe("++ Proof Market Place", () => {
-    let proofMarketPlace: ProofMarketPlace;
-    const compute = 1234;
-    const proofCost = 100;
-    const proofTimeInBlocks = 123;
-
-    const generatorData = "0x0011";
-    const stakingAmount = "100000";
-    const slashingPenalty = "2999999";
-
-    let marketId: string;
-
-    let marketCreator: Signer;
-
-    beforeEach(async () => {
-      marketCreator = signers[8];
-      const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-      const rsaRegistry = await new RsaRegistry__factory(admin).deploy(await mockAttestationVerifier.getAddress());
-
-      const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-      const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
-        kind: "uups",
-        constructorArgs: [
-          await paymentToken.getAddress(),
-          await stakingToken.getAddress(),
-          marketCreationCost.toString(),
-          await treasury.getAddress(),
-          await generatorRegistry.getAddress(),
-          await rsaRegistry.getAddress(),
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
         ],
-      });
-      proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
-      await generatorRegistry.connect(admin).initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
+      ],
+    );
+    // console.log({ inputBytes });
+    const latestBlock = await ethers.provider.getBlockNumber();
+    let assignmentExpiry = 100; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 10000; // in blocks
 
-      const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
-      marketId = ethers.keccak256(marketBytes);
-      const mockVerifier = await new MockVerifier__factory(admin).deploy();
+    const askId = await setup.createAsk(
+      prover,
+      tokenHolder,
+      {
+        marketId,
+        proverData: inputBytes,
+        reward: rewardForProofGeneration.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+    );
 
-      await paymentToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed(0));
-      await paymentToken
-        .connect(marketCreator)
-        .approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed(0));
-      await proofMarketPlace
-        .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), slashingPenalty),
-        await generatorRegistry.connect(generator).register(await generator.getAddress(), compute, generatorData);
+    const taskId = await setup.createTask(
+      matchingEngine,
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      askId,
+      generator,
+    );
 
-      await stakingToken.connect(tokenHolder).transfer(await generator.getAddress(), stakingAmount);
-      await stakingToken.connect(generator).approve(await generatorRegistry.getAddress(), stakingAmount);
-      await generatorRegistry.connect(generator).stake(await generator.getAddress(), stakingAmount);
-    });
-
-    it("Join Market Place", async () => {
-      await expect(
-        generatorRegistry.connect(generator).joinMarketPlace(marketId, compute, proofCost, proofTimeInBlocks),
-      )
-        .to.emit(generatorRegistry, "JoinedMarketPlace")
-        .withArgs(await generator.getAddress(), marketId, compute);
-    });
-
-    it("Should Fail Joining: If address is not a generator", async () => {
-      await expect(
-        generatorRegistry.connect(treasury).joinMarketPlace(marketId, compute, proofCost, proofTimeInBlocks),
-      ).to.be.revertedWith(await errorLibrary.INVALID_GENERATOR());
-    });
-
-    it("Should Fail: Join Invalid Market ID", async () => {
-      await expect(
-        generatorRegistry
-          .connect(generator)
-          .joinMarketPlace(keccak256("0x123123123123"), compute, proofCost, proofTimeInBlocks),
-      ).to.be.revertedWith(await errorLibrary.INVALID_MARKET());
-    });
-
-    it("Should Fail: Proposed Time and Resource Allocation can not be zero, proof cost can be", async () => {
-      await expect(
-        generatorRegistry.connect(generator).joinMarketPlace(marketId, compute, proofCost, 0),
-      ).to.be.revertedWith(await errorLibrary.CANNOT_BE_ZERO());
-
-      await expect(
-        generatorRegistry.connect(generator).joinMarketPlace(marketId, 0, proofCost, proofTimeInBlocks),
-      ).to.be.revertedWith(await errorLibrary.CANNOT_BE_ZERO());
-
-      await expect(
-        generatorRegistry.connect(generator).joinMarketPlace(marketId, compute, proofCost, proofTimeInBlocks),
-      ).to.emit(generatorRegistry, "JoinedMarketPlace");
-    });
-
-    it("Should Fail: Can't declare more than compute", async () => {
-      await expect(
-        generatorRegistry
-          .connect(generator)
-          .joinMarketPlace(marketId, new BigNumber(compute).plus(11).toFixed(0), proofCost, proofTimeInBlocks),
-      ).to.be.revertedWith(await errorLibrary.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE());
-    });
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+      .to.emit(proofMarketPlace, "ProofCreated")
+      .withArgs(askId, taskId, proofBytes);
   });
 
-  describe("Mock Proof Market Place Address", () => {
-    let randomAddress: string;
+  it.only("Task Assignments", async () => {
+    const max_asks = generatorComputeAllocation.div(computeGivenToNewMarket).toFixed(0);
 
-    const generatorData = "0x123456";
-    const declaredCompute = 10000;
+    let abiCoder = new ethers.AbiCoder();
 
-    beforeEach(async () => {
-      randomAddress = await signers[11].getAddress();
-      await generatorRegistry.connect(admin).initialize(await admin.getAddress(), randomAddress);
-    });
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+    // console.log({ inputBytes });
 
-    it("Any one Register", async () => {
-      await expect(
-        generatorRegistry.connect(generator).register(await generator.getAddress(), declaredCompute, generatorData),
-      )
-        .to.emit(generatorRegistry, "RegisteredGenerator")
-        .withArgs(await generator.getAddress());
-    });
+    for (let index = 0; index < parseInt(max_asks) + 2; index++) {
+      const latestBlock = await ethers.provider.getBlockNumber();
+      let assignmentExpiry = 100; // in blocks
+      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 10000; // in blocks
 
-    it("Should Fail Registration: When reward address is 0", async () => {
-      await expect(
-        generatorRegistry.connect(generator).register(zeroAddress, declaredCompute, generatorData),
-      ).to.be.revertedWith(await errorLibrary.CANNOT_BE_ZERO());
-    });
+      if (index >= parseInt(max_asks)) {
+        const ask = {
+          marketId,
+          proverData: inputBytes,
+          reward: rewardForProofGeneration.toFixed(),
+          expiry: assignmentExpiry + latestBlock,
+          timeTakenForProofGeneration,
+          deadline: latestBlock + maxTimeForProofGeneration,
+          refundAddress: await prover.getAddress(),
+        };
 
-    it("Should Fail Registration: When declared compute is 0", async () => {
-      await expect(
-        generatorRegistry.connect(generator).register(await generator.getAddress(), 0, generatorData),
-      ).to.be.revertedWith(await errorLibrary.CANNOT_BE_ZERO());
-    });
+        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-    it("Should Fail Registration: when generator data is 0", async () => {
-      await expect(
-        generatorRegistry.connect(generator).register(await generator.getAddress(), declaredCompute, "0x"),
-      ).to.be.revertedWith(await errorLibrary.CANNOT_BE_ZERO());
-    });
+        await tokenToUse.connect(prover).approve(await proofMarketPlace.getAddress(), ask.reward.toString());
 
-    it("Should Fail: Re-registration", async () => {
-      await generatorRegistry.connect(generator).register(await generator.getAddress(), declaredCompute, generatorData);
-      await expect(
-        generatorRegistry.connect(generator).register(await generator.getAddress(), declaredCompute, generatorData),
-      ).to.be.revertedWith(await errorLibrary.GENERATOR_ALREADY_EXISTS());
-    });
+        const proverBytes = ask.proverData;
+        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+          (proverBytes.length - 2) / 2,
+        );
 
-    describe("Post Registration", () => {
-      const stakingAmount = "1000";
-      beforeEach(async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), declaredCompute, generatorData);
-      });
+        await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+        await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
 
-      it("Stake", async () => {
-        await stakingToken.connect(tokenHolder).transfer(await generator.getAddress(), stakingAmount);
-        await stakingToken.connect(generator).approve(await generatorRegistry.getAddress(), stakingAmount);
+        const askId = await proofMarketPlace.askCounter();
 
-        await expect(generatorRegistry.connect(generator).stake(await generator.getAddress(), stakingAmount))
-          .to.emit(generatorRegistry, "AddedStash")
-          .withArgs(await generator.getAddress(), stakingAmount);
-      });
+        await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+        const taskId = (await proofMarketPlace.taskCounter()).toString();
 
-      describe("Post Staking", () => {
-        beforeEach(async () => {
-          await stakingToken.connect(tokenHolder).transfer(await generator.getAddress(), stakingAmount);
-          await stakingToken.connect(generator).approve(await generatorRegistry.getAddress(), stakingAmount);
+        await expect(
+          proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
+        ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
+      } else {
+        const askId = await setup.createAsk(
+          prover,
+          tokenHolder,
+          {
+            marketId,
+            proverData: inputBytes,
+            reward: rewardForProofGeneration.toFixed(),
+            expiry: assignmentExpiry + latestBlock,
+            timeTakenForProofGeneration,
+            deadline: latestBlock + maxTimeForProofGeneration,
+            refundAddress: await prover.getAddress(),
+          },
+          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+        );
 
-          await generatorRegistry.connect(generator).stake(await generator.getAddress(), stakingAmount);
-        });
+        const taskId = await setup.createTask(
+          matchingEngine,
+          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+          askId,
+          generator,
+        );
 
-        it("Unstake", async () => {
-          await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress(), stakingAmount))
-            .to.emit(generatorRegistry, "RemovedStash")
-            .withArgs(await generator.getAddress(), stakingAmount);
-        });
-      });
-    });
+        console.log({ taskId, index });
+      }
+    }
+
+    // let proofBytes = abiCoder.encode(
+    //   ["uint256[8]"],
+    //   [
+    //     [
+    //       transfer_verifier_proof.a[0],
+    //       transfer_verifier_proof.a[1],
+    //       transfer_verifier_proof.b[0][0],
+    //       transfer_verifier_proof.b[0][1],
+    //       transfer_verifier_proof.b[1][0],
+    //       transfer_verifier_proof.b[1][1],
+    //       transfer_verifier_proof.c[0],
+    //       transfer_verifier_proof.c[1],
+    //     ],
+    //   ],
+    // );
+    // await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    //   .to.emit(proofMarketPlace, "ProofCreated")
+    //   .withArgs(askId, taskId, proofBytes);
   });
 });
