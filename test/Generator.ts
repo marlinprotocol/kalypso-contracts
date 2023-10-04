@@ -174,7 +174,7 @@ describe("Checking Generator's multiple compute", () => {
       .withArgs(askId, taskId, proofBytes);
   });
 
-  it.only("Task Assignments", async () => {
+  it("Task Assignment fails if it exceeds compute capacity", async () => {
     const max_asks = generatorComputeAllocation.div(computeGivenToNewMarket).toFixed(0);
 
     let abiCoder = new ethers.AbiCoder();
