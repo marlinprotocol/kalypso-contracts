@@ -25,6 +25,7 @@ export interface MarketData {
   verifierCode: string;
   proverOysterImage: string;
   setupCeremonyData: string[];
+  inputOuputVerifierUrl: string;
 }
 
 // TODO: Update Generator Data

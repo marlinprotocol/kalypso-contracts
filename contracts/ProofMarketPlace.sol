@@ -16,7 +16,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./interfaces/IProofMarketPlace.sol";
 import "./interfaces/IGeneratorRegsitry.sol";
 import "./interfaces/IVerifier.sol";
-import "./interfaces/IRsaRegistry.sol";
+import "./interfaces/IEntityKeyRegistry.sol";
 
 import "./lib/Error.sol";
 
@@ -62,7 +62,7 @@ contract ProofMarketPlace is
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
         if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
-            require(rsaRegistry.attestationVerifier().safeVerify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            require(entityKeyRegistry.attestationVerifier().safeVerify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
             super._grantRole(role, account);
         } else {
             super._grantRole(role, account);
@@ -102,7 +102,7 @@ contract ProofMarketPlace is
     IGeneratorRegistry public immutable generatorRegistry;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IRsaRegistry public immutable rsaRegistry;
+    IEntityKeyRegistry public immutable entityKeyRegistry;
 
     uint256 public constant costPerInputBytes = 10e15;
 
@@ -130,14 +130,14 @@ contract ProofMarketPlace is
         uint256 _marketCreationCost,
         address _treasury,
         IGeneratorRegistry _generatorRegistry,
-        IRsaRegistry _rsaRegistry
+        IEntityKeyRegistry _entityRegistry
     ) {
         paymentToken = _paymentToken;
         platformToken = _platformToken;
         marketCreationCost = _marketCreationCost;
         treasury = _treasury;
         generatorRegistry = _generatorRegistry;
-        rsaRegistry = _rsaRegistry;
+        entityKeyRegistry = _entityRegistry;
     }
 
     function initialize(address _admin) public initializer {
@@ -226,17 +226,17 @@ contract ProofMarketPlace is
     }
 
     function updateEncryptionKey(
-        bytes memory rsa_pub,
+        bytes memory pubkey,
         bytes memory attestation_data
     ) external onlyRole(MATCHING_ENGINE_ROLE) {
-        rsaRegistry.updatePubkey(rsa_pub, attestation_data);
+        entityKeyRegistry.updatePubkey(pubkey, attestation_data);
     }
 
     function relayBatchAssignTasks(
         uint256[] memory askIds,
         uint256[] memory newTaskIds,
         address[] memory generators,
-        bytes[] memory new_acls,
+        bytes[] calldata new_acls,
         bytes calldata signature
     ) public {
         require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);

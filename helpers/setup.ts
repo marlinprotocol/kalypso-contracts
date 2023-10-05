@@ -13,7 +13,7 @@ import {
   PriorityLog,
   PriorityLog__factory,
   MockAttestationVerifier__factory,
-  RsaRegistry__factory,
+  EntityKeyRegistry__factory,
   Error,
   Error__factory,
 } from "../typechain-types";
@@ -99,7 +99,9 @@ export const rawSetup = async (
   );
 
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-  const rsaRegistry = await new RsaRegistry__factory(admin).deploy(await mockAttestationVerifier.getAddress());
+  const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
+    await mockAttestationVerifier.getAddress(),
+  );
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
@@ -118,7 +120,7 @@ export const rawSetup = async (
       marketCreationCost.toFixed(),
       treasury,
       await generatorRegistry.getAddress(),
-      await rsaRegistry.getAddress(),
+      await entityKeyRegistry.getAddress(),
     ],
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);

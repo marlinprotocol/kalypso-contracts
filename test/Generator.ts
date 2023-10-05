@@ -70,6 +70,7 @@ describe("Checking Generator's multiple compute", () => {
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "this should be nclave url",
     };
 
     generatorData = {
@@ -253,7 +254,7 @@ describe("Checking Generator's multiple compute", () => {
           generator,
         );
 
-        console.log({ taskId, index });
+        // console.log({ taskId, index });
       }
     }
 

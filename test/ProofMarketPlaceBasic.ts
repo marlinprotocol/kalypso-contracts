@@ -14,7 +14,8 @@ import {
   MockVerifier__factory,
   ProofMarketPlace,
   ProofMarketPlace__factory,
-  RsaRegistry__factory,
+  EntityKeyRegistry,
+  EntityKeyRegistry__factory,
 } from "../typechain-types";
 import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
 
@@ -65,7 +66,9 @@ describe("Proof market place", () => {
     mockVerifier = await new MockVerifier__factory(admin).deploy();
 
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(await mockAttestationVerifier.getAddress());
+    const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(
+      await mockAttestationVerifier.getAddress(),
+    );
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
@@ -84,7 +87,7 @@ describe("Proof market place", () => {
         marketCreationCost.toString(),
         await treasury.getAddress(),
         await generatorRegistry.getAddress(),
-        await rsaRegistry.getAddress(),
+        await entityRegistry.getAddress(),
       ],
     });
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);

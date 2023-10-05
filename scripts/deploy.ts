@@ -8,7 +8,7 @@ import {
   MockToken__factory,
   PriorityLog__factory,
   ProofMarketPlace__factory,
-  RsaRegistry__factory,
+  EntityKeyRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
   ZkbVerifier__factory,
@@ -91,11 +91,11 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.RsaRegistry) {
-    const rsaRegistry = await new RsaRegistry__factory(admin).deploy(addresses.proxy.attestationVerifier);
-    await rsaRegistry.waitForDeployment();
+  if (!addresses.proxy.EntityRegistry) {
+    const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestationVerifier);
+    await entityRegistry.waitForDeployment();
 
-    addresses.proxy.RsaRegistry = await rsaRegistry.getAddress();
+    addresses.proxy.EntityRegistry = await entityRegistry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
@@ -110,7 +110,7 @@ async function main(): Promise<string> {
         config.marketCreationCost,
         await treasury.getAddress(),
         addresses.proxy.generatorRegistry,
-        addresses.proxy.RsaRegistry,
+        addresses.proxy.EntityRegistry,
       ],
     });
     await proxy.waitForDeployment();

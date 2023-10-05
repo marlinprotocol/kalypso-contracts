@@ -70,6 +70,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "this should be nclave url",
     };
 
     generatorData = {

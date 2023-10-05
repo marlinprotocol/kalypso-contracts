@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { encrypt, decrypt, PrivateKey } from "eciesjs";
 
 // 1. Encrypt a string using AES-256
 
@@ -10,29 +11,21 @@ function encryptAES(data: string, secretKey: Buffer): string {
   return `${iv.toString("hex")}${encrypted}`;
 }
 
-// 2. Asymmetrically encrypt the secret key using RSA-2048
-
-export async function encryptRSA(publicKey: string, data: Buffer): Promise<string> {
-  const encryptedBuffer = crypto.publicEncrypt(
-    {
-      key: publicKey,
-      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: "sha1",
-    },
-    data,
-  );
-  return encryptedBuffer.toString("base64");
+// 2. Asymmetrically encrypt the secret key using ecies
+export async function encryptECIES(publicKey: string, data: Buffer): Promise<Buffer> {
+  let result = encrypt(publicKey, data);
+  return result;
 }
 
-export async function encryptDataWithRSAandAES(data: string, publicKey: string) {
+export async function encryptDataWithEciesAandAES(data: string, publicKey: string) {
   // Generate a random secret key for AES encryption
   const secretKey = crypto.randomBytes(32);
 
   // Encrypt the data using the secret key
   const encryptedData = encryptAES(data, secretKey);
 
-  // Encrypt the secret key using RSA
-  const encryptedSecretKey = await encryptRSA(publicKey, secretKey);
+  // Encrypt the secret key using
+  const encryptedSecretKey = await encryptECIES(publicKey, secretKey);
 
   // Return the encrypted data and encrypted secret key
   return {
@@ -57,28 +50,19 @@ function decryptAES(encryptedData: string, secretKey: Buffer): string {
   return decryptedBuffer.toString("utf8");
 }
 
-// 2. Asymmetrically decrypt the secret key using RSA-2048
-
-export async function decryptRSA(privateKey: string, encryptedData: string): Promise<Buffer> {
-  const buffer = Buffer.from(encryptedData, "base64");
-  const decryptedBuffer = crypto.privateDecrypt(
-    {
-      key: privateKey,
-      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: "sha1",
-    },
-    buffer,
-  );
+// 2. Asymmetrically decrypt the secret key using
+export async function decryptEcies(privateKey: string, encryptedData: Buffer): Promise<Buffer> {
+  const decryptedBuffer = decrypt(privateKey, encryptedData);
   return decryptedBuffer;
 }
 
-export async function decryptDataWithRSAandAES(
+export async function decryptDataWithEciesandAES(
   encryptedData: string,
-  aclData: string,
+  aclData: Buffer,
   privateKey: string,
 ): Promise<string> {
-  // Decrypt the secret key using RSA private key
-  const decryptedSecretKey = await decryptRSA(privateKey, aclData);
+  // Decrypt the secret key using ECIES private key
+  const decryptedSecretKey = await decryptEcies(privateKey, aclData);
 
   // Decrypt the actual data using the decrypted AES secret key
   const data = decryptAES(encryptedData, decryptedSecretKey);

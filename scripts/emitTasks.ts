@@ -15,7 +15,7 @@ import {
   GeneratorRegistry__factory,
   MockToken__factory,
   ProofMarketPlace__factory,
-  RsaRegistry__factory,
+  EntityKeyRegistry__factory,
 } from "../typechain-types";
 
 import BigNumber from "bignumber.js";
@@ -95,7 +95,7 @@ async function main(): Promise<string> {
 
     const geneatorDataString = generatorDataToBytes(generatorData);
     const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
-    tx = await generatorRegistry.connect(wallet).register(await wallet.getAddress(), geneatorDataString);
+    tx = await generatorRegistry.connect(wallet).register(await wallet.getAddress(), 100, geneatorDataString);
     await tx.wait();
     tx = await generatorRegistry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
     await tx.wait();
@@ -112,10 +112,10 @@ async function main(): Promise<string> {
     // console.log({estimate: estimate.toString(), bal: await ethers.provider.getBalance(wallet.address)})
     console.log("generator registration transaction", (await tx.wait())?.hash);
 
-    const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, wallet);
-    const rsaPubBytes = utf8ToHex(generator_publickey);
-    tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes, "0x");
-    console.log("generator broadcast rsa pubkey transaction", (await tx.wait())?.hash);
+    const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.EntityRegistry, wallet);
+    const pubBytes = utf8ToHex(generator_publickey);
+    tx = await entityRegistry.updatePubkey("0x" + pubBytes, "0x");
+    console.log("generator broadcast pubkey transaction", (await tx.wait())?.hash);
 
     let abiCoder = new ethers.AbiCoder();
 
@@ -150,8 +150,8 @@ async function main(): Promise<string> {
     const maxTimeForProofGeneration = 10000000;
 
     const secretString = JSON.stringify(secret);
-    const result = await secret_operations.encryptDataWithRSAandAES(secretString, matching_engine_publicKey);
-    const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
+    const result = await secret_operations.encryptDataWithEciesAandAES(secretString, matching_engine_publicKey);
+    const aclHex = "0x" + secret_operations.base64ToHex(result.aclData.toString("hex"));
     const encryptedSecretInputs = "0x" + result.encryptedData;
     const secretCompressed = await gzip(encryptedSecretInputs);
 
@@ -182,9 +182,9 @@ async function main(): Promise<string> {
     const secretData = recovered_secret.toString();
     const aclData = decodedData[decodedData.length - 1];
 
-    const decryptedData = await secret_operations.decryptDataWithRSAandAES(
+    const decryptedData = await secret_operations.decryptDataWithEciesandAES(
       secretData.split("x")[1],
-      secret_operations.hexToBase64(aclData.split("x")[1]),
+      aclData.split("x")[1],
       matching_engine_privatekey,
     );
 
@@ -192,12 +192,11 @@ async function main(): Promise<string> {
     console.log(JSON.parse(decryptedData));
     console.log("************** data seen by matching engine (end) *************");
 
-    const cipher = await secret_operations.decryptRSA(
+    const cipher = await secret_operations.decryptEcies(
       matching_engine_privatekey,
-      secret_operations.hexToBase64(aclData.split("x")[1]),
+      aclData.split("x")[1],
     );
-    const new_acl_hex =
-      "0x" + secret_operations.base64ToHex(await secret_operations.encryptRSA(generator_publickey, cipher));
+    const new_acl_hex = "0x" + (await secret_operations.encryptECIES(generator_publickey, cipher)).toString("hex");
 
     const taskId = await proofMarketPlace.taskCounter();
     tx = await proofMarketPlace
@@ -213,9 +212,9 @@ async function main(): Promise<string> {
     );
     const generator_acl = generatorDecodedData[generatorDecodedData.length - 1];
 
-    const decryptedDataForGenerator = await secret_operations.decryptDataWithRSAandAES(
+    const decryptedDataForGenerator = await secret_operations.decryptDataWithEciesandAES(
       secretData.split("x")[1],
-      secret_operations.hexToBase64(generator_acl.split("x")[1]),
+      generator_acl.split("x")[1],
       generator_privatekey,
     );
 
