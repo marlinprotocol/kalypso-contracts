@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
-import { checkFileExists, marketDataToBytes } from "../helpers";
+import { MarketData, checkFileExists, marketDataToBytes } from "../helpers";
 import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 
 async function main(): Promise<string> {
@@ -53,12 +53,13 @@ async function main(): Promise<string> {
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
-    const marketSetupData = {
+    const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",
       proverCode: "url of the zkbob prover code",
       verifierCode: "url of the verifier zkbob code",
       proverOysterImage: "oyster image link for the zkbob prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "http://localhost:3030/"
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
@@ -68,8 +69,7 @@ async function main(): Promise<string> {
       .connect(marketCreator)
       .createMarketPlace(
         marketSetupBytes,
-        addresses.proxy.transferVerifierWrapper,
-        config.generatorStakingAmount,
+        addresses.proxy.zkbVerifierWrapper,
         config.generatorSlashingPenalty,
       );
     await tx.wait();
