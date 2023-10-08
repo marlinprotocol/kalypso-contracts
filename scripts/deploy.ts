@@ -69,7 +69,7 @@ async function main(): Promise<string> {
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
       kind: "uups",
-      constructorArgs: [addresses.proxy.mockToken, config.generatorStakingAmount],
+      constructorArgs: [addresses.proxy.mockToken],
       initializer: false,
     });
     await generatorProxy.waitForDeployment();
