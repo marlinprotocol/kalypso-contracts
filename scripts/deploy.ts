@@ -46,10 +46,10 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses.proxy.mockToken) {
-    const mockToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
-    await mockToken.waitForDeployment();
-    addresses.proxy.mockToken = await mockToken.getAddress();
+  if (!addresses.proxy.paymentToken) {
+    const paymentToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
+    await paymentToken.waitForDeployment();
+    addresses.proxy.paymentToken = await paymentToken.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
@@ -69,7 +69,7 @@ async function main(): Promise<string> {
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
       kind: "uups",
-      constructorArgs: [addresses.proxy.mockToken],
+      constructorArgs: [addresses.proxy.platformToken],
       initializer: false,
     });
     await generatorProxy.waitForDeployment();
@@ -105,7 +105,7 @@ async function main(): Promise<string> {
     const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
       kind: "uups",
       constructorArgs: [
-        addresses.proxy.mockToken,
+        addresses.proxy.paymentToken,
         addresses.proxy.platformToken,
         config.marketCreationCost,
         await treasury.getAddress(),

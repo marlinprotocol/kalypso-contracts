@@ -39,8 +39,8 @@ async function main(): Promise<string> {
   }
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, marketCreator);
 
-  if (!addresses?.proxy?.mockToken) {
-    throw new Error("Mock Token Is Not Deployed");
+  if (!addresses?.proxy?.paymentToken) {
+    throw new Error("paymentToken Is Not Deployed");
   }
 
   if (!addresses?.proxy?.zkbVerifierWrapper) {
@@ -49,9 +49,9 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.zkbMarketId) {
-    const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-    await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
-    await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
+    const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
+    await paymentToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
+    await paymentToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",
@@ -59,7 +59,7 @@ async function main(): Promise<string> {
       verifierCode: "url of the verifier zkbob code",
       proverOysterImage: "oyster image link for the zkbob prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
-      inputOuputVerifierUrl: "http://localhost:3030/"
+      inputOuputVerifierUrl: "http://localhost:3030/",
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
@@ -67,11 +67,7 @@ async function main(): Promise<string> {
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(
-        marketSetupBytes,
-        addresses.proxy.zkbVerifierWrapper,
-        config.generatorSlashingPenalty,
-      );
+      .createMarketPlace(marketSetupBytes, addresses.proxy.zkbVerifierWrapper, config.generatorSlashingPenalty);
     await tx.wait();
     addresses.zkbMarketId = zkbMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");

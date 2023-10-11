@@ -1,19 +1,19 @@
 {
     "proxy": {
-        "mockToken": "0xCe23FfE37A1669CfD0081109aFC680c8503888f8",
-        "platformToken": "0x560FCeb707B0F4b56d43d295e45eD7FE939b96b6",
-        "generatorRegistry": "0x6b23bA5825d6f1886e0EDBC46A5eCe846b79AEc8",
-        "attestationVerifier": "0x7Fb2E6af6156709d7317227D11Aa07B03545b686",
-        "EntityRegistry": "0xf1ac28F5E2F72657DD2699B7454E9c7f5207A6D1",
-        "proofMarketPlace": "0xD4B9D03fF2205DAC4F1fE3382934EcCe9dF174b1",
-        "transferVerifierWrapper": "0xEc2e77d98a8075A6e8e45eD095393914cef4e1F2",
-        "zkbVerifierWrapper": "0xbe30840345E59A6b94E50Fb17581D993216d3a54",
-        "priorityList": "0xa1A26f0f736ebC8060F7b21E4d2fE0121f42F2fa",
-        "inputAndProofFormat": "0x6FE1aEd196E2201B87ef1C25981Fa005e8AA35a7"
+        "paymentToken": "0x746F190DDaa001D2E42D768FFE46afD1720Cc493",
+        "platformToken": "0xA713CB10e34EE0B1dD07af2E965602C118CD7be7",
+        "generatorRegistry": "0x82CeA7f50819e488C8D5C6D5D142d8a5e0A7b056",
+        "attestationVerifier": "0xa60E856846bF736D0519ea0d38d2837a554F7862",
+        "EntityRegistry": "0x6977Fc08E821e479e9BA00b2d37Ba9b85FCC0985",
+        "proofMarketPlace": "0x83D452dD497c4Fd01a8e5531F336D084663Df0B1",
+        "transferVerifierWrapper": "0x87B34616819539d4A9517b26be8114CC1425134A",
+        "zkbVerifierWrapper": "0xe979d1CDfF44B1D533D77A5DA8eAbAdc3057d829",
+        "priorityList": "0xd271FFD856d25099965AaD15A5d8Db4E3A954738",
+        "inputAndProofFormat": "0xDB451516a135f76aADb2168fA5E1d4cA263B05b7"
     },
     "implementation": {
-        "generatorRegistry": "0x9C8842d1469B3ae170b275319106d06Eb2EcEf81",
-        "proofMarketPlace": "0xE9e5d4830a9126D9b2b9f60F0cA1d5Adbafda6EE"
+        "generatorRegistry": "0x92423F606C703Cd986F2F11f0F006F8787090e4b",
+        "proofMarketPlace": "0xe31cC080fc15922e52716B73a83d11a2cc035bd5"
     },
     "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"
 }

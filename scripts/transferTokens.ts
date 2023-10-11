@@ -22,7 +22,7 @@ async function main(): Promise<string> {
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0xCc9F0defA87Ecba1dFb6D7C9103F01fEAF547dba";
+  const transferTo = "0x4d85CEA118DcEaA3F187e97aDd84F265bF31b420";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -31,7 +31,11 @@ async function main(): Promise<string> {
   }
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.mockToken) {
+  if (!addresses.proxy.paymentToken) {
+    throw new Error("token contract not deployed");
+  }
+
+  if (!addresses.proxy.platformToken) {
     throw new Error("token contract not deployed");
   }
 
@@ -40,8 +44,8 @@ async function main(): Promise<string> {
     (await treasury.sendTransaction({ to: transferTo, value: "31750928600000000" })).wait();
   }
 
-  const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
+  let tx = await paymentToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

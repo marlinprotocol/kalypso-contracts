@@ -192,10 +192,7 @@ async function main(): Promise<string> {
     console.log(JSON.parse(decryptedData));
     console.log("************** data seen by matching engine (end) *************");
 
-    const cipher = await secret_operations.decryptEcies(
-      matching_engine_privatekey,
-      aclData.split("x")[1],
-    );
+    const cipher = await secret_operations.decryptEcies(matching_engine_privatekey, aclData.split("x")[1]);
     const new_acl_hex = "0x" + (await secret_operations.encryptECIES(generator_publickey, cipher)).toString("hex");
 
     const taskId = await proofMarketPlace.taskCounter();

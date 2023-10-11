@@ -57,6 +57,9 @@ const config: HardhatUserConfig = {
     gasPrice: 1,
     coinmarketcap: process.env.COIN_MARKET_CAP,
   },
+  etherscan: {
+    apiKey: `${process.env.ETHERSCAN_API_KEY}`,
+  },
   networks: {
     hardhat: {
       blockGasLimit: 500000000000,
