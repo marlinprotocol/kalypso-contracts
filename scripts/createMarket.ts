@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
-import { checkFileExists, marketDataToBytes } from "../helpers";
+import { MarketData, checkFileExists, marketDataToBytes } from "../helpers";
 import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
 
 async function main(): Promise<string> {
@@ -39,8 +39,8 @@ async function main(): Promise<string> {
   }
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, marketCreator);
 
-  if (!addresses?.proxy?.mockToken) {
-    throw new Error("Mock Token Is Not Deployed");
+  if (!addresses?.proxy?.paymentToken) {
+    throw new Error("paymentToken Is Not Deployed");
   }
 
   if (!addresses?.proxy?.zkbVerifierWrapper) {
@@ -48,27 +48,28 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.marketId) {
-    const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-    await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
-    await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
+  if (!addresses.zkbMarketId) {
+    const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
+    await paymentToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
+    await paymentToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
-    const marketSetupData = {
+    const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",
       proverCode: "url of the zkbob prover code",
       verifierCode: "url of the verifier zkbob code",
       proverOysterImage: "oyster image link for the zkbob prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "http://localhost:3030/",
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
     const tx = await proofMarketPlace
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.transferVerifierWrapper);
+      .createMarketPlace(marketSetupBytes, addresses.proxy.zkbVerifierWrapper, config.generatorSlashingPenalty);
     await tx.wait();
-    addresses.marketId = marketId;
+    addresses.zkbMarketId = zkbMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

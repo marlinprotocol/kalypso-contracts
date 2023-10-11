@@ -19,7 +19,7 @@ import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, set
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
-describe("Proof Market Place for Transfer Verifier", () => {
+describe("Checking Generator's multiple compute", () => {
   let proofMarketPlace: ProofMarketPlace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
@@ -112,7 +112,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
   });
-  it("Check transfer verifier", async () => {
+  it("Using Simple Transfer Verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
     let inputBytes = abiCoder.encode(
@@ -173,5 +173,108 @@ describe("Proof Market Place for Transfer Verifier", () => {
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
       .withArgs(askId, taskId, proofBytes);
+  });
+
+  it("Task Assignment fails if it exceeds compute capacity", async () => {
+    const max_asks = generatorComputeAllocation.div(computeGivenToNewMarket).toFixed(0);
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+    // console.log({ inputBytes });
+
+    for (let index = 0; index < parseInt(max_asks) + 2; index++) {
+      const latestBlock = await ethers.provider.getBlockNumber();
+      let assignmentExpiry = 100; // in blocks
+      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 10000; // in blocks
+
+      if (index >= parseInt(max_asks)) {
+        const ask = {
+          marketId,
+          proverData: inputBytes,
+          reward: rewardForProofGeneration.toFixed(),
+          expiry: assignmentExpiry + latestBlock,
+          timeTakenForProofGeneration,
+          deadline: latestBlock + maxTimeForProofGeneration,
+          refundAddress: await prover.getAddress(),
+        };
+
+        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+
+        await tokenToUse.connect(prover).approve(await proofMarketPlace.getAddress(), ask.reward.toString());
+
+        const proverBytes = ask.proverData;
+        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+          (proverBytes.length - 2) / 2,
+        );
+
+        await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+        await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+
+        const askId = await proofMarketPlace.askCounter();
+
+        await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+        const taskId = (await proofMarketPlace.taskCounter()).toString();
+
+        await expect(
+          proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
+        ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
+      } else {
+        const askId = await setup.createAsk(
+          prover,
+          tokenHolder,
+          {
+            marketId,
+            proverData: inputBytes,
+            reward: rewardForProofGeneration.toFixed(),
+            expiry: assignmentExpiry + latestBlock,
+            timeTakenForProofGeneration,
+            deadline: latestBlock + maxTimeForProofGeneration,
+            refundAddress: await prover.getAddress(),
+          },
+          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+        );
+
+        const taskId = await setup.createTask(
+          matchingEngine,
+          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+          askId,
+          generator,
+        );
+
+        // console.log({ taskId, index });
+      }
+    }
+
+    // let proofBytes = abiCoder.encode(
+    //   ["uint256[8]"],
+    //   [
+    //     [
+    //       transfer_verifier_proof.a[0],
+    //       transfer_verifier_proof.a[1],
+    //       transfer_verifier_proof.b[0][0],
+    //       transfer_verifier_proof.b[0][1],
+    //       transfer_verifier_proof.b[1][0],
+    //       transfer_verifier_proof.b[1][1],
+    //       transfer_verifier_proof.c[0],
+    //       transfer_verifier_proof.c[1],
+    //     ],
+    //   ],
+    // );
+    // await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    //   .to.emit(proofMarketPlace, "ProofCreated")
+    //   .withArgs(askId, taskId, proofBytes);
   });
 });

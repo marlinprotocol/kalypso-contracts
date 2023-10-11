@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import * as fs from "fs";
 import { checkFileExists, hexToUtf8, utf8ToHex } from "../helpers";
 import {} from "../typechain-types";
-import { RsaRegistry__factory } from "../typechain-types/factories/contracts";
+import { EntityKeyRegistry__factory } from "../typechain-types/factories/contracts";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -26,22 +26,22 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses.proxy.RsaRegistry) {
-    throw new Error("RsaRegistry contract not deployed");
+  if (!addresses.proxy.EntityRegistry) {
+    throw new Error("EntityRegistry contract not deployed");
   }
 
-  const rsaRegistry = RsaRegistry__factory.connect(addresses.proxy.RsaRegistry, matchingEngine);
+  const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.EntityRegistry, matchingEngine);
   const matchingEngineRsaPub = fs.readFileSync("./data/matching_engine/public_key_2048.pem", "utf-8");
 
-  const rsaPubBytes = utf8ToHex(matchingEngineRsaPub);
-  const rsaRecovered = hexToUtf8(rsaPubBytes);
+  const pubBytes = utf8ToHex(matchingEngineRsaPub);
+  const pubkeyRecovered = hexToUtf8(pubBytes);
 
-  const tx = await rsaRegistry.updatePubkey("0x" + rsaPubBytes);
+  const tx = await entityRegistry.updatePubkey("0x" + pubkeyRecovered, "0x");
   await tx.wait();
 
-  const rsaPubBytesFetched = await rsaRegistry.rsa_pub_key(await matchingEngine.getAddress());
-  const rsaFetchedAndRecovered = hexToUtf8(rsaPubBytesFetched.split("x")[1]);
-  console.log({ matchingEngineRsaPub, rsaRecovered, rsaFetchedAndRecovered });
+  const pubBytesFetched = await entityRegistry.pub_key(await matchingEngine.getAddress());
+  const pubBytesFetchedAndRecovered = hexToUtf8(pubBytesFetched.split("x")[1]);
+  console.log({ matchingEngineRsaPub, pubkeyRecovered, pubBytesFetchedAndRecovered });
 
   return "Done";
 }

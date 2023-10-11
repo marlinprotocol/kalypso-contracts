@@ -22,7 +22,7 @@ async function main(): Promise<string> {
 
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, admin);
 
-  const marketIdsToRead = [addresses.marketId];
+  const marketIdsToRead = [addresses.zkbMarketId];
 
   for (let index = 0; index < marketIdsToRead.length; index++) {
     const marketId = marketIdsToRead[index];

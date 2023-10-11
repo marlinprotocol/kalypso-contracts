@@ -17,6 +17,8 @@ import "./interfaces/IProofMarketPlace.sol";
 import "./interfaces/IGeneratorRegsitry.sol";
 import "./lib/Error.sol";
 
+// import "hardhat/console.sol";
+
 contract GeneratorRegistry is
     Initializable,
     ContextUpgradeable,
@@ -68,27 +70,24 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable stakingToken;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable stakingAmount;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable slashingPenalty;
-
     bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("slasher")) - 1);
+
+    uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
+
+    uint256 private constant EXPONENT = 10e18;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    mapping(address => mapping(bytes32 => GeneratorWithState)) public generatorRegistry;
+    mapping(address => Generator) public generatorRegistry;
+    mapping(address => mapping(bytes32 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
 
     IProofMarketPlace public proofMarketPlace;
 
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken, uint256 _stakingAmount, uint256 _slashingPenalty) {
+    constructor(IERC20Upgradeable _stakingToken) {
         stakingToken = _stakingToken;
-        stakingAmount = _stakingAmount;
-        slashingPenalty = _slashingPenalty;
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
@@ -102,127 +101,239 @@ contract GeneratorRegistry is
         _;
     }
 
-    function register(Generator calldata generator, bytes32 marketId) external override {
-        address verifierAddress = proofMarketPlace.verifier(marketId);
+    function register(address rewardAddress, uint256 declaredCompute, bytes memory generatorData) external override {
+        address _msgSender = msg.sender;
+        Generator memory generator = generatorRegistry[_msgSender];
 
-        require(verifierAddress != address(0), Error.CANNOT_BE_ZERO);
-        address _msgSender = _msgSender();
-        stakingToken.safeTransferFrom(_msgSender, address(this), stakingAmount);
+        require(generatorData.length != 0, Error.CANNOT_BE_ZERO);
+        require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        require(declaredCompute != 0, Error.CANNOT_BE_ZERO);
 
-        require(generatorRegistry[_msgSender][marketId].generator.generatorData.length == 0, Error.ALREADY_EXISTS);
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        generatorRegistry[_msgSender][marketId] = GeneratorWithState(
-            GeneratorState.JOINED,
-            Generator(generator.rewardAddress, stakingAmount, generator.minReward, generator.generatorData)
-        );
+        require(generator.generatorData.length == 0, Error.GENERATOR_ALREADY_EXISTS);
+        require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
 
-        emit RegisteredGenerator(_msgSender, marketId);
+        generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
+
+        emit RegisteredGenerator(_msgSender);
     }
 
-    // Todo: Optimise this
-    function getGeneratorState(address _generator, bytes32 marketId) public view returns (GeneratorState) {
-        GeneratorWithState memory generatorWithState = generatorRegistry[_generator][marketId];
+    function deregister(address refundAddress) external override {
+        address _msgSender = msg.sender;
+        Generator memory generator = generatorRegistry[_msgSender];
 
-        if (
-            generatorWithState.state == GeneratorState.NULL ||
-            generatorWithState.state == GeneratorState.WIP ||
-            generatorWithState.state == GeneratorState.REQUESTED_FOR_EXIT
-        ) {
-            return generatorWithState.state;
-        }
+        require(generator.totalCompute == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
+        stakingToken.safeTransfer(refundAddress, generator.totalStake);
+        delete generatorRegistry[_msgSender];
 
-        // Once generator is joined and active
-        if (generatorWithState.state == GeneratorState.JOINED) {
-            if (generatorWithState.generator.amountLocked > slashingPenalty) {
-                return GeneratorState.JOINED;
-            } else {
-                return GeneratorState.LOW_STAKE;
-            }
-        }
-
-        return GeneratorState.NULL;
+        emit DeregisteredGenerator(_msgSender);
     }
 
-    function getGeneratorMinReward(address _generator, bytes32 marketId) public view returns (uint256) {
-        return generatorRegistry[_generator][marketId].generator.minReward;
+    function stake(address generatorAddress, uint256 amount) external override returns (uint256) {
+        Generator storage generator = generatorRegistry[generatorAddress];
+        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
+        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+        require(amount != 0, Error.CANNOT_BE_ZERO);
+
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        generator.totalStake += amount;
+
+        emit AddedStash(generatorAddress, amount);
+        return generator.totalStake;
     }
 
-    function deregister(bytes32 marketId) external override {
-        address _msgSender = _msgSender();
-        GeneratorState state = getGeneratorState(_msgSender, marketId);
-        require(state != GeneratorState.NULL, Error.CANNOT_BE_ZERO);
+    function unstake(address receipient, uint256 amount) external override returns (uint256) {
+        address generatorAddress = msg.sender;
+        Generator storage generator = generatorRegistry[generatorAddress];
 
-        GeneratorWithState storage generatorWithState = generatorRegistry[_msgSender][marketId];
+        uint256 availableAmount = generator.totalStake - generator.stakeLocked;
+        require(amount <= availableAmount, Error.CAN_NOT_WITHDRAW_MORE_UNLOCKED_AMOUNT);
 
-        if (state == GeneratorState.WIP) {
-            generatorWithState.state = GeneratorState.REQUESTED_FOR_EXIT;
-            return;
-        }
+        generator.totalStake -= amount;
+        stakingToken.safeTransfer(receipient, amount);
 
-        require(state != GeneratorState.REQUESTED_FOR_EXIT, Error.HAS_A_PENDING_WORK); //i.e generator is in joined state
-
-        stakingToken.safeTransfer(
-            generatorWithState.generator.rewardAddress,
-            generatorWithState.generator.amountLocked
-        );
-
-        delete generatorRegistry[_msgSender][marketId];
-        emit DeregisteredGenerator(_msgSender, marketId);
+        emit RemovedStash(generatorAddress, amount);
+        return generator.totalStake;
     }
 
-    // TODO: optimise this to avoid readine state multiple times
-    function getGeneratorDetails(
-        address _generator,
-        bytes32 marketId
-    ) public view override returns (GeneratorState, uint256, address) {
-        return (
-            getGeneratorState(_generator, marketId),
-            getGeneratorMinReward(_generator, marketId),
-            getGeneratorRewardAddress(_generator, marketId)
-        );
-    }
-
-    function getGeneratorRewardAddress(address _generator, bytes32 marketId) public view returns (address) {
-        return generatorRegistry[_generator][marketId].generator.rewardAddress;
-    }
-
-    // TODO: current _rewardAddress gets all the slash, slashing economics not implemented
-    // returns slashed amount
-    function slashGenerator(
-        address _generator,
+    function joinMarketPlace(
         bytes32 marketId,
-        address _rewardAddress
-    ) external onlyRole(SLASHER_ROLE) returns (uint256) {
-        GeneratorState state = getGeneratorState(_generator, marketId);
-        require(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT, Error.CAN_N0T_BE_SLASHED);
+        uint256 computeAllocation,
+        uint256 proofGenerationCost,
+        uint256 proposedTime
+    ) external {
+        address generatorAddress = msg.sender;
+        Generator storage generator = generatorRegistry[generatorAddress];
+        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        generatorRegistry[_generator][marketId].generator.amountLocked -= slashingPenalty;
-        stakingToken.safeTransfer(_rewardAddress, slashingPenalty);
-        return slashingPenalty;
+        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
+        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+
+        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
+        require(info.state == GeneratorState.NULL, Error.ALREADY_JOINED_MARKET);
+
+        require(proposedTime != 0, Error.CANNOT_BE_ZERO);
+        require(computeAllocation != 0, Error.CANNOT_BE_ZERO);
+
+        generator.totalCompute += computeAllocation;
+        require(generator.totalCompute <= generator.declaredCompute, Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE);
+        generator.activeMarketPlaces++;
+
+        generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
+            GeneratorState.JOINED,
+            computeAllocation,
+            proofGenerationCost,
+            proposedTime,
+            0
+        );
+
+        emit JoinedMarketPlace(generatorAddress, marketId, computeAllocation);
     }
 
-    function assignGeneratorTask(address _generator, bytes32 marketId) external onlyRole(SLASHER_ROLE) {
-        GeneratorState state = getGeneratorState(_generator, marketId);
-        require(state == GeneratorState.JOINED, Error.ONLY_TO_IDLE_GENERATORS);
-        generatorRegistry[_generator][marketId].state = GeneratorState.WIP;
+    function getGeneratorState(
+        address generatorAddress,
+        bytes32 marketId
+    ) public view override returns (GeneratorState, uint256) {
+        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        if (info.state == GeneratorState.NULL) {
+            return (GeneratorState.NULL, 0);
+        }
+
+        if (info.state == GeneratorState.REQUESTED_FOR_EXIT) {
+            return (GeneratorState.REQUESTED_FOR_EXIT, 0);
+        }
+
+        uint256 idleCapacity = generator.declaredCompute - generator.computeConsumed;
+        if (idleCapacity == generator.declaredCompute) {
+            return (GeneratorState.JOINED, generator.declaredCompute);
+        }
+
+        if (idleCapacity != 0 && idleCapacity < generator.declaredCompute) {
+            return (GeneratorState.WIP, idleCapacity);
+        }
+
+        if (info.state != GeneratorState.NULL && idleCapacity == 0) {
+            return (GeneratorState.NO_COMPUTE_AVAILABLE, 0);
+        }
+        return (GeneratorState.NULL, 0);
     }
 
-    function completeGeneratorTask(address _generator, bytes32 marketId) external onlyRole(SLASHER_ROLE) {
-        GeneratorState state = getGeneratorState(_generator, marketId);
+    function leaveMarketPlaces(bytes32[] calldata marketIds) external override {
+        for (uint256 index = 0; index < marketIds.length; index++) {
+            _leaveMarketPlace(marketIds[index]);
+        }
+    }
+
+    function leaveMarketPlace(bytes32 marketId) external {
+        _leaveMarketPlace(marketId);
+    }
+
+    function _leaveMarketPlace(bytes32 marketId) internal {
+        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
+
+        address generatorAddress = msg.sender;
+        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+        require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
+
+        Generator storage generator = generatorRegistry[generatorAddress];
+        generator.totalCompute -= info.computeAllocation;
+        generator.activeMarketPlaces-=1;
+
+        delete generatorInfoPerMarket[generatorAddress][marketId];
+        emit LeftMarketplace(generatorAddress, marketId);
+    }
+
+    function slashGenerator(
+        address generatorAddress,
+        bytes32 marketId,
+        uint256 slashingAmount,
+        address rewardAddress
+    ) external override onlyRole(SLASHER_ROLE) returns (uint256) {
+        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
-            state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT,
+            state == GeneratorState.WIP ||
+                state == GeneratorState.REQUESTED_FOR_EXIT ||
+                state == GeneratorState.NO_COMPUTE_AVAILABLE,
+            Error.CAN_N0T_BE_SLASHED
+        );
+
+        Generator storage generator = generatorRegistry[generatorAddress];
+        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+
+        info.activeRequests--;
+
+        generator.totalStake -= slashingAmount;
+        generator.stakeLocked -= slashingAmount;
+
+        generator.computeConsumed -= info.computeAllocation;
+
+        stakingToken.safeTransfer(rewardAddress, slashingAmount);
+
+        return generator.totalStake;
+    }
+
+    function assignGeneratorTask(
+        address generatorAddress,
+        bytes32 marketId,
+        uint256 amountToLock
+    ) external override onlyRole(SLASHER_ROLE) {
+        (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
+        require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
+
+        Generator storage generator = generatorRegistry[generatorAddress];
+        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+
+        // requiredCompute <= idleCapacity
+        require(info.computeAllocation <= idleCapacity, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
+
+        uint256 availableStake = generator.totalStake - generator.stakeLocked;
+        require(availableStake >= amountToLock, Error.INSUFFICIENT_STAKE_TO_LOCK);
+
+        generator.stakeLocked += amountToLock;
+        generator.computeConsumed += info.computeAllocation;
+        info.activeRequests++;
+    }
+
+    function completeGeneratorTask(
+        address generatorAddress,
+        bytes32 marketId,
+        uint256 stakeToRelease
+    ) external override onlyRole(SLASHER_ROLE) {
+        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+        require(
+            state == GeneratorState.WIP ||
+                state == GeneratorState.REQUESTED_FOR_EXIT ||
+                state == GeneratorState.NO_COMPUTE_AVAILABLE,
             Error.ONLY_WORKING_GENERATORS
         );
-        generatorRegistry[_generator][marketId].state = GeneratorState.JOINED;
+
+        Generator storage generator = generatorRegistry[generatorAddress];
+        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+
+        uint256 computeReleased = info.computeAllocation;
+        generator.computeConsumed -= computeReleased;
+
+        generator.stakeLocked -= stakeToRelease;
+        info.activeRequests--;
     }
 
-    function addStash(address _generator, bytes32 marketId, uint256 _amount) external {
-        GeneratorState state = getGeneratorState(_generator, marketId);
+    function getGeneratorAssignmentDetails(
+        address generatorAddress,
+        bytes32 marketId
+    ) public view override returns (uint256, uint256) {
+        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        require(state == GeneratorState.JOINED, Error.INVALID_GENERATOR);
-        generatorRegistry[_generator][marketId].generator.amountLocked += _amount;
+        return (info.proofGenerationCost, info.proposedTime);
+    }
 
-        stakingToken.safeTransferFrom(_msgSender(), address(this), _amount);
-        emit AddExtraStash(_generator, marketId, _amount);
+    function getGeneratorRewardDetails(
+        address generatorAddress,
+        bytes32 marketId
+    ) public view override returns (address, uint256) {
+        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        return (generator.rewardAddress, info.proofGenerationCost);
     }
 }

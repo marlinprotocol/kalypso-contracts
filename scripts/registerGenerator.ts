@@ -43,7 +43,7 @@ async function main(): Promise<string> {
   }
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.mockToken) {
+  if (!addresses.proxy.platformToken) {
     throw new Error("token contract not deployed");
   }
 
@@ -51,7 +51,7 @@ async function main(): Promise<string> {
     throw new Error("generatorRegistry contract not deployed");
   }
 
-  if (!addresses.marketId) {
+  if (!addresses.zkbMarketId) {
     throw new Error("Market not created");
   }
 
@@ -60,10 +60,10 @@ async function main(): Promise<string> {
   const generatorAddress = await Promise.all(generators.map(async (a) => await a.getAddress()));
   console.log("generator Addresses", generatorAddress);
 
-  const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
+  const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
   for (let index = 0; index < generatorAddress.length; index++) {
     const generator = generators[index];
-    let tx = await mockToken.transfer(await generator.getAddress(), "2000000000000000000000");
+    let tx = await platformToken.transfer(await generator.getAddress(), "2000000000000000000000");
     console.log("token transfer transaction", (await tx.wait())?.hash);
 
     const transferTx = await tokenHolder.sendTransaction({
@@ -72,7 +72,7 @@ async function main(): Promise<string> {
     });
     console.log("ethers transfer transaction", (await transferTx.wait())?.hash);
 
-    tx = await mockToken
+    tx = await platformToken
       .connect(generator)
       .approve(await generatorRegistry.getAddress(), config.generatorStakingAmount);
     console.log("market approval transaction", (await tx.wait())?.hash);
@@ -84,18 +84,20 @@ async function main(): Promise<string> {
       computeAllocation: 100,
     };
     const geneatorDataString = generatorDataToBytes(generatorData);
-    tx = await generatorRegistry.connect(generator).register(
-      {
-        rewardAddress: await generator.getAddress(),
-        generatorData: geneatorDataString,
-        amountLocked: 0,
-        minReward: new BigNumber(10)
-          .pow(19)
-          .multipliedBy(index + 1)
-          .toFixed(),
-      },
-      addresses.marketId,
+    tx = await generatorRegistry.connect(generator).register(await generator.getAddress(), 100, geneatorDataString);
+    await tx.wait();
+    tx = await generatorRegistry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
+    await tx.wait();
+    await generatorRegistry.connect(generator).joinMarketPlace(
+      addresses.zkbMarketId,
+      new BigNumber(10)
+        .pow(19)
+        .multipliedBy(index + 1)
+        .toFixed(),
+      1000,
+      index + 1,
     );
+
     console.log("generator registration transaction", (await tx.wait())?.hash);
   }
   return "Done";

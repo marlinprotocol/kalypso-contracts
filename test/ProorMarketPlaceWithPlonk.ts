@@ -11,6 +11,7 @@ import {
   ProofMarketPlace,
   UltraVerifier__factory,
   Plonk_verifier_wrapper__factory,
+  Error,
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
@@ -25,6 +26,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
   let tokenToUse: MockToken;
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
+  let errorLibrary: Error;
 
   let signers: Signer[];
   let admin: Signer;
@@ -44,8 +46,11 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
-  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(18).multipliedBy(93).minus(182723423); // use any random number
+  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
+  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+
+  const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
@@ -66,13 +71,11 @@ describe("Proof Market Place for Plonk Verifier", () => {
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
       setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "this should be nclave url",
     };
 
     generatorData = {
       name: "some custom name for the generator",
-      time: 10000,
-      generatorOysterPubKey: "0x128971298347982137492749871329847928174982719abcd",
-      computeAllocation: 100,
     };
 
     marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
@@ -100,12 +103,15 @@ describe("Proof Market Place for Plonk Verifier", () => {
       generatorDataToBytes(generatorData),
       matchingEngine,
       minRewardByGenerator,
+      generatorComputeAllocation,
+      computeGivenToNewMarket,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
+    errorLibrary = data.errorLibrary;
   });
   it("Check plonk verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -114,7 +120,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
     // console.log({ inputBytes });
     const latestBlock = await ethers.provider.getBlockNumber();
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 1000; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
     const askId = await setup.createAsk(
@@ -129,12 +135,12 @@ describe("Proof Market Place for Plonk Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
     const taskId = await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
       generator,
     );
@@ -143,6 +149,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
     await expect(proofMarketPlace.submitProof(taskId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId);
+      .withArgs(askId, taskId, proofBytes);
   });
 });

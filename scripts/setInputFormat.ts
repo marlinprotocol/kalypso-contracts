@@ -27,25 +27,25 @@ async function main(): Promise<any> {
       addresses.proxy.inputAndProofFormat,
       admin,
     );
-    const marketId = addresses.marketId;
-    let tx = await inputAndProofFormat.connect(admin).setInputFormat(marketId, ["uint256[5]"]);
+    const zkbMarketId = addresses.zkbMarketId;
+    let tx = await inputAndProofFormat.connect(admin).setInputFormat(zkbMarketId, ["uint256[5]"]);
     await tx.wait();
 
-    tx = await inputAndProofFormat.connect(admin).setProofFormat(marketId, ["uint256[8]"]);
+    tx = await inputAndProofFormat.connect(admin).setProofFormat(zkbMarketId, ["uint256[8]"]);
     await tx.wait();
 
-    const inputsArrayLength = await inputAndProofFormat.inputArrayLength(marketId);
-    const proofArrayLength = await inputAndProofFormat.proofArrayLength(marketId);
+    const inputsArrayLength = await inputAndProofFormat.inputArrayLength(zkbMarketId);
+    const proofArrayLength = await inputAndProofFormat.proofArrayLength(zkbMarketId);
 
     const inputFormat: string[] = []; //type of input is stored as string here
     const proofFormat: string[] = []; // type of proof is stored as string here
 
     for (let index = 0; index < inputsArrayLength; index++) {
-      inputFormat.push(await inputAndProofFormat.inputs(marketId, index));
+      inputFormat.push(await inputAndProofFormat.inputs(zkbMarketId, index));
     }
 
     for (let index = 0; index < proofArrayLength; index++) {
-      proofFormat.push(await inputAndProofFormat.proofs(marketId, index));
+      proofFormat.push(await inputAndProofFormat.proofs(zkbMarketId, index));
     }
 
     return { inputFormat, proofFormat };

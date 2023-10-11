@@ -25,13 +25,12 @@ export interface MarketData {
   verifierCode: string;
   proverOysterImage: string;
   setupCeremonyData: string[];
+  inputOuputVerifierUrl: string;
 }
 
+// TODO: Update Generator Data
 export interface GeneratorData {
   name: string; // some field for him to be identified on chain
-  time: number; // in millisecond
-  generatorOysterPubKey: string; // should be a hex string here
-  computeAllocation: number;
 }
 
 export function marketDataToBytes(marketData: MarketData): string {

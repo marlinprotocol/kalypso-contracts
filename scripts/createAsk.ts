@@ -42,7 +42,7 @@ async function main(): Promise<string> {
   console.log("using prover", await prover.getAddress());
   const eventsToEmit = 20;
   for (let index = 0; index < eventsToEmit; index++) {
-    const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
+    const mockToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
 
     let abiCoder = new ethers.AbiCoder();
 
@@ -77,14 +77,14 @@ async function main(): Promise<string> {
     const maxTimeForProofGeneration = 10000000;
 
     const secretString = JSON.stringify(secret);
-    const result = await secret_operations.encryptDataWithRSAandAES(secretString, matching_engine_publicKey);
-    const aclHex = "0x" + secret_operations.base64ToHex(result.aclData);
+    const result = await secret_operations.encryptDataWithEciesAandAES(secretString, matching_engine_publicKey);
+    const aclHex = "0x" + result.aclData.toString("hex");
     const encryptedSecretInputs = "0x" + result.encryptedData;
 
     const askId = await proofMarketPlace.askCounter();
     tx = await proofMarketPlace.connect(prover).createAsk(
       {
-        marketId: addresses.marketId,
+        marketId: addresses.zkbMarketId,
         proverData: inputBytes,
         reward,
         expiry: latestBlock + assignmentExpiry,

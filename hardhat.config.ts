@@ -23,8 +23,24 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
-      { version: "0.8.19" },
-      { version: "0.6.12" },
+      {
+        version: "0.8.19",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+      {
+        version: "0.6.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
       {
         version: "0.8.4",
         settings: {
@@ -40,6 +56,9 @@ const config: HardhatUserConfig = {
     enabled: true,
     gasPrice: 1,
     coinmarketcap: process.env.COIN_MARKET_CAP,
+  },
+  etherscan: {
+    apiKey: `${process.env.ETHERSCAN_API_KEY}`,
   },
   networks: {
     hardhat: {

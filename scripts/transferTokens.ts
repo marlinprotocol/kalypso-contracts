@@ -2,6 +2,7 @@ import { ethers } from "hardhat";
 import * as fs from "fs";
 import { checkFileExists } from "../helpers";
 import { MockToken__factory } from "../typechain-types";
+import BigNumber from "bignumber.js";
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -16,12 +17,12 @@ async function main(): Promise<string> {
 
   let admin = signers[0];
   let tokenHolder = signers[1];
-  // let treasury = signers[2];
+  let treasury = signers[2];
   // let marketCreator = signers[3];
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0xe689d465c31fddfe687f69b55549b57abadb57b7";
+  const transferTo = "0x4d85CEA118DcEaA3F187e97aDd84F265bF31b420";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -30,14 +31,21 @@ async function main(): Promise<string> {
   }
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.mockToken) {
+  if (!addresses.proxy.paymentToken) {
     throw new Error("token contract not deployed");
   }
 
-  (await admin.sendTransaction({ to: transferTo, value: "10000000000000000" })).wait();
+  if (!addresses.proxy.platformToken) {
+    throw new Error("token contract not deployed");
+  }
 
-  const mockToken = MockToken__factory.connect(addresses.proxy.mockToken, tokenHolder);
-  let tx = await mockToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  const ethBalance = await admin.provider.getBalance(transferTo);
+  if (new BigNumber(ethBalance.toString()).lt("31750928600000000")) {
+    (await treasury.sendTransaction({ to: transferTo, value: "31750928600000000" })).wait();
+  }
+
+  const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
+  let tx = await paymentToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

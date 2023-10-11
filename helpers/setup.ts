@@ -12,6 +12,10 @@ import {
   IProofMarketPlace,
   PriorityLog,
   PriorityLog__factory,
+  MockAttestationVerifier__factory,
+  EntityKeyRegistry__factory,
+  Error,
+  Error__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -21,6 +25,7 @@ interface SetupTemplate {
   proofMarketPlace: ProofMarketPlace;
   priorityLog: PriorityLog;
   platformToken: MockToken;
+  errorLibrary: Error;
 }
 
 export const createTask = async (
@@ -32,7 +37,7 @@ export const createTask = async (
   const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), await generator.getAddress(), "0x");
+    .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
 
   return taskId;
 };
@@ -80,6 +85,8 @@ export const rawSetup = async (
   generatorData: string,
   matchingEngine: Signer,
   minRewardForGenerator: BigNumber,
+  totalComputeAllocation: BigNumber,
+  computeToNewMarket: BigNumber,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -91,14 +98,15 @@ export const rawSetup = async (
     totalTokenSupply.toFixed(),
   );
 
+  const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+  const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
+    await mockAttestationVerifier.getAddress(),
+  );
+
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [
-      await mockToken.getAddress(),
-      generatorStakingAmount.toFixed(),
-      generatorSlashingPenalty.toFixed(),
-    ],
+    constructorArgs: [await mockToken.getAddress()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
@@ -112,6 +120,7 @@ export const rawSetup = async (
       marketCreationCost.toFixed(),
       treasury,
       await generatorRegistry.getAddress(),
+      await entityKeyRegistry.getAddress(),
     ],
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
@@ -120,7 +129,9 @@ export const rawSetup = async (
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-  await proofMarketPlace.connect(marketCreator).createMarketPlace(marketSetupBytes, await iverifier.getAddress());
+  await proofMarketPlace
+    .connect(marketCreator)
+    .createMarketPlace(marketSetupBytes, await iverifier.getAddress(), generatorSlashingPenalty.toFixed(0));
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 
@@ -128,27 +139,31 @@ export const rawSetup = async (
 
   const marketId = ethers.keccak256(marketSetupBytes);
 
-  await generatorRegistry.connect(generator).register(
-    {
-      rewardAddress: await generator.getAddress(),
-      generatorData,
-      amountLocked: 0,
-      minReward: minRewardForGenerator.toFixed(),
-    },
-    marketId,
-  );
+  await generatorRegistry
+    .connect(generator)
+    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorData);
+  await generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+  await generatorRegistry
+    .connect(generator)
+    .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
 
   await proofMarketPlace
     .connect(admin)
-    .grantRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), await matchingEngine.getAddress());
+    ["grantRole(bytes32,address,bytes)"](
+      await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+      await matchingEngine.getAddress(),
+      "0x",
+    );
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 
+  const errorLibrary = await new Error__factory(admin).deploy();
   return {
     mockToken,
     generatorRegistry,
     proofMarketPlace,
     priorityLog,
     platformToken,
+    errorLibrary,
   };
 };
