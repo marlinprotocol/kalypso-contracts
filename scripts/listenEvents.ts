@@ -41,13 +41,13 @@ async function main(): Promise<string> {
     console.log({ event: "task created", askId, taskId });
   });
 
-  const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
+  const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
 
-  generatorRegistry.on(generatorRegistry.filters.RegisteredGenerator, (generator, marketId) => {
+  generator_registry.on(generator_registry.filters.RegisteredGenerator, (generator, marketId) => {
     console.log({ event: "generator registered", generator, marketId });
   });
 
-  generatorRegistry.on(generatorRegistry.filters.DeregisteredGenerator, (generator, marketId) => {
+  generator_registry.on(generator_registry.filters.DeregisteredGenerator, (generator, marketId) => {
     console.log({ event: "degenerator registered", generator, marketId });
   });
   return "Done";

@@ -46,37 +46,37 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses.proxy.paymentToken) {
-    const paymentToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
-    await paymentToken.waitForDeployment();
-    addresses.proxy.paymentToken = await paymentToken.getAddress();
+  if (!addresses.proxy.payment_token) {
+    const payment_token = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
+    await payment_token.waitForDeployment();
+    addresses.proxy.payment_token = await payment_token.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.platformToken) {
-    const platformToken = await new MockToken__factory(admin).deploy(
+  if (!addresses.proxy.staking_token) {
+    const staking_token = await new MockToken__factory(admin).deploy(
       await tokenHolder.getAddress(),
       config.tokenSupply,
     );
-    await platformToken.waitForDeployment();
-    addresses.proxy.platformToken = await platformToken.getAddress();
+    await staking_token.waitForDeployment();
+    addresses.proxy.staking_token = await staking_token.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.generatorRegistry) {
-    const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
-    const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
+  if (!addresses.proxy.generator_registry) {
+    const generator_registryContract = await ethers.getContractFactory("GeneratorRegistry");
+    const generatorProxy = await upgrades.deployProxy(generator_registryContract, [], {
       kind: "uups",
-      constructorArgs: [addresses.proxy.platformToken],
+      constructorArgs: [addresses.proxy.staking_token],
       initializer: false,
     });
     await generatorProxy.waitForDeployment();
 
-    addresses.proxy.generatorRegistry = await generatorProxy.getAddress();
-    addresses.implementation.generatorRegistry = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.generatorRegistry,
+    addresses.proxy.generator_registry = await generatorProxy.getAddress();
+    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(
+      addresses.proxy.generator_registry,
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
@@ -105,11 +105,11 @@ async function main(): Promise<string> {
     const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
       kind: "uups",
       constructorArgs: [
-        addresses.proxy.paymentToken,
-        addresses.proxy.platformToken,
+        addresses.proxy.payment_token,
+        addresses.proxy.staking_token,
         config.marketCreationCost,
         await treasury.getAddress(),
-        addresses.proxy.generatorRegistry,
+        addresses.proxy.generator_registry,
         addresses.proxy.EntityRegistry,
       ],
     });
@@ -121,8 +121,8 @@ async function main(): Promise<string> {
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
-    const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
-    const tx = await generatorRegistry.initialize(await admin.getAddress(), addresses.proxy.proofMarketPlace);
+    const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
+    const tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proofMarketPlace);
     await tx.wait();
   }
 

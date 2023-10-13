@@ -43,27 +43,27 @@ async function main(): Promise<string> {
   }
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.platformToken) {
+  if (!addresses.proxy.staking_token) {
     throw new Error("token contract not deployed");
   }
 
-  if (!addresses.proxy.generatorRegistry) {
-    throw new Error("generatorRegistry contract not deployed");
+  if (!addresses.proxy.generator_registry) {
+    throw new Error("generator_registry contract not deployed");
   }
 
   if (!addresses.zkbMarketId) {
     throw new Error("Market not created");
   }
 
-  const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
+  const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
 
   const generatorAddress = await Promise.all(generators.map(async (a) => await a.getAddress()));
   console.log("generator Addresses", generatorAddress);
 
-  const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
+  const staking_token = MockToken__factory.connect(addresses.proxy.staking_token, tokenHolder);
   for (let index = 0; index < generatorAddress.length; index++) {
     const generator = generators[index];
-    let tx = await platformToken.transfer(await generator.getAddress(), "2000000000000000000000");
+    let tx = await staking_token.transfer(await generator.getAddress(), "2000000000000000000000");
     console.log("token transfer transaction", (await tx.wait())?.hash);
 
     const transferTx = await tokenHolder.sendTransaction({
@@ -72,9 +72,9 @@ async function main(): Promise<string> {
     });
     console.log("ethers transfer transaction", (await transferTx.wait())?.hash);
 
-    tx = await platformToken
+    tx = await staking_token
       .connect(generator)
-      .approve(await generatorRegistry.getAddress(), config.generatorStakingAmount);
+      .approve(await generator_registry.getAddress(), config.generatorStakingAmount);
     console.log("market approval transaction", (await tx.wait())?.hash);
 
     const generatorData = {
@@ -84,11 +84,11 @@ async function main(): Promise<string> {
       computeAllocation: 100,
     };
     const geneatorDataString = generatorDataToBytes(generatorData);
-    tx = await generatorRegistry.connect(generator).register(await generator.getAddress(), 100, geneatorDataString);
+    tx = await generator_registry.connect(generator).register(await generator.getAddress(), 100, geneatorDataString);
     await tx.wait();
-    tx = await generatorRegistry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
+    tx = await generator_registry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
     await tx.wait();
-    await generatorRegistry.connect(generator).joinMarketPlace(
+    await generator_registry.connect(generator).joinMarketPlace(
       addresses.zkbMarketId,
       new BigNumber(10)
         .pow(19)

@@ -39,8 +39,8 @@ async function main(): Promise<string> {
   }
   const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, marketCreator);
 
-  if (!addresses?.proxy?.paymentToken) {
-    throw new Error("paymentToken Is Not Deployed");
+  if (!addresses?.proxy?.payment_token) {
+    throw new Error("payment_token Is Not Deployed");
   }
 
   if (!addresses?.proxy?.zkbVerifierWrapper) {
@@ -49,9 +49,9 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.zkbMarketId) {
-    const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
-    await paymentToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
-    await paymentToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
+    const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
+    await payment_token.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
+    await payment_token.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
 
     const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",

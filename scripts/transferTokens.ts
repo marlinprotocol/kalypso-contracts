@@ -31,11 +31,11 @@ async function main(): Promise<string> {
   }
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.paymentToken) {
+  if (!addresses.proxy.payment_token) {
     throw new Error("token contract not deployed");
   }
 
-  if (!addresses.proxy.platformToken) {
+  if (!addresses.proxy.staking_token) {
     throw new Error("token contract not deployed");
   }
 
@@ -44,13 +44,13 @@ async function main(): Promise<string> {
     (await treasury.sendTransaction({ to: transferTo, value: "31750928600000000" })).wait();
   }
 
-  const paymentToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
-  let tx = await paymentToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
+  let tx = await payment_token.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
-  const platformToken = MockToken__factory.connect(addresses.proxy.platformToken, tokenHolder);
-  tx = await platformToken.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  const staking_token = MockToken__factory.connect(addresses.proxy.staking_token, tokenHolder);
+  tx = await staking_token.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
   receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

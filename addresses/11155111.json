@@ -1,8 +1,8 @@
 {
   "proxy": {
-    "paymentToken": "0x408b584c919be5920679D9f242E97dBC129dC208",
-    "platformToken": "0xEB690bFfD78E6D33eEB80390300B1e09c4932B3D",
-    "generatorRegistry": "0x071CeB004B26041a9f66A350EACD4E0DAe619b75",
+    "payment_token": "0x408b584c919be5920679D9f242E97dBC129dC208",
+    "staking_token": "0xEB690bFfD78E6D33eEB80390300B1e09c4932B3D",
+    "generator_registry": "0x071CeB004B26041a9f66A350EACD4E0DAe619b75",
     "attestationVerifier": "0xdEd6573F4FDa30E3dfD726a901f229389b327A78",
     "EntityRegistry": "0x4Feed6678293231AB989B3C8f79412bA6d22B91F",
     "proofMarketPlace": "0xAE14BE31f3B0E2D24179412bE9CF70f52221824d",
@@ -12,7 +12,7 @@
     "inputAndProofFormat": "0x49aCe01Ebd45B6567c32a802a1f26Ef06F5e2a95"
   },
   "implementation": {
-    "generatorRegistry": "0xC5E57D85A5940Ba74E229D1792C0318Fc28871B9",
+    "generator_registry": "0xC5E57D85A5940Ba74E229D1792C0318Fc28871B9",
     "proofMarketPlace": "0x676a668C878100EdADcE806C9eed24b283331587"
   },
   "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"

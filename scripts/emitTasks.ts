@@ -82,7 +82,7 @@ async function main(): Promise<string> {
     console.log("send mock tokens to newly created wallet", (await tx.wait())?.hash);
 
     console.log("start registering", index);
-    tx = await mockToken.connect(wallet).approve(addresses.proxy.generatorRegistry, config.generatorStakingAmount);
+    tx = await mockToken.connect(wallet).approve(addresses.proxy.generator_registry, config.generatorStakingAmount);
     console.log("complete approval", (await tx.wait())?.hash);
 
     const today = new Date();
@@ -94,12 +94,12 @@ async function main(): Promise<string> {
     };
 
     const geneatorDataString = generatorDataToBytes(generatorData);
-    const generatorRegistry = GeneratorRegistry__factory.connect(addresses.proxy.generatorRegistry, admin);
-    tx = await generatorRegistry.connect(wallet).register(await wallet.getAddress(), 100, geneatorDataString);
+    const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
+    tx = await generator_registry.connect(wallet).register(await wallet.getAddress(), 100, geneatorDataString);
     await tx.wait();
-    tx = await generatorRegistry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
+    tx = await generator_registry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
     await tx.wait();
-    tx = await generatorRegistry.connect(wallet).joinMarketPlace(
+    tx = await generator_registry.connect(wallet).joinMarketPlace(
       addresses.zkbMarketId,
       new BigNumber(10)
         .pow(19)

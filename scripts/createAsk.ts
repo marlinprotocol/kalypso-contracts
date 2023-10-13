@@ -42,7 +42,7 @@ async function main(): Promise<string> {
   console.log("using prover", await prover.getAddress());
   const eventsToEmit = 20;
   for (let index = 0; index < eventsToEmit; index++) {
-    const mockToken = MockToken__factory.connect(addresses.proxy.paymentToken, tokenHolder);
+    const mockToken = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
 
     let abiCoder = new ethers.AbiCoder();
 
@@ -64,11 +64,11 @@ async function main(): Promise<string> {
       (inputBytes.length - 2) / 2,
     );
 
-    const platformToken = MockToken__factory.connect(addresses.proxy.platformToken);
-    tx = await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
+    const staking_token = MockToken__factory.connect(addresses.proxy.staking_token);
+    tx = await staking_token.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
     console.log("send platform tokens to prover", (await tx.wait())?.hash);
 
-    tx = await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+    tx = await staking_token.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
     console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
 
     const assignmentExpiry = 10000000;

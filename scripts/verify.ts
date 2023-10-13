@@ -29,26 +29,26 @@ async function main() {
 
   let verificationResult;
   verificationResult = await run("verify:verify", {
-    address: addresses.implementation.generatorRegistry,
-    constructorArguments: [addresses.proxy.platformToken],
+    address: addresses.implementation.generator_registry,
+    constructorArguments: [addresses.proxy.staking_token],
   });
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
     address: addresses.implementation.proofMarketPlace,
     constructorArguments: [
-      addresses.proxy.paymentToken,
-      addresses.proxy.platformToken,
+      addresses.proxy.payment_token,
+      addresses.proxy.staking_token,
       config.marketCreationCost,
       await treasury.getAddress(),
-      addresses.proxy.generatorRegistry,
+      addresses.proxy.generator_registry,
       addresses.proxy.EntityRegistry,
     ],
   });
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.proxy.generatorRegistry
+    address: addresses.proxy.generator_registry
   });
   console.log({ verificationResult });
 

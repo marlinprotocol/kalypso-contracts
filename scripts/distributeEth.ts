@@ -12,10 +12,10 @@ import { ethers } from "hardhat";
 // }
 
 async function main(): Promise<string> {
-  let address = "0x4d85CEA118DcEaA3F187e97aDd84F265bF31b420";
+  let address = "0xCc9F0defA87Ecba1dFb6D7C9103F01fEAF547dba";
   const signers = await ethers.getSigners();
 
-  const tx = await signers[1].sendTransaction({ to: address, value: "100000000000000000" });
+  const tx = await signers[0].sendTransaction({ to: address, value: "1500000000000000000" });
   const receipt = await tx.wait();
   console.log("receipt", receipt?.hash);
   return "Done";
