@@ -30,14 +30,14 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, admin);
-  proofMarketPlace.on(proofMarketPlace.filters.AskCreated, (askId) => {
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, admin);
+  proof_market_place.on(proof_market_place.filters.AskCreated, (askId) => {
     console.log({ event: "ask created", askId });
 
-    proofMarketPlace.listOfAsk(askId).then(console.log).catch(console.log);
+    proof_market_place.listOfAsk(askId).then(console.log).catch(console.log);
   });
 
-  proofMarketPlace.on(proofMarketPlace.filters.TaskCreated, (askId, taskId) => {
+  proof_market_place.on(proof_market_place.filters.TaskCreated, (askId, taskId) => {
     console.log({ event: "task created", askId, taskId });
   });
 

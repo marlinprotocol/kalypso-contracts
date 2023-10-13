@@ -82,27 +82,27 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.attestationVerifier) {
-    const attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-    await attestationVerifier.waitForDeployment();
+  if (!addresses.proxy.attestation_verifier) {
+    const attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
+    await attestation_verifier.waitForDeployment();
 
-    addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
+    addresses.proxy.attestation_verifier = await attestation_verifier.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.EntityRegistry) {
-    const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestationVerifier);
-    await entityRegistry.waitForDeployment();
+  if (!addresses.proxy.entity_registry) {
+    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestation_verifier);
+    await entity_registry.waitForDeployment();
 
-    addresses.proxy.EntityRegistry = await entityRegistry.getAddress();
+    addresses.proxy.entity_registry = await entity_registry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.proofMarketPlace) {
-    const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-    const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+  if (!addresses.proxy.proof_market_place) {
+    const proof_market_place = await ethers.getContractFactory("ProofMarketPlace");
+    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,
@@ -110,56 +110,56 @@ async function main(): Promise<string> {
         config.marketCreationCost,
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
-        addresses.proxy.EntityRegistry,
+        addresses.proxy.entity_registry,
       ],
     });
     await proxy.waitForDeployment();
 
-    addresses.proxy.proofMarketPlace = await proxy.getAddress();
-    addresses.implementation.proofMarketPlace = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.proofMarketPlace,
+    addresses.proxy.proof_market_place = await proxy.getAddress();
+    addresses.implementation.proof_market_place = await upgrades.erc1967.getImplementationAddress(
+      addresses.proxy.proof_market_place,
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
     const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
-    const tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proofMarketPlace);
+    const tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.transferVerifierWrapper) {
+  if (!addresses.proxy.transfer_verifier_wrapper) {
     const TransferVerifer = await new TransferVerifier__factory(admin).deploy();
     await TransferVerifer.waitForDeployment();
-    const TransferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+    const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
     );
-    await TransferVerifierWrapper.waitForDeployment();
-    addresses.proxy.transferVerifierWrapper = await TransferVerifierWrapper.getAddress();
+    await transfer_verifier_wrapper.waitForDeployment();
+    addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.zkbVerifierWrapper) {
+  if (!addresses.proxy.zkb_verifier_wrapper) {
     const ZkbVerifier = await new ZkbVerifier__factory(admin).deploy();
     await ZkbVerifier.waitForDeployment();
-    const ZkbVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+    const zkb_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await ZkbVerifier.getAddress(),
     );
-    await ZkbVerifierWrapper.waitForDeployment();
-    addresses.proxy.zkbVerifierWrapper = await ZkbVerifierWrapper.getAddress();
+    await zkb_verifier_wrapper.waitForDeployment();
+    addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, matchingEngine);
-  const hasMatchingEngineRole = await proofMarketPlace.hasRole(
-    await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
+  const hasMatchingEngineRole = await proof_market_place.hasRole(
+    await proof_market_place.MATCHING_ENGINE_ROLE(),
     await matchingEngine.getAddress(),
   );
   if (!hasMatchingEngineRole) {
     await (
-      await proofMarketPlace
+      await proof_market_place
         .connect(admin)
         ["grantRole(bytes32,address,bytes)"](
-          await proofMarketPlace.MATCHING_ENGINE_ROLE(),
+          await proof_market_place.MATCHING_ENGINE_ROLE(),
           await matchingEngine.getAddress(),
           "0x",
         )
@@ -167,19 +167,19 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.priorityList) {
-    const priorityList = await new PriorityLog__factory(admin).deploy();
-    await priorityList.waitForDeployment();
-    addresses.proxy.priorityList = await priorityList.getAddress();
+  if (!addresses.proxy.priority_list) {
+    const priority_list = await new PriorityLog__factory(admin).deploy();
+    await priority_list.waitForDeployment();
+    addresses.proxy.priority_list = await priority_list.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.inputAndProofFormat) {
-    const inputAndProofFormat = await new InputAndProofFormatRegistry__factory(admin).deploy(await admin.getAddress());
-    await inputAndProofFormat.waitForDeployment();
+  if (!addresses.proxy.input_and_proof_format) {
+    const input_and_proof_format = await new InputAndProofFormatRegistry__factory(admin).deploy(await admin.getAddress());
+    await input_and_proof_format.waitForDeployment();
 
-    addresses.proxy.inputAndProofFormat = await inputAndProofFormat.getAddress();
+    addresses.proxy.input_and_proof_format = await input_and_proof_format.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

@@ -26,20 +26,20 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses.proxy.EntityRegistry) {
-    throw new Error("EntityRegistry contract not deployed");
+  if (!addresses.proxy.entity_registry) {
+    throw new Error("entity_registry contract not deployed");
   }
 
-  const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.EntityRegistry, matchingEngine);
+  const entity_registry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, matchingEngine);
   const matchingEngineRsaPub = fs.readFileSync("./data/matching_engine/public_key_2048.pem", "utf-8");
 
   const pubBytes = utf8ToHex(matchingEngineRsaPub);
   const pubkeyRecovered = hexToUtf8(pubBytes);
 
-  const tx = await entityRegistry.updatePubkey("0x" + pubkeyRecovered, "0x");
+  const tx = await entity_registry.updatePubkey("0x" + pubkeyRecovered, "0x");
   await tx.wait();
 
-  const pubBytesFetched = await entityRegistry.pub_key(await matchingEngine.getAddress());
+  const pubBytesFetched = await entity_registry.pub_key(await matchingEngine.getAddress());
   const pubBytesFetchedAndRecovered = hexToUtf8(pubBytesFetched.split("x")[1]);
   console.log({ matchingEngineRsaPub, pubkeyRecovered, pubBytesFetchedAndRecovered });
 

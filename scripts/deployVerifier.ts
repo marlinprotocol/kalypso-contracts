@@ -27,14 +27,14 @@ async function main(): Promise<string> {
   const path = `./addresses/${chainId}.json`;
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.transferVerifierWrapper) {
+  if (!addresses.proxy.transfer_verifier_wrapper) {
     const TransferVerifer = await new TransferVerifier__factory(admin).deploy();
     await TransferVerifer.waitForDeployment();
-    const TransferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+    const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
     );
-    await TransferVerifierWrapper.waitForDeployment();
-    addresses.proxy.transferVerifierWrapper = await TransferVerifierWrapper.getAddress();
+    await transfer_verifier_wrapper.waitForDeployment();
+    addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
   return "Deployed";

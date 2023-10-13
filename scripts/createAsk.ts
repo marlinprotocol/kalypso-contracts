@@ -55,12 +55,12 @@ async function main(): Promise<string> {
     let tx = await mockToken.transfer(prover.address, reward);
     console.log("Send mock tokens to prover", (await tx.wait())?.hash);
 
-    tx = await mockToken.connect(prover).approve(addresses.proxy.proofMarketPlace, reward);
+    tx = await mockToken.connect(prover).approve(addresses.proxy.proof_market_place, reward);
     console.log("prover allowance to proof marketplace", (await tx.wait())?.hash);
 
-    const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, prover);
+    const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, prover);
 
-    const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+    const platformFee = new BigNumber((await proof_market_place.costPerInputBytes()).toString()).multipliedBy(
       (inputBytes.length - 2) / 2,
     );
 
@@ -68,7 +68,7 @@ async function main(): Promise<string> {
     tx = await staking_token.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
     console.log("send platform tokens to prover", (await tx.wait())?.hash);
 
-    tx = await staking_token.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+    tx = await staking_token.connect(prover).approve(await proof_market_place.getAddress(), platformFee.toFixed());
     console.log("prover allowance of platform token to proof marketplace", (await tx.wait())?.hash);
 
     const assignmentExpiry = 10000000;
@@ -81,8 +81,8 @@ async function main(): Promise<string> {
     const aclHex = "0x" + result.aclData.toString("hex");
     const encryptedSecretInputs = "0x" + result.encryptedData;
 
-    const askId = await proofMarketPlace.askCounter();
-    tx = await proofMarketPlace.connect(prover).createAsk(
+    const askId = await proof_market_place.askCounter();
+    tx = await proof_market_place.connect(prover).createAsk(
       {
         marketId: addresses.zkbMarketId,
         proverData: inputBytes,

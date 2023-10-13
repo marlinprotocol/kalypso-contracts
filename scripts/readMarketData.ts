@@ -20,13 +20,13 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, admin);
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, admin);
 
   const marketIdsToRead = [addresses.zkbMarketId];
 
   for (let index = 0; index < marketIdsToRead.length; index++) {
     const marketId = marketIdsToRead[index];
-    const marketDataBytes = await proofMarketPlace.marketmetadata(marketId);
+    const marketDataBytes = await proof_market_place.marketmetadata(marketId);
     const marketData = hexStringToMarketData(marketDataBytes);
     console.log("******* start market data *******");
     console.log(marketData);

@@ -32,12 +32,12 @@ async function main(): Promise<string> {
   let matchingEngine = signers[5];
 
   const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, matchingEngine);
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
 
   const askId = 604;
-  const taskId = await proofMarketPlace.taskCounter();
+  const taskId = await proof_market_place.taskCounter();
   const generator = "0x027828B38F8d97Bc85243a50501F10dA721d2Fe0";
-  const tx = await proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, generator, "0x");
+  const tx = await proof_market_place.connect(matchingEngine).assignTask(askId, taskId, generator, "0x");
   console.log("assignment transaction", (await tx.wait())?.hash);
   return "Done";
 }

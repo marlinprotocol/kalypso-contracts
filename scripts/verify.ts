@@ -35,7 +35,7 @@ async function main() {
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.implementation.proofMarketPlace,
+    address: addresses.implementation.proof_market_place,
     constructorArguments: [
       addresses.proxy.payment_token,
       addresses.proxy.staking_token,
@@ -53,7 +53,7 @@ async function main() {
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.proxy.proofMarketPlace
+    address: addresses.proxy.proof_market_place
   });
   console.log({ verificationResult });
   return "String";

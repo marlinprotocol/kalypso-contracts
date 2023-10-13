@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
-import { checkFileExists, marketDataToBytes } from "../helpers";
+import { checkFileExists } from "../helpers";
 import { ProofMarketPlace__factory } from "../typechain-types";
 
 import * as proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -35,21 +35,21 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses?.proxy?.proofMarketPlace) {
+  if (!addresses?.proxy?.proof_market_place) {
     throw new Error("Proof Market Place Is Not Deployed");
   }
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, tokenHolder);
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, tokenHolder);
 
   const taskId = 498;
 
-  const taskDetails = await proofMarketPlace.connect(tokenHolder).listOfTask(161);
+  const taskDetails = await proof_market_place.connect(tokenHolder).listOfTask(161);
   console.log(taskDetails);
   const askId = taskDetails.askId;
 
-  const askDetails = await proofMarketPlace.connect(tokenHolder).listOfAsk(askId);
+  const askDetails = await proof_market_place.connect(tokenHolder).listOfAsk(askId);
   console.log(askDetails);
 
-  const askState = await proofMarketPlace.connect(tokenHolder).getAskState(askId);
+  const askState = await proof_market_place.connect(tokenHolder).getAskState(askId);
   console.log({ askState });
 
   let abiCoder = new ethers.AbiCoder();
@@ -59,7 +59,7 @@ async function main(): Promise<string> {
     [[proof.a[0], proof.a[1], proof.b[0][0], proof.b[0][1], proof.b[1][0], proof.b[1][1], proof.c[0], proof.c[1]]],
   );
 
-  const tx = await proofMarketPlace.connect(tokenHolder).submitProof(taskId, proofBytes);
+  const tx = await proof_market_place.connect(tokenHolder).submitProof(taskId, proofBytes);
   const receipt = await tx.wait();
   console.log("receipt hash", receipt?.hash);
 

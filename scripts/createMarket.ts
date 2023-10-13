@@ -34,24 +34,24 @@ async function main(): Promise<string> {
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  if (!addresses?.proxy?.proofMarketPlace) {
+  if (!addresses?.proxy?.proof_market_place) {
     throw new Error("Proof Market Place Is Not Deployed");
   }
-  const proofMarketPlace = ProofMarketPlace__factory.connect(addresses.proxy.proofMarketPlace, marketCreator);
+  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, marketCreator);
 
   if (!addresses?.proxy?.payment_token) {
     throw new Error("payment_token Is Not Deployed");
   }
 
-  if (!addresses?.proxy?.zkbVerifierWrapper) {
-    throw new Error("zkbVerifierWrapper is not deployed");
+  if (!addresses?.proxy?.zkb_verifier_wrapper) {
+    throw new Error("zkb_verifier_wrapper is not deployed");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.zkbMarketId) {
     const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
     await payment_token.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
-    await payment_token.connect(marketCreator).approve(await proofMarketPlace.getAddress(), config.marketCreationCost);
+    await payment_token.connect(marketCreator).approve(await proof_market_place.getAddress(), config.marketCreationCost);
 
     const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",
@@ -65,9 +65,9 @@ async function main(): Promise<string> {
     const marketSetupBytes = marketDataToBytes(marketSetupData);
     const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
 
-    const tx = await proofMarketPlace
+    const tx = await proof_market_place
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.zkbVerifierWrapper, config.generatorSlashingPenalty);
+      .createMarketPlace(marketSetupBytes, addresses.proxy.zkb_verifier_wrapper, config.generatorSlashingPenalty);
     await tx.wait();
     addresses.zkbMarketId = zkbMarketId;
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
