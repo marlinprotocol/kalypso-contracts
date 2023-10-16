@@ -193,40 +193,6 @@ describe("Proof market place", () => {
       expect((await proofMarketPlace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
     });
 
-    it("Private Inputs can be added", async () => {
-      const latestBlock = await ethers.provider.getBlockNumber();
-
-      await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
-
-      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-        (proverBytes.length - 2) / 2,
-      );
-      await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-      await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
-
-      const askIdToBeGenerated = await proofMarketPlace.askCounter();
-      await proofMarketPlace.connect(prover).createAsk(
-        {
-          marketId,
-          proverData: proverBytes,
-          reward: reward.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
-          refundAddress: await prover.getAddress(),
-        },
-        false,
-        0,
-        "0x",
-        "0x",
-      );
-
-      const secretString = jsonToBytes(secret);
-      const splitStrings = splitHexString(secretString, 10);
-      // console.log(splitStrings);
-    });
-
     it("Should Fail: when try creating market in invalid market", async () => {
       await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
