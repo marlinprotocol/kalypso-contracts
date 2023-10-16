@@ -14,5 +14,6 @@
     "implementation": {
         "generator_registry": "0x92423F606C703Cd986F2F11f0F006F8787090e4b",
         "proof_market_place": "0x02581270290BD18B2E9DD160F6B3FaE111436077"
-    }
+    },
+    "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"
 }
