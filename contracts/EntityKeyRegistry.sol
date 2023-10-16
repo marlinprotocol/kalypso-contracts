@@ -16,6 +16,7 @@ contract EntityKeyRegistry is IEntityKeyRegistry {
     }
 
     event UpdateKey(address indexed user);
+    event RemoveKey(address indexed user);
 
     function updatePubkey(bytes calldata pubkey, bytes calldata attestation_data) external {
         address sender = msg.sender;
@@ -24,5 +25,12 @@ contract EntityKeyRegistry is IEntityKeyRegistry {
         pub_key[sender] = pubkey;
 
         emit UpdateKey(sender);
+    }
+
+    function removePubkey() external {
+        address sender = msg.sender;
+        delete pub_key[sender];
+
+        emit RemoveKey(sender);
     }
 }

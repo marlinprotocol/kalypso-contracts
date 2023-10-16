@@ -8,4 +8,6 @@ interface IEntityKeyRegistry {
     function attestationVerifier() external returns (IAttestationVerifier);
 
     function updatePubkey(bytes calldata pub, bytes calldata attestation_data) external;
+
+    function removePubkey() external;
 }

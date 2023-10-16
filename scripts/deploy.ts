@@ -47,7 +47,10 @@ async function main(): Promise<string> {
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
   if (!addresses.proxy.payment_token) {
-    const payment_token = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), config.tokenSupply);
+    const payment_token = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      config.tokenSupply,
+    );
     await payment_token.waitForDeployment();
     addresses.proxy.payment_token = await payment_token.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
@@ -176,7 +179,9 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.input_and_proof_format) {
-    const input_and_proof_format = await new InputAndProofFormatRegistry__factory(admin).deploy(await admin.getAddress());
+    const input_and_proof_format = await new InputAndProofFormatRegistry__factory(admin).deploy(
+      await admin.getAddress(),
+    );
     await input_and_proof_format.waitForDeployment();
 
     addresses.proxy.input_and_proof_format = await input_and_proof_format.getAddress();

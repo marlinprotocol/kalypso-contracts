@@ -48,12 +48,12 @@ async function main() {
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.proxy.generator_registry
+    address: addresses.proxy.generator_registry,
   });
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.proxy.proof_market_place
+    address: addresses.proxy.proof_market_place,
   });
   console.log({ verificationResult });
   return "String";

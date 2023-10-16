@@ -183,8 +183,8 @@ contract ProofMarketPlace is
 
         address _msgSender = _msgSender();
 
-        if (costPerInputBytes != 0) {
-            uint256 platformFee = ask.proverData.length * costPerInputBytes;
+        uint256 platformFee = getPlatformFee(ask, secret_inputs, acl);
+        if (platformFee != 0) {
             platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
         }
 
@@ -198,6 +198,17 @@ contract ProofMarketPlace is
 
         emit AskCreated(askCounter, hasPrivateInputs, secret_inputs, acl);
         askCounter++;
+    }
+
+    function getPlatformFee(
+        Ask calldata ask,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public pure returns (uint256) {
+        if (costPerInputBytes != 0) {
+            return (ask.proverData.length + secret_inputs.length + acl.length) * costPerInputBytes;
+        }
+        return 0;
     }
 
     // Todo: Optimise the function
@@ -228,8 +239,12 @@ contract ProofMarketPlace is
     function updateEncryptionKey(
         bytes memory pubkey,
         bytes memory attestation_data
-    ) external onlyRole(MATCHING_ENGINE_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         entityKeyRegistry.updatePubkey(pubkey, attestation_data);
+    }
+
+    function removeEncryptionKey() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        entityKeyRegistry.removePubkey();
     }
 
     function relayBatchAssignTasks(

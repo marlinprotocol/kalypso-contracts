@@ -238,7 +238,7 @@ contract GeneratorRegistry is
 
         Generator storage generator = generatorRegistry[generatorAddress];
         generator.totalCompute -= info.computeAllocation;
-        generator.activeMarketPlaces-=1;
+        generator.activeMarketPlaces -= 1;
 
         delete generatorInfoPerMarket[generatorAddress][marketId];
         emit LeftMarketplace(generatorAddress, marketId);
