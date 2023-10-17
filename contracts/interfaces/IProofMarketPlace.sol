@@ -62,6 +62,15 @@ interface IProofMarketPlace {
         bytes calldata acl
     ) external;
 
+    function createAskFor(
+        Ask calldata ask,
+        bool hasPrivateInputs,
+        address payFrom,
+        SecretType secretType,
+        bytes calldata secret,
+        bytes calldata acl
+    ) external;
+
     function verifier(bytes32 marketId) external view returns (address);
 
     function slashingPenalty(bytes32 marketId) external view returns (uint256);
