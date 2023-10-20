@@ -59,6 +59,10 @@ interface IGeneratorRegistry {
 
     function leaveMarketPlace(bytes32 marketId) external;
 
+    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external;
+
+    function requestForExitMarketPlace(bytes32 marketId) external;
+
     // return the state of the generator for a given market, and number of idle compute available
     function getGeneratorState(
         address generatorAddress,
