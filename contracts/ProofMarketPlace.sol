@@ -173,31 +173,63 @@ contract ProofMarketPlace is
     function createAsk(
         Ask calldata ask,
         bool hasPrivateInputs,
+        // TODO: Check if this needs to be removed during review
         SecretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) external override {
+        _createAsk(ask, hasPrivateInputs, msg.sender, secret_inputs, acl);
+    }
+
+    function createAskFor(
+        Ask calldata ask,
+        bool hasPrivateInputs,
+        address payFrom,
+        // TODO: Check if this needs to be removed during review
+        SecretType,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) external override {
+        _createAsk(ask, hasPrivateInputs, payFrom, secret_inputs, acl);
+    }
+
+    function _createAsk(
+        Ask calldata ask,
+        bool hasPrivateInputs,
+        address payFrom,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) internal {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
         require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
 
-        address _msgSender = _msgSender();
-
-        if (costPerInputBytes != 0) {
-            uint256 platformFee = ask.proverData.length * costPerInputBytes;
-            platformToken.safeTransferFrom(_msgSender, treasury, platformFee);
+        uint256 platformFee = getPlatformFee(ask, secret_inputs, acl);
+        if (platformFee != 0) {
+            platformToken.safeTransferFrom(payFrom, treasury, platformFee);
         }
 
-        paymentToken.safeTransferFrom(_msgSender, address(this), ask.reward);
+        paymentToken.safeTransferFrom(payFrom, address(this), ask.reward);
 
         require(marketmetadata[ask.marketId].length != 0, Error.INVALID_MARKET);
-        listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, _msgSender);
+        listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, msg.sender);
 
         IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
         emit AskCreated(askCounter, hasPrivateInputs, secret_inputs, acl);
         askCounter++;
+    }
+
+    function getPlatformFee(
+        Ask calldata ask,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public pure returns (uint256) {
+        if (costPerInputBytes != 0) {
+            return (ask.proverData.length + secret_inputs.length + acl.length) * costPerInputBytes;
+        }
+        return 0;
     }
 
     // Todo: Optimise the function
@@ -228,8 +260,12 @@ contract ProofMarketPlace is
     function updateEncryptionKey(
         bytes memory pubkey,
         bytes memory attestation_data
-    ) external onlyRole(MATCHING_ENGINE_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         entityKeyRegistry.updatePubkey(pubkey, attestation_data);
+    }
+
+    function removeEncryptionKey() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        entityKeyRegistry.removePubkey();
     }
 
     function relayBatchAssignTasks(

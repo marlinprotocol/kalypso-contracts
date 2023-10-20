@@ -165,29 +165,24 @@ describe("Proof market place", () => {
       await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
 
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-        (proverBytes.length - 2) / 2,
-      );
-      await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-      await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+      const askRequest = {
+        marketId,
+        proverData: proverBytes,
+        reward: reward.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      };
 
-      await expect(
-        proofMarketPlace.connect(prover).createAsk(
-          {
-            marketId,
-            proverData: proverBytes,
-            reward: reward.toFixed(),
-            expiry: assignmentExpiry + latestBlock,
-            timeTakenForProofGeneration,
-            deadline: latestBlock + maxTimeForProofGeneration,
-            refundAddress: await prover.getAddress(),
-          },
-          false,
-          0,
-          "0x2345",
-          "0x21",
-        ),
-      )
+      const secretInfo = "0x2345";
+      const aclInfo = "0x21";
+
+      const platformFee = await proofMarketPlace.getPlatformFee(askRequest, secretInfo, aclInfo);
+      await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
+      await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee);
+
+      await expect(proofMarketPlace.connect(prover).createAsk(askRequest, false, 0, secretInfo, aclInfo))
         .to.emit(proofMarketPlace, "AskCreated")
         .withArgs(askIdToBeGenerated, false, "0x2345", "0x21")
         .to.emit(mockToken, "Transfer")
@@ -196,40 +191,6 @@ describe("Proof market place", () => {
         .withArgs(await prover.getAddress(), await treasury.getAddress(), platformFee);
 
       expect((await proofMarketPlace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
-    });
-
-    it("Private Inputs can be added", async () => {
-      const latestBlock = await ethers.provider.getBlockNumber();
-
-      await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
-
-      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-        (proverBytes.length - 2) / 2,
-      );
-      await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-      await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
-
-      const askIdToBeGenerated = await proofMarketPlace.askCounter();
-      await proofMarketPlace.connect(prover).createAsk(
-        {
-          marketId,
-          proverData: proverBytes,
-          reward: reward.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
-          refundAddress: await prover.getAddress(),
-        },
-        false,
-        0,
-        "0x",
-        "0x",
-      );
-
-      const secretString = jsonToBytes(secret);
-      const splitStrings = splitHexString(secretString, 10);
-      // console.log(splitStrings);
     });
 
     it("Should Fail: when try creating market in invalid market", async () => {

@@ -220,25 +220,50 @@ contract GeneratorRegistry is
     }
 
     function leaveMarketPlaces(bytes32[] calldata marketIds) external override {
+        address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
-            _leaveMarketPlace(marketIds[index]);
+            _leaveMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function leaveMarketPlace(bytes32 marketId) external {
-        _leaveMarketPlace(marketId);
+    function leaveMarketPlace(bytes32 marketId) external override {
+        address generatorAddress = msg.sender;
+        _leaveMarketPlace(generatorAddress, marketId);
     }
 
-    function _leaveMarketPlace(bytes32 marketId) internal {
-        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
-
+    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external override {
         address generatorAddress = msg.sender;
+        for (uint256 index = 0; index < marketIds.length; index++) {
+            _requestForExitMarketPlace(generatorAddress, marketIds[index]);
+        }
+    }
+
+    function requestForExitMarketPlace(bytes32 marketId) external override {
+        address generatorAddress = msg.sender;
+        _requestForExitMarketPlace(generatorAddress, marketId);
+    }
+
+    function _requestForExitMarketPlace(address generatorAddress, bytes32 marketId) internal {
+        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+        require(
+            state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
+            Error.ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT
+        );
+        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+
+        info.state = GeneratorState.REQUESTED_FOR_EXIT;
+
+        emit RequestExitMarketPlace(generatorAddress, marketId);
+    }
+
+    function _leaveMarketPlace(address generatorAddress, bytes32 marketId) internal {
+        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
 
         Generator storage generator = generatorRegistry[generatorAddress];
         generator.totalCompute -= info.computeAllocation;
-        generator.activeMarketPlaces-=1;
+        generator.activeMarketPlaces -= 1;
 
         delete generatorInfoPerMarket[generatorAddress][marketId];
         emit LeftMarketplace(generatorAddress, marketId);

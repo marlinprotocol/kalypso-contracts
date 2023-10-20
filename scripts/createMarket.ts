@@ -51,7 +51,9 @@ async function main(): Promise<string> {
   if (!addresses.zkbMarketId) {
     const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
     await payment_token.connect(tokenHolder).transfer(await marketCreator.getAddress(), config.marketCreationCost);
-    await payment_token.connect(marketCreator).approve(await proof_market_place.getAddress(), config.marketCreationCost);
+    await payment_token
+      .connect(marketCreator)
+      .approve(await proof_market_place.getAddress(), config.marketCreationCost);
 
     const marketSetupData: MarketData = {
       zkAppName: "transfer verifier arb sepolia",

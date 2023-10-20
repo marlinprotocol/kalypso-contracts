@@ -39,4 +39,5 @@ library Error {
     string public constant SHOULD_BE_IN_CROSSED_DEADLINE_STATE = "31";
     string public constant SHOULD_BE_IN_ASSIGNED_STATE = "32";
     string public constant ONLY_GENERATOR_CAN_DISCARD_REQUEST = "33";
+    string public constant ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT = "34";
 }
