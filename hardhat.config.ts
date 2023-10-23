@@ -89,6 +89,18 @@ const config: HardhatUserConfig = {
         `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
       ],
     },
+    nova: {
+      url: `${process.env.NOVA_RPC_URL}`,
+      accounts: [
+        `${process.env.SEPOLIA_ADMIN}`,
+        `${process.env.SEPOLIA_TOKEN_HOLDER}`,
+        `${process.env.SEPOLIA_TREASURY}`,
+        `${process.env.SEPOLIA_MARKET_CREATOR}`,
+        `${process.env.SEPOLIA_GENERATOR}`,
+        `${process.env.SEPOLIA_MATCHING_ENGINE}`,
+        `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
+      ],
+    },
   },
 };
 

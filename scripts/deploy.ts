@@ -50,6 +50,8 @@ async function main(): Promise<string> {
     const payment_token = await new MockToken__factory(admin).deploy(
       await tokenHolder.getAddress(),
       config.tokenSupply,
+      "Payment Token",
+      "PT",
     );
     await payment_token.waitForDeployment();
     addresses.proxy.payment_token = await payment_token.getAddress();
@@ -61,6 +63,8 @@ async function main(): Promise<string> {
     const staking_token = await new MockToken__factory(admin).deploy(
       await tokenHolder.getAddress(),
       config.tokenSupply,
+      "Staking Token",
+      "ST",
     );
     await staking_token.waitForDeployment();
     addresses.proxy.staking_token = await staking_token.getAddress();

@@ -61,8 +61,18 @@ describe("Proof market place", () => {
 
     errorLibrary = await new Error__factory(admin).deploy();
 
-    mockToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
-    platformToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed());
+    mockToken = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      tokenSupply.toFixed(),
+      "Payment Token",
+      "PT",
+    );
+    platformToken = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      tokenSupply.toFixed(),
+      "Staking Token",
+      "ST",
+    );
     mockVerifier = await new MockVerifier__factory(admin).deploy();
 
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();

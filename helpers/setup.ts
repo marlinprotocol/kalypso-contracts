@@ -91,11 +91,15 @@ export const rawSetup = async (
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
+    "Payment Token",
+    "PT",
   );
 
   const platformToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
+    "Staking Token",
+    "ST",
   );
 
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
