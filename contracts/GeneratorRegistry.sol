@@ -62,15 +62,15 @@ contract GeneratorRegistry is
         require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, "Cannot be adminless");
     }
 
-    function _authorizeUpgrade(address /*account*/) internal view override onlyAdmin {}
+    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     //-------------------------------- Overrides end --------------------------------//
-
+    
     //-------------------------------- Constants and Immutable start --------------------------------//
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable stakingToken;
 
-    bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("slasher")) - 1);
+    bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("SLASHER_ROLE")) - 1);
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
@@ -83,6 +83,8 @@ contract GeneratorRegistry is
 
     IProofMarketPlace public proofMarketPlace;
 
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -94,11 +96,6 @@ contract GeneratorRegistry is
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(SLASHER_ROLE, _proofMarketPlace);
         proofMarketPlace = IProofMarketPlace(_proofMarketPlace);
-    }
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), Error.ONLY_ADMIN_CAN_CALL);
-        _;
     }
 
     function register(address rewardAddress, uint256 declaredCompute, bytes memory generatorData) external override {

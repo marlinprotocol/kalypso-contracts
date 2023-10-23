@@ -21,7 +21,7 @@ contract EntityKeyRegistry is IEntityKeyRegistry {
     function updatePubkey(bytes calldata pubkey, bytes calldata attestation_data) external {
         address sender = msg.sender;
 
-        require(attestationVerifier.safeVerify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         pub_key[sender] = pubkey;
 
         emit UpdateKey(sender);

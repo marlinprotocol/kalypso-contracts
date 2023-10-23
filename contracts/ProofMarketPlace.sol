@@ -62,7 +62,7 @@ contract ProofMarketPlace is
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
         if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
-            require(entityKeyRegistry.attestationVerifier().safeVerify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            require(entityKeyRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
             super._grantRole(role, account);
         } else {
             super._grantRole(role, account);
@@ -79,12 +79,12 @@ contract ProofMarketPlace is
         require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
     }
 
-    function _authorizeUpgrade(address /*account*/) internal view override onlyAdmin {}
+    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     //-------------------------------- Overrides end --------------------------------//
 
     //-------------------------------- Constants and Immutable start --------------------------------//
-    bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("matching engine")) - 1);
+    bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("MATCHING_ENGINE_ROLE")) - 1);
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable paymentToken;
@@ -143,11 +143,6 @@ contract ProofMarketPlace is
     function initialize(address _admin) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
-    }
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), Error.ONLY_ADMIN_CAN_CALL);
-        _;
     }
 
     function createMarketPlace(
