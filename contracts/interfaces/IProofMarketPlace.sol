@@ -5,6 +5,12 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
 interface IProofMarketPlace {
+    struct Market {
+        address verifier; // verifier address for the market place
+        uint256 slashingPenalty;
+        bytes marketmetadata;
+    }
+
     enum AskState {
         NULL,
         CREATE,

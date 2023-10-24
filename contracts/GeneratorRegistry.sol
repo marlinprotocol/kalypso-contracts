@@ -65,7 +65,7 @@ contract GeneratorRegistry is
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     //-------------------------------- Overrides end --------------------------------//
-    
+
     //-------------------------------- Constants and Immutable start --------------------------------//
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable STAKING_TOKEN;
@@ -85,6 +85,7 @@ contract GeneratorRegistry is
 
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
+
     //-------------------------------- State variables end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -99,7 +100,7 @@ contract GeneratorRegistry is
         __AccessControlEnumerable_init_unchained();
         __ERC1967Upgrade_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        
+
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(SLASHER_ROLE, _proofMarketPlace);
         proofMarketPlace = IProofMarketPlace(_proofMarketPlace);

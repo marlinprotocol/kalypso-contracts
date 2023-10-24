@@ -106,14 +106,10 @@ contract ProofMarketPlace is
 
     uint256 public constant costPerInputBytes = 10e15;
 
-    uint256 private constant MIN_STAKE_FOR_PARTICIPATING = 1e18;
-
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    mapping(bytes32 => bytes) public marketmetadata;
-    mapping(bytes32 => address) public override verifier; // verifier address for the market place
-    mapping(bytes32 => uint256) public slashingPenalty;
+    mapping(bytes32 => Market) marketData;
 
     uint256 public askCounter;
     mapping(uint256 => AskWithState) public listOfAsk;
@@ -147,7 +143,7 @@ contract ProofMarketPlace is
         __AccessControlEnumerable_init_unchained();
         __ERC1967Upgrade_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        
+
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
     }
@@ -158,16 +154,18 @@ contract ProofMarketPlace is
         uint256 _slashingPenalty
     ) external override {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
-
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
+        require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
         bytes32 marketId = keccak256(_marketmetadata);
-        require(marketmetadata[marketId].length == 0, Error.MARKET_ALREADY_EXISTS);
+        Market storage market = marketData[marketId];
+        require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
 
-        marketmetadata[marketId] = _marketmetadata;
-        verifier[marketId] = _verifier;
-        slashingPenalty[marketId] = _slashingPenalty;
+        market.verifier = _verifier;
+        market.slashingPenalty = _slashingPenalty;
+        market.marketmetadata = _marketmetadata;
+
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
         emit MarketPlaceCreated(marketId);
     }
@@ -213,10 +211,11 @@ contract ProofMarketPlace is
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward);
 
-        require(marketmetadata[ask.marketId].length != 0, Error.INVALID_MARKET);
+        Market memory market = marketData[ask.marketId];
+        require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, msg.sender);
 
-        IVerifier inputVerifier = IVerifier(verifier[ask.marketId]);
+        IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
         emit AskCreated(askCounter, hasPrivateInputs, secret_inputs, acl);
@@ -339,7 +338,7 @@ contract ProofMarketPlace is
 
         listOfTask[taskCounter] = Task(askId, generator);
 
-        uint256 generatorAmountToLock = slashingPenalty[askWithState.ask.marketId];
+        uint256 generatorAmountToLock = marketData[askWithState.ask.marketId].slashingPenalty;
         GENERATOR_REGISTRY.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
         emit TaskCreated(askId, taskCounter, generator, new_acl);
 
@@ -368,7 +367,7 @@ contract ProofMarketPlace is
         AskWithState memory askWithState = listOfAsk[task.askId];
 
         bytes32 marketId = askWithState.ask.marketId;
-        IVerifier proofVerifier = IVerifier(verifier[marketId]);
+        IVerifier proofVerifier = IVerifier(marketData[marketId].verifier);
 
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
             task.generator,
@@ -393,7 +392,7 @@ contract ProofMarketPlace is
             PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
         }
 
-        uint256 generatorAmountToRelease = slashingPenalty[marketId];
+        uint256 generatorAmountToRelease = marketData[marketId].slashingPenalty;
         GENERATOR_REGISTRY.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
         emit ProofCreated(task.askId, taskId, proof);
     }
@@ -417,6 +416,20 @@ contract ProofMarketPlace is
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
 
         emit ProofNotGenerated(task.askId, taskId);
-        return GENERATOR_REGISTRY.slashGenerator(task.generator, marketId, slashingPenalty[marketId], rewardAddress);
+        return
+            GENERATOR_REGISTRY.slashGenerator(
+                task.generator,
+                marketId,
+                marketData[marketId].slashingPenalty,
+                rewardAddress
+            );
+    }
+
+    function slashingPenalty(bytes32 marketId) public view returns (uint256) {
+        return marketData[marketId].slashingPenalty;
+    }
+
+    function verifier(bytes32 marketId) public view returns (address) {
+        return marketData[marketId].verifier;
     }
 }
