@@ -68,7 +68,7 @@ contract GeneratorRegistry is
     
     //-------------------------------- Constants and Immutable start --------------------------------//
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable stakingToken;
+    IERC20Upgradeable public immutable STAKING_TOKEN;
 
     bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("SLASHER_ROLE")) - 1);
 
@@ -89,7 +89,7 @@ contract GeneratorRegistry is
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IERC20Upgradeable _stakingToken) {
-        stakingToken = _stakingToken;
+        STAKING_TOKEN = _stakingToken;
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
@@ -126,7 +126,7 @@ contract GeneratorRegistry is
         Generator memory generator = generatorRegistry[_msgSender];
 
         require(generator.totalCompute == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
-        stakingToken.safeTransfer(refundAddress, generator.totalStake);
+        STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_msgSender];
 
         emit DeregisteredGenerator(_msgSender);
@@ -138,7 +138,7 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
         require(amount != 0, Error.CANNOT_BE_ZERO);
 
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        STAKING_TOKEN.safeTransferFrom(msg.sender, address(this), amount);
         generator.totalStake += amount;
 
         emit AddedStash(generatorAddress, amount);
@@ -153,7 +153,7 @@ contract GeneratorRegistry is
         require(amount <= availableAmount, Error.CAN_NOT_WITHDRAW_MORE_UNLOCKED_AMOUNT);
 
         generator.totalStake -= amount;
-        stakingToken.safeTransfer(receipient, amount);
+        STAKING_TOKEN.safeTransfer(receipient, amount);
 
         emit RemovedStash(generatorAddress, amount);
         return generator.totalStake;
@@ -297,7 +297,7 @@ contract GeneratorRegistry is
 
         generator.computeConsumed -= info.computeAllocation;
 
-        stakingToken.safeTransfer(rewardAddress, slashingAmount);
+        STAKING_TOKEN.safeTransfer(rewardAddress, slashingAmount);
 
         return generator.totalStake;
     }

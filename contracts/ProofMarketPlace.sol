@@ -62,7 +62,7 @@ contract ProofMarketPlace is
     function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
         if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
-            require(entityKeyRegistry.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
+            require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
             super._grantRole(role, account);
         } else {
             super._grantRole(role, account);
@@ -87,22 +87,22 @@ contract ProofMarketPlace is
     bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("MATCHING_ENGINE_ROLE")) - 1);
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable paymentToken;
+    IERC20Upgradeable public immutable PAYMENT_TOKEN;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable platformToken;
+    IERC20Upgradeable public immutable PLATFORM_TOKEN;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable marketCreationCost;
+    uint256 public immutable MARKET_CREATION_COST;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    address immutable treasury;
+    address immutable TREASURY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IGeneratorRegistry public immutable generatorRegistry;
+    IGeneratorRegistry public immutable GENERATOR_REGISTRY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IEntityKeyRegistry public immutable entityKeyRegistry;
+    IEntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
     uint256 public constant costPerInputBytes = 10e15;
 
@@ -132,12 +132,12 @@ contract ProofMarketPlace is
         IGeneratorRegistry _generatorRegistry,
         IEntityKeyRegistry _entityRegistry
     ) {
-        paymentToken = _paymentToken;
-        platformToken = _platformToken;
-        marketCreationCost = _marketCreationCost;
-        treasury = _treasury;
-        generatorRegistry = _generatorRegistry;
-        entityKeyRegistry = _entityRegistry;
+        PAYMENT_TOKEN = _paymentToken;
+        PLATFORM_TOKEN = _platformToken;
+        MARKET_CREATION_COST = _marketCreationCost;
+        TREASURY = _treasury;
+        GENERATOR_REGISTRY = _generatorRegistry;
+        ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
     function initialize(address _admin) public initializer {
@@ -159,7 +159,7 @@ contract ProofMarketPlace is
     ) external override {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
 
-        paymentToken.safeTransferFrom(_msgSender(), treasury, marketCreationCost);
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
         bytes32 marketId = keccak256(_marketmetadata);
         require(marketmetadata[marketId].length == 0, Error.MARKET_ALREADY_EXISTS);
@@ -208,10 +208,10 @@ contract ProofMarketPlace is
 
         uint256 platformFee = getPlatformFee(ask, secret_inputs, acl);
         if (platformFee != 0) {
-            platformToken.safeTransferFrom(payFrom, treasury, platformFee);
+            PLATFORM_TOKEN.safeTransferFrom(payFrom, TREASURY, platformFee);
         }
 
-        paymentToken.safeTransferFrom(payFrom, address(this), ask.reward);
+        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward);
 
         require(marketmetadata[ask.marketId].length != 0, Error.INVALID_MARKET);
         listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, msg.sender);
@@ -263,11 +263,11 @@ contract ProofMarketPlace is
         bytes memory pubkey,
         bytes memory attestation_data
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        entityKeyRegistry.updatePubkey(pubkey, attestation_data);
+        ENTITY_KEY_REGISTRY.updatePubkey(pubkey, attestation_data);
     }
 
     function removeEncryptionKey() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        entityKeyRegistry.removePubkey();
+        ENTITY_KEY_REGISTRY.removePubkey();
     }
 
     function relayBatchAssignTasks(
@@ -327,7 +327,7 @@ contract ProofMarketPlace is
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
-        (uint256 proofGenerationCost, uint256 generatorProposedTime) = generatorRegistry.getGeneratorAssignmentDetails(
+        (uint256 proofGenerationCost, uint256 generatorProposedTime) = GENERATOR_REGISTRY.getGeneratorAssignmentDetails(
             generator,
             askWithState.ask.marketId
         );
@@ -340,7 +340,7 @@ contract ProofMarketPlace is
         listOfTask[taskCounter] = Task(askId, generator);
 
         uint256 generatorAmountToLock = slashingPenalty[askWithState.ask.marketId];
-        generatorRegistry.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
+        GENERATOR_REGISTRY.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
         emit TaskCreated(askId, taskCounter, generator, new_acl);
 
         taskCounter++;
@@ -351,7 +351,7 @@ contract ProofMarketPlace is
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        paymentToken.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
     }
@@ -370,7 +370,7 @@ contract ProofMarketPlace is
         bytes32 marketId = askWithState.ask.marketId;
         IVerifier proofVerifier = IVerifier(verifier[marketId]);
 
-        (address generatorRewardAddress, uint256 minRewardForGenerator) = generatorRegistry.getGeneratorRewardDetails(
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
             task.generator,
             askWithState.ask.marketId
         );
@@ -386,15 +386,15 @@ contract ProofMarketPlace is
         uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
 
         if (minRewardForGenerator != 0) {
-            paymentToken.safeTransfer(generatorRewardAddress, minRewardForGenerator);
+            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
         }
 
         if (toBackToProver != 0) {
-            paymentToken.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
+            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
         }
 
         uint256 generatorAmountToRelease = slashingPenalty[marketId];
-        generatorRegistry.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
+        GENERATOR_REGISTRY.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
         emit ProofCreated(task.askId, taskId, proof);
     }
 
@@ -409,7 +409,7 @@ contract ProofMarketPlace is
         Task memory task = listOfTask[taskId];
         require(getAskState(task.askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
         require(task.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
-        return _slashGenerator(taskId, task, treasury);
+        return _slashGenerator(taskId, task, TREASURY);
     }
 
     function _slashGenerator(uint256 taskId, Task memory task, address rewardAddress) internal returns (uint256) {
@@ -417,6 +417,6 @@ contract ProofMarketPlace is
         bytes32 marketId = listOfAsk[task.askId].ask.marketId;
 
         emit ProofNotGenerated(task.askId, taskId);
-        return generatorRegistry.slashGenerator(task.generator, marketId, slashingPenalty[marketId], rewardAddress);
+        return GENERATOR_REGISTRY.slashGenerator(task.generator, marketId, slashingPenalty[marketId], rewardAddress);
     }
 }
