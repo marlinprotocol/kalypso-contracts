@@ -93,6 +93,13 @@ contract GeneratorRegistry is
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __AccessControlEnumerable_init_unchained();
+        __ERC1967Upgrade_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+        
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(SLASHER_ROLE, _proofMarketPlace);
         proofMarketPlace = IProofMarketPlace(_proofMarketPlace);
