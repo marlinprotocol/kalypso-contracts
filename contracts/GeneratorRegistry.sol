@@ -114,7 +114,6 @@ contract GeneratorRegistry is
         require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(declaredCompute != 0, Error.CANNOT_BE_ZERO);
 
-        require(generator.generatorData.length == 0, Error.GENERATOR_ALREADY_EXISTS);
         require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
 
         generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
@@ -170,7 +169,6 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
 
         require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
