@@ -137,7 +137,8 @@ export const rawSetup = async (
 
   await mockToken.connect(generator).approve(await generatorRegistry.getAddress(), generatorStakingAmount.toFixed());
 
-  const marketId = ethers.keccak256(marketSetupBytes);
+  // const marketId = ethers.keccak256(marketSetupBytes);
+  const marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
   await generatorRegistry
     .connect(generator)

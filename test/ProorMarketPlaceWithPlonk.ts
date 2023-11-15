@@ -78,8 +78,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
       name: "some custom name for the generator",
     };
 
-    marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
-
     const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
     const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
       await plonkVerifier.getAddress(),
@@ -112,6 +110,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
+
+    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
   });
   it("Check plonk verifier", async () => {
     let abiCoder = new ethers.AbiCoder();

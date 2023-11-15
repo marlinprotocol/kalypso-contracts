@@ -79,7 +79,7 @@ contract GeneratorRegistry is
 
     //-------------------------------- State variables start --------------------------------//
     mapping(address => Generator) public generatorRegistry;
-    mapping(address => mapping(bytes32 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
+    mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
 
     IProofMarketPlace public proofMarketPlace;
 
@@ -161,7 +161,7 @@ contract GeneratorRegistry is
     }
 
     function joinMarketPlace(
-        bytes32 marketId,
+        uint256 marketId,
         uint256 computeAllocation,
         uint256 proofGenerationCost,
         uint256 proposedTime
@@ -196,7 +196,7 @@ contract GeneratorRegistry is
 
     function getGeneratorState(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view override returns (GeneratorState, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
@@ -224,31 +224,31 @@ contract GeneratorRegistry is
         return (GeneratorState.NULL, 0);
     }
 
-    function leaveMarketPlaces(bytes32[] calldata marketIds) external override {
+    function leaveMarketPlaces(uint256[] calldata marketIds) external override {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _leaveMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function leaveMarketPlace(bytes32 marketId) external override {
+    function leaveMarketPlace(uint256 marketId) external override {
         address generatorAddress = msg.sender;
         _leaveMarketPlace(generatorAddress, marketId);
     }
 
-    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external override {
+    function requestForExitMarketPlaces(uint256[] calldata marketIds) external override {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _requestForExitMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function requestForExitMarketPlace(bytes32 marketId) external override {
+    function requestForExitMarketPlace(uint256 marketId) external override {
         address generatorAddress = msg.sender;
         _requestForExitMarketPlace(generatorAddress, marketId);
     }
 
-    function _requestForExitMarketPlace(address generatorAddress, bytes32 marketId) internal {
+    function _requestForExitMarketPlace(address generatorAddress, uint256 marketId) internal {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
@@ -261,7 +261,7 @@ contract GeneratorRegistry is
         emit RequestExitMarketPlace(generatorAddress, marketId);
     }
 
-    function _leaveMarketPlace(address generatorAddress, bytes32 marketId) internal {
+    function _leaveMarketPlace(address generatorAddress, uint256 marketId) internal {
         require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
@@ -276,7 +276,7 @@ contract GeneratorRegistry is
 
     function slashGenerator(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 slashingAmount,
         address rewardAddress
     ) external override onlyRole(SLASHER_ROLE) returns (uint256) {
@@ -305,7 +305,7 @@ contract GeneratorRegistry is
 
     function assignGeneratorTask(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 amountToLock
     ) external override onlyRole(SLASHER_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
@@ -327,7 +327,7 @@ contract GeneratorRegistry is
 
     function completeGeneratorTask(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 stakeToRelease
     ) external override onlyRole(SLASHER_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
@@ -350,7 +350,7 @@ contract GeneratorRegistry is
 
     function getGeneratorAssignmentDetails(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view override returns (uint256, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
@@ -359,7 +359,7 @@ contract GeneratorRegistry is
 
     function getGeneratorRewardDetails(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view override returns (address, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
