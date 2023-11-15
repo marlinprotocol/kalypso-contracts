@@ -59,7 +59,7 @@ contract ProofMarketPlace is
         revert(Error.CAN_NOT_GRANT_ROLE_WITHOUT_ATTESTATION);
     }
 
-    function grantRole(bytes32 role, address account, bytes memory attestation_data) public {
+    function grantRole(bytes32 role, address account, bytes memory attestation_data) external {
         if (role == MATCHING_ENGINE_ROLE) {
             bytes memory data = abi.encode(account, attestation_data);
             require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
@@ -276,7 +276,7 @@ contract ProofMarketPlace is
         address[] memory generators,
         bytes[] calldata new_acls,
         bytes calldata signature
-    ) public {
+    ) external {
         require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);
         require(askIds.length == generators.length, Error.ARITY_MISMATCH);
         require(askIds.length == new_acls.length, Error.ARITY_MISMATCH);
@@ -298,7 +298,7 @@ contract ProofMarketPlace is
         address generator,
         bytes calldata new_acl,
         bytes calldata signature
-    ) public {
+    ) external {
         bytes32 messageHash = keccak256(abi.encode(askId, newTaskId, generator, new_acl));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
@@ -356,7 +356,7 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) public {
+    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {
         require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
         for (uint256 index = 0; index < taskIds.length; index++) {
             submitProof(taskIds[index], proofs[index]);
