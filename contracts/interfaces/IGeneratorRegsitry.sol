@@ -10,8 +10,8 @@ interface IGeneratorRegistry {
     event RequestExitMarketPlace(address indexed generator, bytes32 indexed marketId);
     event LeftMarketplace(address indexed generator, bytes32 indexed marketId);
 
-    event AddedStash(address indexed generator, uint256 amount);
-    event RemovedStash(address indexed generator, uint256);
+    event AddedStake(address indexed generator, uint256 amount);
+    event RemovedStake(address indexed generator, uint256);
 
     enum GeneratorState {
         NULL,

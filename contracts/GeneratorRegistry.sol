@@ -142,7 +142,7 @@ contract GeneratorRegistry is
         STAKING_TOKEN.safeTransferFrom(msg.sender, address(this), amount);
         generator.totalStake += amount;
 
-        emit AddedStash(generatorAddress, amount);
+        emit AddedStake(generatorAddress, amount);
         return generator.totalStake;
     }
 
@@ -156,7 +156,7 @@ contract GeneratorRegistry is
         generator.totalStake -= amount;
         STAKING_TOKEN.safeTransfer(receipient, amount);
 
-        emit RemovedStash(generatorAddress, amount);
+        emit RemovedStake(generatorAddress, amount);
         return generator.totalStake;
     }
 

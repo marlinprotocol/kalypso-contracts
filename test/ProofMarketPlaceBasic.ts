@@ -252,7 +252,7 @@ describe("Proof market place", () => {
         await expect(
           generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0)),
         )
-          .to.emit(generatorRegistry, "AddedStash")
+          .to.emit(generatorRegistry, "AddedStake")
           .withArgs(await generator.getAddress(), generatorStakingAmount.toFixed(0));
 
         await expect(
@@ -336,7 +336,7 @@ describe("Proof market place", () => {
         await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
 
         await expect(generatorRegistry.connect(tokenHolder).stake(await generator.getAddress(), extraStash))
-          .to.emit(generatorRegistry, "AddedStash")
+          .to.emit(generatorRegistry, "AddedStake")
           .withArgs(await generator.getAddress(), extraStash)
           .to.emit(mockToken, "Transfer")
           .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
