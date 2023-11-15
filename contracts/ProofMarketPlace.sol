@@ -111,8 +111,7 @@ contract ProofMarketPlace is
     //-------------------------------- State variables start --------------------------------//
     mapping(bytes32 => Market) marketData;
 
-    uint256 public askCounter;
-    mapping(uint256 => AskWithState) public listOfAsk;
+    AskWithState[] public listOfAsk;
 
     uint256 public taskCounter; // taskCounter also acts as nonce for matching engine.
     mapping(uint256 => Task) public listOfTask;
@@ -213,13 +212,15 @@ contract ProofMarketPlace is
 
         Market memory market = marketData[ask.marketId];
         require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
-        listOfAsk[askCounter] = AskWithState(ask, AskState.CREATE, msg.sender);
+
+        uint256 askId = listOfAsk.length;
+        AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender);
+        listOfAsk.push(askRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        emit AskCreated(askCounter, hasPrivateInputs, secret_inputs, acl);
-        askCounter++;
+        emit AskCreated(askId, hasPrivateInputs, secret_inputs, acl);
     }
 
     function getPlatformFee(
@@ -431,5 +432,9 @@ contract ProofMarketPlace is
 
     function verifier(bytes32 marketId) public view returns (address) {
         return marketData[marketId].verifier;
+    }
+
+    function askCounter() public view returns (uint256) {
+        return listOfAsk.length;
     }
 }
