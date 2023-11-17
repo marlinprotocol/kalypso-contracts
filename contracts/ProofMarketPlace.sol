@@ -13,10 +13,12 @@ import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "./interfaces/IProofMarketPlace.sol";
-import "./interfaces/IGeneratorRegsitry.sol";
+// import "./interfaces/IProofMarketPlace.sol";
+// import "./interfaces/IGeneratorRegsitry.sol";
+import "./GeneratorRegistry.sol";
+import "./EntityKeyRegistry.sol";
 import "./interfaces/IVerifier.sol";
-import "./interfaces/IEntityKeyRegistry.sol";
+// import "./interfaces/IEntityKeyRegistry.sol";
 
 import "./lib/Error.sol";
 
@@ -29,8 +31,7 @@ contract ProofMarketPlace is
     AccessControlUpgradeable,
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable,
-    IProofMarketPlace
+    UUPSUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -99,10 +100,10 @@ contract ProofMarketPlace is
     address immutable TREASURY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IGeneratorRegistry public immutable GENERATOR_REGISTRY;
+    GeneratorRegistry public immutable GENERATOR_REGISTRY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IEntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
+    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
     uint256 public constant costPerInputBytes = 10e15;
 
@@ -116,7 +117,64 @@ contract ProofMarketPlace is
     uint256 public taskCounter; // taskCounter also acts as nonce for matching engine.
     mapping(uint256 => Task) public listOfTask;
 
+    struct Market {
+        address verifier; // verifier address for the market place
+        uint256 slashingPenalty;
+        bytes marketmetadata;
+    }
+
+    enum AskState {
+        NULL,
+        CREATE,
+        UNASSIGNED,
+        ASSIGNED,
+        COMPLETE,
+        DEADLINE_CROSSED
+    }
+
+    enum SecretType {
+        NULL,
+        CALLDATA,
+        EXTERNAL
+    }
+
+    struct Ask {
+        bytes32 marketId;
+        uint256 reward;
+        // the block number by which the ask should be assigned by matching engine
+        uint256 expiry;
+        uint256 timeTakenForProofGeneration;
+        uint256 deadline;
+        address refundAddress;
+        bytes proverData;
+    }
+
+    struct AskWithState {
+        Ask ask;
+        AskState state;
+        address requester;
+    }
+
+    struct Task {
+        uint256 askId;
+        address generator;
+    }
+
     //-------------------------------- State variables end --------------------------------//
+
+    //-------------------------------- Events start --------------------------------//
+
+    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event TaskCreated(uint256 indexed askId, uint256 indexed taskId, address indexed generator, bytes new_acl);
+    // TODO: add ask ID also
+    event ProofCreated(uint256 indexed askId, uint256 indexed taskId, bytes proof);
+    event ProofNotGenerated(uint256 indexed askId, uint256 indexed taskId);
+
+    event MarketPlaceCreated(bytes32 indexed marketId);
+
+    event AskCancelled(uint256 indexed askId);
+
+    //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
@@ -124,8 +182,8 @@ contract ProofMarketPlace is
         IERC20Upgradeable _platformToken,
         uint256 _marketCreationCost,
         address _treasury,
-        IGeneratorRegistry _generatorRegistry,
-        IEntityKeyRegistry _entityRegistry
+        GeneratorRegistry _generatorRegistry,
+        EntityKeyRegistry _entityRegistry
     ) {
         PAYMENT_TOKEN = _paymentToken;
         PLATFORM_TOKEN = _platformToken;
@@ -151,7 +209,7 @@ contract ProofMarketPlace is
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _slashingPenalty
-    ) external override {
+    ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -176,7 +234,7 @@ contract ProofMarketPlace is
         SecretType,
         bytes calldata secret_inputs,
         bytes calldata acl
-    ) external override {
+    ) external {
         _createAsk(ask, hasPrivateInputs, msg.sender, secret_inputs, acl);
     }
 
@@ -188,7 +246,7 @@ contract ProofMarketPlace is
         SecretType,
         bytes calldata secret_inputs,
         bytes calldata acl
-    ) external override {
+    ) external {
         _createAsk(ask, hasPrivateInputs, payFrom, secret_inputs, acl);
     }
 
@@ -267,8 +325,8 @@ contract ProofMarketPlace is
         ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
     }
 
-    function removeEncryptionKey() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.removePubkey();
+    function removeEncryptionKey(address key_owner) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
     }
 
     function relayBatchAssignTasks(

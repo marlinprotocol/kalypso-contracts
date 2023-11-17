@@ -12,9 +12,10 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "./interfaces/IProofMarketPlace.sol";
+// import "./interfaces/IProofMarketPlace.sol";
+import "./ProofMarketPlace.sol";
 
-import "./interfaces/IGeneratorRegsitry.sol";
+// import "./interfaces/IGeneratorRegsitry.sol";
 import "./lib/Error.sol";
 
 // import "hardhat/console.sol";
@@ -26,8 +27,7 @@ contract GeneratorRegistry is
     AccessControlUpgradeable,
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable,
-    IGeneratorRegistry
+    UUPSUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -81,12 +81,53 @@ contract GeneratorRegistry is
     mapping(address => Generator) public generatorRegistry;
     mapping(address => mapping(bytes32 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
 
-    IProofMarketPlace public proofMarketPlace;
+    ProofMarketPlace public proofMarketPlace;
 
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
 
+    enum GeneratorState {
+        NULL,
+        JOINED,
+        NO_COMPUTE_AVAILABLE,
+        WIP,
+        REQUESTED_FOR_EXIT
+    }
+
+    struct Generator {
+        address rewardAddress;
+        uint256 totalStake;
+        uint256 totalCompute;
+        uint256 computeConsumed;
+        uint256 stakeLocked;
+        uint256 activeMarketPlaces;
+        uint256 declaredCompute;
+        bytes generatorData;
+    }
+
+    struct GeneratorInfoPerMarket {
+        GeneratorState state;
+        uint256 computeAllocation;
+        uint256 proofGenerationCost;
+        uint256 proposedTime;
+        uint256 activeRequests;
+    }
+
     //-------------------------------- State variables end --------------------------------//
+
+    //-------------------------------- Events end --------------------------------//
+
+    event RegisteredGenerator(address indexed generator);
+    event DeregisteredGenerator(address indexed generator);
+
+    event JoinedMarketPlace(address indexed generator, bytes32 indexed marketId, uint256 computeAllocation);
+    event RequestExitMarketPlace(address indexed generator, bytes32 indexed marketId);
+    event LeftMarketplace(address indexed generator, bytes32 indexed marketId);
+
+    event AddedStake(address indexed generator, uint256 amount);
+    event RemovedStake(address indexed generator, uint256);
+
+    //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IERC20Upgradeable _stakingToken) {
@@ -103,10 +144,10 @@ contract GeneratorRegistry is
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(SLASHER_ROLE, _proofMarketPlace);
-        proofMarketPlace = IProofMarketPlace(_proofMarketPlace);
+        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
     }
 
-    function register(address rewardAddress, uint256 declaredCompute, bytes memory generatorData) external override {
+    function register(address rewardAddress, uint256 declaredCompute, bytes memory generatorData) external {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
@@ -121,7 +162,7 @@ contract GeneratorRegistry is
         emit RegisteredGenerator(_msgSender);
     }
 
-    function deregister(address refundAddress) external override {
+    function deregister(address refundAddress) external {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
@@ -132,7 +173,7 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function stake(address generatorAddress, uint256 amount) external override returns (uint256) {
+    function stake(address generatorAddress, uint256 amount) external returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
@@ -145,7 +186,7 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
-    function unstake(address receipient, uint256 amount) external override returns (uint256) {
+    function unstake(address receipient, uint256 amount) external returns (uint256) {
         address generatorAddress = msg.sender;
         Generator storage generator = generatorRegistry[generatorAddress];
 
@@ -195,7 +236,7 @@ contract GeneratorRegistry is
     function getGeneratorState(
         address generatorAddress,
         bytes32 marketId
-    ) public view override returns (GeneratorState, uint256) {
+    ) public view returns (GeneratorState, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 
@@ -222,26 +263,26 @@ contract GeneratorRegistry is
         return (GeneratorState.NULL, 0);
     }
 
-    function leaveMarketPlaces(bytes32[] calldata marketIds) external override {
+    function leaveMarketPlaces(bytes32[] calldata marketIds) external {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _leaveMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function leaveMarketPlace(bytes32 marketId) external override {
+    function leaveMarketPlace(bytes32 marketId) external {
         address generatorAddress = msg.sender;
         _leaveMarketPlace(generatorAddress, marketId);
     }
 
-    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external override {
+    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _requestForExitMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function requestForExitMarketPlace(bytes32 marketId) external override {
+    function requestForExitMarketPlace(bytes32 marketId) external {
         address generatorAddress = msg.sender;
         _requestForExitMarketPlace(generatorAddress, marketId);
     }
@@ -277,7 +318,7 @@ contract GeneratorRegistry is
         bytes32 marketId,
         uint256 slashingAmount,
         address rewardAddress
-    ) external override onlyRole(SLASHER_ROLE) returns (uint256) {
+    ) external onlyRole(SLASHER_ROLE) returns (uint256) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state == GeneratorState.WIP ||
@@ -305,7 +346,7 @@ contract GeneratorRegistry is
         address generatorAddress,
         bytes32 marketId,
         uint256 amountToLock
-    ) external override onlyRole(SLASHER_ROLE) {
+    ) external onlyRole(SLASHER_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
         require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
 
@@ -327,7 +368,7 @@ contract GeneratorRegistry is
         address generatorAddress,
         bytes32 marketId,
         uint256 stakeToRelease
-    ) external override onlyRole(SLASHER_ROLE) {
+    ) external onlyRole(SLASHER_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state == GeneratorState.WIP ||
@@ -349,7 +390,7 @@ contract GeneratorRegistry is
     function getGeneratorAssignmentDetails(
         address generatorAddress,
         bytes32 marketId
-    ) public view override returns (uint256, uint256) {
+    ) public view returns (uint256, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
         return (info.proofGenerationCost, info.proposedTime);
@@ -358,7 +399,7 @@ contract GeneratorRegistry is
     function getGeneratorRewardDetails(
         address generatorAddress,
         bytes32 marketId
-    ) public view override returns (address, uint256) {
+    ) public view returns (address, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 
