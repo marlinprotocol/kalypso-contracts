@@ -7,7 +7,7 @@ import "./IAttestationVerifier.sol";
 interface IEntityKeyRegistry {
     function attestationVerifier() external returns (IAttestationVerifier);
 
-    function updatePubkey(bytes calldata pub, bytes calldata attestation_data) external;
+    function updatePubkey(address key_owner, bytes calldata pub, bytes calldata attestation_data) external;
 
     function removePubkey() external;
 }

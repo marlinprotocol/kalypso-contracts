@@ -61,7 +61,7 @@ async function main(): Promise<string> {
   const tokenHolder = signers[1];
   // let treasury = signers[2];
   // let marketCreator = signers[3];
-  // let generator = signers[4];
+  let generator = signers[4];
   let matchingEngine = signers[5];
   let prover = signers[6];
 
@@ -114,7 +114,7 @@ async function main(): Promise<string> {
 
     const entity_registry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, wallet);
     const pubBytes = utf8ToHex(generator_publickey);
-    tx = await entity_registry.updatePubkey("0x" + pubBytes, "0x");
+    tx = await entity_registry.updatePubkey(await generator.getAddress(), "0x" + pubBytes, "0x");
     console.log("generator broadcast pubkey transaction", (await tx.wait())?.hash);
 
     let abiCoder = new ethers.AbiCoder();

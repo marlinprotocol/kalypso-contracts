@@ -101,6 +101,7 @@ export const rawSetup = async (
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
   const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
     await mockAttestationVerifier.getAddress(),
+    await admin.getAddress()
   );
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");

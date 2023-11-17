@@ -36,7 +36,7 @@ async function main(): Promise<string> {
   const pubBytes = utf8ToHex(matchingEngineRsaPub);
   const pubkeyRecovered = hexToUtf8(pubBytes);
 
-  const tx = await entity_registry.updatePubkey("0x" + pubkeyRecovered, "0x");
+  const tx = await entity_registry.updatePubkey(await matchingEngine.getAddress(), "0x" + pubkeyRecovered, "0x");
   await tx.wait();
 
   const pubBytesFetched = await entity_registry.pub_key(await matchingEngine.getAddress());

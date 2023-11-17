@@ -68,6 +68,7 @@ describe("Proof market place", () => {
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
     const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(
       await mockAttestationVerifier.getAddress(),
+      await admin.getAddress()
     );
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");

@@ -95,7 +95,7 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.entity_registry) {
-    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestation_verifier);
+    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestation_verifier, await admin.getAddress());
     await entity_registry.waitForDeployment();
 
     addresses.proxy.entity_registry = await entity_registry.getAddress();

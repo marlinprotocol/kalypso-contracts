@@ -260,10 +260,11 @@ contract ProofMarketPlace is
     }
 
     function updateEncryptionKey(
+        address key_owner,
         bytes memory pubkey,
         bytes memory attestation_data
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.updatePubkey(pubkey, attestation_data);
+        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
     }
 
     function removeEncryptionKey() external onlyRole(DEFAULT_ADMIN_ROLE) {
