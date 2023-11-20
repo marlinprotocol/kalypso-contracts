@@ -9,7 +9,7 @@ import "./lib/Error.sol";
 contract EntityKeyRegistry is AccessControlUpgradeable {
     IAttestationVerifier public immutable attestationVerifier;
 
-    bytes32 public constant KEY_REGISTER_ROLE = bytes32(uint256(keccak256("KEY_REGISTER_ROLE")) - 1);
+    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     mapping(address => bytes) public pub_key;
 

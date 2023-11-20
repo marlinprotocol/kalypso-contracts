@@ -70,7 +70,7 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable STAKING_TOKEN;
 
-    bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("SLASHER_ROLE")) - 1);
+    bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 

@@ -85,7 +85,7 @@ contract ProofMarketPlace is
     //-------------------------------- Overrides end --------------------------------//
 
     //-------------------------------- Constants and Immutable start --------------------------------//
-    bytes32 public constant MATCHING_ENGINE_ROLE = bytes32(uint256(keccak256("MATCHING_ENGINE_ROLE")) - 1);
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable PAYMENT_TOKEN;
