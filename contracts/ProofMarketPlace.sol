@@ -13,16 +13,11 @@ import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-// import "./interfaces/IProofMarketPlace.sol";
-// import "./interfaces/IGeneratorRegsitry.sol";
 import "./GeneratorRegistry.sol";
 import "./EntityKeyRegistry.sol";
 import "./interfaces/IVerifier.sol";
-// import "./interfaces/IEntityKeyRegistry.sol";
 
 import "./lib/Error.sol";
-
-// import "hardhat/console.sol";
 
 contract ProofMarketPlace is
     Initializable,

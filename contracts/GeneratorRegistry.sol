@@ -12,10 +12,7 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-// import "./interfaces/IProofMarketPlace.sol";
 import "./ProofMarketPlace.sol";
-
-// import "./interfaces/IGeneratorRegsitry.sol";
 import "./lib/Error.sol";
 
 // import "hardhat/console.sol";
