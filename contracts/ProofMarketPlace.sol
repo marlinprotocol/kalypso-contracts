@@ -241,7 +241,7 @@ contract ProofMarketPlace is
         SecretType,
         bytes calldata secret_inputs,
         bytes calldata acl
-    ) external {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _createAsk(ask, hasPrivateInputs, payFrom, secret_inputs, acl);
     }
 
@@ -452,7 +452,7 @@ contract ProofMarketPlace is
         emit ProofCreated(task.askId, taskId, proof);
     }
 
-    function slashGenerator(uint256 taskId, address rewardAddress) external returns (uint256) {
+    function slashGenerator(uint256 taskId, address rewardAddress) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
         Task memory task = listOfTask[taskId];
 
         require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);

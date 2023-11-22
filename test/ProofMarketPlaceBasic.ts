@@ -619,9 +619,8 @@ describe("Proof market place", () => {
           });
 
           it("Can't slash request before deadline", async () => {
-            let slasher = signers[19];
             await expect(
-              proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()),
+              proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()),
             ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
           });
 
@@ -638,7 +637,7 @@ describe("Proof market place", () => {
             });
 
             it("When deadline is crossed, it is slashable", async () => {
-              await expect(proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()))
+              await expect(proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()))
                 .to.emit(proofMarketPlace, "ProofNotGenerated")
                 .withArgs(askId, taskId);
             });
