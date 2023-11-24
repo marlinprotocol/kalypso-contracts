@@ -102,7 +102,7 @@ describe("Proof market place", () => {
   it("Create Market", async () => {
     const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
 
-    const marketId = ethers.keccak256(marketBytes);
+    const marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).toFixed();
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
     await expect(
@@ -150,7 +150,7 @@ describe("Proof market place", () => {
 
       const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
 
-      marketId = ethers.keccak256(marketBytes);
+      marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).toFixed();
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
       await proofMarketPlace
@@ -321,7 +321,7 @@ describe("Proof market place", () => {
       it("Deregister generator data", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, marketId);
+          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress()))
           .to.emit(generatorRegistry, "DeregisteredGenerator")

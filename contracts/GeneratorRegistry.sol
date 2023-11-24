@@ -76,7 +76,7 @@ contract GeneratorRegistry is
 
     //-------------------------------- State variables start --------------------------------//
     mapping(address => Generator) public generatorRegistry;
-    mapping(address => mapping(bytes32 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
+    mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
 
     ProofMarketPlace public proofMarketPlace;
 
@@ -117,9 +117,9 @@ contract GeneratorRegistry is
     event RegisteredGenerator(address indexed generator);
     event DeregisteredGenerator(address indexed generator);
 
-    event JoinedMarketPlace(address indexed generator, bytes32 indexed marketId, uint256 computeAllocation);
-    event RequestExitMarketPlace(address indexed generator, bytes32 indexed marketId);
-    event LeftMarketplace(address indexed generator, bytes32 indexed marketId);
+    event JoinedMarketPlace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
+    event RequestExitMarketPlace(address indexed generator, uint256 indexed marketId);
+    event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
     event AddedStake(address indexed generator, uint256 amount);
     event RemovedStake(address indexed generator, uint256);
@@ -198,7 +198,7 @@ contract GeneratorRegistry is
     }
 
     function joinMarketPlace(
-        bytes32 marketId,
+        uint256 marketId,
         uint256 computeAllocation,
         uint256 proofGenerationCost,
         uint256 proposedTime
@@ -232,7 +232,7 @@ contract GeneratorRegistry is
 
     function getGeneratorState(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view returns (GeneratorState, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
@@ -260,31 +260,31 @@ contract GeneratorRegistry is
         return (GeneratorState.NULL, 0);
     }
 
-    function leaveMarketPlaces(bytes32[] calldata marketIds) external {
+    function leaveMarketPlaces(uint256[] calldata marketIds) external {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _leaveMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function leaveMarketPlace(bytes32 marketId) external {
+    function leaveMarketPlace(uint256 marketId) external {
         address generatorAddress = msg.sender;
         _leaveMarketPlace(generatorAddress, marketId);
     }
 
-    function requestForExitMarketPlaces(bytes32[] calldata marketIds) external {
+    function requestForExitMarketPlaces(uint256[] calldata marketIds) external {
         address generatorAddress = msg.sender;
         for (uint256 index = 0; index < marketIds.length; index++) {
             _requestForExitMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
-    function requestForExitMarketPlace(bytes32 marketId) external {
+    function requestForExitMarketPlace(uint256 marketId) external {
         address generatorAddress = msg.sender;
         _requestForExitMarketPlace(generatorAddress, marketId);
     }
 
-    function _requestForExitMarketPlace(address generatorAddress, bytes32 marketId) internal {
+    function _requestForExitMarketPlace(address generatorAddress, uint256 marketId) internal {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
@@ -297,7 +297,7 @@ contract GeneratorRegistry is
         emit RequestExitMarketPlace(generatorAddress, marketId);
     }
 
-    function _leaveMarketPlace(address generatorAddress, bytes32 marketId) internal {
+    function _leaveMarketPlace(address generatorAddress, uint256 marketId) internal {
         require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
@@ -312,7 +312,7 @@ contract GeneratorRegistry is
 
     function slashGenerator(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 slashingAmount,
         address rewardAddress
     ) external onlyRole(SLASHER_ROLE) returns (uint256) {
@@ -341,7 +341,7 @@ contract GeneratorRegistry is
 
     function assignGeneratorTask(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 amountToLock
     ) external onlyRole(SLASHER_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
@@ -363,7 +363,7 @@ contract GeneratorRegistry is
 
     function completeGeneratorTask(
         address generatorAddress,
-        bytes32 marketId,
+        uint256 marketId,
         uint256 stakeToRelease
     ) external onlyRole(SLASHER_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
@@ -386,7 +386,7 @@ contract GeneratorRegistry is
 
     function getGeneratorAssignmentDetails(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view returns (uint256, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
@@ -395,7 +395,7 @@ contract GeneratorRegistry is
 
     function getGeneratorRewardDetails(
         address generatorAddress,
-        bytes32 marketId
+        uint256 marketId
     ) public view returns (address, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];

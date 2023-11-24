@@ -77,8 +77,6 @@ describe("Checking Generator's multiple compute", () => {
       name: "some custom name for the generator",
     };
 
-    marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
-
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
     const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await transferVerifier.getAddress(),
@@ -111,6 +109,8 @@ describe("Checking Generator's multiple compute", () => {
     priorityLog = data.priorityLog;
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
+
+    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
   });
   it("Using Simple Transfer Verifier", async () => {
     let abiCoder = new ethers.AbiCoder();

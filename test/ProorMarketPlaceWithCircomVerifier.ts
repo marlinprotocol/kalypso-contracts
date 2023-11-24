@@ -77,8 +77,6 @@ describe("Proof Market Place for Circom Verifier", () => {
       name: "some custom name for the generator",
     };
 
-    marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
-
     const circomVerifier = await new XorVerifier__factory(admin).deploy();
     const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
       await circomVerifier.getAddress(),
@@ -111,6 +109,8 @@ describe("Proof Market Place for Circom Verifier", () => {
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
+
+    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
   });
   it("Check circom verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
