@@ -2,35 +2,36 @@
 
 pragma solidity ^0.8.9;
 
-import "./interfaces/IEntityKeyRegistry.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
 
-contract EntityKeyRegistry is IEntityKeyRegistry {
+contract EntityKeyRegistry is AccessControlUpgradeable {
     IAttestationVerifier public immutable attestationVerifier;
+
+    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     mapping(address => bytes) public pub_key;
 
-    constructor(IAttestationVerifier _attestationVerifier) {
+    constructor(IAttestationVerifier _attestationVerifier, address key_register) {
         attestationVerifier = _attestationVerifier;
+        _grantRole(KEY_REGISTER_ROLE, key_register);
     }
 
     event UpdateKey(address indexed user);
     event RemoveKey(address indexed user);
 
-    function updatePubkey(bytes calldata pubkey, bytes calldata attestation_data) external {
-        address sender = msg.sender;
-
+    function updatePubkey(address key_owner, bytes calldata pubkey, bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
-        pub_key[sender] = pubkey;
+        require(pubkey.length > 0, Error.INVALID_ENCLAVE_KEY);
+        pub_key[key_owner] = pubkey;
 
-        emit UpdateKey(sender);
+        emit UpdateKey(key_owner);
     }
 
-    function removePubkey() external {
-        address sender = msg.sender;
-        delete pub_key[sender];
+    function removePubkey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
+        delete pub_key[key_owner];
 
-        emit RemoveKey(sender);
+        emit RemoveKey(key_owner);
     }
 }

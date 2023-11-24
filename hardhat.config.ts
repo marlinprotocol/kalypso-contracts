@@ -4,6 +4,7 @@ import "@openzeppelin/hardhat-upgrades";
 import "@nomicfoundation/hardhat-chai-matchers";
 
 import "hardhat-gas-reporter";
+import "solidity-coverage";
 
 import { config as dotenvConfig } from "dotenv";
 

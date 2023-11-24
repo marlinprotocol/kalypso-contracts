@@ -68,6 +68,7 @@ describe("Proof market place", () => {
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
     const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(
       await mockAttestationVerifier.getAddress(),
+      await admin.getAddress()
     );
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
@@ -252,7 +253,7 @@ describe("Proof market place", () => {
         await expect(
           generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0)),
         )
-          .to.emit(generatorRegistry, "AddedStash")
+          .to.emit(generatorRegistry, "AddedStake")
           .withArgs(await generator.getAddress(), generatorStakingAmount.toFixed(0));
 
         await expect(
@@ -336,7 +337,7 @@ describe("Proof market place", () => {
         await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
 
         await expect(generatorRegistry.connect(tokenHolder).stake(await generator.getAddress(), extraStash))
-          .to.emit(generatorRegistry, "AddedStash")
+          .to.emit(generatorRegistry, "AddedStake")
           .withArgs(await generator.getAddress(), extraStash)
           .to.emit(mockToken, "Transfer")
           .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
@@ -618,9 +619,8 @@ describe("Proof market place", () => {
           });
 
           it("Can't slash request before deadline", async () => {
-            let slasher = signers[19];
             await expect(
-              proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()),
+              proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()),
             ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
           });
 
@@ -637,7 +637,7 @@ describe("Proof market place", () => {
             });
 
             it("When deadline is crossed, it is slashable", async () => {
-              await expect(proofMarketPlace.connect(slasher).slashGenerator(taskId, await slasher.getAddress()))
+              await expect(proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()))
                 .to.emit(proofMarketPlace, "ProofNotGenerated")
                 .withArgs(askId, taskId);
             });

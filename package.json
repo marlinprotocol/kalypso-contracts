@@ -7,7 +7,7 @@
     "accounts": "npx hardhat accounts",
     "clean": "npx hardhat clean && forge clean",
     "compile": "npx hardhat compile",
-    "coverage": "npx hardhat coverage",
+    "coverage": "npx hardhat coverage --solcoverjs ./contracts/.solcover.js",
     "prettier-contracts": "npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "prettier-others": "npx prettier --write .",
     "prettier": "npm run prettier-contracts && npm run prettier-others",
