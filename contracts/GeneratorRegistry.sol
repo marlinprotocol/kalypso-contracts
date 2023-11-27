@@ -94,7 +94,7 @@ contract GeneratorRegistry is
     struct Generator {
         address rewardAddress;
         uint256 totalStake;
-        uint256 totalCompute;
+        uint256 sumOfComputeAllocations;
         uint256 computeConsumed;
         uint256 stakeLocked;
         uint256 activeMarketPlaces;
@@ -163,7 +163,7 @@ contract GeneratorRegistry is
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
-        require(generator.totalCompute == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
+        require(generator.sumOfComputeAllocations == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
         STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_msgSender];
 
@@ -215,8 +215,8 @@ contract GeneratorRegistry is
         require(proposedTime != 0, Error.CANNOT_BE_ZERO);
         require(computeAllocation != 0, Error.CANNOT_BE_ZERO);
 
-        generator.totalCompute += computeAllocation;
-        require(generator.totalCompute <= generator.declaredCompute, Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE);
+        generator.sumOfComputeAllocations += computeAllocation;
+        require(generator.sumOfComputeAllocations <= generator.declaredCompute, Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE);
         generator.activeMarketPlaces++;
 
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
@@ -303,7 +303,7 @@ contract GeneratorRegistry is
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
 
         Generator storage generator = generatorRegistry[generatorAddress];
-        generator.totalCompute -= info.computeAllocation;
+        generator.sumOfComputeAllocations -= info.computeAllocation;
         generator.activeMarketPlaces -= 1;
 
         delete generatorInfoPerMarket[generatorAddress][marketId];
