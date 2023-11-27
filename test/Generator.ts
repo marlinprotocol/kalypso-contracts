@@ -146,6 +146,7 @@ describe("Checking Generator's multiple compute", () => {
         refundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      1,
     );
 
     const taskId = await setup.createTask(
@@ -216,7 +217,7 @@ describe("Checking Generator's multiple compute", () => {
         await tokenToUse.connect(prover).approve(await proofMarketPlace.getAddress(), ask.reward.toString());
 
         const proverBytes = ask.proverData;
-        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
           (proverBytes.length - 2) / 2,
         );
 
@@ -245,6 +246,7 @@ describe("Checking Generator's multiple compute", () => {
             refundAddress: await prover.getAddress(),
           },
           { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+          1,
         );
 
         const taskId = await setup.createTask(

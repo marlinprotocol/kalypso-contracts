@@ -146,6 +146,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
         refundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      1,
     );
 
     const taskId = await setup.createTask(

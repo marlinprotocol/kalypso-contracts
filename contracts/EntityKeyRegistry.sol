@@ -21,7 +21,11 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
     event UpdateKey(address indexed user);
     event RemoveKey(address indexed user);
 
-    function updatePubkey(address key_owner, bytes calldata pubkey, bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
+    function updatePubkey(
+        address key_owner,
+        bytes calldata pubkey,
+        bytes calldata attestation_data
+    ) external onlyRole(KEY_REGISTER_ROLE) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         require(pubkey.length > 0, Error.INVALID_ENCLAVE_KEY);
         pub_key[key_owner] = pubkey;

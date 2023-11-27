@@ -135,6 +135,7 @@ describe("Proof Market Place for Circom Verifier", () => {
         refundAddress: await prover.getAddress(),
       },
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      1,
     );
 
     const taskId = await setup.createTask(

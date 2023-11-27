@@ -7,7 +7,6 @@ pragma solidity ^0.8.9;
 /// Optional contract to be used by request creator where
 /// he can set on what priority his requests should be processed by matching engine
 contract PriorityLog {
-
     enum Priority {
         NONE,
         COST,

@@ -47,6 +47,7 @@ export const createAsk = async (
   tokenHolder: Signer,
   ask: IProofMarketPlace.AskStruct,
   setupTemplate: SetupTemplate,
+  secretType: number,
 ): Promise<string> => {
   await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
@@ -55,9 +56,9 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), ask.reward.toString());
 
   const proverBytes = ask.proverData;
-  const platformFee = new BigNumber((await setupTemplate.proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-    (proverBytes.length - 2) / 2,
-  );
+  const platformFee = new BigNumber(
+    (await setupTemplate.proofMarketPlace.costPerInputBytes(secretType)).toString(),
+  ).multipliedBy((proverBytes.length - 2) / 2);
 
   await setupTemplate.platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
   await setupTemplate.platformToken
@@ -65,7 +66,7 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), platformFee.toFixed());
 
   const askId = await setupTemplate.proofMarketPlace.askCounter();
-  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, false, secretType, "0x", "0x");
 
   return askId.toString();
 };
@@ -101,7 +102,7 @@ export const rawSetup = async (
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
   const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
     await mockAttestationVerifier.getAddress(),
-    await admin.getAddress()
+    await admin.getAddress(),
   );
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");

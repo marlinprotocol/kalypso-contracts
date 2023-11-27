@@ -82,6 +82,8 @@ contract ProofMarketPlace is
     //-------------------------------- Constants and Immutable start --------------------------------//
     bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
 
+    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
+
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable PAYMENT_TOKEN;
 
@@ -100,8 +102,6 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
-    uint256 public constant costPerInputBytes = 10e15;
-
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -112,6 +112,8 @@ contract ProofMarketPlace is
 
     uint256 public taskCounter; // taskCounter also acts as nonce for matching engine.
     mapping(uint256 => Task) public listOfTask;
+
+    mapping(SecretType => uint256) public costPerInputBytes;
 
     struct Market {
         address verifier; // verifier address for the market place
@@ -170,6 +172,8 @@ contract ProofMarketPlace is
 
     event AskCancelled(uint256 indexed askId);
 
+    event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
+
     //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -199,13 +203,10 @@ contract ProofMarketPlace is
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
-    function createMarketPlace(
-        bytes calldata _marketmetadata,
-        address _verifier,
-        uint256 _slashingPenalty
-    ) external {
+    function createMarketPlace(bytes calldata _marketmetadata, address _verifier, uint256 _slashingPenalty) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -227,29 +228,18 @@ contract ProofMarketPlace is
         Ask calldata ask,
         bool hasPrivateInputs,
         // TODO: Check if this needs to be removed during review
-        SecretType,
+        SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) external {
-        _createAsk(ask, hasPrivateInputs, msg.sender, secret_inputs, acl);
-    }
-
-    function createAskFor(
-        Ask calldata ask,
-        bool hasPrivateInputs,
-        address payFrom,
-        // TODO: Check if this needs to be removed during review
-        SecretType,
-        bytes calldata secret_inputs,
-        bytes calldata acl
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _createAsk(ask, hasPrivateInputs, payFrom, secret_inputs, acl);
+        _createAsk(ask, hasPrivateInputs, msg.sender, secretType, secret_inputs, acl);
     }
 
     function _createAsk(
         Ask calldata ask,
         bool hasPrivateInputs,
         address payFrom,
+        SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) internal {
@@ -257,7 +247,7 @@ contract ProofMarketPlace is
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
         require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
 
-        uint256 platformFee = getPlatformFee(ask, secret_inputs, acl);
+        uint256 platformFee = getPlatformFee(secretType, ask, secret_inputs, acl);
         if (platformFee != 0) {
             PLATFORM_TOKEN.safeTransferFrom(payFrom, TREASURY, platformFee);
         }
@@ -278,14 +268,22 @@ contract ProofMarketPlace is
     }
 
     function getPlatformFee(
+        SecretType secretType,
         Ask calldata ask,
         bytes calldata secret_inputs,
         bytes calldata acl
-    ) public pure returns (uint256) {
-        if (costPerInputBytes != 0) {
-            return (ask.proverData.length + secret_inputs.length + acl.length) * costPerInputBytes;
+    ) public view returns (uint256) {
+        uint256 costperByte = costPerInputBytes[secretType];
+        if (costperByte != 0) {
+            return (ask.proverData.length + secret_inputs.length + acl.length) * costperByte;
         }
         return 0;
+    }
+
+    function updateCostPerBytes(SecretType secretType, uint256 costPerByte) public onlyRole(UPDATER_ROLE) {
+        costPerInputBytes[secretType] = costPerByte;
+
+        emit UpdateCostPerBytes(secretType, costPerByte);
     }
 
     // Todo: Optimise the function
@@ -453,7 +451,10 @@ contract ProofMarketPlace is
         emit ProofCreated(task.askId, taskId, proof);
     }
 
-    function slashGenerator(uint256 taskId, address rewardAddress) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
+    function slashGenerator(
+        uint256 taskId,
+        address rewardAddress
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
         Task memory task = listOfTask[taskId];
 
         require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
