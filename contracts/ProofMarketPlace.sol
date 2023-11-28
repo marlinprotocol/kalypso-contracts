@@ -201,11 +201,7 @@ contract ProofMarketPlace is
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
-    function createMarketPlace(
-        bytes calldata _marketmetadata,
-        address _verifier,
-        uint256 _slashingPenalty
-    ) external {
+    function createMarketPlace(bytes calldata _marketmetadata, address _verifier, uint256 _slashingPenalty) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -327,58 +323,63 @@ contract ProofMarketPlace is
 
     function relayBatchAssignTasks(
         uint256[] memory askIds,
-        uint256[] memory newTaskIds,
+        // uint256[] memory newTaskIds,
         address[] memory generators,
         bytes[] calldata new_acls,
         bytes calldata signature
     ) external {
-        require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);
+        // require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);
         require(askIds.length == generators.length, Error.ARITY_MISMATCH);
         require(askIds.length == new_acls.length, Error.ARITY_MISMATCH);
 
-        bytes32 messageHash = keccak256(abi.encode(askIds, newTaskIds, generators, new_acls));
+        // bytes32 messageHash = keccak256(abi.encode(askIds, newTaskIds, generators, new_acls));
+        bytes32 messageHash = keccak256(abi.encode(askIds, generators, new_acls));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
         for (uint256 index = 0; index < askIds.length; index++) {
-            _assignTask(askIds[index], newTaskIds[index], generators[index], new_acls[index]);
+            // _assignTask(askIds[index], newTaskIds[index], generators[index], new_acls[index]);
+            _assignTask(askIds[index], generators[index], new_acls[index]);
         }
     }
 
     function relayAssignTask(
         uint256 askId,
-        uint256 newTaskId,
+        // uint256 newTaskId,
         address generator,
         bytes calldata new_acl,
         bytes calldata signature
     ) external {
-        bytes32 messageHash = keccak256(abi.encode(askId, newTaskId, generator, new_acl));
+        // bytes32 messageHash = keccak256(abi.encode(askId, newTaskId, generator, new_acl));
+        bytes32 messageHash = keccak256(abi.encode(askId, generator, new_acl));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
-        _assignTask(askId, newTaskId, generator, new_acl);
+        // _assignTask(askId, newTaskId, generator, new_acl);
+        _assignTask(askId, generator, new_acl);
     }
 
     function assignTask(
         uint256 askId,
-        uint256 newTaskId,
+        // uint256 newTaskId,
         address generator,
         bytes calldata new_acl
     ) external onlyRole(MATCHING_ENGINE_ROLE) {
-        _assignTask(askId, newTaskId, generator, new_acl);
+        // _assignTask(askId, newTaskId, generator, new_acl);
+        _assignTask(askId, generator, new_acl);
     }
 
     function _assignTask(
         uint256 askId,
-        uint256 newTaskId, // acts as nonce,
+        // uint256 newTaskId, // acts as nonce,
         address generator,
         bytes memory new_acl
     ) internal {
-        require(newTaskId == taskCounter, Error.INVALID_TASK_ID); //protection against replay
+        // require(newTaskId == taskCounter, Error.INVALID_TASK_ID); //protection against replay
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
@@ -453,7 +454,10 @@ contract ProofMarketPlace is
         emit ProofCreated(task.askId, taskId, proof);
     }
 
-    function slashGenerator(uint256 taskId, address rewardAddress) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
+    function slashGenerator(
+        uint256 taskId,
+        address rewardAddress
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
         Task memory task = listOfTask[taskId];
 
         require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);

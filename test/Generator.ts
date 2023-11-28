@@ -229,7 +229,8 @@ describe("Checking Generator's multiple compute", () => {
         const taskId = (await proofMarketPlace.taskCounter()).toString();
 
         await expect(
-          proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
+          // proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
+          proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
         ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
       } else {
         const askId = await setup.createAsk(

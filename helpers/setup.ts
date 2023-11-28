@@ -37,7 +37,8 @@ export const createTask = async (
   const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
+    // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
+    .assignTask(askId.toString(), await generator.getAddress(), "0x");
 
   return taskId;
 };
@@ -101,7 +102,7 @@ export const rawSetup = async (
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
   const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
     await mockAttestationVerifier.getAddress(),
-    await admin.getAddress()
+    await admin.getAddress(),
   );
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");

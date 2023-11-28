@@ -68,7 +68,7 @@ describe("Proof market place", () => {
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
     const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(
       await mockAttestationVerifier.getAddress(),
-      await admin.getAddress()
+      await admin.getAddress(),
     );
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
@@ -401,7 +401,8 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234"),
+              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234"),
+              .assignTask(askId.toString(), await generator.getAddress(), "0x1234"),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
             .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
@@ -422,9 +423,9 @@ describe("Proof market place", () => {
           const taskId = await proofMarketPlace.taskCounter();
           const newTaskId = taskId;
 
-          const types = ["uint256", "uint256", "address", "bytes"];
+          const types = ["uint256", "address", "bytes"];
 
-          const values = [askId.toFixed(0), newTaskId.toString(), await generator.getAddress(), "0x1234"];
+          const values = [askId.toFixed(0), await generator.getAddress(), "0x1234"];
 
           const abicode = new ethers.AbiCoder();
           const encoded = abicode.encode(types, values);
@@ -436,7 +437,8 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(someRandomRelayer)
-              .relayAssignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234", signature),
+              // .relayAssignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234", signature),
+              .relayAssignTask(askId.toString(), await generator.getAddress(), "0x1234", signature),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
             .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
@@ -457,9 +459,9 @@ describe("Proof market place", () => {
           const taskId = await proofMarketPlace.taskCounter();
           const newTaskId = taskId;
 
-          const types = ["uint256[]", "uint256[]", "address[]", "bytes[]"];
+          const types = ["uint256[]", "address[]", "bytes[]"];
 
-          const values = [[askId.toFixed(0)], [newTaskId.toString()], [await generator.getAddress()], ["0x1234"]];
+          const values = [[askId.toFixed(0)], [await generator.getAddress()], ["0x1234"]];
 
           const abicode = new ethers.AbiCoder();
           const encoded = abicode.encode(types, values);
@@ -469,15 +471,13 @@ describe("Proof market place", () => {
           const someRandomRelayer = admin;
 
           await expect(
-            proofMarketPlace
-              .connect(someRandomRelayer)
-              .relayBatchAssignTasks(
-                [askId.toString()],
-                [taskId],
-                [await generator.getAddress()],
-                ["0x1234"],
-                signature,
-              ),
+            proofMarketPlace.connect(someRandomRelayer).relayBatchAssignTasks(
+              [askId.toString()],
+              // [taskId],
+              [await generator.getAddress()],
+              ["0x1234"],
+              signature,
+            ),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
             .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
@@ -498,7 +498,8 @@ describe("Proof market place", () => {
           const taskId = await proofMarketPlace.taskCounter();
           await proofMarketPlace
             .connect(marketPlaceAddress)
-            .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234");
+            // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234");
+            .assignTask(askId.toString(), await generator.getAddress(), "0x1234");
 
           let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
           let anotherProverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
@@ -527,14 +528,12 @@ describe("Proof market place", () => {
           );
 
           await expect(
-            proofMarketPlace
-              .connect(marketPlaceAddress)
-              .assignTask(
-                anotherAskId.toString(),
-                new BigNumber(taskId.toString()).plus(1).toFixed(),
-                await generator.getAddress(),
-                "0x1234",
-              ),
+            proofMarketPlace.connect(marketPlaceAddress).assignTask(
+              anotherAskId.toString(),
+              // new BigNumber(taskId.toString()).plus(1).toFixed(),
+              await generator.getAddress(),
+              "0x1234",
+            ),
           ).to.be.revertedWith(await errorLibrary.ASSIGN_ONLY_TO_IDLE_GENERATORS());
         });
 
@@ -544,7 +543,8 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x"),
+              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x"),
+              .assignTask(askId.toString(), await generator.getAddress(), "0x"),
           ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
         });
 
@@ -567,7 +567,8 @@ describe("Proof market place", () => {
             taskId = (await proofMarketPlace.taskCounter()).toString();
             await proofMarketPlace
               .connect(marketPlaceAddress)
-              .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
+              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
+              .assignTask(askId.toString(), await generator.getAddress(), "0x");
           });
 
           it("submit proof", async () => {
