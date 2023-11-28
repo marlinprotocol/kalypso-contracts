@@ -34,12 +34,9 @@ export const createTask = async (
   askId: string,
   generator: Signer,
 ) => {
-  // const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
     .assignTask(askId.toString(), await generator.getAddress(), "0x");
-
-  // return askId;
 };
 
 export const createAsk = async (

@@ -246,7 +246,7 @@ describe("Checking Generator's multiple compute", () => {
           { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
         );
 
-        const taskId = await setup.createTask(
+        await setup.createTask(
           matchingEngine,
           { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
           askId,
