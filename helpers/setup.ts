@@ -33,14 +33,13 @@ export const createTask = async (
   setupTemplate: SetupTemplate,
   askId: string,
   generator: Signer,
-): Promise<string> => {
-  const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
+) => {
+  // const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
     .assignTask(askId.toString(), await generator.getAddress(), "0x");
 
-  return taskId;
+  // return askId;
 };
 
 export const createAsk = async (

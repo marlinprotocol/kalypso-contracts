@@ -148,7 +148,7 @@ describe("Checking Generator's multiple compute", () => {
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
@@ -170,9 +170,9 @@ describe("Checking Generator's multiple compute", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 
   it("Task Assignment fails if it exceeds compute capacity", async () => {
@@ -226,10 +226,8 @@ describe("Checking Generator's multiple compute", () => {
         const askId = await proofMarketPlace.askCounter();
 
         await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
-        const taskId = (await proofMarketPlace.taskCounter()).toString();
 
         await expect(
-          // proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
           proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
         ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
       } else {

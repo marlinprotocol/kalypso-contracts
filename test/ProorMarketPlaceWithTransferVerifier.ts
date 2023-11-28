@@ -148,7 +148,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
@@ -170,8 +170,8 @@ describe("Proof Market Place for Transfer Verifier", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });

@@ -397,15 +397,13 @@ describe("Proof market place", () => {
         });
 
         it("Matching engine assings", async () => {
-          const taskId = await proofMarketPlace.taskCounter();
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234"),
               .assignTask(askId.toString(), await generator.getAddress(), "0x1234"),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
-            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
+            .withArgs(askId, await generator.getAddress(), "0x1234");
 
           expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
 
@@ -420,9 +418,6 @@ describe("Proof market place", () => {
         });
 
         it("Matching engine should assign tasks using relayer", async () => {
-          const taskId = await proofMarketPlace.taskCounter();
-          const newTaskId = taskId;
-
           const types = ["uint256", "address", "bytes"];
 
           const values = [askId.toFixed(0), await generator.getAddress(), "0x1234"];
@@ -437,11 +432,10 @@ describe("Proof market place", () => {
           await expect(
             proofMarketPlace
               .connect(someRandomRelayer)
-              // .relayAssignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234", signature),
               .relayAssignTask(askId.toString(), await generator.getAddress(), "0x1234", signature),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
-            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
+            .withArgs(askId, await generator.getAddress(), "0x1234");
 
           expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
 
@@ -456,9 +450,6 @@ describe("Proof market place", () => {
         });
 
         it("Matching Engine should assign using relayers [multiple tasks]", async () => {
-          const taskId = await proofMarketPlace.taskCounter();
-          const newTaskId = taskId;
-
           const types = ["uint256[]", "address[]", "bytes[]"];
 
           const values = [[askId.toFixed(0)], [await generator.getAddress()], ["0x1234"]];
@@ -471,16 +462,12 @@ describe("Proof market place", () => {
           const someRandomRelayer = admin;
 
           await expect(
-            proofMarketPlace.connect(someRandomRelayer).relayBatchAssignTasks(
-              [askId.toString()],
-              // [taskId],
-              [await generator.getAddress()],
-              ["0x1234"],
-              signature,
-            ),
+            proofMarketPlace
+              .connect(someRandomRelayer)
+              .relayBatchAssignTasks([askId.toString()], [await generator.getAddress()], ["0x1234"], signature),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
-            .withArgs(askId, taskId, await generator.getAddress(), "0x1234");
+            .withArgs(askId, await generator.getAddress(), "0x1234");
 
           expect((await proofMarketPlace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
 
@@ -495,10 +482,8 @@ describe("Proof market place", () => {
         });
 
         it("Matching Engine can't assign more than vcpus", async () => {
-          const taskId = await proofMarketPlace.taskCounter();
           await proofMarketPlace
             .connect(marketPlaceAddress)
-            // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x1234");
             .assignTask(askId.toString(), await generator.getAddress(), "0x1234");
 
           let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
@@ -528,22 +513,17 @@ describe("Proof market place", () => {
           );
 
           await expect(
-            proofMarketPlace.connect(marketPlaceAddress).assignTask(
-              anotherAskId.toString(),
-              // new BigNumber(taskId.toString()).plus(1).toFixed(),
-              await generator.getAddress(),
-              "0x1234",
-            ),
+            proofMarketPlace
+              .connect(marketPlaceAddress)
+              .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234"),
           ).to.be.revertedWith(await errorLibrary.ASSIGN_ONLY_TO_IDLE_GENERATORS());
         });
 
         it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
           await mine(assignmentExpiry);
-          const taskId = await proofMarketPlace.taskCounter();
           await expect(
             proofMarketPlace
               .connect(marketPlaceAddress)
-              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x"),
               .assignTask(askId.toString(), await generator.getAddress(), "0x"),
           ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
         });
@@ -559,15 +539,12 @@ describe("Proof market place", () => {
 
         describe("Submit Proof", () => {
           let proof: string;
-          let taskId: string;
 
           beforeEach(async () => {
             proof = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
 
-            taskId = (await proofMarketPlace.taskCounter()).toString();
             await proofMarketPlace
               .connect(marketPlaceAddress)
-              // .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
               .assignTask(askId.toString(), await generator.getAddress(), "0x");
           });
 
@@ -578,9 +555,9 @@ describe("Proof market place", () => {
             const proverRefundAddress = await prover.getAddress();
             const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            await expect(proofMarketPlace.submitProof(taskId, proof))
+            await expect(proofMarketPlace.submitProof(askId.toString(), proof))
               .to.emit(proofMarketPlace, "ProofCreated")
-              .withArgs(askId, taskId, proof)
+              .withArgs(askId, proof)
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
               .to.emit(mockToken, "Transfer")
@@ -599,9 +576,9 @@ describe("Proof market place", () => {
             const proverRefundAddress = await prover.getAddress();
             const expectedProverRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            await expect(proofMarketPlace.submitProofs([taskId], [proof]))
+            await expect(proofMarketPlace.submitProofs([askId.toString()], [proof]))
               .to.emit(proofMarketPlace, "ProofCreated")
-              .withArgs(askId, taskId, proof)
+              .withArgs(askId, proof)
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
               .to.emit(mockToken, "Transfer")
@@ -614,14 +591,14 @@ describe("Proof market place", () => {
           });
 
           it("Generator can ignore the request", async () => {
-            await expect(proofMarketPlace.connect(generator).discardRequest(taskId))
+            await expect(proofMarketPlace.connect(generator).discardRequest(askId.toString()))
               .to.emit(proofMarketPlace, "ProofNotGenerated")
-              .withArgs(askId, taskId);
+              .withArgs(askId);
           });
 
           it("Can't slash request before deadline", async () => {
             await expect(
-              proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()),
+              proofMarketPlace.connect(admin).slashGenerator(askId.toString(), await admin.getAddress()),
             ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
           });
 
@@ -638,9 +615,9 @@ describe("Proof market place", () => {
             });
 
             it("When deadline is crossed, it is slashable", async () => {
-              await expect(proofMarketPlace.connect(admin).slashGenerator(taskId, await admin.getAddress()))
+              await expect(proofMarketPlace.connect(admin).slashGenerator(askId.toString(), await admin.getAddress()))
                 .to.emit(proofMarketPlace, "ProofNotGenerated")
-                .withArgs(askId, taskId);
+                .withArgs(askId);
             });
           });
         });
