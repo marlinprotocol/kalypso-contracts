@@ -117,6 +117,7 @@ contract ProofMarketPlace is
 
     struct Market {
         address verifier; // verifier address for the market place
+        bool isEnclaveRequired;
         uint256 slashingPenalty;
         bytes marketmetadata;
     }
@@ -206,7 +207,12 @@ contract ProofMarketPlace is
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
-    function createMarketPlace(bytes calldata _marketmetadata, address _verifier, uint256 _slashingPenalty) external {
+    function createMarketPlace(
+        bytes calldata _marketmetadata,
+        address _verifier,
+        uint256 _slashingPenalty,
+        bool isEnclaveRequired
+    ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -217,6 +223,7 @@ contract ProofMarketPlace is
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
         market.marketmetadata = _marketmetadata;
+        market.isEnclaveRequired = isEnclaveRequired;
 
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
@@ -226,18 +233,16 @@ contract ProofMarketPlace is
 
     function createAsk(
         Ask calldata ask,
-        bool hasPrivateInputs,
         // TODO: Check if this needs to be removed during review
         SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) external {
-        _createAsk(ask, hasPrivateInputs, msg.sender, secretType, secret_inputs, acl);
+        _createAsk(ask, msg.sender, secretType, secret_inputs, acl);
     }
 
     function _createAsk(
         Ask calldata ask,
-        bool hasPrivateInputs,
         address payFrom,
         SecretType secretType,
         bytes calldata secret_inputs,
@@ -264,7 +269,8 @@ contract ProofMarketPlace is
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        emit AskCreated(askId, hasPrivateInputs, secret_inputs, acl);
+
+        emit AskCreated(askId, market.isEnclaveRequired, secret_inputs, acl);
     }
 
     function getPlatformFee(

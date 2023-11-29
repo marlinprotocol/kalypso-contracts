@@ -108,7 +108,7 @@ describe("Proof market place", () => {
     await expect(
       proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0)),
+        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0), true),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -155,7 +155,7 @@ describe("Proof market place", () => {
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
       await proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0));
+        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0), true);
     });
 
     it("Create Ask Request", async () => {
@@ -190,9 +190,9 @@ describe("Proof market place", () => {
       await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
       await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee);
 
-      await expect(proofMarketPlace.connect(prover).createAsk(askRequest, false, 1, secretInfo, aclInfo))
+      await expect(proofMarketPlace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
         .to.emit(proofMarketPlace, "AskCreated")
-        .withArgs(askIdToBeGenerated, false, "0x2345", "0x21")
+        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketPlace.getAddress(), reward)
         .to.emit(platformToken, "Transfer")
@@ -226,7 +226,6 @@ describe("Proof market place", () => {
             deadline: latestBlock + maxTimeForProofGeneration,
             refundAddress: await prover.getAddress(),
           },
-          false,
           0,
           "0x",
           "0x",
@@ -386,7 +385,6 @@ describe("Proof market place", () => {
               deadline: latestBlock + maxTimeForProofGeneration,
               refundAddress: await prover.getAddress(),
             },
-            false,
             0,
             "0x",
             "0x",
@@ -527,7 +525,6 @@ describe("Proof market place", () => {
               deadline: latestBlock + maxTimeForProofGeneration,
               refundAddress: await prover.getAddress(),
             },
-            false,
             0,
             "0x",
             "0x",

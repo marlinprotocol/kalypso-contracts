@@ -226,7 +226,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketPlace.askCounter();
 
-        await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+        await proofMarketPlace.connect(prover).createAsk(ask, 0, "0x", "0x");
         const taskId = (await proofMarketPlace.taskCounter()).toString();
 
         await expect(

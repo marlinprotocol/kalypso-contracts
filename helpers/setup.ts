@@ -65,7 +65,7 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), platformFee.toFixed());
 
   const askId = await setupTemplate.proofMarketPlace.askCounter();
-  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, false, secretType, "0x", "0x");
+  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, secretType, "0x", "0x");
 
   return askId.toString();
 };
@@ -87,6 +87,7 @@ export const rawSetup = async (
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
+  isEnclaveRequired: boolean = true,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -132,7 +133,12 @@ export const rawSetup = async (
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
   await proofMarketPlace
     .connect(marketCreator)
-    .createMarketPlace(marketSetupBytes, await iverifier.getAddress(), generatorSlashingPenalty.toFixed(0));
+    .createMarketPlace(
+      marketSetupBytes,
+      await iverifier.getAddress(),
+      generatorSlashingPenalty.toFixed(0),
+      isEnclaveRequired,
+    );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 
