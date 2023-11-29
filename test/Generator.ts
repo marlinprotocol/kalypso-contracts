@@ -78,8 +78,41 @@ describe("Checking Generator's multiple compute", () => {
     };
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
     const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await transferVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
     );
 
     iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
@@ -112,6 +145,7 @@ describe("Checking Generator's multiple compute", () => {
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
   });
+
   it("Using Simple Transfer Verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 

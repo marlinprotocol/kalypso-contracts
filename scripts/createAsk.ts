@@ -60,7 +60,7 @@ async function main(): Promise<string> {
 
     const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, prover);
 
-    const platformFee = new BigNumber((await proof_market_place.costPerInputBytes()).toString()).multipliedBy(
+    const platformFee = new BigNumber((await proof_market_place.costPerInputBytes(1)).toString()).multipliedBy(
       (inputBytes.length - 2) / 2,
     );
 
@@ -92,7 +92,6 @@ async function main(): Promise<string> {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      true,
       1,
       encryptedSecretInputs,
       aclHex,

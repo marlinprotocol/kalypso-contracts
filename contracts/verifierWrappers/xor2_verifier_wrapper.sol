@@ -16,11 +16,25 @@ interface i_xor2_verifier {
 contract xor2_verifier_wrapper is IVerifier {
     i_xor2_verifier public immutable iverifier;
 
-    constructor(i_xor2_verifier _iverifier) {
+    bytes public override sampleInput;
+    bytes public override sampleProof;
+
+    constructor(i_xor2_verifier _iverifier, bytes memory _sampleInput, bytes memory _sampleProof) {
         iverifier = _iverifier;
+        sampleInput = _sampleInput;
+        sampleProof = _sampleProof;
     }
 
-    function verify(bytes calldata encodedData) public view override returns (bool) {
+    function checkSampleInputsAndProof() public view override returns (bool) {
+        return verifyAgainstSampleInputs(sampleProof);
+    }
+
+    function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
+        bytes memory encodedData = abi.encode(sampleInput, encodedProof);
+        return verify(encodedData);
+    }
+
+    function verify(bytes memory encodedData) public view override returns (bool) {
         uint[2] memory a;
         uint[2][2] memory b;
         uint[2] memory c;

@@ -14,11 +14,25 @@ interface i_plonk_vk {
 contract plonk_verifier_wrapper is IVerifier {
     i_plonk_vk public immutable iverifier;
 
-    constructor(i_plonk_vk _iverifier) {
+    bytes public override sampleInput;
+    bytes public override sampleProof;
+
+    constructor(i_plonk_vk _iverifier, bytes memory _sampleInput, bytes memory _sampleProof) {
         iverifier = _iverifier;
+        sampleInput = _sampleInput;
+        sampleProof = _sampleProof;
     }
 
-    function verify(bytes calldata encodedData) public view override returns (bool) {
+    function checkSampleInputsAndProof() public view override returns (bool) {
+        return verifyAgainstSampleInputs(sampleProof);
+    }
+
+    function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
+        bytes memory encodedData = abi.encode(sampleInput, encodedProof);
+        return verify(encodedData);
+    }
+
+    function verify(bytes memory encodedData) public view override returns (bool) {
         bytes32[] memory _publicInputs;
         bytes memory _proof;
 

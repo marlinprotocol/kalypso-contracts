@@ -106,7 +106,7 @@ contract ProofMarketPlace is
 
     //-------------------------------- State variables start --------------------------------//
     uint256 public marketCounter;
-    mapping(uint256 => Market) marketData;
+    mapping(uint256 => Market) public marketData;
 
     AskWithState[] public listOfAsk;
 
@@ -219,6 +219,7 @@ contract ProofMarketPlace is
         Market storage market = marketData[marketCounter];
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
+        require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
@@ -268,7 +269,6 @@ contract ProofMarketPlace is
 
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
-
 
         emit AskCreated(askId, market.isEnclaveRequired, secret_inputs, acl);
     }

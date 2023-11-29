@@ -78,8 +78,17 @@ describe("Proof Market Place for Circom Verifier", () => {
     };
 
     const circomVerifier = await new XorVerifier__factory(admin).deploy();
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
+    let proofBytes = abiCoder.encode(
+      ["uint[2]", "uint[2][2]", "uint[2]"],
+      [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
+    );
+
     const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
       await circomVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
     );
 
     iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);

@@ -14,7 +14,6 @@ import {
   MockVerifier__factory,
   ProofMarketPlace,
   ProofMarketPlace__factory,
-  EntityKeyRegistry,
   EntityKeyRegistry__factory,
 } from "../typechain-types";
 import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";

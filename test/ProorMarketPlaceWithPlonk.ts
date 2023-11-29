@@ -79,8 +79,15 @@ describe("Proof Market Place for Plonk Verifier", () => {
     };
 
     const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
+    let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+
     const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
       await plonkVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
     );
 
     iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
