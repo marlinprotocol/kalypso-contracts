@@ -72,11 +72,16 @@ contract GeneratorRegistry is
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
     uint256 private constant EXPONENT = 10e18;
+
+    uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
     mapping(address => Generator) public generatorRegistry;
     mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
+
+    mapping(uint256 => UnstakeRequest) public unstakingRequests;
+    uint256 public unstakingRequestCount;
 
     ProofMarketPlace public proofMarketPlace;
 
@@ -110,6 +115,12 @@ contract GeneratorRegistry is
         uint256 activeRequests;
     }
 
+    struct UnstakeRequest {
+        address generator;
+        uint256 amount;
+        uint256 unlockingBlock;
+    }
+
     //-------------------------------- State variables end --------------------------------//
 
     //-------------------------------- Events end --------------------------------//
@@ -122,7 +133,9 @@ contract GeneratorRegistry is
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
     event AddedStake(address indexed generator, uint256 amount);
-    event RemovedStake(address indexed generator, uint256);
+    event RemovedStake(address indexed generator, uint256 amount);
+
+    event RequestUnstake(address indexed generator, uint256 indexed requestId, uint256 amount);
 
     //-------------------------------- Events end --------------------------------//
 
@@ -183,17 +196,39 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
-    function unstake(address receipient, uint256 amount) external returns (uint256) {
+    function requestUnstake(uint256 amount) external returns (uint256 requestId) {
         address generatorAddress = msg.sender;
         Generator storage generator = generatorRegistry[generatorAddress];
 
         uint256 availableAmount = generator.totalStake - generator.stakeLocked;
         require(amount <= availableAmount, Error.CAN_NOT_WITHDRAW_MORE_UNLOCKED_AMOUNT);
 
-        generator.totalStake -= amount;
-        STAKING_TOKEN.safeTransfer(receipient, amount);
+        generator.stakeLocked += amount;
 
-        emit RemovedStake(generatorAddress, amount);
+        uint256 unstakeBlock = block.number + UNLOCK_WAIT_BLOCKS;
+        unstakingRequests[unstakingRequestCount] = UnstakeRequest(generatorAddress, amount, unstakeBlock);
+        requestId = unstakingRequestCount;
+        unstakingRequestCount++;
+
+        emit RequestUnstake(generatorAddress, requestId, amount);
+    }
+
+    function unstake(uint256 requestId, address recipient) external returns (uint256) {
+        address generatorAddress = msg.sender;
+        Generator storage generator = generatorRegistry[generatorAddress];
+
+        UnstakeRequest memory unstakeRequest = unstakingRequests[requestId];
+        require(unstakeRequest.generator == generatorAddress, Error.ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST);
+        require(block.number >= unstakeRequest.unlockingBlock, Error.ONLY_AFTER_UNSTAKING_TIME);
+
+        generator.totalStake -= unstakeRequest.amount;
+        generator.stakeLocked -= unstakeRequest.amount;
+
+        emit RemovedStake(generatorAddress, unstakeRequest.amount);
+
+        delete unstakingRequests[requestId];
+        STAKING_TOKEN.safeTransfer(recipient, unstakeRequest.amount);
+
         return generator.totalStake;
     }
 
@@ -216,7 +251,10 @@ contract GeneratorRegistry is
         require(computeAllocation != 0, Error.CANNOT_BE_ZERO);
 
         generator.sumOfComputeAllocations += computeAllocation;
-        require(generator.sumOfComputeAllocations <= generator.declaredCompute, Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE);
+        require(
+            generator.sumOfComputeAllocations <= generator.declaredCompute,
+            Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE
+        );
         generator.activeMarketPlaces++;
 
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(

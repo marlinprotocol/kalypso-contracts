@@ -14,7 +14,7 @@ import {
   Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -278,5 +278,24 @@ describe("Checking Generator's multiple compute", () => {
     // await expect(proofMarketPlace.submitProof(taskId, proofBytes))
     //   .to.emit(proofMarketPlace, "ProofCreated")
     //   .withArgs(askId, taskId, proofBytes);
+  });
+
+  it("Unstake: fail when no request is created", async () => {
+    await expect(generatorRegistry.connect(generator).unstake(0, await generator.getAddress())).to.be.revertedWith(
+      await errorLibrary.ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST(),
+    );
+  });
+
+  it("Unstake: with request created", async () => {
+    await expect(generatorRegistry.connect(generator).requestUnstake(100))
+      .to.emit(generatorRegistry, "RequestUnstake")
+      .withArgs(await generator.getAddress(), 0, 100);
+
+    const unlock_blocks = await generatorRegistry.UNLOCK_WAIT_BLOCKS();
+    await skipBlocks(ethers, new BigNumber(unlock_blocks.toString()).toNumber());
+
+    await expect(generatorRegistry.connect(generator).unstake(0, await generator.getAddress()))
+      .to.emit(generatorRegistry, "RemovedStake")
+      .withArgs(await generator.getAddress(), 100);
   });
 });

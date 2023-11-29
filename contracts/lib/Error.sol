@@ -42,4 +42,6 @@ library Error {
     string public constant ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT = "34";
 
     string public constant INVALID_ENCLAVE_KEY = "35";
+    string public constant ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST = "36";
+    string public constant ONLY_AFTER_UNSTAKING_TIME = "37";
 }

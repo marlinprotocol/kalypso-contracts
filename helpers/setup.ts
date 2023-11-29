@@ -9,7 +9,6 @@ import {
   GeneratorRegistry,
   GeneratorRegistry__factory,
   IVerifier,
-  IProofMarketPlace,
   PriorityLog,
   PriorityLog__factory,
   MockAttestationVerifier__factory,
@@ -45,7 +44,7 @@ export const createTask = async (
 export const createAsk = async (
   prover: Signer,
   tokenHolder: Signer,
-  ask: IProofMarketPlace.AskStruct,
+  ask: ProofMarketPlace.AskStruct,
   setupTemplate: SetupTemplate,
   secretType: number,
 ): Promise<string> => {

@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import * as fs from "fs";
+import { ethers } from "hardhat";
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -157,4 +158,13 @@ export function hexToUtf8(hex: string): string {
     str += String.fromCharCode(code);
   }
   return str;
+}
+
+export async function skipBlocks(ethersVar: typeof ethers, n: number) {
+  await Promise.all([...Array(n)].map(async (x) => await ethersVar.provider.send("evm_mine", [])));
+}
+
+export async function skipTime(ethersVar: typeof ethers, t: number) {
+  await ethersVar.provider.send("evm_increaseTime", [t]);
+  await skipBlocks(ethersVar, 1);
 }
