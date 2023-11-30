@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IVerifier.sol";
+import "../ProofMarketPlace.sol";
 
 interface i_transfer_verifier {
     function verifyProof(uint256[5] memory input, uint256[8] memory p) external view returns (bool);
@@ -13,9 +14,47 @@ interface i_transfer_verifier {
 // but is not recommended as it is a generated contract
 contract transfer_verifier_wrapper is IVerifier {
     i_transfer_verifier public immutable iverifier;
+    ProofMarketPlace public immutable proofMarketPlace;
 
-    constructor(i_transfer_verifier _iverifier) {
+    uint256 assignmentExpiry = 100; // in blocks
+    uint256 timeTakenForProofGeneration = 1000; // in blocks
+    uint256 maxTimeForProofGeneration = 10000; // in blocks
+
+    constructor(i_transfer_verifier _iverifier, address _proofMarketPlace) {
         iverifier = _iverifier;
+        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
+    }
+
+    function createRequest(
+        uint256 marketId,
+        uint256 reward,
+        address refundAddress,
+        bytes calldata proverData,
+        bool hasPrivateInputs,
+        ProofMarketPlace.SecretType secretType,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public {
+        ProofMarketPlace.Ask memory ask = ProofMarketPlace.Ask(
+            marketId,
+            reward,
+            assignmentExpiry + block.timestamp,
+            timeTakenForProofGeneration,
+            maxTimeForProofGeneration + block.timestamp,
+            refundAddress,
+            encodeInputs(verifyAndDecodeInputs(proverData))
+        );
+
+        if(hasPrivateInputs) {
+            proofMarketPlace.createAsk(ask, hasPrivateInputs, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        } else {
+            proofMarketPlace.createAsk(ask, hasPrivateInputs, secretType, "0x", "0x");
+        }
+    }
+
+    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns(uint256[5] memory) {
+        require(verifyInputs(inputs), "Invalid inputs");
+        return abi.decode(inputs, (uint256[5]));
     }
 
     function verify(bytes calldata encodedData) public view override returns (bool) {

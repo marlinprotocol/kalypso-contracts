@@ -10,8 +10,13 @@ import {
   MockToken,
   PriorityLog,
   ProofMarketPlace,
+  ProofMarketPlace__factory,
+  GeneratorRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
+  MockAttestationVerifier__factory,
+  EntityKeyRegistry__factory,
+  MockToken__factory
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
@@ -78,8 +83,47 @@ describe("Checking Generator's multiple compute", () => {
     };
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+
+    const mockToken = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      totalTokenSupply.toFixed(),
+    );
+
+    const PlatformToken = await new MockToken__factory(admin).deploy(
+      await tokenHolder.getAddress(),
+      totalTokenSupply.toFixed(),
+    );
+
+    const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
+    const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
+      await mockAttestationVerifier.getAddress(),
+      await admin.getAddress(),
+    );
+
+    const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
+    const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
+      kind: "uups",
+      constructorArgs: [await mockToken.getAddress()],
+      initializer: false,
+    });
+    const GeneratorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
+
+    const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
+    const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+      kind: "uups",
+      constructorArgs: [
+        await mockToken.getAddress(),
+        await PlatformToken.getAddress(),
+        marketCreationCost.toFixed(),
+        treasury,
+        await GeneratorRegistry.getAddress(),
+        await entityKeyRegistry.getAddress(),
+      ],
+    });
+    const proofMarketPlaceContract = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
     const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await transferVerifier.getAddress(),
+      await proofMarketPlaceContract.getAddress()
     );
 
     iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
