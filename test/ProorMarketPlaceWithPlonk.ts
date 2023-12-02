@@ -79,11 +79,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
     };
 
     const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
-    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
-      await plonkVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -96,7 +91,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await plonkVerifier.getAddress(),
+      "Plonk Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,

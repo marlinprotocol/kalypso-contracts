@@ -78,11 +78,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
     };
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
-    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-      await transferVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -95,7 +90,8 @@ describe("Proof Market Place for Transfer Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await transferVerifier.getAddress(),
+      "Transfer Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,

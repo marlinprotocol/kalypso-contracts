@@ -78,11 +78,6 @@ describe("Proof Market Place for Circom Verifier", () => {
     };
 
     const circomVerifier = await new XorVerifier__factory(admin).deploy();
-    const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
-      await circomVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -95,7 +90,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await circomVerifier.getAddress(),
+      "Circom Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,

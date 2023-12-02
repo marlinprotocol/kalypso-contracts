@@ -8,7 +8,10 @@ import {
   ProofMarketPlace__factory,
   GeneratorRegistry,
   GeneratorRegistry__factory,
-  IVerifier,
+  IVerifier__factory,
+  Transfer_verifier_wrapper__factory,
+  Plonk_verifier_wrapper__factory,
+  Xor2_verifier_wrapper__factory,
   IProofMarketPlace,
   PriorityLog,
   PriorityLog__factory,
@@ -77,7 +80,8 @@ export const rawSetup = async (
   marketCreationCost: BigNumber,
   marketCreator: Signer,
   marketSetupBytes: string,
-  iverifier: IVerifier,
+  verifier: string,
+  verifierType: string,
   generator: Signer,
   generatorData: string,
   matchingEngine: Signer,
@@ -125,6 +129,42 @@ export const rawSetup = async (
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
+
+  let iverifier;
+  switch (verifierType) {
+    case "Transfer Verifier":
+      const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+      break;
+    case "Plonk Verifier":
+      const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
+      break;
+    case "Circom Verifier":
+      const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
+      break;
+    default:
+      const defaultVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await defaultVerifierWrapper.getAddress(), admin);
+      break;
+  }
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
   await proofMarketPlace

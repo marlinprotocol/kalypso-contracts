@@ -16,44 +16,43 @@ contract transfer_verifier_wrapper is IVerifier {
     i_transfer_verifier public immutable iverifier;
     ProofMarketPlace public immutable proofMarketPlace;
 
-    uint256 assignmentExpiry = 100; // in blocks
-    uint256 timeTakenForProofGeneration = 1000; // in blocks
-    uint256 maxTimeForProofGeneration = 10000; // in blocks
-
     constructor(i_transfer_verifier _iverifier, address _proofMarketPlace) {
         iverifier = _iverifier;
         proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
     }
 
     function createRequest(
-        uint256 marketId,
-        uint256 reward,
-        address refundAddress,
-        bytes calldata proverData,
+        ProofMarketPlace.Ask calldata ask,
         bool hasPrivateInputs,
         ProofMarketPlace.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketPlace.Ask memory ask = ProofMarketPlace.Ask(
-            marketId,
-            reward,
-            assignmentExpiry + block.timestamp,
-            timeTakenForProofGeneration,
-            maxTimeForProofGeneration + block.timestamp,
-            refundAddress,
-            encodeInputs(verifyAndDecodeInputs(proverData))
+        ProofMarketPlace.Ask memory newAsk = ProofMarketPlace.Ask(
+            ask.marketId,
+            ask.reward,
+            ask.expiry,
+            ask.timeTakenForProofGeneration,
+            ask.deadline,
+            ask.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(ask.proverData))
         );
 
-        if(hasPrivateInputs) {
-            proofMarketPlace.createAsk(ask, hasPrivateInputs, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        if (hasPrivateInputs) {
+            proofMarketPlace.createAsk(
+                newAsk,
+                hasPrivateInputs,
+                secretType,
+                abi.encode(secret_inputs),
+                abi.encode(acl)
+            );
         } else {
-            proofMarketPlace.createAsk(ask, hasPrivateInputs, secretType, "0x", "0x");
+            proofMarketPlace.createAsk(newAsk, hasPrivateInputs, secretType, "0x", "0x");
         }
     }
 
-    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns(uint256[5] memory) {
-        require(verifyInputs(inputs), "Invalid inputs");
+    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns (uint256[5] memory) {
+        require(verifyInputs(inputs), "Transfer Verifier Wrapper: Invalid input format");
         return abi.decode(inputs, (uint256[5]));
     }
 
