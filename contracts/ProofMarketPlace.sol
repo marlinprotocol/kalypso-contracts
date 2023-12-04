@@ -302,18 +302,6 @@ contract ProofMarketPlace is
         return askWithState.state;
     }
 
-    function updateEncryptionKey(
-        address key_owner,
-        bytes memory pubkey,
-        bytes memory attestation_data
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
-    }
-
-    function removeEncryptionKey(address key_owner) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
-    }
-
     function relayBatchAssignTasks(
         uint256[] memory askIds,
         address[] memory generators,

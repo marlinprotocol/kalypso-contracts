@@ -74,7 +74,7 @@ describe("Proof market place", () => {
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
       kind: "uups",
-      constructorArgs: [await mockToken.getAddress()],
+      constructorArgs: [await mockToken.getAddress(), await entityRegistry.getAddress()],
       initializer: false,
     });
     generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), signers[0]);

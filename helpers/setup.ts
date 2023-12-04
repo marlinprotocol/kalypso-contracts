@@ -108,7 +108,7 @@ export const rawSetup = async (
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await mockToken.getAddress()],
+    constructorArgs: [await mockToken.getAddress(), await entityKeyRegistry.getAddress()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);

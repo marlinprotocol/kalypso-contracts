@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./ProofMarketPlace.sol";
+import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 
 // import "hardhat/console.sol";
@@ -66,6 +67,9 @@ contract GeneratorRegistry is
     //-------------------------------- Constants and Immutable start --------------------------------//
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable STAKING_TOKEN;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
     bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
 
@@ -127,8 +131,9 @@ contract GeneratorRegistry is
     //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken) {
+    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) {
         STAKING_TOKEN = _stakingToken;
+        ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
@@ -156,7 +161,21 @@ contract GeneratorRegistry is
 
         generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
 
+        _grantRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE(), _msgSender);
+
         emit RegisteredGenerator(_msgSender);
+    }
+
+    function updateEncryptionKey(
+        address key_owner,
+        bytes memory pubkey,
+        bytes memory attestation_data
+    ) external onlyRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE()) {
+        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
+    }
+
+    function removeEncryptionKey(address key_owner) external onlyRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE()) {
+        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
     }
 
     function deregister(address refundAddress) external {
@@ -166,6 +185,8 @@ contract GeneratorRegistry is
         require(generator.totalCompute == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
         STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_msgSender];
+
+        _revokeRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE(), _msgSender);
 
         emit DeregisteredGenerator(_msgSender);
     }
