@@ -6,20 +6,11 @@ import { BigNumber } from "bignumber.js";
 import {
   Error,
   GeneratorRegistry,
-  // IVerifier,
-  // IVerifier__factory,
   MockToken,
   PriorityLog,
   ProofMarketPlace,
-  // ProofMarketPlace__factory,
-  // GeneratorRegistry__factory,
   TransferVerifier__factory,
-  // Transfer_verifier_wrapper__factory,
   EntityKeyRegistry,
-  EntityKeyRegistry__factory,
-  MockAttestationVerifier__factory,
-  MockAttestationVerifier,
-  // MockToken__factory,
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, utf8ToHex } from "../helpers";
@@ -35,7 +26,6 @@ describe("Checking Generator's multiple compute", () => {
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
-  let attestationVerifier: MockAttestationVerifier;
 
   let signers: Signer[];
   let admin: Signer;
@@ -152,12 +142,28 @@ describe("Checking Generator's multiple compute", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
     );
 
     await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );
@@ -250,12 +256,28 @@ describe("Checking Generator's multiple compute", () => {
             deadline: latestBlock + maxTimeForProofGeneration,
             refundAddress: await prover.getAddress(),
           },
-          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+          {
+            mockToken: tokenToUse,
+            proofMarketPlace,
+            generatorRegistry,
+            priorityLog,
+            platformToken,
+            errorLibrary,
+            entityKeyRegistry,
+          },
         );
 
         await setup.createTask(
           matchingEngine,
-          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+          {
+            mockToken: tokenToUse,
+            proofMarketPlace,
+            generatorRegistry,
+            priorityLog,
+            platformToken,
+            errorLibrary,
+            entityKeyRegistry,
+          },
           askId,
           generator,
         );
@@ -287,34 +309,45 @@ describe("Checking Generator's multiple compute", () => {
   it("Only registered generator should be able to add entity keys", async () => {
     const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
     const pubBytes = utf8ToHex(generator_publickey);
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"))
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
+    )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
   });
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.GENERATOR_REGISTRY();
-    await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await matchingEngine.getAddress())).to.be.reverted;
-    await entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress());
-    expect(await entityKeyRegistry.hasRole(generatorRole, await matchingEngine.getAddress())).to.eq(true);
+    await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
+      .be.reverted;
+    await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
+    expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
+  });
+
+  it("Update key should revert for invalid contract address", async () => {
+    await expect(entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress())).to.be.revertedWith(
+      await errorLibrary.INVALID_CONTRACT_ADDRESS(),
+    );
   });
 
   it("Update key should revert for invalid user", async () => {
-    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey(matchingEngine.getAddress(), "0x", "0x")).to.be
-      .reverted;
+    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey(matchingEngine.getAddress(), "0x", "0x"))
+      .to.be.reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x", "0x")).to.be.revertedWith(
-      await errorLibrary.INVALID_ENCLAVE_KEY(),
-    );
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x", "0x"),
+    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
   });
 
   it("Remove key", async () => {
     // Adding key to registry
     const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
     const pubBytes = utf8ToHex(generator_publickey);
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"))
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
+    )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
 

@@ -30,7 +30,7 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   platformToken: MockToken;
   errorLibrary: Error;
-  entityKeyRegistry: EntityKeyRegistry; 
+  entityKeyRegistry: EntityKeyRegistry;
 }
 
 export const createTask = async (

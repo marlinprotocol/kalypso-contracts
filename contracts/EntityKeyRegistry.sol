@@ -22,6 +22,7 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
     event RemoveKey(address indexed user);
 
     function addGeneratorRegistry(address _generatorRegistry) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(isContract(_generatorRegistry), Error.INVALID_CONTRACT_ADDRESS);
         _grantRole(GENERATOR_REGISTRY, _generatorRegistry);
     }
 
@@ -41,5 +42,16 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
         delete pub_key[key_owner];
 
         emit RemoveKey(key_owner);
+    }
+
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+        uint size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
     }
 }
