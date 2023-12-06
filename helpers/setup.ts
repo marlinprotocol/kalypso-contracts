@@ -19,6 +19,7 @@ import {
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
+  EntityKeyRegistry,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -29,6 +30,7 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   platformToken: MockToken;
   errorLibrary: Error;
+  entityKeyRegistry: EntityKeyRegistry; 
 }
 
 export const createTask = async (
@@ -204,5 +206,6 @@ export const rawSetup = async (
     priorityLog,
     platformToken,
     errorLibrary,
+    entityKeyRegistry,
   };
 };

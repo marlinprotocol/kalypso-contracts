@@ -73,6 +73,8 @@ contract GeneratorRegistry is
 
     bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
 
+    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
+
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
     uint256 private constant EXPONENT = 10e18;
@@ -161,7 +163,7 @@ contract GeneratorRegistry is
 
         generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
 
-        _grantRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE(), _msgSender);
+        _grantRole(KEY_REGISTER_ROLE, _msgSender);
 
         emit RegisteredGenerator(_msgSender);
     }
@@ -170,11 +172,11 @@ contract GeneratorRegistry is
         address key_owner,
         bytes memory pubkey,
         bytes memory attestation_data
-    ) external onlyRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE()) {
+    ) external onlyRole(KEY_REGISTER_ROLE) {
         ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
     }
 
-    function removeEncryptionKey(address key_owner) external onlyRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE()) {
+    function removeEncryptionKey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
         ENTITY_KEY_REGISTRY.removePubkey(key_owner);
     }
 
@@ -186,7 +188,7 @@ contract GeneratorRegistry is
         STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_msgSender];
 
-        _revokeRole(ENTITY_KEY_REGISTRY.KEY_REGISTER_ROLE(), _msgSender);
+        _revokeRole(KEY_REGISTER_ROLE, _msgSender);
 
         emit DeregisteredGenerator(_msgSender);
     }
