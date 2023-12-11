@@ -128,6 +128,8 @@ contract GeneratorRegistry is
     event RegisteredGenerator(address indexed generator);
     event DeregisteredGenerator(address indexed generator);
 
+    event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
+
     event JoinedMarketPlace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
     event RequestExitMarketPlace(address indexed generator, uint256 indexed marketId);
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
@@ -170,6 +172,16 @@ contract GeneratorRegistry is
         generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
 
         emit RegisteredGenerator(_msgSender);
+    }
+
+    function changeRewardAddress(address newRewardAddress) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        generator.rewardAddress = newRewardAddress;
+
+        emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
     }
 
     function deregister(address refundAddress) external {
