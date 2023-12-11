@@ -16,7 +16,7 @@ import {
   ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
 } from "../typechain-types";
-import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
+import { bytesToHexString, generateRandomBytes, jsonToBytes, skipBlocks, splitHexString } from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 import * as secret from "../data/transferVerifier/1/secret.json";
@@ -155,6 +155,9 @@ describe("Proof market place", () => {
       await proofMarketPlace
         .connect(marketCreator)
         .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0), true);
+
+      let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
     });
 
     it("Create Ask Request", async () => {

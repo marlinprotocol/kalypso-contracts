@@ -14,7 +14,7 @@ import {
   Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -144,6 +144,9 @@ describe("Proof Market Place for Transfer Verifier", () => {
     errorLibrary = data.errorLibrary;
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check transfer verifier", async () => {
     let abiCoder = new ethers.AbiCoder();

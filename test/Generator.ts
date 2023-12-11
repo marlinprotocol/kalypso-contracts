@@ -144,6 +144,9 @@ describe("Checking Generator's multiple compute", () => {
     errorLibrary = data.errorLibrary;
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
   it("Using Simple Transfer Verifier", async () => {

@@ -102,6 +102,8 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
+    uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
+
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -119,6 +121,7 @@ contract ProofMarketPlace is
         address verifier; // verifier address for the market place
         bool isEnclaveRequired;
         uint256 slashingPenalty;
+        uint256 activationBlock;
         bytes marketmetadata;
     }
 
@@ -225,6 +228,7 @@ contract ProofMarketPlace is
         market.slashingPenalty = _slashingPenalty;
         market.marketmetadata = _marketmetadata;
         market.isEnclaveRequired = isEnclaveRequired;
+        market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
 
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
@@ -253,6 +257,9 @@ contract ProofMarketPlace is
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
         require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
 
+        Market memory market = marketData[ask.marketId];
+        require(block.number > market.activationBlock, Error.INACTIVE_MARKET);
+
         uint256 platformFee = getPlatformFee(secretType, ask, secret_inputs, acl);
         if (platformFee != 0) {
             PLATFORM_TOKEN.safeTransferFrom(payFrom, TREASURY, platformFee);
@@ -260,7 +267,6 @@ contract ProofMarketPlace is
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward);
 
-        Market memory market = marketData[ask.marketId];
         require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
 
         uint256 askId = listOfAsk.length;

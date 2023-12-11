@@ -14,7 +14,7 @@ import {
   Error,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
 import * as fs from "fs";
 
 import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
@@ -119,6 +119,9 @@ describe("Proof Market Place for Plonk Verifier", () => {
     errorLibrary = data.errorLibrary;
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check plonk verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
