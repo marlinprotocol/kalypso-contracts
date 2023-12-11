@@ -83,6 +83,9 @@ contract GeneratorRegistry is
     mapping(uint256 => UnstakeRequest) public unstakingRequests;
     uint256 public unstakingRequestCount;
 
+    mapping(uint256 => DecreaseComputeRequest) public decreaseComputeRequests;
+    uint256 public decreaseComputeRequestCount;
+
     ProofMarketPlace public proofMarketPlace;
 
     // in case we add more contracts in the inheritance chain
@@ -121,6 +124,12 @@ contract GeneratorRegistry is
         uint256 unlockingBlock;
     }
 
+    struct DecreaseComputeRequest {
+        address generator;
+        uint256 compute;
+        uint256 unlockingBlock;
+    }
+
     //-------------------------------- State variables end --------------------------------//
 
     //-------------------------------- Events end --------------------------------//
@@ -135,9 +144,12 @@ contract GeneratorRegistry is
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
     event AddedStake(address indexed generator, uint256 amount);
+    event RequestUnstake(address indexed generator, uint256 indexed requestId, uint256 amount);
     event RemovedStake(address indexed generator, uint256 amount);
 
-    event RequestUnstake(address indexed generator, uint256 indexed requestId, uint256 amount);
+    event IncreasedCompute(address indexed generator, uint256 compute);
+    event RequestDecreaseCompute(address indexed generator, uint256 indexed requestId, uint256 compute);
+    event DecreasedCompute(address indexed generator, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
 
@@ -184,6 +196,58 @@ contract GeneratorRegistry is
         emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
     }
 
+    function increaseDeclaredCompute(uint256 computeToIncrease) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        generator.declaredCompute += computeToIncrease;
+
+        emit IncreasedCompute(_msgSender, computeToIncrease);
+    }
+
+    function requestComputeReduce(uint256 computeToDecrease) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        uint256 availableCompute = generator.declaredCompute - generator.computeConsumed;
+        require(availableCompute >= computeToDecrease, Error.INSUFFICIENT_COMPUTE_TO_REDUCE);
+
+        generator.computeConsumed += availableCompute;
+        uint256 releaseBlock = block.number + UNLOCK_WAIT_BLOCKS;
+
+        decreaseComputeRequests[decreaseComputeRequestCount] = DecreaseComputeRequest(
+            _msgSender,
+            computeToDecrease,
+            releaseBlock
+        );
+        emit RequestDecreaseCompute(_msgSender, decreaseComputeRequestCount, computeToDecrease);
+    }
+
+    function decreaseDeclaredCompute(uint256 requestId) external {
+        address generatorAddress = msg.sender;
+        Generator storage generator = generatorRegistry[generatorAddress];
+
+        DecreaseComputeRequest memory decreaseComputeRequest = decreaseComputeRequests[requestId];
+        require(
+            decreaseComputeRequest.generator == generatorAddress,
+            Error.ONLY_GENERATOR_CAN_DECREASE_COMPUTE_WITH_REQUEST
+        );
+        require(block.number >= decreaseComputeRequest.unlockingBlock, Error.ONLY_AFTER_DEADLINE);
+
+        generator.declaredCompute -= decreaseComputeRequest.compute;
+        generator.computeConsumed -= decreaseComputeRequest.compute;
+
+        emit DecreasedCompute(generatorAddress, decreaseComputeRequest.compute);
+
+        delete decreaseComputeRequests[requestId];
+    }
+
     function deregister(address refundAddress) external {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
@@ -208,7 +272,7 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
-    function requestUnstake(uint256 amount) external returns (uint256 requestId) {
+    function requestUnstake(uint256 amount) external {
         address generatorAddress = msg.sender;
         Generator storage generator = generatorRegistry[generatorAddress];
 
@@ -219,10 +283,10 @@ contract GeneratorRegistry is
 
         uint256 unstakeBlock = block.number + UNLOCK_WAIT_BLOCKS;
         unstakingRequests[unstakingRequestCount] = UnstakeRequest(generatorAddress, amount, unstakeBlock);
-        requestId = unstakingRequestCount;
-        unstakingRequestCount++;
+        uint256 requestId = unstakingRequestCount;
 
         emit RequestUnstake(generatorAddress, requestId, amount);
+        unstakingRequestCount++;
     }
 
     function unstake(uint256 requestId, address recipient) external returns (uint256) {
@@ -231,7 +295,7 @@ contract GeneratorRegistry is
 
         UnstakeRequest memory unstakeRequest = unstakingRequests[requestId];
         require(unstakeRequest.generator == generatorAddress, Error.ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST);
-        require(block.number >= unstakeRequest.unlockingBlock, Error.ONLY_AFTER_UNSTAKING_TIME);
+        require(block.number >= unstakeRequest.unlockingBlock, Error.ONLY_AFTER_DEADLINE);
 
         generator.totalStake -= unstakeRequest.amount;
         generator.stakeLocked -= unstakeRequest.amount;

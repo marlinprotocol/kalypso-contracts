@@ -43,6 +43,10 @@ library Error {
 
     string public constant INVALID_ENCLAVE_KEY = "35";
     string public constant ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST = "36";
-    string public constant ONLY_AFTER_UNSTAKING_TIME = "37";
+    string public constant ONLY_AFTER_DEADLINE = "37";
     string public constant INACTIVE_MARKET = "38";
+
+    string public constant INSUFFICIENT_COMPUTE_TO_REDUCE = "39";
+
+    string public constant ONLY_GENERATOR_CAN_DECREASE_COMPUTE_WITH_REQUEST = "40";
 }
