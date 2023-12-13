@@ -49,4 +49,8 @@ library Error {
     string public constant INSUFFICIENT_COMPUTE_TO_REDUCE = "39";
 
     string public constant ONLY_GENERATOR_CAN_DECREASE_COMPUTE_WITH_REQUEST = "40";
+
+    string public constant REQUEST_ALREADY_IN_PLACE = "41";
+
+    string public constant CAN_NOT_BE_LESS = "42";
 }
