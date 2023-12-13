@@ -213,6 +213,9 @@ contract GeneratorRegistry is
         require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
         require(newUtilization < EXPONENT, Error.CAN_NOT_BE_LESS);
 
+        // ensures no spamming in the contracts.
+        require(newUtilization >= generator.sumOfComputeAllocations, Error.CAN_NOT_BE_LESS);
+
         generator.intendedComputeUtilization = newUtilization;
 
         emit RequestComputeDecrease(_msgSender, newUtilization);
