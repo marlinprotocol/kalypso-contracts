@@ -10,11 +10,11 @@ pragma solidity ^0.8.9;
 contract InputAndProofFormatRegistry {
     address public immutable admin;
 
-    mapping(bytes32 => string[]) public inputs;
-    mapping(bytes32 => string[]) public proofs;
+    mapping(uint256 => string[]) public inputs;
+    mapping(uint256 => string[]) public proofs;
 
-    mapping(bytes32 => uint256) public inputArrayLength;
-    mapping(bytes32 => uint256) public proofArrayLength;
+    mapping(uint256 => uint256) public inputArrayLength;
+    mapping(uint256 => uint256) public proofArrayLength;
 
     constructor(address _admin) {
         admin = _admin;
@@ -25,12 +25,12 @@ contract InputAndProofFormatRegistry {
         _;
     }
 
-    function setInputFormat(bytes32 marketId, string[] memory inputsFormat) external onlyAdmin {
+    function setInputFormat(uint256 marketId, string[] memory inputsFormat) external onlyAdmin {
         inputs[marketId] = inputsFormat;
         inputArrayLength[marketId] = inputsFormat.length;
     }
 
-    function setProofFormat(bytes32 marketId, string[] memory proofFormat) external onlyAdmin {
+    function setProofFormat(uint256 marketId, string[] memory proofFormat) external onlyAdmin {
         proofs[marketId] = proofFormat;
         proofArrayLength[marketId] = proofFormat.length;
     }

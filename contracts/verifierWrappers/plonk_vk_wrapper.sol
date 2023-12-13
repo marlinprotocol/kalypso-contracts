@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IVerifier.sol";
+import "../ProofMarketPlace.sol";
 
 interface i_plonk_vk {
     function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool);
@@ -13,9 +14,46 @@ interface i_plonk_vk {
 // but is not recommended as it is a generated contract
 contract plonk_verifier_wrapper is IVerifier {
     i_plonk_vk public immutable iverifier;
+    ProofMarketPlace public immutable proofMarketPlace;
 
-    constructor(i_plonk_vk _iverifier) {
+    constructor(i_plonk_vk _iverifier, address _proofMarketPlace) {
         iverifier = _iverifier;
+        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
+    }
+
+    function createRequest(
+        ProofMarketPlace.Ask calldata ask,
+        bool hasPrivateInputs,
+        ProofMarketPlace.SecretType secretType,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public {
+        ProofMarketPlace.Ask memory newAsk = ProofMarketPlace.Ask(
+            ask.marketId,
+            ask.reward,
+            ask.expiry,
+            ask.timeTakenForProofGeneration,
+            ask.deadline,
+            ask.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        );
+
+        if (hasPrivateInputs) {
+            proofMarketPlace.createAsk(
+                newAsk,
+                hasPrivateInputs,
+                secretType,
+                abi.encode(secret_inputs),
+                abi.encode(acl)
+            );
+        } else {
+            proofMarketPlace.createAsk(newAsk, hasPrivateInputs, secretType, "0x", "0x");
+        }
+    }
+
+    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns (bytes32[] memory) {
+        require(verifyInputs(inputs), "Plonk Verifier Wrapper: Invalid input format");
+        return abi.decode(inputs, (bytes32[]));
     }
 
     function verify(bytes calldata encodedData) public view override returns (bool) {

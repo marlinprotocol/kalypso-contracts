@@ -8,7 +8,10 @@ import {
   ProofMarketPlace__factory,
   GeneratorRegistry,
   GeneratorRegistry__factory,
-  IVerifier,
+  IVerifier__factory,
+  Transfer_verifier_wrapper__factory,
+  Plonk_verifier_wrapper__factory,
+  Xor2_verifier_wrapper__factory,
   IProofMarketPlace,
   PriorityLog,
   PriorityLog__factory,
@@ -16,6 +19,7 @@ import {
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
+  EntityKeyRegistry,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -26,6 +30,7 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   platformToken: MockToken;
   errorLibrary: Error;
+  entityKeyRegistry: EntityKeyRegistry;
 }
 
 export const createTask = async (
@@ -33,13 +38,10 @@ export const createTask = async (
   setupTemplate: SetupTemplate,
   askId: string,
   generator: Signer,
-): Promise<string> => {
-  const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
+) => {
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
-
-  return taskId;
+    .assignTask(askId.toString(), await generator.getAddress(), "0x");
 };
 
 export const createAsk = async (
@@ -80,7 +82,8 @@ export const rawSetup = async (
   marketCreationCost: BigNumber,
   marketCreator: Signer,
   marketSetupBytes: string,
-  iverifier: IVerifier,
+  verifier: string,
+  verifierType: string,
   generator: Signer,
   generatorData: string,
   matchingEngine: Signer,
@@ -101,13 +104,13 @@ export const rawSetup = async (
   const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
   const entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
     await mockAttestationVerifier.getAddress(),
-    await admin.getAddress()
+    await admin.getAddress(),
   );
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await mockToken.getAddress()],
+    constructorArgs: [await mockToken.getAddress(), await entityKeyRegistry.getAddress()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
@@ -128,6 +131,42 @@ export const rawSetup = async (
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
+
+  let iverifier;
+  switch (verifierType) {
+    case "Transfer Verifier":
+      const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+      break;
+    case "Plonk Verifier":
+      const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
+      break;
+    case "Circom Verifier":
+      const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
+      break;
+    default:
+      const defaultVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+        verifier,
+        await proofMarketPlace.getAddress(),
+      );
+
+      iverifier = IVerifier__factory.connect(await defaultVerifierWrapper.getAddress(), admin);
+      break;
+  }
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
   await proofMarketPlace
@@ -167,5 +206,6 @@ export const rawSetup = async (
     priorityLog,
     platformToken,
     errorLibrary,
+    entityKeyRegistry,
   };
 };

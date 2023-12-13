@@ -78,11 +78,6 @@ describe("Proof Market Place for Circom Verifier", () => {
     };
 
     const circomVerifier = await new XorVerifier__factory(admin).deploy();
-    const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
-      await circomVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -95,7 +90,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await circomVerifier.getAddress(),
+      "Circom Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,
@@ -137,7 +133,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
@@ -148,8 +144,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       ["uint[2]", "uint[2][2]", "uint[2]"],
       [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });

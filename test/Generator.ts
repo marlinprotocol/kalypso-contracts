@@ -1,20 +1,19 @@
 import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
+import * as fs from "fs";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
   Error,
   GeneratorRegistry,
-  IVerifier,
-  IVerifier__factory,
   MockToken,
   PriorityLog,
   ProofMarketPlace,
   TransferVerifier__factory,
-  Transfer_verifier_wrapper__factory,
+  EntityKeyRegistry,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, utf8ToHex } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -26,6 +25,7 @@ describe("Checking Generator's multiple compute", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry;
 
   let signers: Signer[];
   let admin: Signer;
@@ -40,8 +40,6 @@ describe("Checking Generator's multiple compute", () => {
   let marketId: string;
 
   let generatorData: GeneratorData;
-
-  let iverifier: IVerifier;
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -78,11 +76,6 @@ describe("Checking Generator's multiple compute", () => {
     };
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
-    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-      await transferVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -95,7 +88,8 @@ describe("Checking Generator's multiple compute", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await transferVerifier.getAddress(),
+      "Transfer Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,
@@ -109,8 +103,11 @@ describe("Checking Generator's multiple compute", () => {
     priorityLog = data.priorityLog;
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
+    entityKeyRegistry = data.entityKeyRegistry;
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    await entityKeyRegistry.addGeneratorRegistry(await generatorRegistry.getAddress());
   });
   it("Using Simple Transfer Verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -145,12 +142,28 @@ describe("Checking Generator's multiple compute", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );
@@ -170,9 +183,9 @@ describe("Checking Generator's multiple compute", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 
   it("Task Assignment fails if it exceeds compute capacity", async () => {
@@ -226,10 +239,9 @@ describe("Checking Generator's multiple compute", () => {
         const askId = await proofMarketPlace.askCounter();
 
         await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
-        const taskId = (await proofMarketPlace.taskCounter()).toString();
 
         await expect(
-          proofMarketPlace.connect(matchingEngine).assignTask(askId, taskId, await generator.getAddress(), "0x1234"),
+          proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
         ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
       } else {
         const askId = await setup.createAsk(
@@ -244,12 +256,28 @@ describe("Checking Generator's multiple compute", () => {
             deadline: latestBlock + maxTimeForProofGeneration,
             refundAddress: await prover.getAddress(),
           },
-          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+          {
+            mockToken: tokenToUse,
+            proofMarketPlace,
+            generatorRegistry,
+            priorityLog,
+            platformToken,
+            errorLibrary,
+            entityKeyRegistry,
+          },
         );
 
-        const taskId = await setup.createTask(
+        await setup.createTask(
           matchingEngine,
-          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+          {
+            mockToken: tokenToUse,
+            proofMarketPlace,
+            generatorRegistry,
+            priorityLog,
+            platformToken,
+            errorLibrary,
+            entityKeyRegistry,
+          },
           askId,
           generator,
         );
@@ -276,5 +304,62 @@ describe("Checking Generator's multiple compute", () => {
     // await expect(proofMarketPlace.submitProof(taskId, proofBytes))
     //   .to.emit(proofMarketPlace, "ProofCreated")
     //   .withArgs(askId, taskId, proofBytes);
+  });
+
+  it("Only registered generator should be able to add entity keys", async () => {
+    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
+    const pubBytes = utf8ToHex(generator_publickey);
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
+    )
+      .to.emit(entityKeyRegistry, "UpdateKey")
+      .withArgs(await generator.getAddress());
+  });
+
+  it("Only admin can set the generator registry role", async () => {
+    const generatorRole = await entityKeyRegistry.GENERATOR_REGISTRY();
+    await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
+      .be.reverted;
+    await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
+    expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
+  });
+
+  it("Update key should revert for invalid contract address", async () => {
+    await expect(entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress())).to.be.revertedWith(
+      await errorLibrary.INVALID_CONTRACT_ADDRESS(),
+    );
+  });
+
+  it("Update key should revert for invalid user", async () => {
+    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey(matchingEngine.getAddress(), "0x", "0x"))
+      .to.be.reverted;
+  });
+
+  it("Updating with invalid key should revert", async () => {
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x", "0x"),
+    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
+  });
+
+  it("Remove key", async () => {
+    // Adding key to registry
+    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
+    const pubBytes = utf8ToHex(generator_publickey);
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
+    )
+      .to.emit(entityKeyRegistry, "UpdateKey")
+      .withArgs(await generator.getAddress());
+
+    // Checking key in registry
+    const pub_key = await entityKeyRegistry.pub_key(generator.getAddress());
+    // console.log({ pub_key: pub_key });
+    // console.log({pubBytes: pubBytes });
+    expect(pub_key).to.eq("0x" + pubBytes);
+
+    // Removing key from registry
+    await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
+      .to.emit(entityKeyRegistry, "RemoveKey")
+      .withArgs(await generator.getAddress());
   });
 });

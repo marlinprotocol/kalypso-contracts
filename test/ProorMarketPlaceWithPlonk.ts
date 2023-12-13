@@ -79,11 +79,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
     };
 
     const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
-    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
-      await plonkVerifier.getAddress(),
-    );
-
-    iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -96,7 +91,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      iverifier,
+      await plonkVerifier.getAddress(),
+      "Plonk Verifier",
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,
@@ -138,7 +134,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
       { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
       askId,
@@ -147,8 +143,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
     // console.log({ plonkProof });
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });
