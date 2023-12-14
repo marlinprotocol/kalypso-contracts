@@ -47,6 +47,7 @@ describe("Proof market place", () => {
   let errorLibrary: Error;
 
   const enclave_key_attestation_bytes = "0x";
+  const ivs_attestation_bytes = "0x";
   const exponent = new BigNumber(10).pow(18);
 
   beforeEach(async () => {
@@ -88,6 +89,7 @@ describe("Proof market place", () => {
         await treasury.getAddress(),
         await generatorRegistry.getAddress(),
         await entityRegistry.getAddress(),
+        await mockAttestationVerifier.getAddress(),
       ],
     });
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
@@ -107,7 +109,14 @@ describe("Proof market place", () => {
     await expect(
       proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0), true),
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          true,
+          ivs_attestation_bytes,
+          await marketCreator.getAddress(),
+        ),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -154,7 +163,14 @@ describe("Proof market place", () => {
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
       await proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0), true);
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          true,
+          ivs_attestation_bytes,
+          await marketCreator.getAddress(),
+        );
 
       let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
       await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());

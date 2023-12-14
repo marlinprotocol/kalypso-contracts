@@ -16,6 +16,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./GeneratorRegistry.sol";
 import "./EntityKeyRegistry.sol";
 import "./interfaces/IVerifier.sol";
+import "./interfaces/IAttestationVerifier.sol";
 
 import "./lib/Error.sol";
 
@@ -102,6 +103,9 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IAttestationVerifier public immutable ATTESTATION_VERIFIER;
+
     uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
 
     //-------------------------------- Constants and Immutable start --------------------------------//
@@ -122,6 +126,7 @@ contract ProofMarketPlace is
         bool isEnclaveRequired;
         uint256 slashingPenalty;
         uint256 activationBlock;
+        address ivsSigner;
         bytes marketmetadata;
     }
 
@@ -172,6 +177,8 @@ contract ProofMarketPlace is
     event ProofCreated(uint256 indexed askId, uint256 indexed taskId, bytes proof);
     event ProofNotGenerated(uint256 indexed askId, uint256 indexed taskId);
 
+    event InvalidInputsDetected(uint256 indexed askId, uint256 indexed taskId);
+
     event MarketPlaceCreated(uint256 indexed marketId);
 
     event AskCancelled(uint256 indexed askId);
@@ -187,7 +194,8 @@ contract ProofMarketPlace is
         uint256 _marketCreationCost,
         address _treasury,
         GeneratorRegistry _generatorRegistry,
-        EntityKeyRegistry _entityRegistry
+        EntityKeyRegistry _entityRegistry,
+        IAttestationVerifier _attestationVerifier
     ) {
         PAYMENT_TOKEN = _paymentToken;
         PLATFORM_TOKEN = _platformToken;
@@ -195,6 +203,7 @@ contract ProofMarketPlace is
         TREASURY = _treasury;
         GENERATOR_REGISTRY = _generatorRegistry;
         ENTITY_KEY_REGISTRY = _entityRegistry;
+        ATTESTATION_VERIFIER = _attestationVerifier;
     }
 
     function initialize(address _admin) public initializer {
@@ -214,7 +223,9 @@ contract ProofMarketPlace is
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _slashingPenalty,
-        bool isEnclaveRequired
+        bool isEnclaveRequired,
+        bytes calldata ivsAttestationBytes,
+        address ivsSigner
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
@@ -223,12 +234,14 @@ contract ProofMarketPlace is
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
+        require(ATTESTATION_VERIFIER.verify(ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
         market.marketmetadata = _marketmetadata;
         market.isEnclaveRequired = isEnclaveRequired;
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
+        market.ivsSigner = ivsSigner;
 
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
@@ -419,6 +432,45 @@ contract ProofMarketPlace is
         PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
+    }
+
+    function submitProofForInvalidInputs(uint256 taskId, bytes calldata invalidProofSignature) external {
+        Task memory task = listOfTask[taskId];
+        AskWithState memory askWithState = listOfAsk[task.askId];
+
+        uint256 marketId = askWithState.ask.marketId;
+
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
+            task.generator,
+            askWithState.ask.marketId
+        );
+
+        require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        require(getAskState(task.askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+
+        // check if the ivs signer has said whether inputs and secrets are useless
+        bytes32 messageHash = keccak256(abi.encode(taskId));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
+        Market memory currentMarket = marketData[marketId];
+        require(signer == currentMarket.ivsSigner, Error.INVALID_ENCLAVE_KEY);
+
+        listOfAsk[task.askId].state = AskState.COMPLETE;
+
+        uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
+
+        if (minRewardForGenerator != 0) {
+            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
+        }
+
+        if (toBackToProver != 0) {
+            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
+        }
+
+        uint256 generatorAmountToRelease = currentMarket.slashingPenalty;
+        GENERATOR_REGISTRY.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
+        emit InvalidInputsDetected(task.askId, taskId);
     }
 
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {

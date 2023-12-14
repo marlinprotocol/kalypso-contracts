@@ -123,6 +123,7 @@ export const rawSetup = async (
       treasury,
       await generatorRegistry.getAddress(),
       await entityKeyRegistry.getAddress(),
+      await mockAttestationVerifier.getAddress(),
     ],
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
@@ -138,6 +139,8 @@ export const rawSetup = async (
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
       isEnclaveRequired,
+      "0x",
+      await marketCreator.getAddress(),
     );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
