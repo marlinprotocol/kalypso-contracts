@@ -3,6 +3,7 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
+  EntityKeyRegistry,
   Error,
   GeneratorRegistry,
   IVerifier,
@@ -26,6 +27,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry
 
   let signers: Signer[];
   let admin: Signer;
@@ -142,6 +144,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
     priorityLog = data.priorityLog;
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
+    entityKeyRegistry = data.entityKeyRegistry
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
@@ -181,13 +184,13 @@ describe("Proof Market Place for Transfer Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
       1,
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
       askId,
       generator,
     );
@@ -207,8 +210,8 @@ describe("Proof Market Place for Transfer Verifier", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });

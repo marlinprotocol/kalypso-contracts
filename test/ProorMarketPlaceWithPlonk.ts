@@ -12,6 +12,7 @@ import {
   UltraVerifier__factory,
   Plonk_verifier_wrapper__factory,
   Error,
+  EntityKeyRegistry,
 } from "../typechain-types";
 
 import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
@@ -27,6 +28,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry
 
   let signers: Signer[];
   let admin: Signer;
@@ -117,6 +119,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
+    entityKeyRegistry = data.entityKeyRegistry;
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
@@ -145,21 +148,21 @@ describe("Proof Market Place for Plonk Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
       1,
     );
 
-    const taskId = await setup.createTask(
+    await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
       askId,
       generator,
     );
 
     // console.log({ plonkProof });
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });

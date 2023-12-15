@@ -15,6 +15,11 @@ import {
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
+  EntityKeyRegistry,
+  IVerifier__factory,
+  Plonk_verifier_wrapper__factory,
+  Transfer_verifier_wrapper__factory,
+  Xor2_verifier_wrapper__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -25,6 +30,7 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   platformToken: MockToken;
   errorLibrary: Error;
+  entityKeyRegistry: EntityKeyRegistry;
 }
 
 export const createTask = async (
@@ -32,13 +38,10 @@ export const createTask = async (
   setupTemplate: SetupTemplate,
   askId: string,
   generator: Signer,
-): Promise<string> => {
-  const taskId = (await setupTemplate.proofMarketPlace.taskCounter()).toString();
+) => {
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
-    .assignTask(askId.toString(), taskId, await generator.getAddress(), "0x");
-
-  return taskId;
+    .assignTask(askId.toString(), await generator.getAddress(), "0x");
 };
 
 export const createAsk = async (
@@ -108,7 +111,7 @@ export const rawSetup = async (
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await mockToken.getAddress()],
+    constructorArgs: [await mockToken.getAddress(), await entityKeyRegistry.getAddress()],
     initializer: false,
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
@@ -168,6 +171,9 @@ export const rawSetup = async (
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 
+  const register_role = await entityKeyRegistry.GENERATOR_REGISTRY();
+    await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress())
+
   const errorLibrary = await new Error__factory(admin).deploy();
   return {
     mockToken,
@@ -176,5 +182,6 @@ export const rawSetup = async (
     priorityLog,
     platformToken,
     errorLibrary,
+    entityKeyRegistry,
   };
 };

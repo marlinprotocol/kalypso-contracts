@@ -116,9 +116,6 @@ contract ProofMarketPlace is
 
     AskWithState[] public listOfAsk;
 
-    uint256 public taskCounter; // taskCounter also acts as nonce for matching engine.
-    mapping(uint256 => Task) public listOfTask;
-
     mapping(SecretType => uint256) public costPerInputBytes;
 
     struct Market {
@@ -160,10 +157,6 @@ contract ProofMarketPlace is
         Ask ask;
         AskState state;
         address requester;
-    }
-
-    struct Task {
-        uint256 askId;
         address generator;
     }
 
@@ -172,12 +165,12 @@ contract ProofMarketPlace is
     //-------------------------------- Events start --------------------------------//
 
     event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
-    event TaskCreated(uint256 indexed askId, uint256 indexed taskId, address indexed generator, bytes new_acl);
+    event TaskCreated(uint256 indexed askId, address indexed generator, bytes new_acl);
     // TODO: add ask ID also
-    event ProofCreated(uint256 indexed askId, uint256 indexed taskId, bytes proof);
-    event ProofNotGenerated(uint256 indexed askId, uint256 indexed taskId);
+    event ProofCreated(uint256 indexed askId, bytes proof);
+    event ProofNotGenerated(uint256 indexed askId);
 
-    event InvalidInputsDetected(uint256 indexed askId, uint256 indexed taskId);
+    event InvalidInputsDetected(uint256 indexed askId);
 
     event MarketPlaceCreated(uint256 indexed marketId);
 
@@ -283,7 +276,7 @@ contract ProofMarketPlace is
         require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
 
         uint256 askId = listOfAsk.length;
-        AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender);
+        AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender, address(0));
         listOfAsk.push(askRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
@@ -336,72 +329,50 @@ contract ProofMarketPlace is
         return askWithState.state;
     }
 
-    function updateEncryptionKey(
-        address key_owner,
-        bytes memory pubkey,
-        bytes memory attestation_data
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
-    }
-
-    function removeEncryptionKey(address key_owner) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
-    }
-
     function relayBatchAssignTasks(
         uint256[] memory askIds,
-        uint256[] memory newTaskIds,
         address[] memory generators,
         bytes[] calldata new_acls,
         bytes calldata signature
     ) external {
-        require(askIds.length == newTaskIds.length, Error.ARITY_MISMATCH);
         require(askIds.length == generators.length, Error.ARITY_MISMATCH);
         require(askIds.length == new_acls.length, Error.ARITY_MISMATCH);
 
-        bytes32 messageHash = keccak256(abi.encode(askIds, newTaskIds, generators, new_acls));
+        bytes32 messageHash = keccak256(abi.encode(askIds, generators, new_acls));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
         for (uint256 index = 0; index < askIds.length; index++) {
-            _assignTask(askIds[index], newTaskIds[index], generators[index], new_acls[index]);
+            _assignTask(askIds[index], generators[index], new_acls[index]);
         }
     }
 
     function relayAssignTask(
         uint256 askId,
-        uint256 newTaskId,
         address generator,
         bytes calldata new_acl,
         bytes calldata signature
     ) external {
-        bytes32 messageHash = keccak256(abi.encode(askId, newTaskId, generator, new_acl));
+        bytes32 messageHash = keccak256(abi.encode(askId, generator, new_acl));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
-        _assignTask(askId, newTaskId, generator, new_acl);
+        _assignTask(askId, generator, new_acl);
     }
 
     function assignTask(
         uint256 askId,
-        uint256 newTaskId,
         address generator,
         bytes calldata new_acl
     ) external onlyRole(MATCHING_ENGINE_ROLE) {
-        _assignTask(askId, newTaskId, generator, new_acl);
+        _assignTask(askId, generator, new_acl);
     }
 
-    function _assignTask(
-        uint256 askId,
-        uint256 newTaskId, // acts as nonce,
-        address generator,
-        bytes memory new_acl
-    ) internal {
-        require(newTaskId == taskCounter, Error.INVALID_TASK_ID); //protection against replay
+    function _assignTask(uint256 askId, address generator, bytes memory new_acl) internal {
         require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
 
         AskWithState storage askWithState = listOfAsk[askId];
@@ -414,14 +385,11 @@ contract ProofMarketPlace is
         require(askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime, Error.PROOF_TIME_MISMATCH);
         askWithState.state = AskState.ASSIGNED;
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
-
-        listOfTask[taskCounter] = Task(askId, generator);
+        askWithState.generator = generator;
 
         uint256 generatorAmountToLock = marketData[askWithState.ask.marketId].slashingPenalty;
         GENERATOR_REGISTRY.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
-        emit TaskCreated(askId, taskCounter, generator, new_acl);
-
-        taskCounter++;
+        emit TaskCreated(askId, generator, new_acl);
     }
 
     function cancelAsk(uint256 askId) external {
@@ -434,29 +402,28 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProofForInvalidInputs(uint256 taskId, bytes calldata invalidProofSignature) external {
-        Task memory task = listOfTask[taskId];
-        AskWithState memory askWithState = listOfAsk[task.askId];
+    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external {
+        AskWithState memory askWithState = listOfAsk[askId];
 
         uint256 marketId = askWithState.ask.marketId;
 
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            task.generator,
+            askWithState.generator,
             askWithState.ask.marketId
         );
 
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(task.askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
 
         // check if the ivs signer has said whether inputs and secrets are useless
-        bytes32 messageHash = keccak256(abi.encode(taskId));
+        bytes32 messageHash = keccak256(abi.encode(askId));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
         Market memory currentMarket = marketData[marketId];
         require(signer == currentMarket.ivsSigner, Error.INVALID_ENCLAVE_KEY);
 
-        listOfAsk[task.askId].state = AskState.COMPLETE;
+        listOfAsk[askId].state = AskState.COMPLETE;
 
         uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
 
@@ -469,8 +436,8 @@ contract ProofMarketPlace is
         }
 
         uint256 generatorAmountToRelease = currentMarket.slashingPenalty;
-        GENERATOR_REGISTRY.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
-        emit InvalidInputsDetected(task.askId, taskId);
+        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
+        emit InvalidInputsDetected(askId);
     }
 
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {
@@ -480,25 +447,24 @@ contract ProofMarketPlace is
         }
     }
 
-    function submitProof(uint256 taskId, bytes calldata proof) public {
-        Task memory task = listOfTask[taskId];
-        AskWithState memory askWithState = listOfAsk[task.askId];
+    function submitProof(uint256 askId, bytes calldata proof) public {
+        AskWithState memory askWithState = listOfAsk[askId];
 
         uint256 marketId = askWithState.ask.marketId;
         IVerifier proofVerifier = IVerifier(marketData[marketId].verifier);
 
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            task.generator,
+            askWithState.generator,
             askWithState.ask.marketId
         );
 
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(task.askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
         // check what needs to be encoded from proof, ask and task for proof to be verified
 
         bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
         require(proofVerifier.verify(inputAndProof), Error.INVALID_PROOF);
-        listOfAsk[task.askId].state = AskState.COMPLETE;
+        listOfAsk[askId].state = AskState.COMPLETE;
 
         uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
 
@@ -511,35 +477,35 @@ contract ProofMarketPlace is
         }
 
         uint256 generatorAmountToRelease = marketData[marketId].slashingPenalty;
-        GENERATOR_REGISTRY.completeGeneratorTask(task.generator, marketId, generatorAmountToRelease);
-        emit ProofCreated(task.askId, taskId, proof);
+        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
+        emit ProofCreated(askId, proof);
     }
 
     function slashGenerator(
-        uint256 taskId,
+        uint256 askId,
         address rewardAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
-        Task memory task = listOfTask[taskId];
-
-        require(getAskState(task.askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
-        return _slashGenerator(taskId, task, rewardAddress);
+        require(getAskState(askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
+        return _slashGenerator(askId, rewardAddress);
     }
 
-    function discardRequest(uint256 taskId) external returns (uint256) {
-        Task memory task = listOfTask[taskId];
-        require(getAskState(task.askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
-        require(task.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
-        return _slashGenerator(taskId, task, TREASURY);
+    function discardRequest(uint256 askId) external returns (uint256) {
+        AskWithState memory askWithState = listOfAsk[askId];
+        require(getAskState(askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
+        require(askWithState.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
+        return _slashGenerator(askId, TREASURY);
     }
 
-    function _slashGenerator(uint256 taskId, Task memory task, address rewardAddress) internal returns (uint256) {
-        listOfAsk[task.askId].state = AskState.COMPLETE;
-        uint256 marketId = listOfAsk[task.askId].ask.marketId;
+    function _slashGenerator(uint256 askId, address rewardAddress) internal returns (uint256) {
+        AskWithState storage askWithState = listOfAsk[askId];
 
-        emit ProofNotGenerated(task.askId, taskId);
+        askWithState.state = AskState.COMPLETE;
+        uint256 marketId = askWithState.ask.marketId;
+
+        emit ProofNotGenerated(askId);
         return
             GENERATOR_REGISTRY.slashGenerator(
-                task.generator,
+                askWithState.generator,
                 marketId,
                 marketData[marketId].slashingPenalty,
                 rewardAddress

@@ -35,11 +35,12 @@ describe("Entity key registry tests", () => {
       await admin.getAddress(),
     );
 
+    const register_role = await entityKeyRegistry.GENERATOR_REGISTRY();
+    await entityKeyRegistry.grantRole(register_role, await admin.getAddress())
     // console.log({ entityKeyRegistry: await entityKeyRegistry.getAddress() });
   });
 
   it("Update key should revert for invalid admin", async () => {
-    const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), "0x", "0x")).to.be
       .reverted;
   });

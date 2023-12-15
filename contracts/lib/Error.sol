@@ -42,7 +42,7 @@ library Error {
     string public constant ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT = "34";
 
     string public constant INVALID_ENCLAVE_KEY = "35";
-    string public constant ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST = "36";
+    string public constant ONLY_GENERATOR_CAN_UNSTAKE_WITH_REQUEST = "36.a";
     string public constant ONLY_AFTER_DEADLINE = "37";
     string public constant INACTIVE_MARKET = "38";
 
@@ -53,4 +53,5 @@ library Error {
     string public constant REQUEST_ALREADY_IN_PLACE = "41";
 
     string public constant CAN_NOT_BE_LESS = "42";
+    string public constant INVALID_CONTRACT_ADDRESS = "36.b";
 }

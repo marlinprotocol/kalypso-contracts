@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./ProofMarketPlace.sol";
+import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 
 // import "hardhat/console.sol";
@@ -67,7 +68,12 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable STAKING_TOKEN;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
+
     bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
+
+    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
@@ -138,8 +144,9 @@ contract GeneratorRegistry is
     //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken) {
+    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) {
         STAKING_TOKEN = _stakingToken;
+        ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
     function initialize(address _admin, address _proofMarketPlace) public initializer {
@@ -177,6 +184,8 @@ contract GeneratorRegistry is
             EXPONENT,
             generatorData
         );
+
+        _grantRole(KEY_REGISTER_ROLE, _msgSender);
 
         emit RegisteredGenerator(_msgSender);
     }
@@ -294,6 +303,18 @@ contract GeneratorRegistry is
         delete generatorRegistry[_msgSender];
 
         emit DeregisteredGenerator(_msgSender);
+    }
+
+    function updateEncryptionKey(
+        address key_owner,
+        bytes memory pubkey,
+        bytes memory attestation_data
+    ) external onlyRole(KEY_REGISTER_ROLE) {
+        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
+    }
+
+    function removeEncryptionKey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
+        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
     }
 
     function joinMarketPlace(
