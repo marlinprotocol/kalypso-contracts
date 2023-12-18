@@ -172,7 +172,7 @@ export const rawSetup = async (
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 
   const register_role = await entityKeyRegistry.GENERATOR_REGISTRY();
-    await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress())
+  await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
 
   const errorLibrary = await new Error__factory(admin).deploy();
   return {

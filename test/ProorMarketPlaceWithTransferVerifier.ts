@@ -27,7 +27,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
-  let entityKeyRegistry: EntityKeyRegistry
+  let entityKeyRegistry: EntityKeyRegistry;
 
   let signers: Signer[];
   let admin: Signer;
@@ -144,7 +144,9 @@ describe("Proof Market Place for Transfer Verifier", () => {
     priorityLog = data.priorityLog;
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
-    entityKeyRegistry = data.entityKeyRegistry
+    entityKeyRegistry = data.entityKeyRegistry;
+
+    await transferVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
@@ -184,13 +186,29 @@ describe("Proof Market Place for Transfer Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       1,
     );
 
     await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );

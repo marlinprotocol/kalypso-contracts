@@ -27,7 +27,7 @@ describe("Proof Market Place for Circom Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
-  let entityKeyRegistry: EntityKeyRegistry
+  let entityKeyRegistry: EntityKeyRegistry;
 
   let signers: Signer[];
   let admin: Signer;
@@ -122,6 +122,8 @@ describe("Proof Market Place for Circom Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
+    await circomVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
+
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
@@ -149,13 +151,29 @@ describe("Proof Market Place for Circom Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       1,
     );
 
     await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );

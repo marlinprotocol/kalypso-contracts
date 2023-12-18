@@ -25,6 +25,30 @@ contract xor2_verifier_wrapper is IVerifier {
         sampleProof = _sampleProof;
     }
 
+    function createRequest(
+        ProofMarketPlace.Ask calldata ask,
+        ProofMarketPlace.SecretType secretType,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public {
+        ProofMarketPlace.Ask memory newAsk = ProofMarketPlace.Ask(
+            ask.marketId,
+            ask.reward,
+            ask.expiry,
+            ask.timeTakenForProofGeneration,
+            ask.deadline,
+            ask.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        );
+
+        proofMarketPlace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
+    }
+
+    function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint[1] memory) {
+        require(verifyInputs(inputs), "Circom Verifier Wrapper: Invalid input format");
+        return abi.decode(inputs, (uint[1]));
+    }
+
     function checkSampleInputsAndProof() public view override returns (bool) {
         return verifyAgainstSampleInputs(sampleProof);
     }

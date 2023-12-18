@@ -10,10 +10,21 @@ import {
   PriorityLog,
   ProofMarketPlace,
   TransferVerifier__factory,
-  EntityKeyRegistry, Transfer_verifier_wrapper__factory, IVerifier__factory, IVerifier
+  EntityKeyRegistry,
+  Transfer_verifier_wrapper__factory,
+  IVerifier__factory,
+  IVerifier,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks, utf8ToHex } from "../helpers";
+import {
+  GeneratorData,
+  MarketData,
+  generatorDataToBytes,
+  marketDataToBytes,
+  setup,
+  skipBlocks,
+  utf8ToHex,
+} from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -182,7 +193,15 @@ describe("Checking Generator's multiple compute", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       1,
     );
 
@@ -289,7 +308,15 @@ describe("Checking Generator's multiple compute", () => {
             deadline: latestBlock + maxTimeForProofGeneration,
             refundAddress: await prover.getAddress(),
           },
-          { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary, entityKeyRegistry },
+          {
+            mockToken: tokenToUse,
+            proofMarketPlace,
+            generatorRegistry,
+            priorityLog,
+            platformToken,
+            errorLibrary,
+            entityKeyRegistry,
+          },
           1,
         );
 

@@ -23,6 +23,30 @@ contract plonk_verifier_wrapper is IVerifier {
         sampleProof = _sampleProof;
     }
 
+    function createRequest(
+        ProofMarketPlace.Ask calldata ask,
+        ProofMarketPlace.SecretType secretType,
+        bytes calldata secret_inputs,
+        bytes calldata acl
+    ) public {
+        ProofMarketPlace.Ask memory newAsk = ProofMarketPlace.Ask(
+            ask.marketId,
+            ask.reward,
+            ask.expiry,
+            ask.timeTakenForProofGeneration,
+            ask.deadline,
+            ask.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        );
+
+        proofMarketPlace.createAsk(newAsk, secretType, secret_inputs, acl);
+    }
+
+    function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (bytes32[] memory) {
+        require(verifyInputs(inputs), "Plonk Verifier Wrapper: Invalid input format");
+        return abi.decode(inputs, (bytes32[]));
+    }
+
     function checkSampleInputsAndProof() public view override returns (bool) {
         return verifyAgainstSampleInputs(sampleProof);
     }
