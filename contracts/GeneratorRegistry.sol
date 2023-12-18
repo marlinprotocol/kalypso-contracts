@@ -220,10 +220,10 @@ contract GeneratorRegistry is
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
 
         require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
-        require(newUtilization < EXPONENT, Error.CAN_NOT_BE_LESS);
+        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
         // ensures no spamming in the contracts.
-        require(newUtilization >= generator.sumOfComputeAllocations, Error.CAN_NOT_BE_LESS);
+        require(newUtilization >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
         generator.intendedComputeUtilization = newUtilization;
 
@@ -269,7 +269,7 @@ contract GeneratorRegistry is
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
 
         require(generator.intendedStakeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
-        require(newUtilization < EXPONENT, Error.CAN_NOT_BE_LESS);
+        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
         generator.intendedStakeUtilization = newUtilization;
 

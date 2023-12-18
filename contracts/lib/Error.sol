@@ -52,7 +52,7 @@ library Error {
 
     string public constant REQUEST_ALREADY_IN_PLACE = "41";
 
-    string public constant CAN_NOT_BE_LESS = "42";
+    string public constant EXCEEDS_ACCEPTABLE_RANGE = "42";
     string public constant INVALID_CONTRACT_ADDRESS = "36.b";
 
     string public constant CANNOT_USE_MATCHING_ENGINE_ROLE = "43";
