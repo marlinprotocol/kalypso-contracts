@@ -67,9 +67,10 @@ contract ProofMarketPlace is
 
     function updateEncryptionKey(
         bytes memory pubkey,
-        bytes memory attestation_data
+        bytes memory attestationData
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestation_data);
+        require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
     }
 
     function _revokeRole(
