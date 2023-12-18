@@ -127,11 +127,7 @@ describe("Proof market place", () => {
   it("Update Marketplace address", async () => {
     await proofMarketPlace
       .connect(admin)
-      ["grantRole(bytes32,address,bytes)"](
-        await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-        await marketPlaceAddress.getAddress(),
-        enclave_key_attestation_bytes,
-      );
+      .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
 
     expect(
       await proofMarketPlace.hasRole(
@@ -197,11 +193,7 @@ describe("Proof market place", () => {
       const secretInfo = "0x2345";
       const aclInfo = "0x21";
 
-      await proofMarketPlace["grantRole(bytes32,address,bytes)"](
-        await proofMarketPlace.UPDATER_ROLE(),
-        await admin.getAddress(),
-        "0x",
-      );
+      await proofMarketPlace.grantRole(await proofMarketPlace.UPDATER_ROLE(), await admin.getAddress());
       await proofMarketPlace.connect(admin).updateCostPerBytes(1, 1000);
 
       const platformFee = await proofMarketPlace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
@@ -384,11 +376,7 @@ describe("Proof market place", () => {
 
           await proofMarketPlace
             .connect(admin)
-            ["grantRole(bytes32,address,bytes)"](
-              await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-              await marketPlaceAddress.getAddress(),
-              enclave_key_attestation_bytes,
-            );
+            .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
 
           askId = new BigNumber((await proofMarketPlace.askCounter()).toString());
 

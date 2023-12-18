@@ -52,18 +52,24 @@ contract ProofMarketPlace is
         super._grantRole(role, account);
     }
 
-    function grantRole(bytes32, address) public virtual override(AccessControlUpgradeable, IAccessControlUpgradeable) {
-        revert(Error.CAN_NOT_GRANT_ROLE_WITHOUT_ATTESTATION);
+    function grantRole(
+        bytes32 role,
+        address account
+    ) public virtual override(AccessControlUpgradeable, IAccessControlUpgradeable) {
+        require(role != MATCHING_ENGINE_ROLE, Error.CANNOT_USE_MATCHING_ENGINE_ROLE);
+        _grantRole(role, account);
     }
 
-    function grantRole(bytes32 role, address account, bytes memory attestation_data) external {
-        if (role == MATCHING_ENGINE_ROLE) {
-            bytes memory data = abi.encode(account, attestation_data);
-            require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(data), Error.ENCLAVE_KEY_NOT_VERIFIED);
-            super._grantRole(role, account);
-        } else {
-            super._grantRole(role, account);
-        }
+    function updateMatchingEngineEnclaveSigner(bytes memory attestationData, address meSigner) public {
+        require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        _grantRole(MATCHING_ENGINE_ROLE, meSigner);
+    }
+
+    function updateEncryptionKey(
+        bytes memory pubkey,
+        bytes memory attestation_data
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestation_data);
     }
 
     function _revokeRole(

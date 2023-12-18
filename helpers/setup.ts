@@ -16,10 +16,6 @@ import {
   Error,
   Error__factory,
   EntityKeyRegistry,
-  IVerifier__factory,
-  Plonk_verifier_wrapper__factory,
-  Transfer_verifier_wrapper__factory,
-  Xor2_verifier_wrapper__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -161,17 +157,11 @@ export const rawSetup = async (
     .connect(generator)
     .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
 
-  await proofMarketPlace
-    .connect(admin)
-    ["grantRole(bytes32,address,bytes)"](
-      await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-      await matchingEngine.getAddress(),
-      "0x",
-    );
+  await proofMarketPlace.connect(admin).updateMatchingEngineEnclaveSigner("0x", await matchingEngine.getAddress());
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 
-  const register_role = await entityKeyRegistry.GENERATOR_REGISTRY();
+  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
   await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
 
   const errorLibrary = await new Error__factory(admin).deploy();

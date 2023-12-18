@@ -128,6 +128,7 @@ describe("Checking Generator's multiple compute", () => {
     iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
+
     let data = await setup.rawSetup(
       admin,
       tokenHolder,
@@ -146,6 +147,7 @@ describe("Checking Generator's multiple compute", () => {
       generatorComputeAllocation,
       computeGivenToNewMarket,
     );
+
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
@@ -370,7 +372,7 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only admin can set the generator registry role", async () => {
-    const generatorRole = await entityKeyRegistry.GENERATOR_REGISTRY();
+    const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
       .be.reverted;
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
@@ -411,8 +413,8 @@ describe("Checking Generator's multiple compute", () => {
     expect(pub_key).to.eq("0x" + pubBytes);
 
     // Removing key from registry
-    await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
-      .to.emit(entityKeyRegistry, "RemoveKey")
-      .withArgs(await generator.getAddress());
+    // await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
+    //   .to.emit(entityKeyRegistry, "RemoveKey")
+    //   .withArgs(await generator.getAddress());
   });
 });

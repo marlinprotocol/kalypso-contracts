@@ -35,7 +35,7 @@ describe("Entity key registry tests", () => {
       await admin.getAddress(),
     );
 
-    const register_role = await entityKeyRegistry.GENERATOR_REGISTRY();
+    const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await entityKeyRegistry.grantRole(register_role, await admin.getAddress());
     // console.log({ entityKeyRegistry: await entityKeyRegistry.getAddress() });
   });
