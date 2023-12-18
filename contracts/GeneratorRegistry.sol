@@ -78,6 +78,8 @@ contract GeneratorRegistry is
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
     uint256 private constant EXPONENT = 10e18;
+
+    uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -100,17 +102,19 @@ contract GeneratorRegistry is
     struct Generator {
         address rewardAddress;
         uint256 totalStake;
-        uint256 totalCompute;
+        uint256 sumOfComputeAllocations;
         uint256 computeConsumed;
         uint256 stakeLocked;
         uint256 activeMarketPlaces;
         uint256 declaredCompute;
+        uint256 intendedStakeUtilization;
+        uint256 intendedComputeUtilization;
         bytes generatorData;
     }
 
     struct GeneratorInfoPerMarket {
         GeneratorState state;
-        uint256 computeAllocation;
+        uint256 computePerRequestRequired;
         uint256 proofGenerationCost;
         uint256 proposedTime;
         uint256 activeRequests;
@@ -123,12 +127,19 @@ contract GeneratorRegistry is
     event RegisteredGenerator(address indexed generator);
     event DeregisteredGenerator(address indexed generator);
 
+    event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
+
     event JoinedMarketPlace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
     event RequestExitMarketPlace(address indexed generator, uint256 indexed marketId);
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
     event AddedStake(address indexed generator, uint256 amount);
-    event RemovedStake(address indexed generator, uint256);
+    event RequestStakeDecrease(address indexed generator, uint256 intendedUtilization);
+    event RemovedStake(address indexed generator, uint256 amount);
+
+    event IncreasedCompute(address indexed generator, uint256 compute);
+    event RequestComputeDecrease(address indexed generator, uint256 intendedUtilization);
+    event DecreaseCompute(address indexed generator, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
 
@@ -161,36 +172,80 @@ contract GeneratorRegistry is
 
         require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
 
-        generatorRegistry[_msgSender] = Generator(rewardAddress, 0, 0, 0, 0, 0, declaredCompute, generatorData);
+        generatorRegistry[_msgSender] = Generator(
+            rewardAddress,
+            0,
+            0,
+            0,
+            0,
+            0,
+            declaredCompute,
+            EXPONENT,
+            EXPONENT,
+            generatorData
+        );
 
         _grantRole(KEY_REGISTER_ROLE, _msgSender);
 
         emit RegisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(
-        address key_owner,
-        bytes memory pubkey,
-        bytes memory attestation_data
-    ) external onlyRole(KEY_REGISTER_ROLE) {
-        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
-    }
-
-    function removeEncryptionKey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
-        ENTITY_KEY_REGISTRY.removePubkey(key_owner);
-    }
-
-    function deregister(address refundAddress) external {
+    function changeRewardAddress(address newRewardAddress) external {
         address _msgSender = msg.sender;
-        Generator memory generator = generatorRegistry[_msgSender];
+        Generator storage generator = generatorRegistry[_msgSender];
 
-        require(generator.totalCompute == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
-        STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
-        delete generatorRegistry[_msgSender];
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        generator.rewardAddress = newRewardAddress;
 
-        _revokeRole(KEY_REGISTER_ROLE, _msgSender);
+        emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
+    }
 
-        emit DeregisteredGenerator(_msgSender);
+    function increaseDeclaredCompute(uint256 computeToIncrease) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        generator.declaredCompute += computeToIncrease;
+
+        emit IncreasedCompute(_msgSender, computeToIncrease);
+    }
+
+    function intendToReduceCompute(uint256 newUtilization) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
+
+        // ensures no spamming in the contracts.
+        require(newUtilization >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
+
+        generator.intendedComputeUtilization = newUtilization;
+
+        emit RequestComputeDecrease(_msgSender, newUtilization);
+    }
+
+    function decreaseDeclaredCompute() external {
+        address generatorAddress = msg.sender;
+        Generator storage generator = generatorRegistry[generatorAddress];
+        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
+        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+
+        uint256 _reduceableCompute = _maxReducableCompute(generatorAddress);
+
+        require(_reduceableCompute != 0, Error.CANNOT_BE_ZERO);
+
+        uint256 declaredComputeAfterUpdate = (generator.declaredCompute * generator.intendedComputeUtilization) /
+            EXPONENT;
+        generator.declaredCompute = declaredComputeAfterUpdate;
+        generator.intendedComputeUtilization = EXPONENT;
+
+        emit DecreaseCompute(generatorAddress, _reduceableCompute);
     }
 
     function stake(address generatorAddress, uint256 amount) external returns (uint256) {
@@ -206,23 +261,57 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
-    function unstake(address receipient, uint256 amount) external returns (uint256) {
+    function intendToReduceStake(uint256 newUtilization) external {
+        address _msgSender = msg.sender;
+        Generator storage generator = generatorRegistry[_msgSender];
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
+        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+
+        require(generator.intendedStakeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
+
+        generator.intendedStakeUtilization = newUtilization;
+
+        emit RequestStakeDecrease(_msgSender, newUtilization);
+    }
+
+    function unstake(address to) external {
         address generatorAddress = msg.sender;
         Generator storage generator = generatorRegistry[generatorAddress];
+        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
+        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
 
-        uint256 availableAmount = generator.totalStake - generator.stakeLocked;
-        require(amount <= availableAmount, Error.CAN_NOT_WITHDRAW_MORE_UNLOCKED_AMOUNT);
+        uint256 _reducableStake = _maxReducableStake(generatorAddress);
 
-        generator.totalStake -= amount;
-        STAKING_TOKEN.safeTransfer(receipient, amount);
+        require(_reducableStake != 0, Error.CANNOT_BE_ZERO);
+        STAKING_TOKEN.safeTransfer(to, _reducableStake);
 
-        emit RemovedStake(generatorAddress, amount);
-        return generator.totalStake;
+        uint256 stakeAfterUpdate = (generator.totalStake * generator.intendedStakeUtilization) / EXPONENT;
+        generator.totalStake = stakeAfterUpdate;
+        generator.intendedStakeUtilization = EXPONENT;
+
+        emit RemovedStake(generatorAddress, _reducableStake);
+    }
+
+    function deregister(address refundAddress) external {
+        address _msgSender = msg.sender;
+        Generator memory generator = generatorRegistry[_msgSender];
+
+        require(generator.sumOfComputeAllocations == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
+        STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
+        delete generatorRegistry[_msgSender];
+
+        emit DeregisteredGenerator(_msgSender);
+    }
+
+    function updateEncryptionKey(address key_owner, bytes memory pubkey, bytes memory attestation_data) external {
+        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
     }
 
     function joinMarketPlace(
         uint256 marketId,
-        uint256 computeAllocation,
+        uint256 computePerRequestRequired,
         uint256 proofGenerationCost,
         uint256 proposedTime
     ) external {
@@ -236,21 +325,24 @@ contract GeneratorRegistry is
         require(info.state == GeneratorState.NULL, Error.ALREADY_JOINED_MARKET);
 
         require(proposedTime != 0, Error.CANNOT_BE_ZERO);
-        require(computeAllocation != 0, Error.CANNOT_BE_ZERO);
+        require(computePerRequestRequired != 0, Error.CANNOT_BE_ZERO);
 
-        generator.totalCompute += computeAllocation;
-        require(generator.totalCompute <= generator.declaredCompute, Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE);
+        generator.sumOfComputeAllocations += computePerRequestRequired;
+        require(
+            generator.sumOfComputeAllocations <= generator.declaredCompute,
+            Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE
+        );
         generator.activeMarketPlaces++;
 
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
             GeneratorState.JOINED,
-            computeAllocation,
+            computePerRequestRequired,
             proofGenerationCost,
             proposedTime,
             0
         );
 
-        emit JoinedMarketPlace(generatorAddress, marketId, computeAllocation);
+        emit JoinedMarketPlace(generatorAddress, marketId, computePerRequestRequired);
     }
 
     function getGeneratorState(
@@ -268,19 +360,43 @@ contract GeneratorRegistry is
             return (GeneratorState.REQUESTED_FOR_EXIT, 0);
         }
 
-        uint256 idleCapacity = generator.declaredCompute - generator.computeConsumed;
+        uint256 idleCapacity = _maxReducableCompute(generatorAddress);
+
+        if (info.state != GeneratorState.NULL && idleCapacity == 0) {
+            return (GeneratorState.NO_COMPUTE_AVAILABLE, 0);
+        }
+
         if (idleCapacity == generator.declaredCompute) {
-            return (GeneratorState.JOINED, generator.declaredCompute);
+            return (GeneratorState.JOINED, idleCapacity);
         }
 
         if (idleCapacity != 0 && idleCapacity < generator.declaredCompute) {
             return (GeneratorState.WIP, idleCapacity);
         }
-
-        if (info.state != GeneratorState.NULL && idleCapacity == 0) {
-            return (GeneratorState.NO_COMPUTE_AVAILABLE, 0);
-        }
         return (GeneratorState.NULL, 0);
+    }
+
+    function _maxReducableCompute(address generatorAddress) internal view returns (uint256) {
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        uint256 maxUsableCompute = (generator.declaredCompute * generator.intendedComputeUtilization) / EXPONENT;
+
+        if (maxUsableCompute < generator.computeConsumed) {
+            return 0;
+        }
+
+        return maxUsableCompute - generator.computeConsumed;
+    }
+
+    function _maxReducableStake(address generatorAddress) internal view returns (uint256) {
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        uint256 maxUsableStake = (generator.totalStake * generator.intendedStakeUtilization) / EXPONENT;
+        if (maxUsableStake < generator.stakeLocked) {
+            return 0;
+        }
+
+        return maxUsableStake - generator.stakeLocked;
     }
 
     function leaveMarketPlaces(uint256[] calldata marketIds) external {
@@ -326,7 +442,7 @@ contract GeneratorRegistry is
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
 
         Generator storage generator = generatorRegistry[generatorAddress];
-        generator.totalCompute -= info.computeAllocation;
+        generator.sumOfComputeAllocations -= info.computePerRequestRequired;
         generator.activeMarketPlaces -= 1;
 
         delete generatorInfoPerMarket[generatorAddress][marketId];
@@ -340,6 +456,7 @@ contract GeneratorRegistry is
         address rewardAddress
     ) external onlyRole(SLASHER_ROLE) returns (uint256) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+        // TODO: Refine this
         require(
             state == GeneratorState.WIP ||
                 state == GeneratorState.REQUESTED_FOR_EXIT ||
@@ -355,7 +472,7 @@ contract GeneratorRegistry is
         generator.totalStake -= slashingAmount;
         generator.stakeLocked -= slashingAmount;
 
-        generator.computeConsumed -= info.computeAllocation;
+        generator.computeConsumed -= info.computePerRequestRequired;
 
         STAKING_TOKEN.safeTransfer(rewardAddress, slashingAmount);
 
@@ -365,7 +482,7 @@ contract GeneratorRegistry is
     function assignGeneratorTask(
         address generatorAddress,
         uint256 marketId,
-        uint256 amountToLock
+        uint256 stakeToLock
     ) external onlyRole(SLASHER_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
         require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
@@ -374,13 +491,13 @@ contract GeneratorRegistry is
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
         // requiredCompute <= idleCapacity
-        require(info.computeAllocation <= idleCapacity, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
+        require(info.computePerRequestRequired <= idleCapacity, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
 
-        uint256 availableStake = generator.totalStake - generator.stakeLocked;
-        require(availableStake >= amountToLock, Error.INSUFFICIENT_STAKE_TO_LOCK);
+        uint256 availableStake = _maxReducableStake(generatorAddress);
+        require(availableStake >= stakeToLock, Error.INSUFFICIENT_STAKE_TO_LOCK);
 
-        generator.stakeLocked += amountToLock;
-        generator.computeConsumed += info.computeAllocation;
+        generator.stakeLocked += stakeToLock;
+        generator.computeConsumed += info.computePerRequestRequired;
         info.activeRequests++;
     }
 
@@ -400,7 +517,7 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        uint256 computeReleased = info.computeAllocation;
+        uint256 computeReleased = info.computePerRequestRequired;
         generator.computeConsumed -= computeReleased;
 
         generator.stakeLocked -= stakeToRelease;

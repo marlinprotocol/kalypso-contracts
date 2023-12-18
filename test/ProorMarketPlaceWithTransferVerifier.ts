@@ -3,6 +3,7 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
+  EntityKeyRegistry,
   Error,
   GeneratorRegistry,
   IVerifier,
@@ -14,7 +15,7 @@ import {
   Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -26,6 +27,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry;
 
   let signers: Signer[];
   let admin: Signer;
@@ -78,6 +80,44 @@ describe("Proof Market Place for Transfer Verifier", () => {
     };
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
+    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await transferVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
+    );
+
+    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     let data = await setup.rawSetup(
@@ -90,8 +130,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      await transferVerifier.getAddress(),
-      "Transfer Verifier",
+      iverifier,
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,
@@ -105,8 +144,14 @@ describe("Proof Market Place for Transfer Verifier", () => {
     priorityLog = data.priorityLog;
     platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
+    entityKeyRegistry = data.entityKeyRegistry;
+
+    await transferVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check transfer verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -141,12 +186,29 @@ describe("Proof Market Place for Transfer Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      1,
     );
 
     await setup.createTask(
       matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );

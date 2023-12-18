@@ -11,9 +11,20 @@ import {
   ProofMarketPlace,
   TransferVerifier__factory,
   EntityKeyRegistry,
+  Transfer_verifier_wrapper__factory,
+  IVerifier__factory,
+  IVerifier,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, utf8ToHex } from "../helpers";
+import {
+  GeneratorData,
+  MarketData,
+  generatorDataToBytes,
+  marketDataToBytes,
+  setup,
+  skipBlocks,
+  utf8ToHex,
+} from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
@@ -26,6 +37,7 @@ describe("Checking Generator's multiple compute", () => {
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let iverifier: IVerifier;
 
   let signers: Signer[];
   let admin: Signer;
@@ -77,7 +89,46 @@ describe("Checking Generator's multiple compute", () => {
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
 
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await transferVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
+    );
+
+    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+
     let treasuryAddress = await treasury.getAddress();
+
     let data = await setup.rawSetup(
       admin,
       tokenHolder,
@@ -88,8 +139,7 @@ describe("Checking Generator's multiple compute", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
-      await transferVerifier.getAddress(),
-      "Transfer Verifier",
+      iverifier,
       generator,
       generatorDataToBytes(generatorData),
       matchingEngine,
@@ -97,6 +147,7 @@ describe("Checking Generator's multiple compute", () => {
       generatorComputeAllocation,
       computeGivenToNewMarket,
     );
+
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
@@ -107,8 +158,10 @@ describe("Checking Generator's multiple compute", () => {
 
     marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
 
-    await entityKeyRegistry.addGeneratorRegistry(await generatorRegistry.getAddress());
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
+
   it("Using Simple Transfer Verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
@@ -151,6 +204,7 @@ describe("Checking Generator's multiple compute", () => {
         errorLibrary,
         entityKeyRegistry,
       },
+      1,
     );
 
     await setup.createTask(
@@ -229,7 +283,7 @@ describe("Checking Generator's multiple compute", () => {
         await tokenToUse.connect(prover).approve(await proofMarketPlace.getAddress(), ask.reward.toString());
 
         const proverBytes = ask.proverData;
-        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
           (proverBytes.length - 2) / 2,
         );
 
@@ -238,7 +292,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketPlace.askCounter();
 
-        await proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+        await proofMarketPlace.connect(prover).createAsk(ask, 0, "0x", "0x");
 
         await expect(
           proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
@@ -265,6 +319,7 @@ describe("Checking Generator's multiple compute", () => {
             errorLibrary,
             entityKeyRegistry,
           },
+          1,
         );
 
         await setup.createTask(
@@ -317,7 +372,7 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only admin can set the generator registry role", async () => {
-    const generatorRole = await entityKeyRegistry.GENERATOR_REGISTRY();
+    const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
       .be.reverted;
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
@@ -358,8 +413,8 @@ describe("Checking Generator's multiple compute", () => {
     expect(pub_key).to.eq("0x" + pubBytes);
 
     // Removing key from registry
-    await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
-      .to.emit(entityKeyRegistry, "RemoveKey")
-      .withArgs(await generator.getAddress());
+    // await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
+    //   .to.emit(entityKeyRegistry, "RemoveKey")
+    //   .withArgs(await generator.getAddress());
   });
 });

@@ -138,6 +138,8 @@ async function main(): Promise<string> {
     await TransferVerifer.waitForDeployment();
     const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
+      "0x",
+      "0x",
     );
     await transfer_verifier_wrapper.waitForDeployment();
     addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
@@ -150,6 +152,8 @@ async function main(): Promise<string> {
     await ZkbVerifier.waitForDeployment();
     const zkb_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await ZkbVerifier.getAddress(),
+      "0x",
+      "0x",
     );
     await zkb_verifier_wrapper.waitForDeployment();
     addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();

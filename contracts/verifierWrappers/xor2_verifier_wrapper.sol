@@ -3,7 +3,6 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IVerifier.sol";
-import "../ProofMarketPlace.sol";
 
 interface i_xor2_verifier {
     function verifyProof(
@@ -16,16 +15,18 @@ interface i_xor2_verifier {
 
 contract xor2_verifier_wrapper is IVerifier {
     i_xor2_verifier public immutable iverifier;
-    ProofMarketPlace public immutable proofMarketPlace;
 
-    constructor(i_xor2_verifier _iverifier, address _proofMarketPlace) {
+    bytes public override sampleInput;
+    bytes public override sampleProof;
+
+    constructor(i_xor2_verifier _iverifier, bytes memory _sampleInput, bytes memory _sampleProof) {
         iverifier = _iverifier;
-        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
+        sampleInput = _sampleInput;
+        sampleProof = _sampleProof;
     }
 
     function createRequest(
         ProofMarketPlace.Ask calldata ask,
-        bool hasPrivateInputs,
         ProofMarketPlace.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
@@ -40,25 +41,24 @@ contract xor2_verifier_wrapper is IVerifier {
             encodeInputs(verifyAndDecodeInputs(ask.proverData))
         );
 
-        if (hasPrivateInputs) {
-            proofMarketPlace.createAsk(
-                newAsk,
-                hasPrivateInputs,
-                secretType,
-                abi.encode(secret_inputs),
-                abi.encode(acl)
-            );
-        } else {
-            proofMarketPlace.createAsk(newAsk, hasPrivateInputs, secretType, "0x", "0x");
-        }
+        proofMarketPlace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
-    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns (uint[1] memory) {
+    function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint[1] memory) {
         require(verifyInputs(inputs), "Circom Verifier Wrapper: Invalid input format");
         return abi.decode(inputs, (uint[1]));
     }
 
-    function verify(bytes calldata encodedData) public view override returns (bool) {
+    function checkSampleInputsAndProof() public view override returns (bool) {
+        return verifyAgainstSampleInputs(sampleProof);
+    }
+
+    function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
+        bytes memory encodedData = abi.encode(sampleInput, encodedProof);
+        return verify(encodedData);
+    }
+
+    function verify(bytes memory encodedData) public view override returns (bool) {
         uint[2] memory a;
         uint[2][2] memory b;
         uint[2] memory c;

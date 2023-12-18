@@ -14,10 +14,9 @@ import {
   MockVerifier__factory,
   ProofMarketPlace,
   ProofMarketPlace__factory,
-  EntityKeyRegistry,
   EntityKeyRegistry__factory,
 } from "../typechain-types";
-import { bytesToHexString, generateRandomBytes, jsonToBytes, splitHexString } from "../helpers";
+import { bytesToHexString, generateRandomBytes, jsonToBytes, skipBlocks, splitHexString } from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 import * as secret from "../data/transferVerifier/1/secret.json";
@@ -48,6 +47,7 @@ describe("Proof market place", () => {
   let errorLibrary: Error;
 
   const enclave_key_attestation_bytes = "0x";
+  const ivs_attestation_bytes = "0x";
   const exponent = new BigNumber(10).pow(18);
 
   beforeEach(async () => {
@@ -89,6 +89,7 @@ describe("Proof market place", () => {
         await treasury.getAddress(),
         await generatorRegistry.getAddress(),
         await entityRegistry.getAddress(),
+        await mockAttestationVerifier.getAddress(),
       ],
     });
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
@@ -108,7 +109,14 @@ describe("Proof market place", () => {
     await expect(
       proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0)),
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          true,
+          ivs_attestation_bytes,
+          await marketCreator.getAddress(),
+        ),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -119,11 +127,7 @@ describe("Proof market place", () => {
   it("Update Marketplace address", async () => {
     await proofMarketPlace
       .connect(admin)
-      ["grantRole(bytes32,address,bytes)"](
-        await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-        await marketPlaceAddress.getAddress(),
-        enclave_key_attestation_bytes,
-      );
+      .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
 
     expect(
       await proofMarketPlace.hasRole(
@@ -155,7 +159,17 @@ describe("Proof market place", () => {
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
       await proofMarketPlace
         .connect(marketCreator)
-        .createMarketPlace(marketBytes, await mockVerifier.getAddress(), exponent.div(100).toFixed(0));
+        .createMarketPlace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          true,
+          ivs_attestation_bytes,
+          await marketCreator.getAddress(),
+        );
+
+      let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
     });
 
     it("Create Ask Request", async () => {
@@ -179,13 +193,16 @@ describe("Proof market place", () => {
       const secretInfo = "0x2345";
       const aclInfo = "0x21";
 
-      const platformFee = await proofMarketPlace.getPlatformFee(askRequest, secretInfo, aclInfo);
+      await proofMarketPlace.grantRole(await proofMarketPlace.UPDATER_ROLE(), await admin.getAddress());
+      await proofMarketPlace.connect(admin).updateCostPerBytes(1, 1000);
+
+      const platformFee = await proofMarketPlace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
       await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
       await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee);
 
-      await expect(proofMarketPlace.connect(prover).createAsk(askRequest, false, 0, secretInfo, aclInfo))
+      await expect(proofMarketPlace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
         .to.emit(proofMarketPlace, "AskCreated")
-        .withArgs(askIdToBeGenerated, false, "0x2345", "0x21")
+        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketPlace.getAddress(), reward)
         .to.emit(platformToken, "Transfer")
@@ -197,7 +214,7 @@ describe("Proof market place", () => {
     it("Should Fail: when try creating market in invalid market", async () => {
       await mockToken.connect(prover).approve(await proofMarketPlace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+      const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
         (proverBytes.length - 2) / 2,
       );
       await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
@@ -219,7 +236,6 @@ describe("Proof market place", () => {
             deadline: latestBlock + maxTimeForProofGeneration,
             refundAddress: await prover.getAddress(),
           },
-          false,
           0,
           "0x",
           "0x",
@@ -350,7 +366,7 @@ describe("Proof market place", () => {
         let askId: BigNumber;
         beforeEach(async () => {
           proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-          const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+          const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
             (proverBytes.length - 2) / 2,
           );
           await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
@@ -360,11 +376,7 @@ describe("Proof market place", () => {
 
           await proofMarketPlace
             .connect(admin)
-            ["grantRole(bytes32,address,bytes)"](
-              await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-              await marketPlaceAddress.getAddress(),
-              enclave_key_attestation_bytes,
-            );
+            .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
 
           askId = new BigNumber((await proofMarketPlace.askCounter()).toString());
 
@@ -379,7 +391,6 @@ describe("Proof market place", () => {
               deadline: latestBlock + maxTimeForProofGeneration,
               refundAddress: await prover.getAddress(),
             },
-            false,
             0,
             "0x",
             "0x",
@@ -488,7 +499,7 @@ describe("Proof market place", () => {
 
           let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
           let anotherProverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-          const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
+          const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
             (anotherProverBytes.length - 2) / 2,
           );
           await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
@@ -506,7 +517,6 @@ describe("Proof market place", () => {
               deadline: latestBlock + maxTimeForProofGeneration,
               refundAddress: await prover.getAddress(),
             },
-            false,
             0,
             "0x",
             "0x",

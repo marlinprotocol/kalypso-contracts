@@ -8,11 +8,7 @@ import {
   ProofMarketPlace__factory,
   GeneratorRegistry,
   GeneratorRegistry__factory,
-  IVerifier__factory,
-  Transfer_verifier_wrapper__factory,
-  Plonk_verifier_wrapper__factory,
-  Xor2_verifier_wrapper__factory,
-  IProofMarketPlace,
+  IVerifier,
   PriorityLog,
   PriorityLog__factory,
   MockAttestationVerifier__factory,
@@ -47,8 +43,9 @@ export const createTask = async (
 export const createAsk = async (
   prover: Signer,
   tokenHolder: Signer,
-  ask: IProofMarketPlace.AskStruct,
+  ask: ProofMarketPlace.AskStruct,
   setupTemplate: SetupTemplate,
+  secretType: number,
 ): Promise<string> => {
   await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
@@ -57,9 +54,9 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), ask.reward.toString());
 
   const proverBytes = ask.proverData;
-  const platformFee = new BigNumber((await setupTemplate.proofMarketPlace.costPerInputBytes()).toString()).multipliedBy(
-    (proverBytes.length - 2) / 2,
-  );
+  const platformFee = new BigNumber(
+    (await setupTemplate.proofMarketPlace.costPerInputBytes(secretType)).toString(),
+  ).multipliedBy((proverBytes.length - 2) / 2);
 
   await setupTemplate.platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
   await setupTemplate.platformToken
@@ -67,7 +64,7 @@ export const createAsk = async (
     .approve(await setupTemplate.proofMarketPlace.getAddress(), platformFee.toFixed());
 
   const askId = await setupTemplate.proofMarketPlace.askCounter();
-  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, false, 0, "0x", "0x");
+  await setupTemplate.proofMarketPlace.connect(prover).createAsk(ask, secretType, "0x", "0x");
 
   return askId.toString();
 };
@@ -82,14 +79,14 @@ export const rawSetup = async (
   marketCreationCost: BigNumber,
   marketCreator: Signer,
   marketSetupBytes: string,
-  verifier: string,
-  verifierType: string,
+  iverifier: IVerifier,
   generator: Signer,
   generatorData: string,
   matchingEngine: Signer,
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
+  isEnclaveRequired: boolean = true,
 ): Promise<SetupTemplate> => {
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -125,6 +122,7 @@ export const rawSetup = async (
       treasury,
       await generatorRegistry.getAddress(),
       await entityKeyRegistry.getAddress(),
+      await mockAttestationVerifier.getAddress(),
     ],
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
@@ -132,46 +130,17 @@ export const rawSetup = async (
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
-  let iverifier;
-  switch (verifierType) {
-    case "Transfer Verifier":
-      const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-        verifier,
-        await proofMarketPlace.getAddress(),
-      );
-
-      iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
-      break;
-    case "Plonk Verifier":
-      const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
-        verifier,
-        await proofMarketPlace.getAddress(),
-      );
-
-      iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
-      break;
-    case "Circom Verifier":
-      const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
-        verifier,
-        await proofMarketPlace.getAddress(),
-      );
-
-      iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
-      break;
-    default:
-      const defaultVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-        verifier,
-        await proofMarketPlace.getAddress(),
-      );
-
-      iverifier = IVerifier__factory.connect(await defaultVerifierWrapper.getAddress(), admin);
-      break;
-  }
-
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
   await proofMarketPlace
     .connect(marketCreator)
-    .createMarketPlace(marketSetupBytes, await iverifier.getAddress(), generatorSlashingPenalty.toFixed(0));
+    .createMarketPlace(
+      marketSetupBytes,
+      await iverifier.getAddress(),
+      generatorSlashingPenalty.toFixed(0),
+      isEnclaveRequired,
+      "0x",
+      await marketCreator.getAddress(),
+    );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 
@@ -188,15 +157,12 @@ export const rawSetup = async (
     .connect(generator)
     .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
 
-  await proofMarketPlace
-    .connect(admin)
-    ["grantRole(bytes32,address,bytes)"](
-      await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-      await matchingEngine.getAddress(),
-      "0x",
-    );
+  await proofMarketPlace.connect(admin).updateMatchingEngineEnclaveSigner("0x", await matchingEngine.getAddress());
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
+
+  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
+  await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
 
   const errorLibrary = await new Error__factory(admin).deploy();
   return {

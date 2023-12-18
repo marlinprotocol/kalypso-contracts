@@ -9,7 +9,7 @@ import "./lib/Error.sol";
 contract EntityKeyRegistry is AccessControlUpgradeable {
     IAttestationVerifier public immutable attestationVerifier;
 
-    bytes32 public constant GENERATOR_REGISTRY = keccak256("GENERATOR_REGISTRY");
+    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     mapping(address => bytes) public pub_key;
 
@@ -23,22 +23,22 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
 
     function addGeneratorRegistry(address _generatorRegistry) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(isContract(_generatorRegistry), Error.INVALID_CONTRACT_ADDRESS);
-        _grantRole(GENERATOR_REGISTRY, _generatorRegistry);
+        _grantRole(KEY_REGISTER_ROLE, _generatorRegistry);
     }
 
     function updatePubkey(
         address key_owner,
         bytes calldata pubkey,
         bytes calldata attestation_data
-    ) external onlyRole(GENERATOR_REGISTRY) {
+    ) external onlyRole(KEY_REGISTER_ROLE) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
-        require(pubkey.length > 0, Error.INVALID_ENCLAVE_KEY);
+        require(pubkey.length != 0, Error.INVALID_ENCLAVE_KEY);
         pub_key[key_owner] = pubkey;
 
         emit UpdateKey(key_owner);
     }
 
-    function removePubkey(address key_owner) external onlyRole(GENERATOR_REGISTRY) {
+    function removePubkey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
         delete pub_key[key_owner];
 
         emit RemoveKey(key_owner);

@@ -3,7 +3,6 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IVerifier.sol";
-import "../ProofMarketPlace.sol";
 
 interface i_transfer_verifier {
     function verifyProof(uint256[5] memory input, uint256[8] memory p) external view returns (bool);
@@ -14,16 +13,19 @@ interface i_transfer_verifier {
 // but is not recommended as it is a generated contract
 contract transfer_verifier_wrapper is IVerifier {
     i_transfer_verifier public immutable iverifier;
-    ProofMarketPlace public immutable proofMarketPlace;
 
-    constructor(i_transfer_verifier _iverifier, address _proofMarketPlace) {
+    bytes public override sampleInput;
+    bytes public override sampleProof;
+
+    constructor(i_transfer_verifier _iverifier, bytes memory _sampleInput, bytes memory _sampleProof) {
         iverifier = _iverifier;
-        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
+
+        sampleInput = _sampleInput;
+        sampleProof = _sampleProof;
     }
 
     function createRequest(
         ProofMarketPlace.Ask calldata ask,
-        bool hasPrivateInputs,
         ProofMarketPlace.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
@@ -38,25 +40,24 @@ contract transfer_verifier_wrapper is IVerifier {
             encodeInputs(verifyAndDecodeInputs(ask.proverData))
         );
 
-        if (hasPrivateInputs) {
-            proofMarketPlace.createAsk(
-                newAsk,
-                hasPrivateInputs,
-                secretType,
-                abi.encode(secret_inputs),
-                abi.encode(acl)
-            );
-        } else {
-            proofMarketPlace.createAsk(newAsk, hasPrivateInputs, secretType, "0x", "0x");
-        }
+        proofMarketPlace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
-    function verifyAndDecodeInputs(bytes calldata inputs) public pure returns (uint256[5] memory) {
+    function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint256[5] memory) {
         require(verifyInputs(inputs), "Transfer Verifier Wrapper: Invalid input format");
         return abi.decode(inputs, (uint256[5]));
     }
 
-    function verify(bytes calldata encodedData) public view override returns (bool) {
+    function checkSampleInputsAndProof() public view override returns (bool) {
+        return verifyAgainstSampleInputs(sampleProof);
+    }
+
+    function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
+        bytes memory encodedData = abi.encode(sampleInput, encodedProof);
+        return verify(encodedData);
+    }
+
+    function verify(bytes memory encodedData) public view override returns (bool) {
         uint256[5] memory input;
         uint256[8] memory p;
 
