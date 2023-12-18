@@ -32,7 +32,7 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
         bytes calldata attestation_data
     ) external onlyRole(KEY_REGISTER_ROLE) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
-        require(pubkey.length > 0, Error.INVALID_ENCLAVE_KEY);
+        require(pubkey.length != 0, Error.INVALID_ENCLAVE_KEY);
         pub_key[key_owner] = pubkey;
 
         emit UpdateKey(key_owner);
