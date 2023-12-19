@@ -61,7 +61,7 @@ contract ProofMarketPlace is
     }
 
     function updateMatchingEngineEnclaveSigner(bytes memory attestationData, address meSigner) public {
-        require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        require(ATTESTATION_VERIFIER.verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
     }
 
@@ -69,7 +69,7 @@ contract ProofMarketPlace is
         bytes memory pubkey,
         bytes memory attestationData
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(ENTITY_KEY_REGISTRY.attestationVerifier().verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        // no need to check here, registry already checks it
         ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
     }
 
