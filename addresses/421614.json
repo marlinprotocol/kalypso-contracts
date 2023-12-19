@@ -1,19 +1,19 @@
 {
-  "proxy": {
-    "payment_token": "0x746F190DDaa001D2E42D768FFE46afD1720Cc493",
-    "staking_token": "0xA713CB10e34EE0B1dD07af2E965602C118CD7be7",
-    "generator_registry": "0x9932521Ee5001bcf3e24C9097381b215E02baD57",
-    "attestation_verifier": "0x5A060e05110B82C8D2487C1070cfecE05B607A94",
-    "entity_registry": "0x3dedf8C006BbF736992041aAef80472d76D36Dd2",
-    "proof_market_place": "0xB8970D6fFb5aFD014A5714487EEde9786427A489",
-    "transfer_verifier_wrapper": "0x39dB9f5A55B303CB6489D3b495AB297F7bF50298",
-    "zkb_verifier_wrapper": "0x7f717B16def8345013808348563E76a797dD67BE",
-    "priority_list": "0x681dAF8fD633a1b1db3133E7d60D3E23403CD03b",
-    "input_and_proof_format": "0xfbA65e93B14ddc9000203D7356c9775113d72846"
-  },
-  "implementation": {
-    "generator_registry": "0x92423F606C703Cd986F2F11f0F006F8787090e4b",
-    "proof_market_place": "0x02581270290BD18B2E9DD160F6B3FaE111436077"
-  },
-  "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"
+    "proxy": {
+        "payment_token": "0x0560a1452CF90049440F356C28E5945260dF79bd",
+        "staking_token": "0x2E78c6ED63A8d49ddCDa0CB6C64364861e8988B0",
+        "attestation_verifier": "0x44214041E757BD437386C6F1554e5B7878aa5076",
+        "entity_registry": "0xe8c5812E4b51d0657a6306d0fD254ED40b456D5F",
+        "generator_registry": "0x9c4E6e4B1D1b5A7d5cD59c4D3738D4A51C2b41a5",
+        "proof_market_place": "0x35d212138C748D233D1162De39c054f7da9d2b5E",
+        "transfer_verifier_wrapper": "0x9E90f31Df0887811B16C7690cd6D50014E519E4A",
+        "zkb_verifier_wrapper": "0x9d2d6a37f8A9D5d9436b79A75C217d0805E5D4e1",
+        "priority_list": "0x0cF965963f89167b5FdF34026ACe5ACA66181B89",
+        "input_and_proof_format": "0x5a9db06bE5B655b97c5E2ee197280C7EC6282ac7"
+    },
+    "implementation": {
+        "generator_registry": "0xBf7E73fE87df9E45474635176fd76521A1FA7B48",
+        "proof_market_place": "0x2694C0DBADf66a1E9994D52873Ce54c25B9d13Ab"
+    },
+    "zkbMarketId": "1"
 }

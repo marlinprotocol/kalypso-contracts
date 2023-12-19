@@ -35,9 +35,8 @@ async function main(): Promise<string> {
   const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
 
   const askId = 604;
-  const taskId = await proof_market_place.taskCounter();
   const generator = "0x027828B38F8d97Bc85243a50501F10dA721d2Fe0";
-  const tx = await proof_market_place.connect(matchingEngine).assignTask(askId, taskId, generator, "0x");
+  const tx = await proof_market_place.connect(matchingEngine).assignTask(askId, generator, "0x");
   console.log("assignment transaction", (await tx.wait())?.hash);
   return "Done";
 }

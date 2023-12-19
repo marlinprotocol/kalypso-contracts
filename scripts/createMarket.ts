@@ -65,13 +65,20 @@ async function main(): Promise<string> {
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const zkbMarketId = await proof_market_place.marketCounter();
 
     const tx = await proof_market_place
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.zkb_verifier_wrapper, config.generatorSlashingPenalty, true);
+      .createMarketPlace(
+        marketSetupBytes,
+        addresses.proxy.transfer_verifier_wrapper,
+        config.generatorSlashingPenalty,
+        true,
+        "0x",
+        await marketCreator.getAddress(),
+      );
     await tx.wait();
-    addresses.zkbMarketId = zkbMarketId;
+    addresses.zkbMarketId = zkbMarketId.toString();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

@@ -15,6 +15,11 @@ import {
 } from "../typechain-types";
 import { checkFileExists, createFileIfNotExists } from "../helpers";
 
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+
+const abiCoder = new ethers.AbiCoder();
+
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
   console.log("deploying on chain id:", chainId);
@@ -68,23 +73,6 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.generator_registry) {
-    const generator_registryContract = await ethers.getContractFactory("GeneratorRegistry");
-    const generatorProxy = await upgrades.deployProxy(generator_registryContract, [], {
-      kind: "uups",
-      constructorArgs: [addresses.proxy.staking_token],
-      initializer: false,
-    });
-    await generatorProxy.waitForDeployment();
-
-    addresses.proxy.generator_registry = await generatorProxy.getAddress();
-    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.generator_registry,
-    );
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.attestation_verifier) {
     const attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
     await attestation_verifier.waitForDeployment();
@@ -106,6 +94,23 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.generator_registry) {
+    const generator_registryContract = await ethers.getContractFactory("GeneratorRegistry");
+    const generatorProxy = await upgrades.deployProxy(generator_registryContract, [], {
+      kind: "uups",
+      constructorArgs: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
+      initializer: false,
+    });
+    await generatorProxy.waitForDeployment();
+
+    addresses.proxy.generator_registry = await generatorProxy.getAddress();
+    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(
+      addresses.proxy.generator_registry,
+    );
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proof_market_place) {
     const proof_market_place = await ethers.getContractFactory("ProofMarketPlace");
     const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
@@ -117,6 +122,7 @@ async function main(): Promise<string> {
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
         addresses.proxy.entity_registry,
+        addresses.proxy.attestation_verifier
       ],
     });
     await proxy.waitForDeployment();
@@ -136,10 +142,40 @@ async function main(): Promise<string> {
   if (!addresses.proxy.transfer_verifier_wrapper) {
     const TransferVerifer = await new TransferVerifier__factory(admin).deploy();
     await TransferVerifer.waitForDeployment();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
     const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
-      "0x",
-      "0x",
+      inputBytes,
+      proofBytes,
     );
     await transfer_verifier_wrapper.waitForDeployment();
     addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
@@ -150,10 +186,40 @@ async function main(): Promise<string> {
   if (!addresses.proxy.zkb_verifier_wrapper) {
     const ZkbVerifier = await new ZkbVerifier__factory(admin).deploy();
     await ZkbVerifier.waitForDeployment();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
     const zkb_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await ZkbVerifier.getAddress(),
-      "0x",
-      "0x",
+      inputBytes,
+      proofBytes,
     );
     await zkb_verifier_wrapper.waitForDeployment();
     addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();
@@ -166,13 +232,7 @@ async function main(): Promise<string> {
   );
   if (!hasMatchingEngineRole) {
     await (
-      await proof_market_place
-        .connect(admin)
-        ["grantRole(bytes32,address,bytes)"](
-          await proof_market_place.MATCHING_ENGINE_ROLE(),
-          await matchingEngine.getAddress(),
-          "0x",
-        )
+      await proof_market_place.connect(admin).updateMatchingEngineEnclaveSigner("0x", await matchingEngine.getAddress())
     ).wait();
   }
 
