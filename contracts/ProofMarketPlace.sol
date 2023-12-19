@@ -131,6 +131,7 @@ contract ProofMarketPlace is
         uint256 slashingPenalty;
         uint256 activationBlock;
         address ivsSigner;
+        bytes ivsUrl;
         bytes marketmetadata;
     }
 
@@ -225,6 +226,7 @@ contract ProofMarketPlace is
         uint256 _slashingPenalty,
         bool isEnclaveRequired,
         bytes calldata ivsAttestationBytes,
+        bytes calldata ivsUrl,
         address ivsSigner
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
@@ -241,6 +243,7 @@ contract ProofMarketPlace is
         market.marketmetadata = _marketmetadata;
         market.isEnclaveRequired = isEnclaveRequired;
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
+        market.ivsUrl = ivsUrl;
         market.ivsSigner = ivsSigner;
 
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);

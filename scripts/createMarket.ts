@@ -75,6 +75,7 @@ async function main(): Promise<string> {
         config.generatorSlashingPenalty,
         true,
         "0x",
+        Buffer.from(marketSetupData.inputOuputVerifierUrl, "ascii"),
         await marketCreator.getAddress(),
       );
     await tx.wait();

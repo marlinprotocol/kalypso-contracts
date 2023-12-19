@@ -79,6 +79,7 @@ export const rawSetup = async (
   marketCreationCost: BigNumber,
   marketCreator: Signer,
   marketSetupBytes: string,
+  ivsUrl: string,
   iverifier: IVerifier,
   generator: Signer,
   generatorData: string,
@@ -139,6 +140,7 @@ export const rawSetup = async (
       generatorSlashingPenalty.toFixed(0),
       isEnclaveRequired,
       "0x",
+      Buffer.from(ivsUrl, "ascii"),
       await marketCreator.getAddress(),
     );
 

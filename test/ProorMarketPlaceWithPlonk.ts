@@ -105,6 +105,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
+      marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
       generatorDataToBytes(generatorData),

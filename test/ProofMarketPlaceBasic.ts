@@ -115,6 +115,7 @@ describe("Proof market place", () => {
           exponent.div(100).toFixed(0),
           true,
           ivs_attestation_bytes,
+          Buffer.from("ivs url", "ascii"),
           await marketCreator.getAddress(),
         ),
     )
@@ -165,6 +166,7 @@ describe("Proof market place", () => {
           exponent.div(100).toFixed(0),
           true,
           ivs_attestation_bytes,
+          Buffer.from("test ivs url", "ascii"),
           await marketCreator.getAddress(),
         );
 

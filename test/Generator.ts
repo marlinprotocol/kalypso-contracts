@@ -139,6 +139,7 @@ describe("Checking Generator's multiple compute", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
+      marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
@@ -364,9 +365,7 @@ describe("Checking Generator's multiple compute", () => {
   it("Only registered generator should be able to add entity keys", async () => {
     const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
     const pubBytes = utf8ToHex(generator_publickey);
-    await expect(
-      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
-    )
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x" + pubBytes, "0x"))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
   });
@@ -386,23 +385,20 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Update key should revert for invalid user", async () => {
-    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey(matchingEngine.getAddress(), "0x", "0x"))
-      .to.be.reverted;
+    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey("0x", "0x")).to.be.reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(
-      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x", "0x"),
-    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x", "0x")).to.be.revertedWith(
+      await errorLibrary.INVALID_ENCLAVE_KEY(),
+    );
   });
 
   it("Remove key", async () => {
     // Adding key to registry
     const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
     const pubBytes = utf8ToHex(generator_publickey);
-    await expect(
-      generatorRegistry.connect(generator).updateEncryptionKey(generator.getAddress(), "0x" + pubBytes, "0x"),
-    )
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x" + pubBytes, "0x"))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
 

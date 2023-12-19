@@ -106,6 +106,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
+      marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
