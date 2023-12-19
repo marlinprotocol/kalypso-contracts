@@ -305,8 +305,8 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(address key_owner, bytes memory pubkey, bytes memory attestation_data) external {
-        ENTITY_KEY_REGISTRY.updatePubkey(key_owner, pubkey, attestation_data);
+    function updateEncryptionKey(bytes memory pubkey, bytes memory attestation_data) external {
+        ENTITY_KEY_REGISTRY.updatePubkey(_msgSender(), pubkey, attestation_data);
     }
 
     function joinMarketPlace(
