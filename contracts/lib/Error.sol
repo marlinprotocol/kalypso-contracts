@@ -24,6 +24,8 @@ library Error {
     string public constant INVALID_ENCLAVE_KEY = "G7";
     string public constant ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT = "G8";
     string public constant INVALID_GENERATOR_STATE_PER_MARKET = "G9";
+    string public constant UNSTAKE_REQUEST_NOT_IN_PLACE = "G10";
+    string public constant REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE = "G11";
 
     // Market-related Errors
     string public constant INVALID_MARKET = "M1";

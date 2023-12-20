@@ -235,14 +235,13 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+        require(generator.intendedComputeUtilization != EXPONENT, Error.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE);
 
         uint256 _reduceableCompute = _maxReducableCompute(generatorAddress);
 
         require(_reduceableCompute != 0, Error.CANNOT_BE_ZERO);
 
-        uint256 declaredComputeAfterUpdate = (generator.declaredCompute * generator.intendedComputeUtilization) /
-            EXPONENT;
-        generator.declaredCompute = declaredComputeAfterUpdate;
+        generator.declaredCompute -= _reduceableCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
         emit DecreaseCompute(generatorAddress, _reduceableCompute);
@@ -281,14 +280,14 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+        require(generator.intendedStakeUtilization != EXPONENT, Error.UNSTAKE_REQUEST_NOT_IN_PLACE);
 
         uint256 _reducableStake = _maxReducableStake(generatorAddress);
 
         require(_reducableStake != 0, Error.CANNOT_BE_ZERO);
         STAKING_TOKEN.safeTransfer(to, _reducableStake);
 
-        uint256 stakeAfterUpdate = (generator.totalStake * generator.intendedStakeUtilization) / EXPONENT;
-        generator.totalStake = stakeAfterUpdate;
+        generator.totalStake -= _reducableStake;
         generator.intendedStakeUtilization = EXPONENT;
 
         emit RemovedStake(generatorAddress, _reducableStake);
