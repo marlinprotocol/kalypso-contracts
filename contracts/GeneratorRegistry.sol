@@ -439,6 +439,8 @@ contract GeneratorRegistry is
     function _leaveMarketPlace(address generatorAddress, uint256 marketId) internal {
         require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+
+        require(info.state != GeneratorState.NULL, Error.INVALID_GENERATOR_STATE_PER_MARKET);
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
 
         Generator storage generator = generatorRegistry[generatorAddress];

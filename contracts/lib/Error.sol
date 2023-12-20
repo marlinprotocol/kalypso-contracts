@@ -23,6 +23,7 @@ library Error {
     string public constant ONLY_WORKING_GENERATORS = "G6";
     string public constant INVALID_ENCLAVE_KEY = "G7";
     string public constant ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT = "G8";
+    string public constant INVALID_GENERATOR_STATE_PER_MARKET = "G9";
 
     // Market-related Errors
     string public constant INVALID_MARKET = "M1";

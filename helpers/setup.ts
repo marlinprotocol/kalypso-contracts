@@ -165,6 +165,7 @@ export const rawSetup = async (
 
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
   await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
+  await entityKeyRegistry.grantRole(register_role, await proofMarketPlace.getAddress());
 
   const errorLibrary = await new Error__factory(admin).deploy();
   return {

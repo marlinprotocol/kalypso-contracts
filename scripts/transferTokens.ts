@@ -17,12 +17,12 @@ async function main(): Promise<string> {
 
   let admin = signers[0];
   let tokenHolder = signers[1];
-  let treasury = signers[2];
+  // let treasury = signers[2];
   // let marketCreator = signers[3];
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0x4d85CEA118DcEaA3F187e97aDd84F265bF31b420";
+  const transferTo = "0x01f01074dc5454B15faBf1F1006864D0b71e3f19";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -41,7 +41,7 @@ async function main(): Promise<string> {
 
   const ethBalance = await admin.provider.getBalance(transferTo);
   if (new BigNumber(ethBalance.toString()).lt("31750928600000000")) {
-    (await treasury.sendTransaction({ to: transferTo, value: "31750928600000000" })).wait();
+    (await admin.sendTransaction({ to: transferTo, value: "31750928600000000" })).wait();
   }
 
   const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);

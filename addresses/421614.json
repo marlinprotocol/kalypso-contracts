@@ -1,19 +1,19 @@
 {
-    "proxy": {
-        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-        "attestation_verifier": "0x7325A5305Fc2E6b802c8D747f300AD0092Cc4C45",
-        "entity_registry": "0x3904c073D08477f8B36A9bb2496ED6FaA030E541",
-        "generator_registry": "0x9269211eE427C02Bfd74Fb1275C9c4C2c8797D5b",
-        "proof_market_place": "0x3a64855cCC6b806904A37389940b37844A30d80F",
-        "transfer_verifier_wrapper": "0x66AB83117Fe67901eE2B0DF4E37FCce5dCB71c0A",
-        "zkb_verifier_wrapper": "0xc617BBB7a8f4209820E0fBE13D1f5f0AEE8737D6",
-        "priority_list": "0x109f6165235B1C9F3AB03c21eEAf8Ec3ecfcC494",
-        "input_and_proof_format": "0x39AcE943fFDB53b91Ba6fda8c29760C2765555fA"
-    },
-    "implementation": {
-        "generator_registry": "0x64dAEbAE64cB368fA3518fB72007F846788f7C6b",
-        "proof_market_place": "0xF5C9CAd34d802dE100d3919dD16da7696b789546"
-    },
-    "zkbMarketId": "0"
+  "proxy": {
+    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+    "attestation_verifier": "0x7325A5305Fc2E6b802c8D747f300AD0092Cc4C45",
+    "entity_registry": "0x3904c073D08477f8B36A9bb2496ED6FaA030E541",
+    "generator_registry": "0x9269211eE427C02Bfd74Fb1275C9c4C2c8797D5b",
+    "proof_market_place": "0x3a64855cCC6b806904A37389940b37844A30d80F",
+    "transfer_verifier_wrapper": "0x66AB83117Fe67901eE2B0DF4E37FCce5dCB71c0A",
+    "zkb_verifier_wrapper": "0xc617BBB7a8f4209820E0fBE13D1f5f0AEE8737D6",
+    "priority_list": "0x109f6165235B1C9F3AB03c21eEAf8Ec3ecfcC494",
+    "input_and_proof_format": "0x39AcE943fFDB53b91Ba6fda8c29760C2765555fA"
+  },
+  "implementation": {
+    "generator_registry": "0x64dAEbAE64cB368fA3518fB72007F846788f7C6b",
+    "proof_market_place": "0xF5C9CAd34d802dE100d3919dD16da7696b789546"
+  },
+  "zkbMarketId": "0"
 }
