@@ -12,6 +12,7 @@ import {
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
   ZkbVerifier__factory,
+  AttestationVerifier__factory,
 } from "../typechain-types";
 import { checkFileExists, createFileIfNotExists } from "../helpers";
 
@@ -73,8 +74,17 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.mock_attestation_verifier) {
+    const mock_attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
+    await mock_attestation_verifier.waitForDeployment();
+
+    addresses.proxy.mock_attestation_verifier = await mock_attestation_verifier.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.attestation_verifier) {
-    const attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
+    const attestation_verifier = await new AttestationVerifier__factory(admin).deploy();
     await attestation_verifier.waitForDeployment();
 
     addresses.proxy.attestation_verifier = await attestation_verifier.getAddress();
@@ -84,7 +94,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.entity_registry) {
     const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(
-      addresses.proxy.attestation_verifier,
+      addresses.proxy.mock_attestation_verifier,
       await admin.getAddress(),
     );
     await entity_registry.waitForDeployment();
@@ -122,7 +132,7 @@ async function main(): Promise<string> {
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
         addresses.proxy.entity_registry,
-        addresses.proxy.attestation_verifier,
+        addresses.proxy.mock_attestation_verifier,
       ],
     });
     await proxy.waitForDeployment();
