@@ -361,6 +361,35 @@ describe("Proof market place", () => {
           .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
       });
 
+      describe("Generator After Staking", () => {
+        beforeEach(async () => {
+          await generatorRegistry
+            .connect(generator)
+            .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+
+          const extraStash = "112987298347983";
+          await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
+
+          await expect(generatorRegistry.connect(tokenHolder).stake(await generator.getAddress(), extraStash))
+            .to.emit(generatorRegistry, "AddedStake")
+            .withArgs(await generator.getAddress(), extraStash)
+            .to.emit(mockToken, "Transfer")
+            .withArgs(await tokenHolder.getAddress(), await generatorRegistry.getAddress(), extraStash);
+        });
+
+        it("unstake should fail without request", async () => {
+          await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress())).to.be.revertedWith(
+            await errorLibrary.UNSTAKE_REQUEST_NOT_IN_PLACE(),
+          );
+        });
+
+        it("Decrease Compute should fail without request", async () => {
+          await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWith(
+            await errorLibrary.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE(),
+          );
+        });
+      });
+
       describe("Task", () => {
         let proverBytes: string;
         let latestBlock: number;

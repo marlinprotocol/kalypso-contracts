@@ -77,7 +77,7 @@ contract GeneratorRegistry is
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
-    uint256 private constant EXPONENT = 10e18;
+    uint256 private constant EXPONENT = 1e18;
 
     uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
     //-------------------------------- Constants and Immutable start --------------------------------//
@@ -184,8 +184,6 @@ contract GeneratorRegistry is
             EXPONENT,
             generatorData
         );
-
-        _grantRole(KEY_REGISTER_ROLE, _msgSender);
 
         emit RegisteredGenerator(_msgSender);
     }
@@ -493,6 +491,7 @@ contract GeneratorRegistry is
 
         // requiredCompute <= idleCapacity
         require(info.computePerRequestRequired <= idleCapacity, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
+        require(info.activeRequests <= PARALLEL_REQUESTS_UPPER_LIMIT, Error.MAX_PARALLEL_REQUESTS_PER_MARKET_EXCEEDED);
 
         uint256 availableStake = _maxReducableStake(generatorAddress);
         require(availableStake >= stakeToLock, Error.INSUFFICIENT_STAKE_TO_LOCK);

@@ -26,6 +26,7 @@ library Error {
     string public constant INVALID_GENERATOR_STATE_PER_MARKET = "G9";
     string public constant UNSTAKE_REQUEST_NOT_IN_PLACE = "G10";
     string public constant REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE = "G11";
+    string public constant MAX_PARALLEL_REQUESTS_PER_MARKET_EXCEEDED = "G12";
 
     // Market-related Errors
     string public constant INVALID_MARKET = "M1";

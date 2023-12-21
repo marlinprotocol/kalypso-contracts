@@ -413,4 +413,28 @@ describe("Checking Generator's multiple compute", () => {
     //   .to.emit(entityKeyRegistry, "RemoveKey")
     //   .withArgs(await generator.getAddress());
   });
+
+  it("Generator Prechecks", async () => {
+    const exponent = new BigNumber(10).pow(18).toFixed(0);
+
+    const generatorData = await generatorRegistry.generatorRegistry(await generator.getAddress());
+    expect(generatorComputeAllocation.toFixed(0)).to.eq(generatorData.declaredCompute.toString());
+    expect(generatorData.computeConsumed).to.eq(0);
+    expect(generatorData.totalStake).to.eq(generatorStakingAmount.toFixed(0));
+    expect(generatorData.stakeLocked).to.eq(0);
+    expect(generatorData.activeMarketPlaces).to.eq(1);
+    expect(generatorData.intendedComputeUtilization).to.eq(exponent);
+    expect(generatorData.intendedStakeUtilization).to.eq(exponent);
+
+    const marketId = 0; // likely to be 0, if failed change it
+    const generatorDataPerMarket = await generatorRegistry.generatorInfoPerMarket(
+      await generator.getAddress(),
+      marketId,
+    );
+
+    expect(generatorDataPerMarket.state).to.not.eq(0); // 0 means no generator
+    expect(generatorDataPerMarket.computePerRequestRequired).to.eq(computeGivenToNewMarket.toFixed(0));
+    expect(generatorDataPerMarket.proofGenerationCost).to.eq(minRewardByGenerator.toFixed(0));
+    expect(generatorDataPerMarket.activeRequests).to.eq(0);
+  });
 });
