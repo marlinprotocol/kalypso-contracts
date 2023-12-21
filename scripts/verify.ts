@@ -33,7 +33,7 @@ async function main() {
     constructorArguments: [],
   });
   console.log({ verificationResult });
-  
+
   verificationResult = await run("verify:verify", {
     address: addresses.implementation.generator_registry,
     constructorArguments: [addresses.proxy.staking_token, addresses.proxy.entity_registry],

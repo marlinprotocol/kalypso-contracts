@@ -84,10 +84,21 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.attestation_verifier) {
-    const attestation_verifier = await new AttestationVerifier__factory(admin).deploy();
-    await attestation_verifier.waitForDeployment();
+    const attestationVerifierFactory = await ethers.getContractFactory("AttestationVerifier");
+    const attestationVerifierProxy = await upgrades.deployProxy(attestationVerifierFactory, [], {
+      kind: "uups",
+      constructorArgs: [],
+      initializer: false,
+    });
+    await attestationVerifierProxy.waitForDeployment();
 
-    addresses.proxy.attestation_verifier = await attestation_verifier.getAddress();
+    addresses.proxy.attestation_verifier = await attestationVerifierProxy.getAddress();
+    addresses.implementation.attestation_verifier = await upgrades.erc1967.getImplementationAddress(
+      addresses.proxy.attestation_verifier,
+    );
+    const attestation_verifier = AttestationVerifier__factory.connect(addresses.proxy.attestation_verifier, admin);
+    const tx = await attestation_verifier.initialize([], [], await admin.getAddress());
+    await tx.wait();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
