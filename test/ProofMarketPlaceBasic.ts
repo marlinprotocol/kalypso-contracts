@@ -388,6 +388,74 @@ describe("Proof market place", () => {
             await errorLibrary.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE(),
           );
         });
+
+        describe("Request to Decrease Stake", () => {
+          const newUtilization = exponent.dividedBy(10);
+          beforeEach(async () => {
+            await expect(generatorRegistry.connect(generator).intendToReduceStake(newUtilization.toFixed()))
+              .to.emit(generatorRegistry, "RequestStakeDecrease")
+              .withArgs(await generator.getAddress(), newUtilization.toFixed(0));
+          });
+
+          it("Generator utilization check and unstake", async () => {
+            const generatorData = await generatorRegistry.generatorRegistry(await generator.getAddress());
+            expect(generatorData.intendedStakeUtilization).to.eq(newUtilization);
+
+            const totalStakeBefore = generatorData.totalStake;
+            const expectedStakeAfter = new BigNumber(totalStakeBefore.toString())
+              .multipliedBy(newUtilization)
+              .div(exponent);
+            const expectedAmountRelease = new BigNumber(totalStakeBefore.toString())
+              .minus(expectedStakeAfter)
+              .toFixed(0);
+
+            await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress()))
+              .to.emit(generatorRegistry, "RemovedStake")
+              .withArgs(await generator.getAddress(), expectedAmountRelease)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await generatorRegistry.getAddress(), await generator.getAddress(), expectedAmountRelease);
+          });
+
+          it("Should fail if unstake is called more than once per request", async () => {
+            await generatorRegistry.connect(generator).unstake(await generator.getAddress());
+            await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress())).to.be.revertedWith(
+              await errorLibrary.UNSTAKE_REQUEST_NOT_IN_PLACE(),
+            );
+          });
+        });
+
+        describe("Request to reduce compute", () => {
+          const newUtilization = exponent.dividedBy(10);
+          beforeEach(async () => {
+            await expect(generatorRegistry.connect(generator).intendToReduceCompute(newUtilization.toFixed()))
+              .to.emit(generatorRegistry, "RequestComputeDecrease")
+              .withArgs(await generator.getAddress(), newUtilization.toFixed(0));
+          });
+
+          it("Generator utilization check and reduce compute", async () => {
+            const generatorData = await generatorRegistry.generatorRegistry(await generator.getAddress());
+            expect(generatorData.intendedComputeUtilization).to.eq(newUtilization);
+
+            const totalComputeBefore = generatorData.declaredCompute;
+            const expectedComputeAfter = new BigNumber(totalComputeBefore.toString())
+              .multipliedBy(newUtilization)
+              .div(exponent);
+            const expectedComputeToRelease = new BigNumber(totalComputeBefore.toString())
+              .minus(expectedComputeAfter)
+              .toFixed(0);
+
+            await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute())
+              .to.emit(generatorRegistry, "DecreaseCompute")
+              .withArgs(await generator.getAddress(), expectedComputeToRelease);
+          });
+
+          it("Should fail if decrease compute is called more than once per request", async () => {
+            await generatorRegistry.connect(generator).decreaseDeclaredCompute();
+            await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWith(
+              await errorLibrary.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE(),
+            );
+          });
+        });
       });
 
       describe("Task", () => {

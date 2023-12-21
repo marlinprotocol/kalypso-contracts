@@ -77,7 +77,7 @@ contract GeneratorRegistry is
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
 
-    uint256 private constant EXPONENT = 1e18;
+    uint256 private constant EXPONENT = 10 ** 18;
 
     uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
     //-------------------------------- Constants and Immutable start --------------------------------//
@@ -220,8 +220,10 @@ contract GeneratorRegistry is
         require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
         require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
+        uint256 newTotalCompute = (newUtilization * generator.declaredCompute) / EXPONENT;
+
         // ensures no spamming in the contracts.
-        require(newUtilization >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
+        require(newTotalCompute >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
         generator.intendedComputeUtilization = newUtilization;
 
@@ -235,14 +237,18 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
         require(generator.intendedComputeUtilization != EXPONENT, Error.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE);
 
-        uint256 _reduceableCompute = _maxReducableCompute(generatorAddress);
+        uint256 newTotalCompute = (generator.intendedComputeUtilization * generator.declaredCompute) / EXPONENT;
+        uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
 
-        require(_reduceableCompute != 0, Error.CANNOT_BE_ZERO);
+        require(newTotalCompute >= generator.computeConsumed, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
+        require(newTotalCompute >= generator.sumOfComputeAllocations, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
 
-        generator.declaredCompute -= _reduceableCompute;
+        require(computeToRelease != 0, Error.CANNOT_BE_ZERO);
+
+        generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
-        emit DecreaseCompute(generatorAddress, _reduceableCompute);
+        emit DecreaseCompute(generatorAddress, computeToRelease);
     }
 
     function stake(address generatorAddress, uint256 amount) external returns (uint256) {
@@ -280,15 +286,17 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
         require(generator.intendedStakeUtilization != EXPONENT, Error.UNSTAKE_REQUEST_NOT_IN_PLACE);
 
-        uint256 _reducableStake = _maxReducableStake(generatorAddress);
+        uint256 newTotalStake = (generator.intendedStakeUtilization * generator.totalStake) / EXPONENT;
+        uint256 amountToTransfer = generator.totalStake - newTotalStake;
+        require(amountToTransfer != 0, Error.CANNOT_BE_ZERO);
 
-        require(_reducableStake != 0, Error.CANNOT_BE_ZERO);
-        STAKING_TOKEN.safeTransfer(to, _reducableStake);
+        require(newTotalStake >= generator.stakeLocked, Error.INSUFFICIENT_STAKE_TO_LOCK);
+        STAKING_TOKEN.safeTransfer(to, amountToTransfer);
 
-        generator.totalStake -= _reducableStake;
+        generator.totalStake = newTotalStake;
         generator.intendedStakeUtilization = EXPONENT;
 
-        emit RemovedStake(generatorAddress, _reducableStake);
+        emit RemovedStake(generatorAddress, amountToTransfer);
     }
 
     function deregister(address refundAddress) external {
