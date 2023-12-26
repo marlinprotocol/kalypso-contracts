@@ -58,7 +58,21 @@ const config: HardhatUserConfig = {
     coinmarketcap: process.env.COIN_MARKET_CAP,
   },
   etherscan: {
-    apiKey: `${process.env.ETHERSCAN_API_KEY}`,
+    // apiKey: `${process.env.ETHERSCAN_API_KEY}`,
+    apiKey: {
+      mainnet: `${process.env.ETHERSCAN_API_KEY}`,
+      arbitrumSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`
+    },
+    customChains: [
+      {
+        network: "arbitrumSepolia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api-sepolia.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io"
+        }
+      }
+    ]
   },
   networks: {
     hardhat: {
