@@ -97,7 +97,17 @@ async function main(): Promise<string> {
       addresses.proxy.attestation_verifier,
     );
     const attestation_verifier = AttestationVerifier__factory.connect(addresses.proxy.attestation_verifier, admin);
-    const tx = await attestation_verifier.initialize([], [], await admin.getAddress());
+    const tx = await attestation_verifier.initialize(
+      [
+        {
+          PCR0: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+          PCR1: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002",
+          PCR2: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003",
+        },
+      ],
+      ["0x0000000000000000000000000000000000000001"],
+      await admin.getAddress(),
+    );
     await tx.wait();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
