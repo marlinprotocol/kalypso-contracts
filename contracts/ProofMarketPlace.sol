@@ -227,6 +227,7 @@ contract ProofMarketPlace is
         bool isEnclaveRequired,
         bytes calldata ivsAttestationBytes,
         bytes calldata ivsUrl,
+        bytes calldata ivsPubkey,
         address ivsSigner
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
@@ -246,6 +247,7 @@ contract ProofMarketPlace is
         market.ivsUrl = ivsUrl;
         market.ivsSigner = ivsSigner;
 
+        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, ivsPubkey, ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
         emit MarketPlaceCreated(marketCounter);

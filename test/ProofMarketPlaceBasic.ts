@@ -98,6 +98,10 @@ describe("Proof market place", () => {
 
     expect(ethers.isAddress(await proofMarketPlace.getAddress())).is.true;
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
+
+    await entityRegistry
+      .connect(admin)
+      .grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketPlace.getAddress());
   });
 
   it("Create Market", async () => {
@@ -107,17 +111,16 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
     await expect(
-      proofMarketPlace
-        .connect(marketCreator)
-        .createMarketPlace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.div(100).toFixed(0),
-          true,
-          ivs_attestation_bytes,
-          Buffer.from("ivs url", "ascii"),
-          await marketCreator.getAddress(),
-        ),
+      proofMarketPlace.connect(marketCreator).createMarketPlace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        true,
+        ivs_attestation_bytes,
+        await marketCreator.getAddress(), // TODO: replace with ivs pubkey
+        Buffer.from("ivs url", "ascii"),
+        await marketCreator.getAddress(),
+      ),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
@@ -158,17 +161,16 @@ describe("Proof market place", () => {
       marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).toFixed();
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-      await proofMarketPlace
-        .connect(marketCreator)
-        .createMarketPlace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.div(100).toFixed(0),
-          true,
-          ivs_attestation_bytes,
-          Buffer.from("test ivs url", "ascii"),
-          await marketCreator.getAddress(),
-        );
+      await proofMarketPlace.connect(marketCreator).createMarketPlace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        true,
+        ivs_attestation_bytes,
+        await marketCreator.getAddress(), // TODO: replace with ivs pubkey
+        Buffer.from("test ivs url", "ascii"),
+        await marketCreator.getAddress(),
+      );
 
       let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
       await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());

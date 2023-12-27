@@ -129,20 +129,25 @@ export const rawSetup = async (
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
+
+  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
+
+  await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
+  await entityKeyRegistry.grantRole(register_role, await proofMarketPlace.getAddress());
+
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-  await proofMarketPlace
-    .connect(marketCreator)
-    .createMarketPlace(
-      marketSetupBytes,
-      await iverifier.getAddress(),
-      generatorSlashingPenalty.toFixed(0),
-      isEnclaveRequired,
-      "0x",
-      Buffer.from(ivsUrl, "ascii"),
-      await marketCreator.getAddress(),
-    );
+  await proofMarketPlace.connect(marketCreator).createMarketPlace(
+    marketSetupBytes,
+    await iverifier.getAddress(),
+    generatorSlashingPenalty.toFixed(0),
+    isEnclaveRequired,
+    "0x",
+    await marketCreator.getAddress(), // TODO: replace with ivs pubkey
+    Buffer.from(ivsUrl, "ascii"),
+    await marketCreator.getAddress(),
+  );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 
@@ -162,10 +167,6 @@ export const rawSetup = async (
   await proofMarketPlace.connect(admin).updateMatchingEngineEnclaveSigner("0x", await matchingEngine.getAddress());
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
-
-  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
-  await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
-  await entityKeyRegistry.grantRole(register_role, await proofMarketPlace.getAddress());
 
   const errorLibrary = await new Error__factory(admin).deploy();
   return {
