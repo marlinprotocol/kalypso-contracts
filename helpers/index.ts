@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
+import { PublicKey, PrivateKey } from "eciesjs";
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -167,4 +168,30 @@ export async function skipBlocks(ethersVar: typeof ethers, n: number) {
 export async function skipTime(ethersVar: typeof ethers, t: number) {
   await ethersVar.provider.send("evm_increaseTime", [t]);
   await skipBlocks(ethersVar, 1);
+}
+
+interface WalletInfo {
+  privateKey: string;
+  address: string;
+  uncompressedPublicKey: string;
+}
+
+export function generateWalletInfo(): WalletInfo {
+  // Create a new wallet
+  const wallet = ethers.Wallet.createRandom();
+
+  // Extract the private key
+  const privateKey = wallet.privateKey;
+
+  // Extract the address
+  const address = wallet.address;
+
+  let secret_key: PrivateKey = PrivateKey.fromHex(privateKey);
+  let pub_key = "0x" + secret_key.publicKey.uncompressed.toString("hex").substring(2);
+
+  return {
+    privateKey,
+    address,
+    uncompressedPublicKey: pub_key,
+  };
 }

@@ -15,7 +15,15 @@ import {
   EntityKeyRegistry,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup, skipBlocks } from "../helpers";
+import {
+  GeneratorData,
+  MarketData,
+  generateWalletInfo,
+  generatorDataToBytes,
+  marketDataToBytes,
+  setup,
+  skipBlocks,
+} from "../helpers";
 import * as fs from "fs";
 
 import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
@@ -36,7 +44,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
   let treasury: Signer;
   let prover: Signer;
   let generator: Signer;
-  let matchingEngine: Signer;
 
   let marketCreator: Signer;
   let marketSetupData: MarketData;
@@ -45,6 +52,9 @@ describe("Proof Market Place for Plonk Verifier", () => {
   let generatorData: GeneratorData;
 
   let iverifier: IVerifier;
+
+  const matchingEngineInternalWallet = generateWalletInfo();
+  const ivsInternalWallet = generateWalletInfo();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -65,7 +75,6 @@ describe("Proof Market Place for Plonk Verifier", () => {
     marketCreator = signers[3];
     prover = signers[4];
     generator = signers[5];
-    matchingEngine = signers[6];
 
     marketSetupData = {
       zkAppName: "plonk verifier",
@@ -95,6 +104,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
     iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
+    await treasury.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
+
     let data = await setup.rawSetup(
       admin,
       tokenHolder,
@@ -109,7 +120,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      matchingEngine,
+      ivsInternalWallet.uncompressedPublicKey,
+      matchingEngineInternalWallet.uncompressedPublicKey,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -164,7 +176,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
     );
 
     await setup.createTask(
-      matchingEngine,
+      matchingEngineInternalWallet.privateKey,
+      admin.provider,
       {
         mockToken: tokenToUse,
         proofMarketPlace,

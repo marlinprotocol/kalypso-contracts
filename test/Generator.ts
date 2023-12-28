@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import * as fs from "fs";
-import { Signer } from "ethers";
+import { Provider, Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
   Error,
@@ -19,6 +19,7 @@ import {
 import {
   GeneratorData,
   MarketData,
+  generateWalletInfo,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -45,13 +46,15 @@ describe("Checking Generator's multiple compute", () => {
   let treasury: Signer;
   let prover: Signer;
   let generator: Signer;
-  let matchingEngine: Signer;
 
   let marketCreator: Signer;
   let marketSetupData: MarketData;
   let marketId: string;
 
   let generatorData: GeneratorData;
+
+  const ivsInternalWallet = generateWalletInfo();
+  const matchingEngineInternalWallet = generateWalletInfo();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -72,7 +75,6 @@ describe("Checking Generator's multiple compute", () => {
     marketCreator = signers[3];
     prover = signers[4];
     generator = signers[5];
-    matchingEngine = signers[6];
 
     marketSetupData = {
       zkAppName: "transfer verifier",
@@ -86,6 +88,9 @@ describe("Checking Generator's multiple compute", () => {
     generatorData = {
       name: "some custom name for the generator",
     };
+
+    await admin.sendTransaction({ to: ivsInternalWallet.address, value: "1000000000000000000" });
+    await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
 
@@ -143,7 +148,8 @@ describe("Checking Generator's multiple compute", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      matchingEngine,
+      ivsInternalWallet.uncompressedPublicKey,
+      matchingEngineInternalWallet.uncompressedPublicKey,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -209,7 +215,8 @@ describe("Checking Generator's multiple compute", () => {
     );
 
     await setup.createTask(
-      matchingEngine,
+      matchingEngineInternalWallet.privateKey,
+      admin.provider as Provider,
       {
         mockToken: tokenToUse,
         proofMarketPlace,
@@ -295,6 +302,8 @@ describe("Checking Generator's multiple compute", () => {
 
         await proofMarketPlace.connect(prover).createAsk(ask, 0, "0x", "0x");
 
+        const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+
         await expect(
           proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
         ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
@@ -324,7 +333,8 @@ describe("Checking Generator's multiple compute", () => {
         );
 
         await setup.createTask(
-          matchingEngine,
+          matchingEngineInternalWallet.privateKey,
+          admin.provider as Provider,
           {
             mockToken: tokenToUse,
             proofMarketPlace,
@@ -379,6 +389,7 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
+    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
     await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
       .be.reverted;
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
@@ -386,6 +397,7 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Update key should revert for invalid contract address", async () => {
+    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
     await expect(entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress())).to.be.revertedWith(
       await errorLibrary.INVALID_CONTRACT_ADDRESS(),
     );

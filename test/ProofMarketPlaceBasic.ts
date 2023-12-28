@@ -16,7 +16,7 @@ import {
   ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
 } from "../typechain-types";
-import { bytesToHexString, generateRandomBytes, jsonToBytes, skipBlocks, splitHexString } from "../helpers";
+import { bytesToHexString, generateRandomBytes, generateWalletInfo, skipBlocks } from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 import * as secret from "../data/transferVerifier/1/secret.json";
@@ -27,8 +27,6 @@ describe("Proof market place", () => {
   let tokenHolder: Signer;
   let treasury: Signer;
   let marketCreator: Signer;
-
-  let marketPlaceAddress: Signer;
 
   let mockToken: MockToken;
   let platformToken: MockToken;
@@ -46,8 +44,12 @@ describe("Proof market place", () => {
 
   let errorLibrary: Error;
 
-  const enclave_key_attestation_bytes = "0x";
   const exponent = new BigNumber(10).pow(18);
+
+  const matchingEngineInternalWallet = generateWalletInfo();
+  const ivsInternalWallet = generateWalletInfo();
+
+  let matchingEngineSigner: Signer;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -56,7 +58,8 @@ describe("Proof market place", () => {
     treasury = signers[3];
     marketCreator = signers[4];
 
-    marketPlaceAddress = signers[8];
+    matchingEngineSigner = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+    await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
 
     errorLibrary = await new Error__factory(admin).deploy();
 
@@ -111,11 +114,12 @@ describe("Proof market place", () => {
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
     let abiCoder = new ethers.AbiCoder();
-    const knownPubkey =
-      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+
+    const ivsPubkey = ivsInternalWallet.uncompressedPublicKey;
+
     let ivsAttestationBytes = abiCoder.encode(
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+      ["0x00", await admin.getAddress(), ivsPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
     await expect(
@@ -137,14 +141,19 @@ describe("Proof market place", () => {
   });
 
   it("Update Marketplace address", async () => {
-    await proofMarketPlace
-      .connect(admin)
-      .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
+    let abiCoder = new ethers.AbiCoder();
+
+    const mePubKey = matchingEngineInternalWallet.uncompressedPublicKey;
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await admin.getAddress(), mePubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
+    await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes);
 
     expect(
       await proofMarketPlace.hasRole(
         await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-        await marketPlaceAddress.getAddress(),
+        matchingEngineInternalWallet.address,
       ),
     ).to.be.true;
   });
@@ -171,11 +180,11 @@ describe("Proof market place", () => {
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
       let abiCoder = new ethers.AbiCoder();
-      const knownPubkey =
-        "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+
+      const ivsKey = ivsInternalWallet.uncompressedPublicKey;
       let ivsAttestationBytes = abiCoder.encode(
         ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-        ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+        ["0x00", await admin.getAddress(), ivsKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
       );
 
       await proofMarketPlace
@@ -492,9 +501,15 @@ describe("Proof market place", () => {
 
           latestBlock = await ethers.provider.getBlockNumber();
 
-          await proofMarketPlace
-            .connect(admin)
-            .updateMatchingEngineEnclaveSigner(enclave_key_attestation_bytes, await marketPlaceAddress.getAddress());
+          let abiCoder = new ethers.AbiCoder();
+
+          const mePubKey = matchingEngineInternalWallet.uncompressedPublicKey;
+
+          let inputBytes = abiCoder.encode(
+            ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+            ["0x00", await admin.getAddress(), mePubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+          );
+          await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes);
 
           askId = new BigNumber((await proofMarketPlace.askCounter()).toString());
 
@@ -528,7 +543,7 @@ describe("Proof market place", () => {
         it("Matching engine assings", async () => {
           await expect(
             proofMarketPlace
-              .connect(marketPlaceAddress)
+              .connect(matchingEngineSigner)
               .assignTask(askId.toString(), await generator.getAddress(), "0x1234"),
           )
             .to.emit(proofMarketPlace, "TaskCreated")
@@ -554,7 +569,7 @@ describe("Proof market place", () => {
           const abicode = new ethers.AbiCoder();
           const encoded = abicode.encode(types, values);
           const digest = ethers.keccak256(encoded);
-          const signature = await marketPlaceAddress.signMessage(ethers.getBytes(digest));
+          const signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
 
           const someRandomRelayer = admin;
 
@@ -586,7 +601,7 @@ describe("Proof market place", () => {
           const abicode = new ethers.AbiCoder();
           const encoded = abicode.encode(types, values);
           const digest = ethers.keccak256(encoded);
-          const signature = await marketPlaceAddress.signMessage(ethers.getBytes(digest));
+          const signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
 
           const someRandomRelayer = admin;
 
@@ -612,7 +627,7 @@ describe("Proof market place", () => {
 
         it("Matching Engine can't assign more than vcpus", async () => {
           await proofMarketPlace
-            .connect(marketPlaceAddress)
+            .connect(matchingEngineSigner)
             .assignTask(askId.toString(), await generator.getAddress(), "0x1234");
 
           let anotherAskId = new BigNumber((await proofMarketPlace.askCounter()).toString());
@@ -642,7 +657,7 @@ describe("Proof market place", () => {
 
           await expect(
             proofMarketPlace
-              .connect(marketPlaceAddress)
+              .connect(matchingEngineSigner)
               .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234"),
           ).to.be.revertedWith(await errorLibrary.ASSIGN_ONLY_TO_IDLE_GENERATORS());
         });
@@ -651,7 +666,7 @@ describe("Proof market place", () => {
           await mine(assignmentExpiry);
           await expect(
             proofMarketPlace
-              .connect(marketPlaceAddress)
+              .connect(matchingEngineSigner)
               .assignTask(askId.toString(), await generator.getAddress(), "0x"),
           ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
         });
@@ -672,7 +687,7 @@ describe("Proof market place", () => {
             proof = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
 
             await proofMarketPlace
-              .connect(marketPlaceAddress)
+              .connect(matchingEngineSigner)
               .assignTask(askId.toString(), await generator.getAddress(), "0x");
           });
 

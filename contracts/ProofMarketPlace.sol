@@ -60,14 +60,9 @@ contract ProofMarketPlace is
         _grantRole(role, account);
     }
 
-    function updateMatchingEngineEnclaveSigner(bytes memory attestationData, address meSigner) public {
-        require(ATTESTATION_VERIFIER.verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+    function updateMatchingEngineEncryptionKeyAndSigner(bytes memory attestationData) public {
+        (bytes memory pubkey, address meSigner) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestationData);
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-    }
-
-    function updateEncryptionKey(bytes memory attestationData) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        (bytes memory pubkey, ) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestationData);
-        // no need to check here, registry already checks it
         ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
     }
 
