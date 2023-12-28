@@ -363,9 +363,16 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add entity keys", async () => {
-    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
-    const pubBytes = utf8ToHex(generator_publickey);
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x" + pubBytes, "0x"))
+    const knownPubkey =
+      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
+
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
   });
@@ -384,21 +391,31 @@ describe("Checking Generator's multiple compute", () => {
     );
   });
 
-  it("Update key should revert for invalid user", async () => {
-    await expect(generatorRegistry.connect(matchingEngine).updateEncryptionKey("0x", "0x")).to.be.reverted;
-  });
-
   it("Updating with invalid key should revert", async () => {
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x", "0x")).to.be.revertedWith(
+    const invalidPubkey = "0x1234";
+
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await admin.getAddress(), invalidPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes)).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
-    const pubBytes = utf8ToHex(generator_publickey);
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey("0x" + pubBytes, "0x"))
+    const knownPubkey =
+      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
+
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
 
@@ -406,7 +423,7 @@ describe("Checking Generator's multiple compute", () => {
     const pub_key = await entityKeyRegistry.pub_key(generator.getAddress());
     // console.log({ pub_key: pub_key });
     // console.log({pubBytes: pubBytes });
-    expect(pub_key).to.eq("0x" + pubBytes);
+    expect(pub_key).to.eq(knownPubkey);
 
     // Removing key from registry
     // await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))

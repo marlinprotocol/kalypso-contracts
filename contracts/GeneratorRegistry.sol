@@ -310,7 +310,8 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(bytes memory pubkey, bytes memory attestation_data) external {
+    function updateEncryptionKey(bytes memory attestation_data) external {
+        (bytes memory pubkey, ) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestation_data);
         ENTITY_KEY_REGISTRY.updatePubkey(_msgSender(), pubkey, attestation_data);
     }
 

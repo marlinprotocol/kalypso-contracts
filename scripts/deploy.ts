@@ -139,6 +139,11 @@ async function main(): Promise<string> {
       addresses.proxy.generator_registry,
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+
+    const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
+    const roleToGive = await entityRegistry.KEY_REGISTER_ROLE();
+    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.generator_registry);
+    tx.wait();
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
@@ -164,8 +169,13 @@ async function main(): Promise<string> {
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
+    const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
+    const roleToGive = await entityRegistry.KEY_REGISTER_ROLE();
+    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.proof_market_place);
+    tx.wait();
+
     const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
-    const tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
+    tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
   }
 

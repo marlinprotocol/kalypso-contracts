@@ -65,10 +65,8 @@ contract ProofMarketPlace is
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
     }
 
-    function updateEncryptionKey(
-        bytes memory pubkey,
-        bytes memory attestationData
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateEncryptionKey(bytes memory attestationData) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bytes memory pubkey, ) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestationData);
         // no need to check here, registry already checks it
         ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
     }
@@ -226,9 +224,7 @@ contract ProofMarketPlace is
         uint256 _slashingPenalty,
         bool isEnclaveRequired,
         bytes calldata ivsAttestationBytes,
-        bytes calldata ivsUrl,
-        bytes calldata ivsPubkey,
-        address ivsSigner
+        bytes calldata ivsUrl
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
@@ -238,6 +234,8 @@ contract ProofMarketPlace is
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
         require(ATTESTATION_VERIFIER.verify(ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
+
+        (bytes memory ivsPubkey, address ivsSigner) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(ivsAttestationBytes);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;

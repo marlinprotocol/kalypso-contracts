@@ -138,16 +138,25 @@ export const rawSetup = async (
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
-  await proofMarketPlace.connect(marketCreator).createMarketPlace(
-    marketSetupBytes,
-    await iverifier.getAddress(),
-    generatorSlashingPenalty.toFixed(0),
-    isEnclaveRequired,
-    "0x",
-    await marketCreator.getAddress(), // TODO: replace with ivs pubkey
-    Buffer.from(ivsUrl, "ascii"),
-    await marketCreator.getAddress(),
+
+  let abiCoder = new ethers.AbiCoder();
+  const knownPubkey =
+    "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+  let ivsAttestationBytes = abiCoder.encode(
+    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+    ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
   );
+
+  await proofMarketPlace
+    .connect(marketCreator)
+    .createMarketPlace(
+      marketSetupBytes,
+      await iverifier.getAddress(),
+      generatorSlashingPenalty.toFixed(0),
+      isEnclaveRequired,
+      ivsAttestationBytes,
+      Buffer.from(ivsUrl, "ascii"),
+    );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
 

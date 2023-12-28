@@ -87,4 +87,23 @@ describe("Entity key registry tests", () => {
       .to.emit(entityKeyRegistry, "RemoveKey")
       .withArgs(await randomUser.getAddress());
   });
+
+  it("Test Attestation to pubkey and address", async () => {
+    let abiCoder = new ethers.AbiCoder();
+    let signerToUser = admin;
+    //actually it is. 04 has been removed to support keccak hash in contracts
+    // 046af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843
+    const knownPubkey =
+      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+    const expectedAddress = "0xe511c2c747Fa2F46e8786cbF4d66b015d1FCfaC1";
+
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await signerToUser.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
+
+    const result = await entityKeyRegistry.getPubkeyAndAddress(inputBytes);
+    expect(result[0]).to.eq(knownPubkey);
+    expect(result[1]).to.eq(expectedAddress);
+  });
 });

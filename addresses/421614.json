@@ -1,21 +1,20 @@
 {
-  "proxy": {
-    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-    "mock_attestation_verifier": "0x7325A5305Fc2E6b802c8D747f300AD0092Cc4C45",
-    "entity_registry": "0x3904c073D08477f8B36A9bb2496ED6FaA030E541",
-    "generator_registry": "0x9269211eE427C02Bfd74Fb1275C9c4C2c8797D5b",
-    "proof_market_place": "0x3a64855cCC6b806904A37389940b37844A30d80F",
-    "transfer_verifier_wrapper": "0x66AB83117Fe67901eE2B0DF4E37FCce5dCB71c0A",
-    "zkb_verifier_wrapper": "0xc617BBB7a8f4209820E0fBE13D1f5f0AEE8737D6",
-    "priority_list": "0x109f6165235B1C9F3AB03c21eEAf8Ec3ecfcC494",
-    "input_and_proof_format": "0x39AcE943fFDB53b91Ba6fda8c29760C2765555fA",
-    "attestation_verifier": "0xAA98C160AA62AeCa29b036095e72693a7EbAD0f8"
-  },
-  "implementation": {
-    "generator_registry": "0x64dAEbAE64cB368fA3518fB72007F846788f7C6b",
-    "proof_market_place": "0xF5C9CAd34d802dE100d3919dD16da7696b789546",
-    "attestation_verifier": "0x203Bc63a2a983983564646Daa1a2C56fF239aF64"
-  },
-  "zkbMarketId": "0"
+    "proxy": {
+        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+        "mock_attestation_verifier": "0x9Ec168c1e2C1Bfb033920b2d89006Bf4fDec6552",
+        "attestation_verifier": "0x10d76E0E52Ad9574bF5CB3ad7aCce82e781B6A9e",
+        "entity_registry": "0xd19fc78F936211D24AB8f990EA40b6ecB8F59BFc",
+        "generator_registry": "0xc5EEA598F47CAbDa1b7D9E10fa19487c8a6C0753",
+        "proof_market_place": "0x0A3647fA8fa1fa572E3eC51CEF1688bf1Cb36Adf",
+        "transfer_verifier_wrapper": "0x41d76752a45d9Bdb66275c1fFF8C50f01D2f4Ec4",
+        "zkb_verifier_wrapper": "0x32441461A3cC0D5c2Fb9C15c9c208682899744C4",
+        "priority_list": "0xFA117846BeaaB7bD99DBc54674F93c9082fF441d",
+        "input_and_proof_format": "0xBd1686911A11B8b9660331c6a6f9FFCB0548A22B"
+    },
+    "implementation": {
+        "attestation_verifier": "0x203Bc63a2a983983564646Daa1a2C56fF239aF64",
+        "generator_registry": "0x4B3992Dcec53d11266bf1B1F1Df78C2b001f533b",
+        "proof_market_place": "0x57105a98FE650E0607cBb1AbA013E16E97dAC484"
+    }
 }
