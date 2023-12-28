@@ -27,6 +27,7 @@ library Error {
     string public constant UNSTAKE_REQUEST_NOT_IN_PLACE = "G10";
     string public constant REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE = "G11";
     string public constant MAX_PARALLEL_REQUESTS_PER_MARKET_EXCEEDED = "G12";
+    string public constant KEY_ALREADY_EXISTS = "G13";
 
     // Market-related Errors
     string public constant INVALID_MARKET = "M1";
