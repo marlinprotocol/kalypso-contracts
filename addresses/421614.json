@@ -16,5 +16,6 @@
         "attestation_verifier": "0x203Bc63a2a983983564646Daa1a2C56fF239aF64",
         "generator_registry": "0x4B3992Dcec53d11266bf1B1F1Df78C2b001f533b",
         "proof_market_place": "0x57105a98FE650E0607cBb1AbA013E16E97dAC484"
-    }
+    },
+    "zkbMarketId": "0"
 }
