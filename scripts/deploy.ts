@@ -266,16 +266,6 @@ async function main(): Promise<string> {
     addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
-  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
-  const hasMatchingEngineRole = await proof_market_place.hasRole(
-    await proof_market_place.MATCHING_ENGINE_ROLE(),
-    await matchingEngine.getAddress(),
-  );
-  if (!hasMatchingEngineRole) {
-    await (
-      await proof_market_place.connect(admin).updateMatchingEngineEnclaveSigner("0x", await matchingEngine.getAddress())
-    ).wait();
-  }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.priority_list) {
