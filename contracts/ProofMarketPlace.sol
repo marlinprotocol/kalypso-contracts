@@ -430,14 +430,15 @@ contract ProofMarketPlace is
 
         listOfAsk[askId].state = AskState.COMPLETE;
 
-        uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
+        // token related to incorrect request will be sen't to treasury
+        uint256 toTreasury = askWithState.ask.reward - minRewardForGenerator;
 
         if (minRewardForGenerator != 0) {
             PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
         }
 
-        if (toBackToProver != 0) {
-            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
+        if (toTreasury != 0) {
+            PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
         }
 
         uint256 generatorAmountToRelease = currentMarket.slashingPenalty;
