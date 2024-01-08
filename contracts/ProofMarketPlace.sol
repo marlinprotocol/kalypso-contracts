@@ -420,12 +420,22 @@ contract ProofMarketPlace is
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
 
-        // check if the ivs signer has said whether inputs and secrets are useless
-        bytes32 messageHash = keccak256(abi.encode(askId));
+        Market memory currentMarket = marketData[marketId];
+        bytes32 messageHash;
+        // if market needs enclave based, only sign only request id
+        if (currentMarket.isEnclaveRequired) {
+            //only askId must be signed
+            messageHash = keccak256(abi.encode(askId));
+        }
+        // if market is not enclave based, sign request||inputdata
+        else {
+            //askId and proverData both must be signed
+            messageHash = keccak256(abi.encode(askId, askWithState.ask.proverData));
+        }
+
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
-        Market memory currentMarket = marketData[marketId];
         require(signer == currentMarket.ivsSigner, Error.INVALID_ENCLAVE_KEY);
 
         listOfAsk[askId].state = AskState.COMPLETE;
