@@ -50,6 +50,7 @@ describe("Proof market place", () => {
   const ivsInternalWallet = generateWalletInfo();
 
   let matchingEngineSigner: Signer;
+  let ivsSigner: Signer;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -59,6 +60,7 @@ describe("Proof market place", () => {
     marketCreator = signers[4];
 
     matchingEngineSigner = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+    ivsSigner = new ethers.Wallet(ivsInternalWallet.privateKey, admin.provider);
     await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
 
     errorLibrary = await new Error__factory(admin).deploy();
@@ -731,6 +733,31 @@ describe("Proof market place", () => {
             expect(
               (await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state,
             ).to.eq(1); // 1 means JOINED and idle now
+          });
+
+          it("Submit Proof for invalid request", async () => {
+            const types = ["uint256"];
+
+            const values = [askId.toFixed(0)];
+
+            const abicode = new ethers.AbiCoder();
+            const encoded = abicode.encode(types, values);
+            const digest = ethers.keccak256(encoded);
+            const signature = await ivsSigner.signMessage(ethers.getBytes(digest));
+
+            const generatorAddress = await generator.getAddress();
+            const expectedGeneratorReward = (await generatorRegistry.generatorInfoPerMarket(generatorAddress, marketId))
+              .proofGenerationCost;
+            const treasuryRefundAddress = await treasury.getAddress();
+            const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
+
+            await expect(proofMarketPlace.submitProofForInvalidInputs(askId.toFixed(0), signature))
+              .to.emit(proofMarketPlace, "InvalidInputsDetected")
+              .withArgs(askId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), treasuryRefundAddress, expectedRefund);
           });
 
           it("Generator can ignore the request", async () => {

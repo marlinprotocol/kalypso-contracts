@@ -12,5 +12,8 @@ module.exports = {
     "../contracts/mock/MockVerifier.sol",
     "../contracts/PriorityLog.sol",
     "../contracts/mock/MockAttestationVerifier.sol",
+    "../contracts/InputAndProofFormatRegistry.sol",
+    "../contracts/AttestationVerifier.sol",
+    "../contracts/interfaces/IVerifier.sol",
   ],
 };

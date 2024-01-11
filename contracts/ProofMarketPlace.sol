@@ -19,6 +19,7 @@ import "./interfaces/IVerifier.sol";
 import "./interfaces/IAttestationVerifier.sol";
 
 import "./lib/Error.sol";
+import "./lib/Helper.sol";
 
 contract ProofMarketPlace is
     Initializable,
@@ -27,7 +28,8 @@ contract ProofMarketPlace is
     AccessControlUpgradeable,
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    HELPER
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -61,7 +63,7 @@ contract ProofMarketPlace is
     }
 
     function updateMatchingEngineEncryptionKeyAndSigner(bytes memory attestationData) public {
-        (bytes memory pubkey, address meSigner) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestationData);
+        (bytes memory pubkey, address meSigner) = HELPER.getPubkeyAndAddress(attestationData);
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
         ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
     }
@@ -230,7 +232,7 @@ contract ProofMarketPlace is
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
         require(ATTESTATION_VERIFIER.verify(ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
-        (bytes memory ivsPubkey, address ivsSigner) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(ivsAttestationBytes);
+        (bytes memory ivsPubkey, address ivsSigner) = HELPER.getPubkeyAndAddress(ivsAttestationBytes);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
@@ -392,7 +394,7 @@ contract ProofMarketPlace is
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
         askWithState.generator = generator;
 
-        uint256 generatorAmountToLock = marketData[askWithState.ask.marketId].slashingPenalty;
+        uint256 generatorAmountToLock = slashingPenalty(askWithState.ask.marketId);
         GENERATOR_REGISTRY.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
         emit TaskCreated(askId, generator, new_acl);
     }
@@ -492,7 +494,7 @@ contract ProofMarketPlace is
             PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
         }
 
-        uint256 generatorAmountToRelease = marketData[marketId].slashingPenalty;
+        uint256 generatorAmountToRelease = slashingPenalty(marketId);
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
         emit ProofCreated(askId, proof);
     }
@@ -523,7 +525,7 @@ contract ProofMarketPlace is
             GENERATOR_REGISTRY.slashGenerator(
                 askWithState.generator,
                 marketId,
-                marketData[marketId].slashingPenalty,
+                slashingPenalty(marketId),
                 rewardAddress
             );
     }

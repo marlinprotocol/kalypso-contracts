@@ -15,8 +15,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./ProofMarketPlace.sol";
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
-
-// import "hardhat/console.sol";
+import "./lib/Helper.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -25,7 +24,8 @@ contract GeneratorRegistry is
     AccessControlUpgradeable,
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    HELPER
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -311,7 +311,7 @@ contract GeneratorRegistry is
     }
 
     function updateEncryptionKey(bytes memory attestation_data) external {
-        (bytes memory pubkey, ) = ENTITY_KEY_REGISTRY.getPubkeyAndAddress(attestation_data);
+        (bytes memory pubkey, ) = HELPER.getPubkeyAndAddress(attestation_data);
         ENTITY_KEY_REGISTRY.updatePubkey(_msgSender(), pubkey, attestation_data);
     }
 
