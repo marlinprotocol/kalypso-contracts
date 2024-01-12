@@ -18,6 +18,7 @@ import {
   EntityKeyRegistry,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
+import { WalletInfo } from ".";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -85,8 +86,8 @@ export const rawSetup = async (
   iverifier: IVerifier,
   generator: Signer,
   generatorData: string,
-  ivsEciesPubKey: string,
-  matchingEnginePubkey: string,
+  ivsEcies: WalletInfo,
+  matchingEngineEcies: WalletInfo,
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
@@ -146,15 +147,41 @@ export const rawSetup = async (
 
   let matchingEngineAttestationBytes = abiCoder.encode(
     ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    ["0x00", await admin.getAddress(), matchingEnginePubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    [
+      "0x00",
+      await admin.getAddress(),
+      matchingEngineEcies.uncompressedPublicKey,
+      "0x00",
+      "0x00",
+      "0x00",
+      "0x00",
+      "0x00",
+    ],
   );
 
-  await proofMarketPlace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes);
+  let matchingEngineSigner = new ethers.Wallet(matchingEngineEcies.privateKey, admin.provider);
+  let types = ["address"];
+
+  let values = [await proofMarketPlace.getAddress()];
+
+  let abicode = new ethers.AbiCoder();
+  let encoded = abicode.encode(types, values);
+  let digest = ethers.keccak256(encoded);
+  let signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
+
+  await proofMarketPlace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes, signature);
 
   let ivsAttestationBytes = abiCoder.encode(
     ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    ["0x00", await admin.getAddress(), ivsEciesPubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    ["0x00", await marketCreator.getAddress(), ivsEcies.uncompressedPublicKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
   );
+
+  let ivsSigner = new ethers.Wallet(ivsEcies.privateKey, admin.provider);
+  values = [await marketCreator.getAddress()];
+  abicode = new ethers.AbiCoder();
+  encoded = abicode.encode(types, values);
+  digest = ethers.keccak256(encoded);
+  signature = await ivsSigner.signMessage(ethers.getBytes(digest));
 
   await proofMarketPlace
     .connect(marketCreator)
@@ -165,6 +192,7 @@ export const rawSetup = async (
       isEnclaveRequired,
       ivsAttestationBytes,
       Buffer.from(ivsUrl, "ascii"),
+      signature,
     );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());

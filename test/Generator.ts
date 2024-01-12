@@ -148,8 +148,8 @@ describe("Checking Generator's multiple compute", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      ivsInternalWallet.uncompressedPublicKey,
-      matchingEngineInternalWallet.uncompressedPublicKey,
+      ivsInternalWallet,
+      matchingEngineInternalWallet,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -373,8 +373,18 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add entity keys", async () => {
-    const knownPubkey =
-      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+    const generatorEnclaveKey = generateWalletInfo();
+    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
+
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let types = ["address"];
+
+    let values = [await generator.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
 
     let abiCoder = new ethers.AbiCoder();
     let inputBytes = abiCoder.encode(
@@ -382,7 +392,7 @@ describe("Checking Generator's multiple compute", () => {
       ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes))
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
   });
@@ -404,6 +414,18 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Updating with invalid key should revert", async () => {
+    const generatorEnclaveKey = generateWalletInfo();
+
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let types = ["address"];
+
+    let values = [await generator.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
+
     const invalidPubkey = "0x1234";
 
     let abiCoder = new ethers.AbiCoder();
@@ -411,15 +433,25 @@ describe("Checking Generator's multiple compute", () => {
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
       ["0x00", await admin.getAddress(), invalidPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes)).to.be.revertedWith(
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature)).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
 
   it("Remove key", async () => {
     // Adding key to registry
-    const knownPubkey =
-      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+    const generatorEnclaveKey = generateWalletInfo();
+    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
+
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let types = ["address"];
+
+    let values = [await generator.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
 
     let abiCoder = new ethers.AbiCoder();
     let inputBytes = abiCoder.encode(
@@ -427,7 +459,7 @@ describe("Checking Generator's multiple compute", () => {
       ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes))
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress());
 

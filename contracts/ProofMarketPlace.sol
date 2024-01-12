@@ -62,10 +62,16 @@ contract ProofMarketPlace is
         _grantRole(role, account);
     }
 
-    function updateMatchingEngineEncryptionKeyAndSigner(bytes memory attestationData) public {
+    function updateMatchingEngineEncryptionKeyAndSigner(
+        bytes memory attestationData,
+        bytes calldata meSignature
+    ) public {
+        address _thisAddress = address(this);
         (bytes memory pubkey, address meSigner) = HELPER.getPubkeyAndAddress(attestationData);
+        _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
+
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-        ENTITY_KEY_REGISTRY.updatePubkey(address(this), pubkey, attestationData);
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, pubkey, attestationData);
     }
 
     function _revokeRole(
@@ -221,10 +227,13 @@ contract ProofMarketPlace is
         uint256 _slashingPenalty,
         bool isEnclaveRequired,
         bytes calldata ivsAttestationBytes,
-        bytes calldata ivsUrl
+        bytes calldata ivsUrl,
+        bytes calldata enclaveSignature
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
+
+        address _msgSender = _msgSender();
 
         Market storage market = marketData[marketCounter];
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
@@ -233,6 +242,7 @@ contract ProofMarketPlace is
         require(ATTESTATION_VERIFIER.verify(ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
         (bytes memory ivsPubkey, address ivsSigner) = HELPER.getPubkeyAndAddress(ivsAttestationBytes);
+        _verifyEnclaveSignature(enclaveSignature, _msgSender, ivsSigner);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
@@ -243,10 +253,22 @@ contract ProofMarketPlace is
         market.ivsSigner = ivsSigner;
 
         ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, ivsPubkey, ivsAttestationBytes);
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketPlaceCreated(marketCounter);
         marketCounter++;
+    }
+
+    function _verifyEnclaveSignature(
+        bytes calldata enclaveSignature,
+        address _msgSender,
+        address ivsSigner
+    ) internal pure {
+        bytes32 messageHash = keccak256(abi.encode(_msgSender));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == ivsSigner, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     function createAsk(

@@ -170,7 +170,7 @@ export async function skipTime(ethersVar: typeof ethers, t: number) {
   await skipBlocks(ethersVar, 1);
 }
 
-interface WalletInfo {
+export interface WalletInfo {
   privateKey: string;
   address: string;
   uncompressedPublicKey: string;

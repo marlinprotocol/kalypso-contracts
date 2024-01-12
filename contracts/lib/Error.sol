@@ -13,6 +13,7 @@ library Error {
     string public constant EXCEEDS_ACCEPTABLE_RANGE = "A7";
     string public constant INVALID_CONTRACT_ADDRESS = "A8";
     string public constant CANNOT_USE_MATCHING_ENGINE_ROLE = "A9";
+    string public constant INVALID_ENCLAVE_SIGNATURE = "A10";
 
     // Generator-related Errors
     string public constant GENERATOR_ALREADY_EXISTS = "G1";

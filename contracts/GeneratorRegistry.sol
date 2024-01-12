@@ -310,13 +310,20 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(bytes memory attestation_data) external {
+    function updateEncryptionKey(bytes memory attestation_data, bytes calldata enclaveSignature) external {
         address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
 
-        (bytes memory pubkey, ) = HELPER.getPubkeyAndAddress(attestation_data);
+        (bytes memory pubkey, address _address) = HELPER.getPubkeyAndAddress(attestation_data);
+
+        bytes32 messageHash = keccak256(abi.encode(_msgSender));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
+
         ENTITY_KEY_REGISTRY.updatePubkey(_msgSender, pubkey, attestation_data);
     }
 

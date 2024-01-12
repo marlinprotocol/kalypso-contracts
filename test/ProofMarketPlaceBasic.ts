@@ -124,6 +124,13 @@ describe("Proof market place", () => {
       ["0x00", await admin.getAddress(), ivsPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
+    let types = ["address"];
+    let values = [await marketCreator.getAddress()];
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await ivsSigner.signMessage(ethers.getBytes(digest));
+
     await expect(
       proofMarketPlace
         .connect(marketCreator)
@@ -134,6 +141,7 @@ describe("Proof market place", () => {
           true,
           ivsAttestationBytes,
           Buffer.from("ivs url", "ascii"),
+          signature,
         ),
     )
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
@@ -150,7 +158,16 @@ describe("Proof market place", () => {
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
       ["0x00", await admin.getAddress(), mePubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
-    await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes);
+    let types = ["address"];
+
+    let values = [await proofMarketPlace.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
+
+    await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes, signature);
 
     expect(
       await proofMarketPlace.hasRole(
@@ -189,6 +206,13 @@ describe("Proof market place", () => {
         ["0x00", await admin.getAddress(), ivsKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
       );
 
+      let types = ["address"];
+      let values = [await marketCreator.getAddress()];
+      let abicode = new ethers.AbiCoder();
+      let encoded = abicode.encode(types, values);
+      let digest = ethers.keccak256(encoded);
+      let signature = await ivsSigner.signMessage(ethers.getBytes(digest));
+
       await proofMarketPlace
         .connect(marketCreator)
         .createMarketPlace(
@@ -198,6 +222,7 @@ describe("Proof market place", () => {
           true,
           ivsAttestationBytes,
           Buffer.from("test ivs url", "ascii"),
+          signature,
         );
 
       let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
@@ -511,7 +536,16 @@ describe("Proof market place", () => {
             ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
             ["0x00", await admin.getAddress(), mePubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
           );
-          await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes);
+
+          let types = ["address"];
+
+          let values = [await proofMarketPlace.getAddress()];
+
+          let abicode = new ethers.AbiCoder();
+          let encoded = abicode.encode(types, values);
+          let digest = ethers.keccak256(encoded);
+          let signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
+          await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes, signature);
 
           askId = new BigNumber((await proofMarketPlace.askCounter()).toString());
 
