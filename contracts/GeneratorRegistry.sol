@@ -311,8 +311,13 @@ contract GeneratorRegistry is
     }
 
     function updateEncryptionKey(bytes memory attestation_data) external {
+        address _msgSender = _msgSender();
+        Generator memory generator = generatorRegistry[_msgSender];
+        // just an extra check to prevent spam
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+
         (bytes memory pubkey, ) = HELPER.getPubkeyAndAddress(attestation_data);
-        ENTITY_KEY_REGISTRY.updatePubkey(_msgSender(), pubkey, attestation_data);
+        ENTITY_KEY_REGISTRY.updatePubkey(_msgSender, pubkey, attestation_data);
     }
 
     function joinMarketPlace(
