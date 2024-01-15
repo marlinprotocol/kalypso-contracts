@@ -84,9 +84,9 @@ async function main(): Promise<string> {
       computeAllocation: 100,
     };
     const geneatorDataString = generatorDataToBytes(generatorData);
-    tx = await generator_registry.connect(generator).register(await generator.getAddress(), 100, geneatorDataString);
-    await tx.wait();
-    tx = await generator_registry.connect(generator).stake(await generator.getAddress(), config.generatorStakingAmount);
+    tx = await generator_registry
+      .connect(generator)
+      .register(await generator.getAddress(), 100, config.generatorStakingAmount, geneatorDataString);
     await tx.wait();
     await generator_registry.connect(generator).joinMarketPlace(
       addresses.zkbMarketId,

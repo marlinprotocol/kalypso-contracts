@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { Signer } from "ethers";
 
 import * as fs from "fs";
-import { utf8ToHex } from "../helpers";
+import { generateWalletInfo, utf8ToHex } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -55,36 +55,27 @@ describe("Entity key registry tests", () => {
     );
   });
 
-  // Function always returns true (deployMockContract)
-  // it("Should revert for invalid attestation data", async () => {
-  //     const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
-  //     const pubBytes = utf8ToHex(generator_publickey);
-
-  //     await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), "0x" + pubBytes, "0x"))
-  //         .to.be.revertedWith(await errorLibrary.ENCLAVE_KEY_NOT_VERIFIED());
-  // });
-
   it("Update key", async () => {
-    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
-    const pubBytes = utf8ToHex(generator_publickey);
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), "0x" + pubBytes, "0x"))
+    const generator_enclave_key = generateWalletInfo();
+    await expect(
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+    )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await randomUser.getAddress());
   });
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generator_publickey = fs.readFileSync("./data/demo_generator/public_key.pem", "utf-8");
-    const pubBytes = utf8ToHex(generator_publickey);
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), "0x" + pubBytes, "0x"))
+    const generator_enclave_key = generateWalletInfo();
+    await expect(
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+    )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await randomUser.getAddress());
 
     // Checking key in registry
     const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress());
-    // console.log({ pub_key: pub_key });
-    // console.log({pubBytes: pubBytes });
-    expect(pub_key).to.eq("0x" + pubBytes);
+    expect(pub_key).to.eq(generator_enclave_key.uncompressedPublicKey);
 
     // Removing key from registry
     await expect(entityKeyRegistry.removePubkey(randomUser.getAddress()))

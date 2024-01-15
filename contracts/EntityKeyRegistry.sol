@@ -5,13 +5,21 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
+import "./lib/Helper.sol";
 
-contract EntityKeyRegistry is AccessControlUpgradeable {
+contract EntityKeyRegistry is AccessControlUpgradeable, HELPER {
     IAttestationVerifier public immutable attestationVerifier;
 
     bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     mapping(address => bytes) public pub_key;
+    mapping(address => bool) public usedUpKey;
+
+    modifier isNotUsedUpKey(bytes calldata pubkey) {
+        address _address = publicKeyToAddress(pubkey);
+        require(!usedUpKey[_address], Error.KEY_ALREADY_EXISTS);
+        _;
+    }
 
     constructor(IAttestationVerifier _attestationVerifier, address _admin) {
         attestationVerifier = _attestationVerifier;
@@ -30,12 +38,14 @@ contract EntityKeyRegistry is AccessControlUpgradeable {
         address key_owner,
         bytes calldata pubkey,
         bytes calldata attestation_data
-    ) external onlyRole(KEY_REGISTER_ROLE) {
+    ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
-        require(pubkey.length != 0, Error.INVALID_ENCLAVE_KEY);
-        require(pub_key[key_owner].length == 0, Error.KEY_ALREADY_EXISTS);
+        require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
 
         pub_key[key_owner] = pubkey;
+        address _address = publicKeyToAddress(pubkey);
+
+        usedUpKey[_address] = true;
 
         emit UpdateKey(key_owner);
     }

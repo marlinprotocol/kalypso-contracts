@@ -124,7 +124,7 @@ contract GeneratorRegistry is
 
     //-------------------------------- Events end --------------------------------//
 
-    event RegisteredGenerator(address indexed generator);
+    event RegisteredGenerator(address indexed generator, uint256 initialCompute, uint256 initialStake);
     event DeregisteredGenerator(address indexed generator);
 
     event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
@@ -162,7 +162,12 @@ contract GeneratorRegistry is
         proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
     }
 
-    function register(address rewardAddress, uint256 declaredCompute, bytes memory generatorData) external {
+    function register(
+        address rewardAddress,
+        uint256 declaredCompute,
+        uint256 initialStake,
+        bytes memory generatorData
+    ) external {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
@@ -174,7 +179,7 @@ contract GeneratorRegistry is
 
         generatorRegistry[_msgSender] = Generator(
             rewardAddress,
-            0,
+            initialStake,
             0,
             0,
             0,
@@ -185,7 +190,10 @@ contract GeneratorRegistry is
             generatorData
         );
 
-        emit RegisteredGenerator(_msgSender);
+        if (initialStake != 0) {
+            STAKING_TOKEN.safeTransferFrom(_msgSender, address(this), initialStake);
+        }
+        emit RegisteredGenerator(_msgSender, declaredCompute, initialStake);
     }
 
     function changeRewardAddress(address newRewardAddress) external {
@@ -310,13 +318,20 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(bytes memory attestation_data) external {
+    function updateEncryptionKey(bytes memory attestation_data, bytes calldata enclaveSignature) external {
         address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
 
-        (bytes memory pubkey, ) = HELPER.getPubkeyAndAddress(attestation_data);
+        (bytes memory pubkey, address _address) = HELPER.getPubkeyAndAddress(attestation_data);
+
+        bytes32 messageHash = keccak256(abi.encode(_msgSender));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
+
         ENTITY_KEY_REGISTRY.updatePubkey(_msgSender, pubkey, attestation_data);
     }
 
