@@ -204,8 +204,13 @@ export const rawSetup = async (
 
   await generatorRegistry
     .connect(generator)
-    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorData);
-  await generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+    .register(
+      await generator.getAddress(),
+      totalComputeAllocation.toFixed(0),
+      generatorStakingAmount.toFixed(0),
+      generatorData,
+    );
+
   await generatorRegistry
     .connect(generator)
     .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);

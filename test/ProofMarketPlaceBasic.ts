@@ -319,15 +319,15 @@ describe("Proof market place", () => {
         await expect(
           generatorRegistry
             .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData),
+            .register(
+              await generator.getAddress(),
+              computeUnitsRequired,
+              generatorStakingAmount.toFixed(0),
+              generatorData,
+            ),
         )
           .to.emit(generatorRegistry, "RegisteredGenerator")
-          .withArgs(await generator.getAddress());
-        await expect(
-          generatorRegistry.connect(generator).stake(await generator.getAddress(), generatorStakingAmount.toFixed(0)),
-        )
-          .to.emit(generatorRegistry, "AddedStake")
-          .withArgs(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+          .withArgs(await generator.getAddress(), computeUnitsRequired, generatorStakingAmount.toFixed(0));
 
         await expect(
           generatorRegistry
@@ -346,10 +346,13 @@ describe("Proof market place", () => {
       it("leave market place", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
-        await generatorRegistry
-          .connect(generator)
-          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
+
         await generatorRegistry
           .connect(generator)
           .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
@@ -362,10 +365,13 @@ describe("Proof market place", () => {
       it("leave multiple markets", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
-        await generatorRegistry
-          .connect(generator)
-          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
+
         await generatorRegistry
           .connect(generator)
           .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
@@ -378,10 +384,13 @@ describe("Proof market place", () => {
       it("Can't de-register if generator is active part of proof market", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
-        await generatorRegistry
-          .connect(generator)
-          .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
+
         await generatorRegistry
           .connect(generator)
           .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
@@ -394,7 +403,12 @@ describe("Proof market place", () => {
       it("Deregister generator data", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
 
         await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress()))
           .to.emit(generatorRegistry, "DeregisteredGenerator")
@@ -404,7 +418,12 @@ describe("Proof market place", () => {
       it("extra stash can be added to generator by anyone", async () => {
         await generatorRegistry
           .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
 
         const extraStash = "112987298347983";
         await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
@@ -420,7 +439,12 @@ describe("Proof market place", () => {
         beforeEach(async () => {
           await generatorRegistry
             .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+            .register(
+              await generator.getAddress(),
+              computeUnitsRequired,
+              generatorStakingAmount.toFixed(0),
+              generatorData,
+            );
 
           const extraStash = "112987298347983";
           await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
@@ -567,10 +591,13 @@ describe("Proof market place", () => {
 
           await generatorRegistry
             .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData);
-          await generatorRegistry
-            .connect(generator)
-            .stake(await generator.getAddress(), generatorStakingAmount.toFixed(0));
+            .register(
+              await generator.getAddress(),
+              computeUnitsRequired,
+              generatorStakingAmount.toFixed(0),
+              generatorData,
+            );
+
           await generatorRegistry
             .connect(generator)
             .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
