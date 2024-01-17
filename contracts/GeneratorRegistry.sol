@@ -80,11 +80,16 @@ contract GeneratorRegistry is
     uint256 private constant EXPONENT = 10 ** 18;
 
     uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
+
+    uint256 public constant REDUCTION_REQUEST_BLOCK_GAP = 1;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
     mapping(address => Generator) public generatorRegistry;
     mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
+
+    mapping(address => uint256) unstakeRequestBlock;
+    mapping(address => uint256) reduceComputeRequestBlock;
 
     ProofMarketPlace public proofMarketPlace;
 
@@ -235,11 +240,13 @@ contract GeneratorRegistry is
 
         generator.intendedComputeUtilization = newUtilization;
 
+        reduceComputeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestComputeDecrease(_msgSender, newUtilization);
     }
 
     function decreaseDeclaredCompute() external {
         address generatorAddress = msg.sender;
+
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
@@ -256,6 +263,13 @@ contract GeneratorRegistry is
         generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
+        require(
+            block.number >= reduceComputeRequestBlock[generatorAddress] &&
+                reduceComputeRequestBlock[generatorAddress] != 0,
+            Error.REDUCTION_REQUEST_NOT_VALID
+        );
+
+        delete reduceComputeRequestBlock[generatorAddress];
         emit DecreaseCompute(generatorAddress, computeToRelease);
     }
 
@@ -284,11 +298,13 @@ contract GeneratorRegistry is
 
         generator.intendedStakeUtilization = newUtilization;
 
+        unstakeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestStakeDecrease(_msgSender, newUtilization);
     }
 
     function unstake(address to) external {
         address generatorAddress = msg.sender;
+
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
@@ -304,6 +320,11 @@ contract GeneratorRegistry is
         generator.totalStake = newTotalStake;
         generator.intendedStakeUtilization = EXPONENT;
 
+        require(
+            block.number >= unstakeRequestBlock[generatorAddress] && unstakeRequestBlock[generatorAddress] != 0,
+            Error.REDUCTION_REQUEST_NOT_VALID
+        );
+        delete unstakeRequestBlock[generatorAddress];
         emit RemovedStake(generatorAddress, amountToTransfer);
     }
 
