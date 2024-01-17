@@ -13,6 +13,8 @@ import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+
 import "./GeneratorRegistry.sol";
 import "./EntityKeyRegistry.sol";
 import "./interfaces/IVerifier.sol";
@@ -29,6 +31,7 @@ contract ProofMarketPlace is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
     HELPER
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -238,7 +241,7 @@ contract ProofMarketPlace is
         bytes calldata _ivsAttestationBytes,
         bytes calldata _ivsUrl,
         bytes calldata _enclaveSignature
-    ) external {
+    ) external nonReentrant {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
@@ -292,7 +295,7 @@ contract ProofMarketPlace is
         SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
-    ) external {
+    ) external nonReentrant {
         _createAsk(ask, msg.sender, secretType, privateInputs, acl);
     }
 
@@ -389,7 +392,7 @@ contract ProofMarketPlace is
         address[] memory generators,
         bytes[] calldata newAcls,
         bytes calldata signature
-    ) external {
+    ) external nonReentrant {
         require(askIds.length == generators.length, Error.ARITY_MISMATCH);
         require(askIds.length == newAcls.length, Error.ARITY_MISMATCH);
 
@@ -409,7 +412,7 @@ contract ProofMarketPlace is
         address generator,
         bytes calldata newAcl,
         bytes calldata signature
-    ) external {
+    ) external nonReentrant {
         bytes32 messageHash = keccak256(abi.encode(askId, generator, newAcl));
         bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
@@ -423,7 +426,7 @@ contract ProofMarketPlace is
         uint256 askId,
         address generator,
         bytes calldata new_acl
-    ) external onlyRole(MATCHING_ENGINE_ROLE) {
+    ) external nonReentrant onlyRole(MATCHING_ENGINE_ROLE) {
         _assignTask(askId, generator, new_acl);
     }
 
@@ -447,7 +450,7 @@ contract ProofMarketPlace is
         emit TaskCreated(askId, generator, new_acl);
     }
 
-    function cancelAsk(uint256 askId) external {
+    function cancelAsk(uint256 askId) external nonReentrant {
         require(getAskState(askId) == AskState.UNASSIGNED, Error.ONLY_EXPIRED_ASKS_CAN_BE_CANCELLED);
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
@@ -457,7 +460,7 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external {
+    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
 
         uint256 marketId = askWithState.ask.marketId;
@@ -506,14 +509,18 @@ contract ProofMarketPlace is
         emit InvalidInputsDetected(askId);
     }
 
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external {
+    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
         require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
         for (uint256 index = 0; index < taskIds.length; index++) {
-            submitProof(taskIds[index], proofs[index]);
+            _submitProof(taskIds[index], proofs[index]);
         }
     }
 
-    function submitProof(uint256 askId, bytes calldata proof) public {
+    function submitProof(uint256 askId, bytes calldata proof) public nonReentrant {
+        _submitProof(askId, proof);
+    }
+
+    function _submitProof(uint256 askId, bytes calldata proof) internal {
         AskWithState memory askWithState = listOfAsk[askId];
 
         uint256 marketId = askWithState.ask.marketId;
@@ -547,12 +554,12 @@ contract ProofMarketPlace is
         emit ProofCreated(askId, proof);
     }
 
-    function slashGenerator(uint256 askId, address rewardAddress) external returns (uint256) {
+    function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant returns (uint256) {
         require(getAskState(askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
         return _slashGenerator(askId, rewardAddress);
     }
 
-    function discardRequest(uint256 askId) external returns (uint256) {
+    function discardRequest(uint256 askId) external nonReentrant returns (uint256) {
         AskWithState memory askWithState = listOfAsk[askId];
         require(getAskState(askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
         require(askWithState.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);

@@ -12,6 +12,8 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+
 import "./ProofMarketPlace.sol";
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
@@ -25,6 +27,7 @@ contract GeneratorRegistry is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
     HELPER
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -172,7 +175,7 @@ contract GeneratorRegistry is
         uint256 declaredCompute,
         uint256 initialStake,
         bytes memory generatorData
-    ) external {
+    ) external nonReentrant {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
@@ -273,7 +276,7 @@ contract GeneratorRegistry is
         emit DecreaseCompute(generatorAddress, computeToRelease);
     }
 
-    function stake(address generatorAddress, uint256 amount) external returns (uint256) {
+    function stake(address generatorAddress, uint256 amount) external nonReentrant returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
@@ -302,7 +305,7 @@ contract GeneratorRegistry is
         emit RequestStakeDecrease(_msgSender, newUtilization);
     }
 
-    function unstake(address to) external {
+    function unstake(address to) external nonReentrant {
         address generatorAddress = msg.sender;
 
         Generator storage generator = generatorRegistry[generatorAddress];
@@ -328,7 +331,7 @@ contract GeneratorRegistry is
         emit RemovedStake(generatorAddress, amountToTransfer);
     }
 
-    function deregister(address refundAddress) external {
+    function deregister(address refundAddress) external nonReentrant {
         address _msgSender = msg.sender;
         Generator memory generator = generatorRegistry[_msgSender];
 
@@ -532,7 +535,7 @@ contract GeneratorRegistry is
         address generatorAddress,
         uint256 marketId,
         uint256 stakeToLock
-    ) external onlyRole(SLASHER_ROLE) {
+    ) external nonReentrant onlyRole(SLASHER_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
         require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
 
