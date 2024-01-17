@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+
 import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
 import "./lib/Helper.sol";
