@@ -348,7 +348,7 @@ contract GeneratorRegistry is
         (bytes memory pubkey, address _address) = HELPER.getPubkeyAndAddress(attestation_data);
 
         bytes32 messageHash = keccak256(abi.encode(_msgSender));
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);

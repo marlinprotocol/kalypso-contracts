@@ -824,7 +824,9 @@ describe("Proof market place", () => {
           it("Generator can ignore the request", async () => {
             await expect(proofMarketPlace.connect(generator).discardRequest(askId.toString()))
               .to.emit(proofMarketPlace, "ProofNotGenerated")
-              .withArgs(askId);
+              .withArgs(askId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), await prover.getAddress(), reward.toFixed(0));
           });
 
           it("Can't slash request before deadline", async () => {
@@ -848,7 +850,9 @@ describe("Proof market place", () => {
             it("When deadline is crossed, it is slashable", async () => {
               await expect(proofMarketPlace.connect(admin).slashGenerator(askId.toString(), await admin.getAddress()))
                 .to.emit(proofMarketPlace, "ProofNotGenerated")
-                .withArgs(askId);
+                .withArgs(askId)
+                .to.emit(mockToken, "Transfer")
+                .withArgs(await proofMarketPlace.getAddress(), await prover.getAddress(), reward.toFixed(0));
             });
           });
         });

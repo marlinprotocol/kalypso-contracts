@@ -23,4 +23,8 @@ contract HELPER {
         bytes32 hash = keccak256(publicKey);
         return address(uint160(uint256(hash)));
     }
+
+    function getEthSignedMessageHash(bytes32 messageHash) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+    }
 }

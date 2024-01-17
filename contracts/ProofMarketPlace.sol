@@ -221,14 +221,23 @@ contract ProofMarketPlace is
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
+    /**
+     * @param _marketmetadata: Metadata for the market
+     * @param _verifier: Address of the verifier contract
+     * @param _slashingPenalty: Slashing Penalty per request
+     * @param _isEnclaveRequired: True is enclave is required for the given market
+     * @param _ivsAttestationBytes: Attestation Data for the IVS
+     * @param _ivsUrl: URL for the input verification. This is during dispute resolution
+     * @param _enclaveSignature: Signature => signMessage(market_creator_address, enclave_private_key). Prevent replay attacks
+     */
     function createMarketPlace(
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _slashingPenalty,
-        bool isEnclaveRequired,
-        bytes calldata ivsAttestationBytes,
-        bytes calldata ivsUrl,
-        bytes calldata enclaveSignature
+        bool _isEnclaveRequired,
+        bytes calldata _ivsAttestationBytes,
+        bytes calldata _ivsUrl,
+        bytes calldata _enclaveSignature
     ) external {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
@@ -239,20 +248,20 @@ contract ProofMarketPlace is
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
-        require(ATTESTATION_VERIFIER.verify(ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        require(ATTESTATION_VERIFIER.verify(_ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
-        (bytes memory ivsPubkey, address ivsSigner) = HELPER.getPubkeyAndAddress(ivsAttestationBytes);
-        _verifyEnclaveSignature(enclaveSignature, _msgSender, ivsSigner);
+        (bytes memory ivsPubkey, address ivsSigner) = HELPER.getPubkeyAndAddress(_ivsAttestationBytes);
+        _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);
 
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
         market.marketmetadata = _marketmetadata;
-        market.isEnclaveRequired = isEnclaveRequired;
+        market.isEnclaveRequired = _isEnclaveRequired;
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
-        market.ivsUrl = ivsUrl;
+        market.ivsUrl = _ivsUrl;
         market.ivsSigner = ivsSigner;
 
-        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, ivsPubkey, ivsAttestationBytes);
+        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, ivsPubkey, _ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketPlaceCreated(marketCounter);
@@ -265,27 +274,33 @@ contract ProofMarketPlace is
         address ivsSigner
     ) internal pure {
         bytes32 messageHash = keccak256(abi.encode(_msgSender));
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == ivsSigner, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
+    /**
+     * @param ask: Details of the ASK request
+     * @param secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
+     * @param privateInputs: Private Inputs to the circuit.
+     * @param acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
+     */
     function createAsk(
         Ask calldata ask,
         // TODO: Check if this needs to be removed during review
         SecretType secretType,
-        bytes calldata secret_inputs,
+        bytes calldata privateInputs,
         bytes calldata acl
     ) external {
-        _createAsk(ask, msg.sender, secretType, secret_inputs, acl);
+        _createAsk(ask, msg.sender, secretType, privateInputs, acl);
     }
 
     function _createAsk(
         Ask calldata ask,
         address payFrom,
         SecretType secretType,
-        bytes calldata secret_inputs,
+        bytes calldata privateInputs,
         bytes calldata acl
     ) internal {
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
@@ -295,7 +310,7 @@ contract ProofMarketPlace is
         Market memory market = marketData[ask.marketId];
         require(block.number > market.activationBlock, Error.INACTIVE_MARKET);
 
-        uint256 platformFee = getPlatformFee(secretType, ask, secret_inputs, acl);
+        uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
         if (platformFee != 0) {
             PLATFORM_TOKEN.safeTransferFrom(payFrom, TREASURY, platformFee);
         }
@@ -311,18 +326,29 @@ contract ProofMarketPlace is
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        emit AskCreated(askId, market.isEnclaveRequired, secret_inputs, acl);
+        if (market.isEnclaveRequired) {
+            emit AskCreated(askId, market.isEnclaveRequired, privateInputs, acl);
+        } else {
+            emit AskCreated(askId, market.isEnclaveRequired, privateInputs, "");
+        }
     }
 
+    /**
+     * @notice Different secret might have different fee. Hence fee is different
+     * @param secretType: Secret Type
+     * @param ask: Details of the ask
+     * @param privateInputs: Private Inputs to the circuit
+     * @param acl: Access control Data
+     */
     function getPlatformFee(
         SecretType secretType,
         Ask calldata ask,
-        bytes calldata secret_inputs,
+        bytes calldata privateInputs,
         bytes calldata acl
     ) public view returns (uint256) {
         uint256 costperByte = costPerInputBytes[secretType];
         if (costperByte != 0) {
-            return (ask.proverData.length + secret_inputs.length + acl.length) * costperByte;
+            return (ask.proverData.length + privateInputs.length + acl.length) * costperByte;
         }
         return 0;
     }
@@ -361,36 +387,36 @@ contract ProofMarketPlace is
     function relayBatchAssignTasks(
         uint256[] memory askIds,
         address[] memory generators,
-        bytes[] calldata new_acls,
+        bytes[] calldata newAcls,
         bytes calldata signature
     ) external {
         require(askIds.length == generators.length, Error.ARITY_MISMATCH);
-        require(askIds.length == new_acls.length, Error.ARITY_MISMATCH);
+        require(askIds.length == newAcls.length, Error.ARITY_MISMATCH);
 
-        bytes32 messageHash = keccak256(abi.encode(askIds, generators, new_acls));
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        bytes32 messageHash = keccak256(abi.encode(askIds, generators, newAcls));
+        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
+
         for (uint256 index = 0; index < askIds.length; index++) {
-            _assignTask(askIds[index], generators[index], new_acls[index]);
+            _assignTask(askIds[index], generators[index], newAcls[index]);
         }
     }
 
     function relayAssignTask(
         uint256 askId,
         address generator,
-        bytes calldata new_acl,
+        bytes calldata newAcl,
         bytes calldata signature
     ) external {
-        bytes32 messageHash = keccak256(abi.encode(askId, generator, new_acl));
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        bytes32 messageHash = keccak256(abi.encode(askId, generator, newAcl));
+        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
-        _assignTask(askId, generator, new_acl);
+
+        _assignTask(askId, generator, newAcl);
     }
 
     function assignTask(
@@ -457,7 +483,7 @@ contract ProofMarketPlace is
             messageHash = keccak256(abi.encode(askId, askWithState.ask.proverData));
         }
 
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
         require(signer == currentMarket.ivsSigner, Error.INVALID_ENCLAVE_KEY);
@@ -521,10 +547,7 @@ contract ProofMarketPlace is
         emit ProofCreated(askId, proof);
     }
 
-    function slashGenerator(
-        uint256 askId,
-        address rewardAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256) {
+    function slashGenerator(uint256 askId, address rewardAddress) external returns (uint256) {
         require(getAskState(askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
         return _slashGenerator(askId, rewardAddress);
     }
@@ -542,6 +565,7 @@ contract ProofMarketPlace is
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
+        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
         return
             GENERATOR_REGISTRY.slashGenerator(
