@@ -2,16 +2,16 @@
 
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
 import "./lib/Helper.sol";
 
-contract EntityKeyRegistry is AccessControlUpgradeable, HELPER {
+contract EntityKeyRegistry is AccessControl, HELPER {
     IAttestationVerifier public immutable attestationVerifier;
 
-    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
+    bytes32 public constant KEY_REGISTER_ROLE = bytes32(uint256(keccak256("KEY_REGISTER_ROLE")) - 1);
 
     mapping(address => bytes) public pub_key;
     mapping(address => bool) public usedUpKey;

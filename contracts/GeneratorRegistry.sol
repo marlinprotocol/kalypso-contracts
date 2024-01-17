@@ -72,17 +72,14 @@ contract GeneratorRegistry is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
-    bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
-
-    bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
+    bytes32 public constant SLASHER_ROLE = bytes32(uint256(keccak256("SLASHER_ROLE")) - 1);
+    bytes32 public constant KEY_REGISTER_ROLE = bytes32(uint256(keccak256("KEY_REGISTER_ROLE")) - 1);
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
-
-    uint256 private constant EXPONENT = 10 ** 18;
-
     uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
 
-    uint256 public constant REDUCTION_REQUEST_BLOCK_GAP = 1;
+    uint256 internal constant EXPONENT = 10 ** 18;
+    uint256 internal constant REDUCTION_REQUEST_BLOCK_GAP = 1;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
