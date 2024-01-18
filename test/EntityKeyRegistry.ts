@@ -2,7 +2,6 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Signer } from "ethers";
 
-import * as fs from "fs";
 import { generateWalletInfo, utf8ToHex } from "../helpers";
 import {
   Error,
@@ -45,12 +44,12 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key should revert for invalid admin", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), "0x", "0x")).to.be
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
       .reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), "0x", "0x")).to.be.revertedWith(
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
@@ -58,29 +57,29 @@ describe("Entity key registry tests", () => {
   it("Update key", async () => {
     const generator_enclave_key = generateWalletInfo();
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 0, generator_enclave_key.uncompressedPublicKey, "0x"),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 0);
   });
 
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave_key = generateWalletInfo();
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 8, generator_enclave_key.uncompressedPublicKey, "0x"),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 8);
 
     // Checking key in registry
-    const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress());
+    const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress(), 8);
     expect(pub_key).to.eq(generator_enclave_key.uncompressedPublicKey);
 
     // Removing key from registry
-    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress()))
+    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress(), 9))
       .to.emit(entityKeyRegistry, "RemoveKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 9);
   });
 
   it("Test Attestation to pubkey and address", async () => {
@@ -97,7 +96,7 @@ describe("Entity key registry tests", () => {
       ["0x00", await signerToUser.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    const result = await HELPER_LIB.getPubkeyAndAddress(inputBytes);
+    const result = await HELPER_LIB.GET_PUBKEY_AND_ADDRESS(inputBytes);
     expect(result[0]).to.eq(knownPubkey);
     expect(result[1]).to.eq(expectedAddress);
   });

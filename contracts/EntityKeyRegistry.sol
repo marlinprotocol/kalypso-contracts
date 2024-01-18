@@ -13,11 +13,13 @@ contract EntityKeyRegistry is AccessControl, HELPER {
 
     bytes32 public constant KEY_REGISTER_ROLE = bytes32(uint256(keccak256("KEY_REGISTER_ROLE")) - 1);
 
-    mapping(address => bytes) public pub_key;
+    mapping(address => mapping(uint256 => bytes)) public pub_key;
     mapping(address => bool) public usedUpKey;
 
+    mapping(address => mapping(bytes32 => bytes)) public dedicated_pub_key_per_market;
+
     modifier isNotUsedUpKey(bytes calldata pubkey) {
-        address _address = publicKeyToAddress(pubkey);
+        address _address = HELPER.PUBKEY_TO_ADDRESS(pubkey);
         require(!usedUpKey[_address], Error.KEY_ALREADY_EXISTS);
         _;
     }
@@ -27,44 +29,33 @@ contract EntityKeyRegistry is AccessControl, HELPER {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
-    event UpdateKey(address indexed user);
-    event RemoveKey(address indexed user);
+    event UpdateKey(address indexed user, uint256 indexed keyIndex);
+    event RemoveKey(address indexed user, uint256 indexed keyIndex);
 
     function addGeneratorRegistry(address _generatorRegistry) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(isContract(_generatorRegistry), Error.INVALID_CONTRACT_ADDRESS);
         _grantRole(KEY_REGISTER_ROLE, _generatorRegistry);
     }
 
     function updatePubkey(
-        address key_owner,
+        address keyOwner,
+        uint256 keyIndex,
         bytes calldata pubkey,
         bytes calldata attestation_data
     ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
         require(attestationVerifier.verify(attestation_data), Error.ENCLAVE_KEY_NOT_VERIFIED);
         require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
 
-        pub_key[key_owner] = pubkey;
-        address _address = publicKeyToAddress(pubkey);
+        pub_key[keyOwner][keyIndex] = pubkey;
+        address _address = HELPER.PUBKEY_TO_ADDRESS(pubkey);
 
         usedUpKey[_address] = true;
 
-        emit UpdateKey(key_owner);
+        emit UpdateKey(keyOwner, keyIndex);
     }
 
-    function removePubkey(address key_owner) external onlyRole(KEY_REGISTER_ROLE) {
-        delete pub_key[key_owner];
+    function removePubkey(address keyOwner, uint256 keyIndex) external onlyRole(KEY_REGISTER_ROLE) {
+        delete pub_key[keyOwner][keyIndex];
 
-        emit RemoveKey(key_owner);
-    }
-
-    function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-        uint size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
+        emit RemoveKey(keyOwner, keyIndex);
     }
 }

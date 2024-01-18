@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PublicKey, PrivateKey } from "eciesjs";
+import { AddressLike, BytesLike, Signer } from "ethers";
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -194,4 +195,20 @@ export function generateWalletInfo(): WalletInfo {
     address,
     uncompressedPublicKey: pub_key,
   };
+}
+
+export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
+export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647";
+
+export function getMockUnverifiedAttestation(signerAddress: AddressLike): BytesLike {
+  const mockEnclave = generateWalletInfo();
+  let abiCoder = new ethers.AbiCoder();
+
+  let attestationBytes = abiCoder.encode(
+    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+    ["0x00", signerAddress, mockEnclave.uncompressedPublicKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+  );
+
+  return attestationBytes;
 }

@@ -29,5 +29,5 @@ interface IAttestationVerifier {
 
     function safeVerify(bytes memory data) external view;
 
-    function isVerified(address signer) external view returns(bytes32);
+    function isVerified(address signer) external view returns (bytes32);
 }

@@ -17,6 +17,7 @@ import {
 } from "../typechain-types";
 
 import {
+  BYTES32_ONE,
   GeneratorData,
   MarketData,
   generateWalletInfo,
@@ -24,7 +25,6 @@ import {
   marketDataToBytes,
   setup,
   skipBlocks,
-  utf8ToHex,
 } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
@@ -300,7 +300,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketPlace.askCounter();
 
-        await proofMarketPlace.connect(prover).createAsk(ask, 0, "0x", "0x");
+        await proofMarketPlace.connect(prover).createAsk(ask, marketId, "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
 
@@ -392,9 +392,9 @@ describe("Checking Generator's multiple compute", () => {
       ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, inputBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await generator.getAddress());
+      .withArgs(await generator.getAddress(), marketId);
   });
 
   it("Only admin can set the generator registry role", async () => {
@@ -404,13 +404,6 @@ describe("Checking Generator's multiple compute", () => {
       .be.reverted;
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
     expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
-  });
-
-  it("Update key should revert for invalid contract address", async () => {
-    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
-    await expect(entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress())).to.be.revertedWith(
-      await errorLibrary.INVALID_CONTRACT_ADDRESS(),
-    );
   });
 
   it("Updating with invalid key should revert", async () => {
@@ -433,9 +426,9 @@ describe("Checking Generator's multiple compute", () => {
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
       ["0x00", await admin.getAddress(), invalidPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature)).to.be.revertedWith(
-      await errorLibrary.INVALID_ENCLAVE_KEY(),
-    );
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(marketId, inputBytes, signature),
+    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
   });
 
   it("Remove key", async () => {
@@ -459,20 +452,20 @@ describe("Checking Generator's multiple compute", () => {
       ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, inputBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await generator.getAddress());
+      .withArgs(await generator.getAddress(), marketId);
 
     // Checking key in registry
-    const pub_key = await entityKeyRegistry.pub_key(generator.getAddress());
+    const pub_key = await entityKeyRegistry.pub_key(generator.getAddress(), marketId);
     // console.log({ pub_key: pub_key });
     // console.log({pubBytes: pubBytes });
     expect(pub_key).to.eq(knownPubkey);
 
     // Removing key from registry
-    // await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
-    //   .to.emit(entityKeyRegistry, "RemoveKey")
-    //   .withArgs(await generator.getAddress());
+    await expect(generatorRegistry.connect(generator).removeEncryptionKey(1))
+      .to.emit(entityKeyRegistry, "RemoveKey")
+      .withArgs(await generator.getAddress(), 1);
   });
 
   it("Generator Prechecks", async () => {

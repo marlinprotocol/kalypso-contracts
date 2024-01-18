@@ -1,5 +1,5 @@
 import { ethers, upgrades } from "hardhat";
-import { Provider, Signer } from "ethers";
+import { BytesLike, Provider, Signer } from "ethers";
 
 import {
   MockToken,
@@ -18,7 +18,8 @@ import {
   EntityKeyRegistry,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
-import { WalletInfo } from ".";
+
+import { WalletInfo, generateWalletInfo } from ".";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -91,8 +92,23 @@ export const rawSetup = async (
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
-  isEnclaveRequired: boolean = true,
 ): Promise<SetupTemplate> => {
+  const generatorEnclaveDetails = generateWalletInfo();
+  let abiCoder = new ethers.AbiCoder();
+
+  let generatorAttestationBytes = abiCoder.encode(
+    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+    [
+      "0x00",
+      await generator.getAddress(),
+      generatorEnclaveDetails.uncompressedPublicKey,
+      "0x00",
+      "0x00",
+      "0x00",
+      "0x00",
+      "0x00",
+    ],
+  );
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
@@ -143,8 +159,6 @@ export const rawSetup = async (
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-  let abiCoder = new ethers.AbiCoder();
-
   let matchingEngineAttestationBytes = abiCoder.encode(
     ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
     [
@@ -183,13 +197,15 @@ export const rawSetup = async (
   digest = ethers.keccak256(encoded);
   signature = await ivsSigner.signMessage(ethers.getBytes(digest));
 
+  const enclaveImageId = await generatorRegistry.GET_IMAGE_ID_FROM_ATTESTATION(generatorAttestationBytes);
+
   await proofMarketPlace
     .connect(marketCreator)
     .createMarketPlace(
       marketSetupBytes,
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
-      isEnclaveRequired,
+      enclaveImageId,
       ivsAttestationBytes,
       Buffer.from(ivsUrl, "ascii"),
       signature,
@@ -213,7 +229,15 @@ export const rawSetup = async (
 
   await generatorRegistry
     .connect(generator)
-    .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
+    .joinMarketPlace(
+      marketId,
+      computeToNewMarket.toFixed(0),
+      minRewardForGenerator.toFixed(),
+      100,
+      false,
+      generatorAttestationBytes,
+      "0x",
+    );
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 

@@ -16,10 +16,17 @@ import {
   ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
 } from "../typechain-types";
-import { bytesToHexString, generateRandomBytes, generateWalletInfo, skipBlocks } from "../helpers";
+
+import {
+  NO_ENCLAVE_ID,
+  bytesToHexString,
+  generateRandomBytes,
+  generateWalletInfo,
+  getMockUnverifiedAttestation,
+  skipBlocks,
+} from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
-import * as secret from "../data/transferVerifier/1/secret.json";
 
 describe("Proof market place", () => {
   let signers: Signer[];
@@ -138,7 +145,7 @@ describe("Proof market place", () => {
           marketBytes,
           await mockVerifier.getAddress(),
           exponent.div(100).toFixed(0),
-          true,
+          NO_ENCLAVE_ID,
           ivsAttestationBytes,
           Buffer.from("ivs url", "ascii"),
           signature,
@@ -212,14 +219,14 @@ describe("Proof market place", () => {
       let encoded = abicode.encode(types, values);
       let digest = ethers.keccak256(encoded);
       let signature = await ivsSigner.signMessage(ethers.getBytes(digest));
-
+        
       await proofMarketPlace
         .connect(marketCreator)
         .createMarketPlace(
           marketBytes,
           await mockVerifier.getAddress(),
           exponent.div(100).toFixed(0),
-          true,
+          NO_ENCLAVE_ID,
           ivsAttestationBytes,
           Buffer.from("test ivs url", "ascii"),
           signature,
@@ -332,7 +339,15 @@ describe("Proof market place", () => {
         await expect(
           generatorRegistry
             .connect(generator)
-            .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100),
+            .joinMarketPlace(
+              marketId,
+              computeUnitsRequired,
+              minRewardForGenerator.toFixed(),
+              100,
+              false,
+              getMockUnverifiedAttestation(await generator.getAddress()),
+              "0x",
+            ),
         )
           .to.emit(generatorRegistry, "JoinedMarketPlace")
           .withArgs(await generator.getAddress(), marketId, computeUnitsRequired);
@@ -355,7 +370,7 @@ describe("Proof market place", () => {
 
         await generatorRegistry
           .connect(generator)
-          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
+          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
 
         await expect(generatorRegistry.connect(generator).leaveMarketPlace(marketId))
           .to.emit(generatorRegistry, "LeftMarketplace")
@@ -374,7 +389,7 @@ describe("Proof market place", () => {
 
         await generatorRegistry
           .connect(generator)
-          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
+          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
 
         await expect(generatorRegistry.connect(generator).leaveMarketPlaces([marketId]))
           .to.emit(generatorRegistry, "LeftMarketplace")
@@ -393,7 +408,7 @@ describe("Proof market place", () => {
 
         await generatorRegistry
           .connect(generator)
-          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
+          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
 
         await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress())).to.be.revertedWith(
           await errorLibrary.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET(),
@@ -600,7 +615,7 @@ describe("Proof market place", () => {
 
           await generatorRegistry
             .connect(generator)
-            .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100);
+            .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
         });
 
         it("Matching engine assings", async () => {
