@@ -34,4 +34,8 @@ contract MockAttestationVerifier is IAttestationVerifier {
     }
 
     function safeVerify(bytes memory data) public pure override {}
+
+    function isVerified(address) public pure returns (bytes32){
+        return bytes32(0);
+    }
 }
