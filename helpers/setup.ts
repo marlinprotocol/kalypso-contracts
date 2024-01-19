@@ -95,21 +95,8 @@ export const rawSetup = async (
   computeToNewMarket: BigNumber,
 ): Promise<SetupTemplate> => {
   const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
-  let abiCoder = new ethers.AbiCoder();
+  let generatorAttestationBytes = generatorEnclaveDetails.getMockUnverifiedAttestation(await generator.getAddress());
 
-  let generatorAttestationBytes = abiCoder.encode(
-    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    [
-      "0x00",
-      await generator.getAddress(),
-      generatorEnclaveDetails.getUncompressedPubkey(),
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-    ],
-  );
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
@@ -164,21 +151,9 @@ export const rawSetup = async (
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-  let matchingEngineAttestationBytes = abiCoder.encode(
-    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    [
-      "0x00",
-      await admin.getAddress(),
-      matchingEngineEnclave.getUncompressedPubkey(),
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-    ],
+  let matchingEngineAttestationBytes = await matchingEngineEnclave.getMockUnverifiedAttestation(
+    await admin.getAddress(),
   );
-
-  let matchingEngineSigner = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(), admin.provider);
   let types = ["address"];
 
   let values = [await proofMarketPlace.getAddress()];
@@ -186,30 +161,17 @@ export const rawSetup = async (
   let abicode = new ethers.AbiCoder();
   let encoded = abicode.encode(types, values);
   let digest = ethers.keccak256(encoded);
-  let signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
+  let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
   await proofMarketPlace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes, signature);
 
-  let ivsAttestationBytes = abiCoder.encode(
-    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    [
-      "0x00",
-      await marketCreator.getAddress(),
-      ivsEnclave.getUncompressedPubkey(),
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-    ],
-  );
+  let ivsAttestationBytes = await ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
-  let ivsSigner = new ethers.Wallet(ivsEnclave.getPrivateKey(), admin.provider);
   values = [await marketCreator.getAddress()];
   abicode = new ethers.AbiCoder();
   encoded = abicode.encode(types, values);
   digest = ethers.keccak256(encoded);
-  signature = await ivsSigner.signMessage(ethers.getBytes(digest));
+  signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
   const enclaveImageId = MockEnclave.getImageIdFromAttestation(generatorAttestationBytes);
 
