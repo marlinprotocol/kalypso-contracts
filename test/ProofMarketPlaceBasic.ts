@@ -17,14 +17,7 @@ import {
   EntityKeyRegistry__factory,
 } from "../typechain-types";
 
-import {
-  NO_ENCLAVE_ID,
-  bytesToHexString,
-  generateRandomBytes,
-  generateWalletInfo,
-  getMockUnverifiedAttestation,
-  skipBlocks,
-} from "../helpers";
+import { MockEnclave, NO_ENCLAVE_ID, bytesToHexString, generateRandomBytes, skipBlocks } from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -53,8 +46,8 @@ describe("Proof market place", () => {
 
   const exponent = new BigNumber(10).pow(18);
 
-  const matchingEngineInternalWallet = generateWalletInfo();
-  const ivsInternalWallet = generateWalletInfo();
+  const matchingEngineEnclave = new MockEnclave();
+  const ivsEnclave = new MockEnclave();
 
   let matchingEngineSigner: Signer;
   let ivsSigner: Signer;
@@ -66,9 +59,9 @@ describe("Proof market place", () => {
     treasury = signers[3];
     marketCreator = signers[4];
 
-    matchingEngineSigner = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
-    ivsSigner = new ethers.Wallet(ivsInternalWallet.privateKey, admin.provider);
-    await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
+    matchingEngineSigner = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(), admin.provider);
+    ivsSigner = new ethers.Wallet(ivsEnclave.getPrivateKey(), admin.provider);
+    await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     errorLibrary = await new Error__factory(admin).deploy();
 
@@ -124,7 +117,7 @@ describe("Proof market place", () => {
 
     let abiCoder = new ethers.AbiCoder();
 
-    const ivsPubkey = ivsInternalWallet.uncompressedPublicKey;
+    const ivsPubkey = ivsEnclave.getUncompressedPubkey();
 
     let ivsAttestationBytes = abiCoder.encode(
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
@@ -160,7 +153,7 @@ describe("Proof market place", () => {
   it("Update Marketplace address", async () => {
     let abiCoder = new ethers.AbiCoder();
 
-    const mePubKey = matchingEngineInternalWallet.uncompressedPublicKey;
+    const mePubKey = matchingEngineEnclave.getUncompressedPubkey();
     let inputBytes = abiCoder.encode(
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
       ["0x00", await admin.getAddress(), mePubKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
@@ -177,10 +170,7 @@ describe("Proof market place", () => {
     await proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(inputBytes, signature);
 
     expect(
-      await proofMarketPlace.hasRole(
-        await proofMarketPlace.MATCHING_ENGINE_ROLE(),
-        matchingEngineInternalWallet.address,
-      ),
+      await proofMarketPlace.hasRole(await proofMarketPlace.MATCHING_ENGINE_ROLE(), matchingEngineEnclave.getAddress()),
     ).to.be.true;
   });
 
@@ -207,7 +197,7 @@ describe("Proof market place", () => {
 
       let abiCoder = new ethers.AbiCoder();
 
-      const ivsKey = ivsInternalWallet.uncompressedPublicKey;
+      const ivsKey = ivsEnclave.getUncompressedPubkey();
       let ivsAttestationBytes = abiCoder.encode(
         ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
         ["0x00", await admin.getAddress(), ivsKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
@@ -336,6 +326,7 @@ describe("Proof market place", () => {
           .to.emit(generatorRegistry, "RegisteredGenerator")
           .withArgs(await generator.getAddress(), computeUnitsRequired, generatorStakingAmount.toFixed(0));
 
+        let generatorEnclave = new MockEnclave();
         await expect(
           generatorRegistry
             .connect(generator)
@@ -345,7 +336,7 @@ describe("Proof market place", () => {
               minRewardForGenerator.toFixed(),
               100,
               false,
-              getMockUnverifiedAttestation(await generator.getAddress()),
+              generatorEnclave.getMockUnverifiedAttestation(await generator.getAddress()),
               "0x",
             ),
         )
@@ -569,7 +560,7 @@ describe("Proof market place", () => {
 
           let abiCoder = new ethers.AbiCoder();
 
-          const mePubKey = matchingEngineInternalWallet.uncompressedPublicKey;
+          const mePubKey = matchingEngineEnclave.getUncompressedPubkey();
 
           let inputBytes = abiCoder.encode(
             ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],

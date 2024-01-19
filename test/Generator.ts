@@ -19,7 +19,7 @@ import {
 import {
   GeneratorData,
   MarketData,
-  generateWalletInfo,
+  MockEnclave,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -52,8 +52,8 @@ describe("Checking Generator's multiple compute", () => {
 
   let generatorData: GeneratorData;
 
-  const ivsInternalWallet = generateWalletInfo();
-  const matchingEngineInternalWallet = generateWalletInfo();
+  const ivsEnclave = new MockEnclave();
+  const matchingEngineEnclave = new MockEnclave();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -88,8 +88,8 @@ describe("Checking Generator's multiple compute", () => {
       name: "some custom name for the generator",
     };
 
-    await admin.sendTransaction({ to: ivsInternalWallet.address, value: "1000000000000000000" });
-    await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
+    await admin.sendTransaction({ to: ivsEnclave.getAddress(), value: "1000000000000000000" });
+    await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
 
@@ -147,8 +147,8 @@ describe("Checking Generator's multiple compute", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      ivsInternalWallet,
-      matchingEngineInternalWallet,
+      ivsEnclave,
+      matchingEngineEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -214,7 +214,7 @@ describe("Checking Generator's multiple compute", () => {
     );
 
     await setup.createTask(
-      matchingEngineInternalWallet.privateKey,
+      matchingEngineEnclave.getPrivateKey(true),
       admin.provider as Provider,
       {
         mockToken: tokenToUse,
@@ -301,7 +301,7 @@ describe("Checking Generator's multiple compute", () => {
 
         await proofMarketPlace.connect(prover).createAsk(ask, marketId, "0x", "0x");
 
-        const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+        const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(), admin.provider);
 
         await expect(
           proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
@@ -332,7 +332,7 @@ describe("Checking Generator's multiple compute", () => {
         );
 
         await setup.createTask(
-          matchingEngineInternalWallet.privateKey,
+          matchingEngineEnclave.getPrivateKey(true),
           admin.provider as Provider,
           {
             mockToken: tokenToUse,
@@ -372,10 +372,10 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add entity keys", async () => {
-    const generatorEnclaveKey = generateWalletInfo();
-    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
+    const generatorEnclave = new MockEnclave();
+    const knownPubkey = generatorEnclave.getUncompressedPubkey();
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);
     let types = ["address"];
 
     let values = [await generator.getAddress()];
@@ -398,7 +398,7 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
-    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+    const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(), admin.provider);
     await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
       .be.reverted;
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
@@ -406,9 +406,9 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Updating with invalid key should revert", async () => {
-    const generatorEnclaveKey = generateWalletInfo();
+    const generatorEnclave = new MockEnclave();
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);
     let types = ["address"];
 
     let values = [await generator.getAddress()];
@@ -432,10 +432,10 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generatorEnclaveKey = generateWalletInfo();
-    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
+    const generatorEnclave = new MockEnclave();
+    const knownPubkey = generatorEnclave.getUncompressedPubkey();
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);
     let types = ["address"];
 
     let values = [await generator.getAddress()];

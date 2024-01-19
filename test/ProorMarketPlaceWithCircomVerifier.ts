@@ -18,7 +18,7 @@ import {
 import {
   GeneratorData,
   MarketData,
-  generateWalletInfo,
+  MockEnclave,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -52,8 +52,8 @@ describe("Proof Market Place for Circom Verifier", () => {
 
   let iverifier: IVerifier;
 
-  const matchingEngineInternalWallet = generateWalletInfo();
-  const ivsInternalWallet = generateWalletInfo();
+  const matchingEngineEnclave = new MockEnclave();
+  const ivsEnclave = new MockEnclave();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -105,7 +105,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
-    await treasury.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
+    await treasury.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     let data = await setup.rawSetup(
       admin,
@@ -121,8 +121,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      ivsInternalWallet,
-      matchingEngineInternalWallet,
+      ivsEnclave,
+      matchingEngineEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -177,7 +177,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     );
 
     await setup.createTask(
-      matchingEngineInternalWallet.privateKey,
+      matchingEngineEnclave.getPrivateKey(true),
       admin.provider,
       {
         mockToken: tokenToUse,
