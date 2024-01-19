@@ -260,6 +260,10 @@ export class MockEnclave {
     return this.wallet.address;
   }
 
+  public getImageId(): BytesLike {
+    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation(this.wallet.address));
+  }
+
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
     let abicode = new ethers.AbiCoder();
 
