@@ -9,10 +9,17 @@ import "./lib/Helper.sol";
 contract Dispute is HELPER {
     function checkDisputeUsingSignature(
         uint256 askId,
+        bytes calldata proverData,
         bytes memory invalidProofSignature,
-        address expectedSigner
+        address expectedSigner,
+        bool isPublic
     ) public pure returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(askId));
+        bytes32 messageHash;
+        if (isPublic) {
+            messageHash = keccak256(abi.encode(askId, proverData));
+        } else {
+            messageHash = keccak256(abi.encode(askId));
+        }
 
         bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
@@ -23,6 +30,7 @@ contract Dispute is HELPER {
 
     function checkDisputeUsingAttesation(
         uint256 askId,
+        bytes calldata proverData,
         bytes memory attestationData,
         bytes32 expectedImageId,
         bytes memory invalidProofSignature
@@ -32,11 +40,19 @@ contract Dispute is HELPER {
 
         (, address signer) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
 
-        return checkDisputeUsingSignature(askId, invalidProofSignature, signer);
+        return
+            checkDisputeUsingSignature(
+                askId,
+                proverData,
+                invalidProofSignature,
+                signer,
+                expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID
+            );
     }
 
     function checkDisputeUsingAttestationAndOrSignature(
         uint256 askId,
+        bytes calldata proverData,
         bytes calldata completeData,
         bytes32 expectedImageId,
         address defaultIvsSigner
@@ -47,9 +63,16 @@ contract Dispute is HELPER {
         );
 
         if (useOnlySignature) {
-            return checkDisputeUsingSignature(askId, invalidProofSignature, defaultIvsSigner);
+            return
+                checkDisputeUsingSignature(
+                    askId,
+                    proverData,
+                    invalidProofSignature,
+                    defaultIvsSigner,
+                    expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID
+                );
         }
 
-        return checkDisputeUsingAttesation(askId, attestationData, expectedImageId, invalidProofSignature);
+        return checkDisputeUsingAttesation(askId, proverData, attestationData, expectedImageId, invalidProofSignature);
     }
 }

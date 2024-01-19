@@ -18,7 +18,16 @@ import {
   Dispute__factory,
 } from "../typechain-types";
 
-import { MockEnclave, NO_ENCLAVE_ID, bytesToHexString, generateRandomBytes, skipBlocks } from "../helpers";
+import {
+  MockEnclave,
+  MockGeneratorPCRS,
+  MockIVSPCRS,
+  MockMEPCRS,
+  NO_ENCLAVE_ID,
+  bytesToHexString,
+  generateRandomBytes,
+  skipBlocks,
+} from "../helpers";
 
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -47,8 +56,8 @@ describe("Proof market place", () => {
 
   const exponent = new BigNumber(10).pow(18);
 
-  const matchingEngineEnclave = new MockEnclave();
-  const ivsEnclave = new MockEnclave();
+  const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+  const ivsEnclave = new MockEnclave(MockIVSPCRS);
 
   let matchingEngineSigner: Signer;
   let ivsSigner: Signer;
@@ -121,14 +130,7 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-    let abiCoder = new ethers.AbiCoder();
-
-    const ivsPubkey = ivsEnclave.getUncompressedPubkey();
-
-    let ivsAttestationBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await admin.getAddress(), ivsPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
-    );
+    let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
     let types = ["address"];
     let values = [await marketCreator.getAddress()];
@@ -201,13 +203,7 @@ describe("Proof market place", () => {
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-      let abiCoder = new ethers.AbiCoder();
-
-      const ivsKey = ivsEnclave.getUncompressedPubkey();
-      let ivsAttestationBytes = abiCoder.encode(
-        ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-        ["0x00", await admin.getAddress(), ivsKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
-      );
+      let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
       let types = ["address"];
       let values = [await marketCreator.getAddress()];
@@ -332,7 +328,7 @@ describe("Proof market place", () => {
           .to.emit(generatorRegistry, "RegisteredGenerator")
           .withArgs(await generator.getAddress(), computeUnitsRequired, generatorStakingAmount.toFixed(0));
 
-        let generatorEnclave = new MockEnclave();
+        let generatorEnclave = new MockEnclave(MockGeneratorPCRS);
         await expect(
           generatorRegistry
             .connect(generator)
@@ -825,6 +821,37 @@ describe("Proof market place", () => {
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
             const completeData = abicode.encode(["bytes", "bytes", "bool"], ["0x00", signature, true]);
+            await expect(proofMarketPlace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
+              .to.emit(proofMarketPlace, "InvalidInputsDetected")
+              .withArgs(askId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketPlace.getAddress(), treasuryRefundAddress, expectedRefund);
+          });
+
+          it("Submit Proof for invalid request, from another ivs enclave with same image id", async () => {
+            const types = ["uint256"];
+
+            const values = [askId.toFixed(0)];
+
+            const abicode = new ethers.AbiCoder();
+            const encoded = abicode.encode(types, values);
+            const digest = ethers.keccak256(encoded);
+
+            const anotherIvsEnclave = new MockEnclave(MockIVSPCRS);
+
+            const mockAttestation = anotherIvsEnclave.getMockUnverifiedAttestation(await proofMarketPlace.getAddress());
+            const signature = await anotherIvsEnclave.signMessage(ethers.getBytes(digest));
+
+            const generatorAddress = await generator.getAddress();
+            const expectedGeneratorReward = (await generatorRegistry.generatorInfoPerMarket(generatorAddress, marketId))
+              .proofGenerationCost;
+            const treasuryRefundAddress = await treasury.getAddress();
+            const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
+
+            const completeData = abicode.encode(["bytes", "bytes", "bool"], [mockAttestation, signature, false]);
+
             await expect(proofMarketPlace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
               .to.emit(proofMarketPlace, "InvalidInputsDetected")
               .withArgs(askId)

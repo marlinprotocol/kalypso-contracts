@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Signer } from "ethers";
 
-import { MockEnclave, utf8ToHex } from "../helpers";
+import { MockEnclave, MockGeneratorPCRS, utf8ToHex } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -51,7 +51,7 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key", async () => {
-    const generator_enclave = new MockEnclave();
+    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
       entityKeyRegistry.updatePubkey(randomUser.getAddress(), 0, generator_enclave.getUncompressedPubkey(), "0x"),
     )
@@ -61,7 +61,7 @@ describe("Entity key registry tests", () => {
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generator_enclave = new MockEnclave();
+    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
       entityKeyRegistry.updatePubkey(randomUser.getAddress(), 8, generator_enclave.getUncompressedPubkey(), "0x"),
     )

@@ -20,7 +20,7 @@ import {
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
-import { MockEnclave } from ".";
+import { MockEnclave, MockGeneratorPCRS } from ".";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -94,7 +94,7 @@ export const rawSetup = async (
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
 ): Promise<SetupTemplate> => {
-  const generatorEnclaveDetails = new MockEnclave();
+  const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
   let abiCoder = new ethers.AbiCoder();
 
   let generatorAttestationBytes = abiCoder.encode(

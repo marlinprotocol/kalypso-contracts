@@ -185,8 +185,15 @@ export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C6
 
 export class MockEnclave {
   public wallet: WalletInfo;
-  constructor() {
+  public pcrs: [BytesLike, BytesLike, BytesLike];
+
+  constructor(pcrs?: [BytesLike, BytesLike, BytesLike]) {
     this.wallet = this.generateWalletInfo();
+    if (pcrs) {
+      this.pcrs = pcrs;
+    } else {
+      this.pcrs = ["0x00", "0x00", "0x00"];
+    }
   }
 
   public getMockUnverifiedAttestation(signerAddress: AddressLike): BytesLike {
@@ -194,7 +201,16 @@ export class MockEnclave {
 
     let attestationBytes = abiCoder.encode(
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", signerAddress, this.wallet.uncompressedPublicKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+      [
+        "0x00",
+        signerAddress,
+        this.wallet.uncompressedPublicKey,
+        this.pcrs[0],
+        this.pcrs[1],
+        this.pcrs[2],
+        "0x00",
+        "0x00",
+      ],
     );
 
     return attestationBytes;
@@ -274,3 +290,7 @@ export class MockEnclave {
     };
   }
 }
+
+export const MockIVSPCRS: [BytesLike, BytesLike, BytesLike] = ["0x01", "0x02", "0x03"];
+export const MockMEPCRS: [BytesLike, BytesLike, BytesLike] = ["0x11", "0x12", "0x13"];
+export const MockGeneratorPCRS: [BytesLike, BytesLike, BytesLike] = ["0x21", "0x32", "0x43"];

@@ -20,6 +20,7 @@ import {
   GeneratorData,
   MarketData,
   MockEnclave,
+  MockGeneratorPCRS,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -372,7 +373,7 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add entity keys", async () => {
-    const generatorEnclave = new MockEnclave();
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
     const knownPubkey = generatorEnclave.getUncompressedPubkey();
 
     let types = ["address"];
@@ -405,7 +406,7 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Updating with invalid key should revert", async () => {
-    const generatorEnclave = new MockEnclave();
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
     let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);
     let types = ["address"];
@@ -431,7 +432,7 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generatorEnclave = new MockEnclave();
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
     const knownPubkey = generatorEnclave.getUncompressedPubkey();
 
     let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);

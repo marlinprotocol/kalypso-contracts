@@ -501,7 +501,7 @@ contract ProofMarketPlace is
         emit InvalidInputsDetected(askId);
     }
 
-    function submitProofForInvalidInputs(uint256 askId, bytes calldata completeData) external nonReentrant {
+    function submitProofForInvalidInputs(uint256 askId, bytes calldata externalData) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
         uint256 marketId = askWithState.ask.marketId;
         Market memory currentMarket = marketData[marketId];
@@ -511,7 +511,8 @@ contract ProofMarketPlace is
         require(
             dispute.checkDisputeUsingAttestationAndOrSignature(
                 askId,
-                completeData,
+                askWithState.ask.proverData,
+                externalData,
                 currentMarket.ivsImageId,
                 currentMarket.ivsSigner
             ),
