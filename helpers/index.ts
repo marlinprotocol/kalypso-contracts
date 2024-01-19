@@ -212,3 +212,34 @@ export function getMockUnverifiedAttestation(signerAddress: AddressLike): BytesL
 
   return attestationBytes;
 }
+
+export function getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
+  let abicode = new ethers.AbiCoder();
+
+  let decoded = abicode.decode(
+    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+    attesationData,
+  );
+  let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[3], decoded[4], decoded[5]]);
+  let digest = ethers.keccak256(encoded);
+  return digest;
+}
+
+export function getPubKeyAndAddressFromAttestation(attesationData: BytesLike): WalletInfo {
+  let abicode = new ethers.AbiCoder();
+
+  let decoded = abicode.decode(
+    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+    attesationData,
+  );
+  let pubkey = decoded[2];
+  let hash = ethers.keccak256(pubkey);
+
+  const address = "0x" + hash.slice(-40);
+
+  return {
+    privateKey: "",
+    uncompressedPublicKey: pubkey,
+    address,
+  };
+}

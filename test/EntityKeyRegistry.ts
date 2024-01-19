@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Signer } from "ethers";
 
-import { generateWalletInfo, utf8ToHex } from "../helpers";
+import { generateWalletInfo, getPubKeyAndAddressFromAttestation, utf8ToHex } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -10,8 +10,6 @@ import {
   EntityKeyRegistry__factory,
   MockAttestationVerifier__factory,
   MockAttestationVerifier,
-  HELPER,
-  HELPER__factory,
 } from "../typechain-types";
 
 describe("Entity key registry tests", () => {
@@ -22,7 +20,6 @@ describe("Entity key registry tests", () => {
   let entityKeyRegistry: EntityKeyRegistry;
   let errorLibrary: Error;
   let attestationVerifier: MockAttestationVerifier;
-  let HELPER_LIB: HELPER;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -36,7 +33,6 @@ describe("Entity key registry tests", () => {
       await attestationVerifier.getAddress(),
       await admin.getAddress(),
     );
-    HELPER_LIB = await new HELPER__factory(admin).deploy();
 
     const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await entityKeyRegistry.grantRole(register_role, await admin.getAddress());
@@ -96,8 +92,8 @@ describe("Entity key registry tests", () => {
       ["0x00", await signerToUser.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    const result = await HELPER_LIB.GET_PUBKEY_AND_ADDRESS(inputBytes);
-    expect(result[0]).to.eq(knownPubkey);
-    expect(result[1]).to.eq(expectedAddress);
+    const info = getPubKeyAndAddressFromAttestation(inputBytes);
+    expect(info.uncompressedPublicKey).to.eq(knownPubkey);
+    expect(info.address.toLowerCase()).to.eq(expectedAddress.toLowerCase());
   });
 });

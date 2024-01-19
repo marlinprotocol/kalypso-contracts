@@ -15,7 +15,6 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 import "./ProofMarketPlace.sol";
-import "hardhat/console.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -639,21 +638,21 @@ contract GeneratorRegistry is
         return (generator.rewardAddress, info.proofGenerationCost);
     }
 
-    function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) public pure returns (bytes32) {
-        (, , , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , ) = abi.decode(
-            data,
-            (bytes, address, bytes, bytes, bytes, bytes, uint256, uint256)
-        );
+    // function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) public pure returns (bytes32) {
+    //     (, , , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , ) = abi.decode(
+    //         data,
+    //         (bytes, address, bytes, bytes, bytes, bytes, uint256, uint256)
+    //     );
 
-        return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
-    }
+    //     return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+    // }
 
-    function GET_IMAGED_ID_FROM_PCRS(
-        bytes memory PCR0,
-        bytes memory PCR1,
-        bytes memory PCR2
-    ) public pure returns (bytes32) {
-        bytes32 imageId = keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
-        return imageId;
-    }
+    // function GET_IMAGED_ID_FROM_PCRS(
+    //     bytes memory PCR0,
+    //     bytes memory PCR1,
+    //     bytes memory PCR2
+    // ) public pure returns (bytes32) {
+    //     bytes32 imageId = keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
+    //     return imageId;
+    // }
 }

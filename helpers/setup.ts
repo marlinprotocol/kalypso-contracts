@@ -19,7 +19,7 @@ import {
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
-import { WalletInfo, generateWalletInfo } from ".";
+import { WalletInfo, generateWalletInfo, getImageIdFromAttestation } from ".";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -197,7 +197,7 @@ export const rawSetup = async (
   digest = ethers.keccak256(encoded);
   signature = await ivsSigner.signMessage(ethers.getBytes(digest));
 
-  const enclaveImageId = await generatorRegistry.GET_IMAGE_ID_FROM_ATTESTATION(generatorAttestationBytes);
+  const enclaveImageId = getImageIdFromAttestation(generatorAttestationBytes);
 
   await proofMarketPlace
     .connect(marketCreator)

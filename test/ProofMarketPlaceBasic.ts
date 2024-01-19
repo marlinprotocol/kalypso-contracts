@@ -219,7 +219,7 @@ describe("Proof market place", () => {
       let encoded = abicode.encode(types, values);
       let digest = ethers.keccak256(encoded);
       let signature = await ivsSigner.signMessage(ethers.getBytes(digest));
-        
+
       await proofMarketPlace
         .connect(marketCreator)
         .createMarketPlace(

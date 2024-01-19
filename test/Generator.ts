@@ -17,7 +17,6 @@ import {
 } from "../typechain-types";
 
 import {
-  BYTES32_ONE,
   GeneratorData,
   MarketData,
   generateWalletInfo,
