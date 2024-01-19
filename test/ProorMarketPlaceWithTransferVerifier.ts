@@ -212,7 +212,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
     );
 
     await setup.createTask(
-      matchingEngineEnclave.getPrivateKey(true),
+      matchingEngineEnclave,
       admin.provider,
       {
         mockToken: tokenToUse,

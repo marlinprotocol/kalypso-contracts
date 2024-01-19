@@ -177,7 +177,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     );
 
     await setup.createTask(
-      matchingEngineEnclave.getPrivateKey(true),
+      matchingEngineEnclave,
       admin.provider,
       {
         mockToken: tokenToUse,

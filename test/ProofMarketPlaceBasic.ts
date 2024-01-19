@@ -15,6 +15,7 @@ import {
   ProofMarketPlace,
   ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
+  Dispute__factory,
 } from "../typechain-types";
 
 import { MockEnclave, NO_ENCLAVE_ID, bytesToHexString, generateRandomBytes, skipBlocks } from "../helpers";
@@ -84,7 +85,7 @@ describe("Proof market place", () => {
     generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), signers[0]);
 
     const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-    const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+    const proxy = await upgrades.deployProxy(ProofMarketPlace, [], {
       kind: "uups",
       constructorArgs: [
         await mockToken.getAddress(),
@@ -95,10 +96,15 @@ describe("Proof market place", () => {
         await entityRegistry.getAddress(),
         await mockAttestationVerifier.getAddress(),
       ],
+      initializer: false,
     });
+
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
 
+    const dispute = await new Dispute__factory(admin).deploy();
+
     await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
+    await proofMarketPlace.initialize(await admin.getAddress(), await dispute.getAddress());
 
     expect(ethers.isAddress(await proofMarketPlace.getAddress())).is.true;
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
@@ -818,7 +824,8 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            await expect(proofMarketPlace.submitProofForInvalidInputs(askId.toFixed(0), signature))
+            const completeData = abicode.encode(["bytes", "bytes", "bool"], ["0x00", signature, true]);
+            await expect(proofMarketPlace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
               .to.emit(proofMarketPlace, "InvalidInputsDetected")
               .withArgs(askId)
               .to.emit(mockToken, "Transfer")

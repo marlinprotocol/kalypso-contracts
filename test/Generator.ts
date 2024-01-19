@@ -214,7 +214,7 @@ describe("Checking Generator's multiple compute", () => {
     );
 
     await setup.createTask(
-      matchingEngineEnclave.getPrivateKey(true),
+      matchingEngineEnclave,
       admin.provider as Provider,
       {
         mockToken: tokenToUse,
@@ -332,7 +332,7 @@ describe("Checking Generator's multiple compute", () => {
         );
 
         await setup.createTask(
-          matchingEngineEnclave.getPrivateKey(true),
+          matchingEngineEnclave,
           admin.provider as Provider,
           {
             mockToken: tokenToUse,
@@ -375,7 +375,6 @@ describe("Checking Generator's multiple compute", () => {
     const generatorEnclave = new MockEnclave();
     const knownPubkey = generatorEnclave.getUncompressedPubkey();
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclave.getPrivateKey(), admin.provider);
     let types = ["address"];
 
     let values = [await generator.getAddress()];
@@ -383,7 +382,7 @@ describe("Checking Generator's multiple compute", () => {
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
-    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
     let abiCoder = new ethers.AbiCoder();
     let inputBytes = abiCoder.encode(

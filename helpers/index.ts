@@ -229,6 +229,13 @@ export class MockEnclave {
     return this.wallet.privateKey;
   }
 
+  public async signMessage(ethHash: BytesLike): Promise<string> {
+    let generateEnclaveSigner = new ethers.Wallet(this.wallet.privateKey);
+    let signature = await generateEnclaveSigner.signMessage(ethHash);
+
+    return signature;
+  }
+
   public getUncompressedPubkey(): string {
     return this.wallet.uncompressedPublicKey;
   }

@@ -47,6 +47,7 @@ library Error {
     string public constant ARITY_MISMATCH = "TR3";
     string public constant ONLY_MATCHING_ENGINE_CAN_ASSIGN = "TR4";
     string public constant REQUEST_ALREADY_IN_PLACE = "TR5";
+    string public constant CAN_NOT_SLASH_USING_VALID_INPUTS = "TR6";
 
     // Proof and State Errors
     string public constant SHOULD_BE_IN_CREATE_STATE = "PS1";

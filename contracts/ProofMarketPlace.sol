@@ -15,6 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
+import "./Dispute.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "./interfaces/IVerifier.sol";
 import "./lib/Error.sol";
@@ -112,6 +113,8 @@ contract ProofMarketPlace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IAttestationVerifier public immutable ATTESTATION_VERIFIER;
 
+    Dispute private dispute;
+
     uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
 
     //-------------------------------- Constants and Immutable start --------------------------------//
@@ -130,6 +133,7 @@ contract ProofMarketPlace is
         uint256 slashingPenalty;
         uint256 activationBlock;
         address ivsSigner;
+        bytes32 ivsImageId;
         bytes ivsUrl;
         bytes marketmetadata;
     }
@@ -206,7 +210,7 @@ contract ProofMarketPlace is
         ATTESTATION_VERIFIER = _attestationVerifier;
     }
 
-    function initialize(address _admin) public initializer {
+    function initialize(address _admin, Dispute _dispute) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -217,6 +221,8 @@ contract ProofMarketPlace is
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
+
+        dispute = _dispute;
     }
 
     /**
@@ -257,6 +263,7 @@ contract ProofMarketPlace is
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
         market.ivsUrl = _ivsUrl;
         market.ivsSigner = ivsSigner;
+        market.ivsImageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(_ivsAttestationBytes);
 
         ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
@@ -454,11 +461,10 @@ contract ProofMarketPlace is
         emit AskCancelled(askId);
     }
 
-    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external nonReentrant {
-        AskWithState memory askWithState = listOfAsk[askId];
-
-        uint256 marketId = askWithState.ask.marketId;
-
+    function _verifyAndGetData(
+        uint256 askId,
+        AskWithState memory askWithState
+    ) internal view returns (uint256, address) {
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
             askWithState.generator,
             askWithState.ask.marketId
@@ -467,24 +473,17 @@ contract ProofMarketPlace is
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
 
-        Market memory currentMarket = marketData[marketId];
-        bytes32 messageHash;
-        // if market needs enclave based, only sign only request id
-        if (currentMarket.proverImageId != bytes32(0)) {
-            //only askId must be signed
-            messageHash = keccak256(abi.encode(askId));
-        }
-        // if market is not enclave based, sign request||inputdata
-        else {
-            //askId and proverData both must be signed
-            messageHash = keccak256(abi.encode(askId, askWithState.ask.proverData));
-        }
+        return (minRewardForGenerator, generatorRewardAddress);
+    }
 
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
-
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
-        require(signer == currentMarket.ivsSigner, Error.INVALID_ENCLAVE_KEY);
-
+    function _completeProofForInvalidRequests(
+        uint256 askId,
+        AskWithState memory askWithState,
+        uint256 minRewardForGenerator,
+        address generatorRewardAddress,
+        uint256 marketId,
+        uint256 _slashingPenalty
+    ) internal {
         listOfAsk[askId].state = AskState.COMPLETE;
 
         // token related to incorrect request will be sen't to treasury
@@ -498,9 +497,35 @@ contract ProofMarketPlace is
             PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
         }
 
-        uint256 generatorAmountToRelease = currentMarket.slashingPenalty;
-        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
+        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, _slashingPenalty);
         emit InvalidInputsDetected(askId);
+    }
+
+    function submitProofForInvalidInputs(uint256 askId, bytes calldata completeData) external nonReentrant {
+        AskWithState memory askWithState = listOfAsk[askId];
+        uint256 marketId = askWithState.ask.marketId;
+        Market memory currentMarket = marketData[marketId];
+
+        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
+
+        require(
+            dispute.checkDisputeUsingAttestationAndOrSignature(
+                askId,
+                completeData,
+                currentMarket.ivsImageId,
+                currentMarket.ivsSigner
+            ),
+            Error.CAN_NOT_SLASH_USING_VALID_INPUTS
+        );
+
+        _completeProofForInvalidRequests(
+            askId,
+            askWithState,
+            minRewardForGenerator,
+            generatorRewardAddress,
+            marketId,
+            currentMarket.slashingPenalty
+        );
     }
 
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {

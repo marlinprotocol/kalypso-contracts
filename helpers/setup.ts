@@ -16,6 +16,7 @@ import {
   Error,
   Error__factory,
   EntityKeyRegistry,
+  Dispute__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
 
@@ -32,13 +33,13 @@ interface SetupTemplate {
 }
 
 export const createTask = async (
-  matchingEnginePrivateKey: string,
+  matchingEngineEnclave: MockEnclave,
   provider: Provider | null,
   setupTemplate: SetupTemplate,
   askId: string,
   generator: Signer,
 ) => {
-  const matchingEngine: Signer = new ethers.Wallet(matchingEnginePrivateKey, provider);
+  const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), provider);
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
     .assignTask(askId.toString(), await generator.getAddress(), "0x");
@@ -134,7 +135,7 @@ export const rawSetup = async (
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
 
   const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-  const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+  const proxy = await upgrades.deployProxy(ProofMarketPlace, [], {
     kind: "uups",
     constructorArgs: [
       await mockToken.getAddress(),
@@ -145,10 +146,14 @@ export const rawSetup = async (
       await entityKeyRegistry.getAddress(),
       await mockAttestationVerifier.getAddress(),
     ],
+    initializer: false,
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
+  const dispute = await new Dispute__factory(admin).deploy();
+
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
+  await proofMarketPlace.initialize(await admin.getAddress(), await dispute.getAddress());
 
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
 
