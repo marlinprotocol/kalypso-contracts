@@ -14,6 +14,7 @@ library Error {
     string public constant INVALID_CONTRACT_ADDRESS = "A8";
     string public constant CANNOT_USE_MATCHING_ENGINE_ROLE = "A9";
     string public constant INVALID_ENCLAVE_SIGNATURE = "A10";
+    string public constant INCORRECT_IMAGE_ID = "A11";
 
     // Generator-related Errors
     string public constant GENERATOR_ALREADY_EXISTS = "G1";
@@ -30,6 +31,7 @@ library Error {
     string public constant MAX_PARALLEL_REQUESTS_PER_MARKET_EXCEEDED = "G12";
     string public constant KEY_ALREADY_EXISTS = "G13";
     string public constant REDUCTION_REQUEST_NOT_VALID = "G14";
+    string public constant PUBLIC_MARKETS_DONT_NEED_KEY = "G15";
 
     // Market-related Errors
     string public constant INVALID_MARKET = "M1";
@@ -45,6 +47,7 @@ library Error {
     string public constant ARITY_MISMATCH = "TR3";
     string public constant ONLY_MATCHING_ENGINE_CAN_ASSIGN = "TR4";
     string public constant REQUEST_ALREADY_IN_PLACE = "TR5";
+    string public constant CAN_NOT_SLASH_USING_VALID_INPUTS = "TR6";
 
     // Proof and State Errors
     string public constant SHOULD_BE_IN_CREATE_STATE = "PS1";

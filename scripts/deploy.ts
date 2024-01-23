@@ -7,12 +7,12 @@ import {
   MockAttestationVerifier__factory,
   MockToken__factory,
   PriorityLog__factory,
-  ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
   ZkbVerifier__factory,
   AttestationVerifier__factory,
+  Dispute__factory,
 } from "../typechain-types";
 import { checkFileExists, createFileIfNotExists } from "../helpers";
 
@@ -145,11 +145,19 @@ async function main(): Promise<string> {
     let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.generator_registry);
     tx.wait();
   }
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+
+  if (!addresses.proxy.dispute) {
+    const dispute = await new Dispute__factory(admin).deploy();
+    await dispute.waitForDeployment();
+    addresses.proxy.dispute = await dispute.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proof_market_place) {
     const proof_market_place = await ethers.getContractFactory("ProofMarketPlace");
-    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
+    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress(), addresses.proxy.dispute], {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,

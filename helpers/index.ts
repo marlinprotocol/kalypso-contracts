@@ -1,7 +1,8 @@
 import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
-import { PublicKey, PrivateKey } from "eciesjs";
+import { PrivateKey } from "eciesjs";
+import { AddressLike, BytesLike } from "ethers";
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -170,28 +171,130 @@ export async function skipTime(ethersVar: typeof ethers, t: number) {
   await skipBlocks(ethersVar, 1);
 }
 
-export interface WalletInfo {
-  privateKey: string;
+export interface PubkeyAndAddress {
   address: string;
   uncompressedPublicKey: string;
 }
-
-export function generateWalletInfo(): WalletInfo {
-  // Create a new wallet
-  const wallet = ethers.Wallet.createRandom();
-
-  // Extract the private key
-  const privateKey = wallet.privateKey;
-
-  // Extract the address
-  const address = wallet.address;
-
-  let secret_key: PrivateKey = PrivateKey.fromHex(privateKey);
-  let pub_key = "0x" + secret_key.publicKey.uncompressed.toString("hex").substring(2);
-
-  return {
-    privateKey,
-    address,
-    uncompressedPublicKey: pub_key,
-  };
+export interface WalletInfo extends PubkeyAndAddress {
+  privateKey: string;
 }
+
+export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
+export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647";
+
+export class MockEnclave {
+  public wallet: WalletInfo;
+  public pcrs: [BytesLike, BytesLike, BytesLike];
+
+  constructor(pcrs?: [BytesLike, BytesLike, BytesLike]) {
+    this.wallet = this.generateWalletInfo();
+    if (pcrs) {
+      this.pcrs = pcrs;
+    } else {
+      this.pcrs = ["0x00", "0x00", "0x00"];
+    }
+  }
+
+  public getMockUnverifiedAttestation(signerAddress: AddressLike): BytesLike {
+    let abiCoder = new ethers.AbiCoder();
+
+    let attestationBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      [
+        "0x00",
+        signerAddress,
+        this.wallet.uncompressedPublicKey,
+        this.pcrs[0],
+        this.pcrs[1],
+        this.pcrs[2],
+        "0x00",
+        "0x00",
+      ],
+    );
+
+    return attestationBytes;
+  }
+
+  private generateWalletInfo(): WalletInfo {
+    // Create a new wallet
+    const wallet = ethers.Wallet.createRandom();
+
+    // Extract the private key
+    const privateKey = wallet.privateKey;
+
+    // Extract the address
+    const address = wallet.address;
+
+    let secret_key: PrivateKey = PrivateKey.fromHex(privateKey);
+    let pub_key = "0x" + secret_key.publicKey.uncompressed.toString("hex").substring(2);
+
+    return {
+      privateKey,
+      address,
+      uncompressedPublicKey: pub_key,
+    };
+  }
+
+  public getPrivateKey(supressWarning = false): string {
+    if (!supressWarning) {
+      console.warn(
+        "Accessing enclave private key is not possible in enclaves. This is mock enclave. You should know why you are accessing key during testing",
+      );
+    }
+    return this.wallet.privateKey;
+  }
+
+  public async signMessage(ethHash: BytesLike): Promise<string> {
+    let generateEnclaveSigner = new ethers.Wallet(this.wallet.privateKey);
+    let signature = await generateEnclaveSigner.signMessage(ethHash);
+
+    return signature;
+  }
+
+  public getUncompressedPubkey(): string {
+    return this.wallet.uncompressedPublicKey;
+  }
+
+  public getAddress(): string {
+    return this.wallet.address;
+  }
+
+  public getImageId(): BytesLike {
+    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation(this.wallet.address));
+  }
+
+  public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
+    let abicode = new ethers.AbiCoder();
+
+    let decoded = abicode.decode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      attesationData,
+    );
+    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[3], decoded[4], decoded[5]]);
+    let digest = ethers.keccak256(encoded);
+    return digest;
+  }
+
+  public static getPubKeyAndAddressFromAttestation(attesationData: BytesLike): PubkeyAndAddress {
+    let abicode = new ethers.AbiCoder();
+
+    let decoded = abicode.decode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      attesationData,
+    );
+    let pubkey = decoded[2];
+    let hash = ethers.keccak256(pubkey);
+
+    const address = "0x" + hash.slice(-40);
+
+    return {
+      uncompressedPublicKey: pubkey,
+      address,
+    };
+  }
+}
+
+export const MockIVSPCRS: [BytesLike, BytesLike, BytesLike] = ["0x01", "0x02", "0x03"];
+export const MockMEPCRS: [BytesLike, BytesLike, BytesLike] = ["0x11", "0x12", "0x13"];
+export const MockGeneratorPCRS: [BytesLike, BytesLike, BytesLike] = ["0x21", "0x32", "0x43"];

@@ -19,12 +19,12 @@ import {
 import {
   GeneratorData,
   MarketData,
-  generateWalletInfo,
+  MockEnclave,
+  MockGeneratorPCRS,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
   skipBlocks,
-  utf8ToHex,
 } from "../helpers";
 
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
@@ -53,8 +53,8 @@ describe("Checking Generator's multiple compute", () => {
 
   let generatorData: GeneratorData;
 
-  const ivsInternalWallet = generateWalletInfo();
-  const matchingEngineInternalWallet = generateWalletInfo();
+  const ivsEnclave = new MockEnclave();
+  const matchingEngineEnclave = new MockEnclave();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -89,8 +89,8 @@ describe("Checking Generator's multiple compute", () => {
       name: "some custom name for the generator",
     };
 
-    await admin.sendTransaction({ to: ivsInternalWallet.address, value: "1000000000000000000" });
-    await admin.sendTransaction({ to: matchingEngineInternalWallet.address, value: "1000000000000000000" });
+    await admin.sendTransaction({ to: ivsEnclave.getAddress(), value: "1000000000000000000" });
+    await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
 
@@ -148,8 +148,8 @@ describe("Checking Generator's multiple compute", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      ivsInternalWallet,
-      matchingEngineInternalWallet,
+      ivsEnclave,
+      matchingEngineEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -215,7 +215,7 @@ describe("Checking Generator's multiple compute", () => {
     );
 
     await setup.createTask(
-      matchingEngineInternalWallet.privateKey,
+      matchingEngineEnclave,
       admin.provider as Provider,
       {
         mockToken: tokenToUse,
@@ -300,9 +300,9 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketPlace.askCounter();
 
-        await proofMarketPlace.connect(prover).createAsk(ask, 0, "0x", "0x");
+        await proofMarketPlace.connect(prover).createAsk(ask, marketId, "0x", "0x");
 
-        const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+        const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
         await expect(
           proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
@@ -333,7 +333,7 @@ describe("Checking Generator's multiple compute", () => {
         );
 
         await setup.createTask(
-          matchingEngineInternalWallet.privateKey,
+          matchingEngineEnclave,
           admin.provider as Provider,
           {
             mockToken: tokenToUse,
@@ -373,10 +373,8 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add entity keys", async () => {
-    const generatorEnclaveKey = generateWalletInfo();
-    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
     let types = ["address"];
 
     let values = [await generator.getAddress()];
@@ -384,66 +382,63 @@ describe("Checking Generator's multiple compute", () => {
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
-    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let abiCoder = new ethers.AbiCoder();
-    let inputBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
-    );
+    let generatorAttestationBytes = generatorEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
+    )
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await generator.getAddress());
+      .withArgs(await generator.getAddress(), marketId);
   });
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
-    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
+    const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(false), admin.provider);
     await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
       .be.reverted;
+
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
     expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
   });
 
-  it("Update key should revert for invalid contract address", async () => {
-    const matchingEngine: Signer = new ethers.Wallet(matchingEngineInternalWallet.privateKey, admin.provider);
-    await expect(entityKeyRegistry.addGeneratorRegistry(await matchingEngine.getAddress())).to.be.revertedWith(
-      await errorLibrary.INVALID_CONTRACT_ADDRESS(),
-    );
-  });
-
   it("Updating with invalid key should revert", async () => {
-    const generatorEnclaveKey = generateWalletInfo();
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
     let types = ["address"];
-
     let values = [await generator.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
-    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
     const invalidPubkey = "0x1234";
 
     let abiCoder = new ethers.AbiCoder();
-    let inputBytes = abiCoder.encode(
+    let validAttesationWithInvalidKey = abiCoder.encode(
       ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await admin.getAddress(), invalidPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+      [
+        "0x00",
+        await admin.getAddress(),
+        invalidPubkey,
+        MockGeneratorPCRS[0],
+        MockGeneratorPCRS[1],
+        MockGeneratorPCRS[2],
+        "0x00",
+        "0x00",
+      ],
     );
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature)).to.be.revertedWith(
-      await errorLibrary.INVALID_ENCLAVE_KEY(),
-    );
+
+    await expect(
+      generatorRegistry.connect(generator).updateEncryptionKey(marketId, validAttesationWithInvalidKey, signature),
+    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
   });
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generatorEnclaveKey = generateWalletInfo();
-    const knownPubkey = generatorEnclaveKey.uncompressedPublicKey;
-
-    let generateEnclaveSigner = new ethers.Wallet(generatorEnclaveKey.privateKey, admin.provider);
+    const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
     let types = ["address"];
 
     let values = [await generator.getAddress()];
@@ -451,28 +446,24 @@ describe("Checking Generator's multiple compute", () => {
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
-    let signature = await generateEnclaveSigner.signMessage(ethers.getBytes(digest));
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let abiCoder = new ethers.AbiCoder();
-    let inputBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await admin.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
-    );
+    let newAttesationBytes = generatorEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
-    await expect(generatorRegistry.connect(generator).updateEncryptionKey(inputBytes, signature))
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, newAttesationBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await generator.getAddress());
+      .withArgs(await generator.getAddress(), marketId);
 
     // Checking key in registry
-    const pub_key = await entityKeyRegistry.pub_key(generator.getAddress());
+    const pub_key = await entityKeyRegistry.pub_key(generator.getAddress(), marketId);
     // console.log({ pub_key: pub_key });
     // console.log({pubBytes: pubBytes });
-    expect(pub_key).to.eq(knownPubkey);
+    expect(pub_key).to.eq(generatorEnclave.getUncompressedPubkey());
 
     // Removing key from registry
-    // await expect(generatorRegistry.connect(generator).removeEncryptionKey(generator.getAddress()))
-    //   .to.emit(entityKeyRegistry, "RemoveKey")
-    //   .withArgs(await generator.getAddress());
+    await expect(generatorRegistry.connect(generator).removeEncryptionKey(marketId))
+      .to.emit(entityKeyRegistry, "RemoveKey")
+      .withArgs(await generator.getAddress(), marketId);
   });
 
   it("Generator Prechecks", async () => {

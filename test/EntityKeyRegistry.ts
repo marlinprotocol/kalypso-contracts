@@ -2,8 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Signer } from "ethers";
 
-import * as fs from "fs";
-import { generateWalletInfo, utf8ToHex } from "../helpers";
+import { MockEnclave, MockGeneratorPCRS, utf8ToHex } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -11,8 +10,6 @@ import {
   EntityKeyRegistry__factory,
   MockAttestationVerifier__factory,
   MockAttestationVerifier,
-  HELPER,
-  HELPER__factory,
 } from "../typechain-types";
 
 describe("Entity key registry tests", () => {
@@ -23,7 +20,6 @@ describe("Entity key registry tests", () => {
   let entityKeyRegistry: EntityKeyRegistry;
   let errorLibrary: Error;
   let attestationVerifier: MockAttestationVerifier;
-  let HELPER_LIB: HELPER;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -37,7 +33,6 @@ describe("Entity key registry tests", () => {
       await attestationVerifier.getAddress(),
       await admin.getAddress(),
     );
-    HELPER_LIB = await new HELPER__factory(admin).deploy();
 
     const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await entityKeyRegistry.grantRole(register_role, await admin.getAddress());
@@ -45,42 +40,42 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key should revert for invalid admin", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), "0x", "0x")).to.be
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
       .reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), "0x", "0x")).to.be.revertedWith(
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
 
   it("Update key", async () => {
-    const generator_enclave_key = generateWalletInfo();
+    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 0, generator_enclave.getUncompressedPubkey(), "0x"),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 0);
   });
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generator_enclave_key = generateWalletInfo();
+    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), generator_enclave_key.uncompressedPublicKey, "0x"),
+      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 8, generator_enclave.getUncompressedPubkey(), "0x"),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 8);
 
     // Checking key in registry
-    const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress());
-    expect(pub_key).to.eq(generator_enclave_key.uncompressedPublicKey);
+    const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress(), 8);
+    expect(pub_key).to.eq(generator_enclave.getUncompressedPubkey());
 
     // Removing key from registry
-    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress()))
+    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress(), 9))
       .to.emit(entityKeyRegistry, "RemoveKey")
-      .withArgs(await randomUser.getAddress());
+      .withArgs(await randomUser.getAddress(), 9);
   });
 
   it("Test Attestation to pubkey and address", async () => {
@@ -97,8 +92,8 @@ describe("Entity key registry tests", () => {
       ["0x00", await signerToUser.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
     );
 
-    const result = await HELPER_LIB.getPubkeyAndAddress(inputBytes);
-    expect(result[0]).to.eq(knownPubkey);
-    expect(result[1]).to.eq(expectedAddress);
+    const info = MockEnclave.getPubKeyAndAddressFromAttestation(inputBytes);
+    expect(info.uncompressedPublicKey).to.eq(knownPubkey);
+    expect(info.address.toLowerCase()).to.eq(expectedAddress.toLowerCase());
   });
 });

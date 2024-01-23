@@ -1,5 +1,5 @@
 import { ethers, upgrades } from "hardhat";
-import { Provider, Signer } from "ethers";
+import { BytesLike, Provider, Signer } from "ethers";
 
 import {
   MockToken,
@@ -16,9 +16,11 @@ import {
   Error,
   Error__factory,
   EntityKeyRegistry,
+  Dispute__factory,
 } from "../typechain-types";
 import BigNumber from "bignumber.js";
-import { WalletInfo } from ".";
+
+import { MockEnclave, MockGeneratorPCRS } from ".";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -31,13 +33,13 @@ interface SetupTemplate {
 }
 
 export const createTask = async (
-  matchingEnginePrivateKey: string,
+  matchingEngineEnclave: MockEnclave,
   provider: Provider | null,
   setupTemplate: SetupTemplate,
   askId: string,
   generator: Signer,
 ) => {
-  const matchingEngine: Signer = new ethers.Wallet(matchingEnginePrivateKey, provider);
+  const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), provider);
   await setupTemplate.proofMarketPlace
     .connect(matchingEngine)
     .assignTask(askId.toString(), await generator.getAddress(), "0x");
@@ -86,13 +88,15 @@ export const rawSetup = async (
   iverifier: IVerifier,
   generator: Signer,
   generatorData: string,
-  ivsEcies: WalletInfo,
-  matchingEngineEcies: WalletInfo,
+  ivsEnclave: MockEnclave,
+  matchingEngineEnclave: MockEnclave,
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
-  isEnclaveRequired: boolean = true,
 ): Promise<SetupTemplate> => {
+  const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
+  let generatorAttestationBytes = generatorEnclaveDetails.getMockUnverifiedAttestation(await generator.getAddress());
+
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
@@ -118,7 +122,7 @@ export const rawSetup = async (
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
 
   const ProofMarketPlace = await ethers.getContractFactory("ProofMarketPlace");
-  const proxy = await upgrades.deployProxy(ProofMarketPlace, [await admin.getAddress()], {
+  const proxy = await upgrades.deployProxy(ProofMarketPlace, [], {
     kind: "uups",
     constructorArgs: [
       await mockToken.getAddress(),
@@ -129,10 +133,14 @@ export const rawSetup = async (
       await entityKeyRegistry.getAddress(),
       await mockAttestationVerifier.getAddress(),
     ],
+    initializer: false,
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
+  const dispute = await new Dispute__factory(admin).deploy();
+
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
+  await proofMarketPlace.initialize(await admin.getAddress(), await dispute.getAddress());
 
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
 
@@ -143,23 +151,9 @@ export const rawSetup = async (
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-  let abiCoder = new ethers.AbiCoder();
-
-  let matchingEngineAttestationBytes = abiCoder.encode(
-    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    [
-      "0x00",
-      await admin.getAddress(),
-      matchingEngineEcies.uncompressedPublicKey,
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-      "0x00",
-    ],
+  let matchingEngineAttestationBytes = await matchingEngineEnclave.getMockUnverifiedAttestation(
+    await admin.getAddress(),
   );
-
-  let matchingEngineSigner = new ethers.Wallet(matchingEngineEcies.privateKey, admin.provider);
   let types = ["address"];
 
   let values = [await proofMarketPlace.getAddress()];
@@ -167,21 +161,19 @@ export const rawSetup = async (
   let abicode = new ethers.AbiCoder();
   let encoded = abicode.encode(types, values);
   let digest = ethers.keccak256(encoded);
-  let signature = await matchingEngineSigner.signMessage(ethers.getBytes(digest));
+  let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
   await proofMarketPlace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes, signature);
 
-  let ivsAttestationBytes = abiCoder.encode(
-    ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-    ["0x00", await marketCreator.getAddress(), ivsEcies.uncompressedPublicKey, "0x00", "0x00", "0x00", "0x00", "0x00"],
-  );
+  let ivsAttestationBytes = await ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
 
-  let ivsSigner = new ethers.Wallet(ivsEcies.privateKey, admin.provider);
   values = [await marketCreator.getAddress()];
   abicode = new ethers.AbiCoder();
   encoded = abicode.encode(types, values);
   digest = ethers.keccak256(encoded);
-  signature = await ivsSigner.signMessage(ethers.getBytes(digest));
+  signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
+
+  const enclaveImageId = MockEnclave.getImageIdFromAttestation(generatorAttestationBytes);
 
   await proofMarketPlace
     .connect(marketCreator)
@@ -189,7 +181,7 @@ export const rawSetup = async (
       marketSetupBytes,
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
-      isEnclaveRequired,
+      enclaveImageId,
       ivsAttestationBytes,
       Buffer.from(ivsUrl, "ascii"),
       signature,
@@ -213,7 +205,15 @@ export const rawSetup = async (
 
   await generatorRegistry
     .connect(generator)
-    .joinMarketPlace(marketId, computeToNewMarket.toFixed(0), minRewardForGenerator.toFixed(), 100);
+    .joinMarketPlace(
+      marketId,
+      computeToNewMarket.toFixed(0),
+      minRewardForGenerator.toFixed(),
+      100,
+      false,
+      generatorAttestationBytes,
+      "0x",
+    );
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 

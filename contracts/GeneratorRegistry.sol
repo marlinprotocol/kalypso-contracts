@@ -10,11 +10,11 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
-import "./lib/Helper.sol";
 import "./ProofMarketPlace.sol";
 
 contract GeneratorRegistry is
@@ -171,7 +171,7 @@ contract GeneratorRegistry is
         uint256 initialStake,
         bytes memory generatorData
     ) external nonReentrant {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
 
         require(generatorData.length != 0, Error.CANNOT_BE_ZERO);
@@ -200,7 +200,7 @@ contract GeneratorRegistry is
     }
 
     function changeRewardAddress(address newRewardAddress) external {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
@@ -210,7 +210,7 @@ contract GeneratorRegistry is
     }
 
     function increaseDeclaredCompute(uint256 computeToIncrease) external {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
@@ -222,7 +222,7 @@ contract GeneratorRegistry is
     }
 
     function intendToReduceCompute(uint256 newUtilization) external {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
@@ -243,7 +243,7 @@ contract GeneratorRegistry is
     }
 
     function decreaseDeclaredCompute() external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
 
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
@@ -277,7 +277,7 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
         require(amount != 0, Error.CANNOT_BE_ZERO);
 
-        STAKING_TOKEN.safeTransferFrom(msg.sender, address(this), amount);
+        STAKING_TOKEN.safeTransferFrom(_msgSender(), address(this), amount);
         generator.totalStake += amount;
 
         emit AddedStake(generatorAddress, amount);
@@ -285,7 +285,7 @@ contract GeneratorRegistry is
     }
 
     function intendToReduceStake(uint256 newUtilization) external {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
@@ -301,7 +301,7 @@ contract GeneratorRegistry is
     }
 
     function unstake(address to) external nonReentrant {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
 
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
@@ -327,7 +327,7 @@ contract GeneratorRegistry is
     }
 
     function deregister(address refundAddress) external nonReentrant {
-        address _msgSender = msg.sender;
+        address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
 
         require(generator.sumOfComputeAllocations == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
@@ -337,30 +337,67 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
-    function updateEncryptionKey(bytes memory attestation_data, bytes calldata enclaveSignature) external {
-        address _msgSender = _msgSender();
-        Generator memory generator = generatorRegistry[_msgSender];
+    function updateEncryptionKey(
+        uint256 marketId,
+        bytes memory attestationData,
+        bytes calldata enclaveSignature
+    ) external {
+        address generatorAddress = _msgSender();
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        bytes32 expectedImageId = proofMarketPlace.proverImageId(marketId);
+
+        require(
+            expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
+            Error.PUBLIC_MARKETS_DONT_NEED_KEY
+        );
+
+        require(expectedImageId == GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
 
-        (bytes memory pubkey, address _address) = HELPER.getPubkeyAndAddress(attestation_data);
+        (bytes memory pubkey, address _address) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
 
-        bytes32 messageHash = keccak256(abi.encode(_msgSender));
-        bytes32 ethSignedMessageHash = HELPER.getEthSignedMessageHash(messageHash);
+        bytes32 messageHash = keccak256(abi.encode(generatorAddress));
+        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
 
-        ENTITY_KEY_REGISTRY.updatePubkey(_msgSender, pubkey, attestation_data);
+        ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
+    }
+
+    function removeEncryptionKey(uint256 marketId) external {
+        address generatorAddress = _msgSender();
+        ENTITY_KEY_REGISTRY.removePubkey(generatorAddress, marketId);
+    }
+
+    function _verifyAttestation(
+        address addressToVerify,
+        bytes memory attestationData,
+        bytes calldata enclaveSignature
+    ) internal pure {
+        (, address _address) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+
+        bytes32 messageHash = keccak256(abi.encode(addressToVerify));
+        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     function joinMarketPlace(
         uint256 marketId,
         uint256 computePerRequestRequired,
         uint256 proofGenerationCost,
-        uint256 proposedTime
+        uint256 proposedTime,
+        bool updateMarketDedicatedKey, // false if not a private market
+        bytes memory attestationData, // verification ignored if updateMarketDedicatedKey==false
+        bytes calldata enclaveSignature // ignored if updateMarketDedicatedKey==false
     ) external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
+
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
@@ -387,6 +424,17 @@ contract GeneratorRegistry is
             0
         );
 
+        bytes32 expectedImageId = proofMarketPlace.proverImageId(marketId);
+
+        if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
+            require(expectedImageId == GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+
+            if (updateMarketDedicatedKey) {
+                _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
+                (bytes memory pubKey, ) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+                ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubKey, attestationData);
+            }
+        }
         emit JoinedMarketPlace(generatorAddress, marketId, computePerRequestRequired);
     }
 
@@ -445,26 +493,26 @@ contract GeneratorRegistry is
     }
 
     function leaveMarketPlaces(uint256[] calldata marketIds) external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
             _leaveMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
     function leaveMarketPlace(uint256 marketId) external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
         _leaveMarketPlace(generatorAddress, marketId);
     }
 
     function requestForExitMarketPlaces(uint256[] calldata marketIds) external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
             _requestForExitMarketPlace(generatorAddress, marketIds[index]);
         }
     }
 
     function requestForExitMarketPlace(uint256 marketId) external {
-        address generatorAddress = msg.sender;
+        address generatorAddress = _msgSender();
         _requestForExitMarketPlace(generatorAddress, marketId);
     }
 
@@ -590,4 +638,22 @@ contract GeneratorRegistry is
 
         return (generator.rewardAddress, info.proofGenerationCost);
     }
+
+    // function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) public pure returns (bytes32) {
+    //     (, , , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , ) = abi.decode(
+    //         data,
+    //         (bytes, address, bytes, bytes, bytes, bytes, uint256, uint256)
+    //     );
+
+    //     return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+    // }
+
+    // function GET_IMAGED_ID_FROM_PCRS(
+    //     bytes memory PCR0,
+    //     bytes memory PCR1,
+    //     bytes memory PCR2
+    // ) public pure returns (bytes32) {
+    //     bytes32 imageId = keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
+    //     return imageId;
+    // }
 }
