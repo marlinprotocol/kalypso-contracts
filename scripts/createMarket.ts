@@ -65,13 +65,28 @@ async function main(): Promise<string> {
     };
 
     const marketSetupBytes = marketDataToBytes(marketSetupData);
-    const zkbMarketId = ethers.keccak256(marketDataToBytes(marketSetupData));
+    const zkbMarketId = await proof_market_place.marketCounter();
+
+    const knownPubkey =
+      "0x6af9fff439e147a2dfc1e5cf83d63389a74a8cddeb1c18ecc21cb83aca9ed5fa222f055073e4c8c81d3c7a9cf8f2fa2944855b43e6c84ab8e16177d45698c843";
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(
+      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["0x00", await marketCreator.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+    );
 
     const tx = await proof_market_place
       .connect(marketCreator)
-      .createMarketPlace(marketSetupBytes, addresses.proxy.zkb_verifier_wrapper, config.generatorSlashingPenalty);
+      .createMarketPlace(
+        marketSetupBytes,
+        addresses.proxy.transfer_verifier_wrapper,
+        config.generatorSlashingPenalty,
+        true,
+        inputBytes,
+        Buffer.from(marketSetupData.inputOuputVerifierUrl, "ascii"),
+      );
     await tx.wait();
-    addresses.zkbMarketId = zkbMarketId;
+    addresses.zkbMarketId = zkbMarketId.toString();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 

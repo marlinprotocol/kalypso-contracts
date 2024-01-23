@@ -26,7 +26,7 @@ async function main(): Promise<string> {
 
   for (let index = 0; index < marketIdsToRead.length; index++) {
     const marketId = marketIdsToRead[index];
-    const marketDataBytes = await proof_market_place.marketmetadata(marketId);
+    const marketDataBytes = (await proof_market_place.marketData(marketId)).marketmetadata;
     const marketData = hexStringToMarketData(marketDataBytes);
     console.log("******* start market data *******");
     console.log(marketData);

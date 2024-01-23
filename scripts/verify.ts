@@ -29,8 +29,14 @@ async function main() {
 
   let verificationResult;
   verificationResult = await run("verify:verify", {
+    address: addresses.proxy.attestation_verifier,
+    constructorArguments: [],
+  });
+  console.log({ verificationResult });
+
+  verificationResult = await run("verify:verify", {
     address: addresses.implementation.generator_registry,
-    constructorArguments: [addresses.proxy.staking_token],
+    constructorArguments: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
   });
   console.log({ verificationResult });
 
@@ -43,6 +49,7 @@ async function main() {
       await treasury.getAddress(),
       addresses.proxy.generator_registry,
       addresses.proxy.EntityRegistry,
+      addresses.proxy.mock_attestation_verifier,
     ],
   });
   console.log({ verificationResult });

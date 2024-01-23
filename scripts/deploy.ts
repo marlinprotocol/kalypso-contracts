@@ -7,13 +7,19 @@ import {
   MockAttestationVerifier__factory,
   MockToken__factory,
   PriorityLog__factory,
-  ProofMarketPlace__factory,
   EntityKeyRegistry__factory,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
   ZkbVerifier__factory,
+  AttestationVerifier__factory,
+  Dispute__factory,
 } from "../typechain-types";
 import { checkFileExists, createFileIfNotExists } from "../helpers";
+
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+
+const abiCoder = new ethers.AbiCoder();
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -72,11 +78,62 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.mock_attestation_verifier) {
+    const mock_attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
+    await mock_attestation_verifier.waitForDeployment();
+
+    addresses.proxy.mock_attestation_verifier = await mock_attestation_verifier.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.attestation_verifier) {
+    const attestationVerifierFactory = await ethers.getContractFactory("AttestationVerifier");
+    const attestationVerifierProxy = await upgrades.deployProxy(attestationVerifierFactory, [], {
+      kind: "uups",
+      constructorArgs: [],
+      initializer: false,
+    });
+    await attestationVerifierProxy.waitForDeployment();
+
+    addresses.proxy.attestation_verifier = await attestationVerifierProxy.getAddress();
+    addresses.implementation.attestation_verifier = await upgrades.erc1967.getImplementationAddress(
+      addresses.proxy.attestation_verifier,
+    );
+    const attestation_verifier = AttestationVerifier__factory.connect(addresses.proxy.attestation_verifier, admin);
+    const tx = await attestation_verifier.initialize(
+      [
+        {
+          PCR0: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+          PCR1: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002",
+          PCR2: "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003",
+        },
+      ],
+      ["0x0000000000000000000000000000000000000001"],
+      await admin.getAddress(),
+    );
+    await tx.wait();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+  if (!addresses.proxy.entity_registry) {
+    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(
+      addresses.proxy.mock_attestation_verifier,
+      await admin.getAddress(),
+    );
+    await entity_registry.waitForDeployment();
+
+    addresses.proxy.entity_registry = await entity_registry.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
+
+  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.generator_registry) {
     const generator_registryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(generator_registryContract, [], {
       kind: "uups",
-      constructorArgs: [addresses.proxy.staking_token],
+      constructorArgs: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
       initializer: false,
     });
     await generatorProxy.waitForDeployment();
@@ -86,30 +143,25 @@ async function main(): Promise<string> {
       addresses.proxy.generator_registry,
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+
+    const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
+    const roleToGive = await entityRegistry.KEY_REGISTER_ROLE();
+    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.generator_registry);
+    tx.wait();
   }
-
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.attestation_verifier) {
-    const attestation_verifier = await new MockAttestationVerifier__factory(admin).deploy();
-    await attestation_verifier.waitForDeployment();
 
-    addresses.proxy.attestation_verifier = await attestation_verifier.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.entity_registry) {
-    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(addresses.proxy.attestation_verifier);
-    await entity_registry.waitForDeployment();
-
-    addresses.proxy.entity_registry = await entity_registry.getAddress();
+  if (!addresses.proxy.dispute) {
+    const dispute = await new Dispute__factory(admin).deploy();
+    await dispute.waitForDeployment();
+    addresses.proxy.dispute = await dispute.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proof_market_place) {
     const proof_market_place = await ethers.getContractFactory("ProofMarketPlace");
-    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
+    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress(), addresses.proxy.dispute], {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,
@@ -118,6 +170,7 @@ async function main(): Promise<string> {
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
         addresses.proxy.entity_registry,
+        addresses.proxy.mock_attestation_verifier,
       ],
     });
     await proxy.waitForDeployment();
@@ -128,8 +181,13 @@ async function main(): Promise<string> {
     );
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
+    const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
+    const roleToGive = await entityRegistry.KEY_REGISTER_ROLE();
+    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.proof_market_place);
+    tx.wait();
+
     const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
-    const tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
+    tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
   }
 
@@ -137,8 +195,40 @@ async function main(): Promise<string> {
   if (!addresses.proxy.transfer_verifier_wrapper) {
     const TransferVerifer = await new TransferVerifier__factory(admin).deploy();
     await TransferVerifer.waitForDeployment();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
     const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
+      inputBytes,
+      proofBytes,
     );
     await transfer_verifier_wrapper.waitForDeployment();
     addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
@@ -149,28 +239,44 @@ async function main(): Promise<string> {
   if (!addresses.proxy.zkb_verifier_wrapper) {
     const ZkbVerifier = await new ZkbVerifier__factory(admin).deploy();
     await ZkbVerifier.waitForDeployment();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
     const zkb_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await ZkbVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
     );
     await zkb_verifier_wrapper.waitForDeployment();
     addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-  const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
-  const hasMatchingEngineRole = await proof_market_place.hasRole(
-    await proof_market_place.MATCHING_ENGINE_ROLE(),
-    await matchingEngine.getAddress(),
-  );
-  if (!hasMatchingEngineRole) {
-    await (
-      await proof_market_place
-        .connect(admin)
-        ["grantRole(bytes32,address,bytes)"](
-          await proof_market_place.MATCHING_ENGINE_ROLE(),
-          await matchingEngine.getAddress(),
-          "0x",
-        )
-    ).wait();
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));

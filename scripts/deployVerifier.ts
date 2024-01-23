@@ -32,6 +32,8 @@ async function main(): Promise<string> {
     await TransferVerifer.waitForDeployment();
     const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
       await TransferVerifer.getAddress(),
+      "0x",
+      "0x",
     );
     await transfer_verifier_wrapper.waitForDeployment();
     addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();

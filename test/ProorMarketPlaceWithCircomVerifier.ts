@@ -12,9 +12,18 @@ import {
   Xor2_verifier_wrapper__factory,
   PriorityLog,
   Error,
+  EntityKeyRegistry,
 } from "../typechain-types";
 
-import { GeneratorData, MarketData, generatorDataToBytes, marketDataToBytes, setup } from "../helpers";
+import {
+  GeneratorData,
+  MarketData,
+  MockEnclave,
+  generatorDataToBytes,
+  marketDataToBytes,
+  setup,
+  skipBlocks,
+} from "../helpers";
 
 import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.json";
 import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
@@ -26,6 +35,7 @@ describe("Proof Market Place for Circom Verifier", () => {
   let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry;
 
   let signers: Signer[];
   let admin: Signer;
@@ -33,7 +43,6 @@ describe("Proof Market Place for Circom Verifier", () => {
   let treasury: Signer;
   let prover: Signer;
   let generator: Signer;
-  let matchingEngine: Signer;
 
   let marketCreator: Signer;
   let marketSetupData: MarketData;
@@ -42,6 +51,9 @@ describe("Proof Market Place for Circom Verifier", () => {
   let generatorData: GeneratorData;
 
   let iverifier: IVerifier;
+
+  const matchingEngineEnclave = new MockEnclave();
+  const ivsEnclave = new MockEnclave();
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -62,7 +74,6 @@ describe("Proof Market Place for Circom Verifier", () => {
     marketCreator = signers[3];
     prover = signers[4];
     generator = signers[5];
-    matchingEngine = signers[6];
 
     marketSetupData = {
       zkAppName: "circom addition",
@@ -77,16 +88,25 @@ describe("Proof Market Place for Circom Verifier", () => {
       name: "some custom name for the generator",
     };
 
-    marketId = ethers.keccak256(marketDataToBytes(marketSetupData));
-
     const circomVerifier = await new XorVerifier__factory(admin).deploy();
+    let abiCoder = new ethers.AbiCoder();
+    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
+    let proofBytes = abiCoder.encode(
+      ["uint[2]", "uint[2][2]", "uint[2]"],
+      [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
+    );
+
     const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
       await circomVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
     );
 
     iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
+    await treasury.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
+
     let data = await setup.rawSetup(
       admin,
       tokenHolder,
@@ -97,10 +117,12 @@ describe("Proof Market Place for Circom Verifier", () => {
       marketCreationCost,
       marketCreator,
       marketDataToBytes(marketSetupData),
+      marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      matchingEngine,
+      ivsEnclave,
+      matchingEngineEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
@@ -111,6 +133,14 @@ describe("Proof Market Place for Circom Verifier", () => {
     platformToken = data.platformToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
+    entityKeyRegistry = data.entityKeyRegistry;
+
+    await circomVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
+
+    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+
+    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check circom verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
@@ -134,12 +164,30 @@ describe("Proof Market Place for Circom Verifier", () => {
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       },
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      1,
     );
 
-    const taskId = await setup.createTask(
-      matchingEngine,
-      { mockToken: tokenToUse, proofMarketPlace, generatorRegistry, priorityLog, platformToken, errorLibrary },
+    await setup.createTask(
+      matchingEngineEnclave,
+      admin.provider,
+      {
+        mockToken: tokenToUse,
+        proofMarketPlace,
+        generatorRegistry,
+        priorityLog,
+        platformToken,
+        errorLibrary,
+        entityKeyRegistry,
+      },
       askId,
       generator,
     );
@@ -148,8 +196,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       ["uint[2]", "uint[2][2]", "uint[2]"],
       [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
     );
-    await expect(proofMarketPlace.submitProof(taskId, proofBytes))
+    await expect(proofMarketPlace.submitProof(askId, proofBytes))
       .to.emit(proofMarketPlace, "ProofCreated")
-      .withArgs(askId, taskId, proofBytes);
+      .withArgs(askId, proofBytes);
   });
 });
