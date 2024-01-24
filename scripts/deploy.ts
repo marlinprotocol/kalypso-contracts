@@ -152,7 +152,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
   if (!addresses.proxy.dispute) {
-    const dispute = await new Dispute__factory(admin).deploy();
+    const dispute = await new Dispute__factory(admin).deploy(addresses.proxy.mock_attestation_verifier);
     await dispute.waitForDeployment();
     addresses.proxy.dispute = await dispute.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");

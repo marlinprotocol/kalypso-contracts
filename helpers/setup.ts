@@ -141,7 +141,7 @@ export const rawSetup = async (
   });
   const proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), admin);
 
-  const dispute = await new Dispute__factory(admin).deploy();
+  const dispute = await new Dispute__factory(admin).deploy(await mockAttestationVerifier.getAddress());
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
   await proofMarketPlace.initialize(await admin.getAddress(), await dispute.getAddress());

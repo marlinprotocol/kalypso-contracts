@@ -118,7 +118,7 @@ describe("Proof market place", () => {
 
     proofMarketPlace = ProofMarketPlace__factory.connect(await proxy.getAddress(), signers[0]);
 
-    const dispute = await new Dispute__factory(admin).deploy();
+    const dispute = await new Dispute__factory(admin).deploy(await mockAttestationVerifier.getAddress());
 
     await generatorRegistry.initialize(await admin.getAddress(), await proofMarketPlace.getAddress());
     await proofMarketPlace.initialize(await admin.getAddress(), await dispute.getAddress());

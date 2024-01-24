@@ -71,6 +71,7 @@ contract ProofMarketPlace is
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
+        //attestationData is verified by er internal, will revert if it is wrong.
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
     }
 
@@ -508,6 +509,7 @@ contract ProofMarketPlace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
+        // dispute will check the attestation
         require(
             dispute.checkDisputeUsingAttestationAndOrSignature(
                 askId,

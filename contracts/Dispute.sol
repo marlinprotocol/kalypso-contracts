@@ -3,17 +3,25 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+import "./interfaces/IAttestationVerifier.sol";
 import "./lib/Error.sol";
 import "./lib/Helper.sol";
 
 contract Dispute is HELPER {
+    IAttestationVerifier public immutable ATTESTATION_VERIFIER;
+
+    constructor(IAttestationVerifier _attestationVerifier) {
+        ATTESTATION_VERIFIER = _attestationVerifier;
+    }
+
     function checkDisputeUsingSignature(
         uint256 askId,
         bytes calldata proverData,
         bytes memory invalidProofSignature,
         address expectedSigner,
         bool isPublic
-    ) public pure returns (bool) {
+    ) internal pure returns (bool) {
         bytes32 messageHash;
         if (isPublic) {
             messageHash = keccak256(abi.encode(askId, proverData));
@@ -34,7 +42,7 @@ contract Dispute is HELPER {
         bytes memory attestationData,
         bytes32 expectedImageId,
         bytes memory invalidProofSignature
-    ) public pure returns (bool) {
+    ) internal pure returns (bool) {
         bytes32 imageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData);
         require(imageId == expectedImageId, Error.INCORRECT_IMAGE_ID);
 
@@ -56,11 +64,13 @@ contract Dispute is HELPER {
         bytes calldata completeData,
         bytes32 expectedImageId,
         address defaultIvsSigner
-    ) public pure returns (bool) {
+    ) public view returns (bool) {
         (bytes memory attestationData, bytes memory invalidProofSignature, bool useOnlySignature) = abi.decode(
             completeData,
             (bytes, bytes, bool)
         );
+
+        require(ATTESTATION_VERIFIER.verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
         if (useOnlySignature) {
             return
