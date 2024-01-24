@@ -1,6 +1,5 @@
 {
-    "tokenSupply": "10000000000000000000000000000000",
-    "generatorSlashingPenalty": "10000000000000000000",
-    "marketCreationCost": "100000000000000000000"
-  }
-  
+  "tokenSupply": "10000000000000000000000000000000",
+  "generatorSlashingPenalty": "10000000000000000000",
+  "marketCreationCost": "100000000000000000000"
+}

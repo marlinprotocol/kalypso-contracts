@@ -1,19 +1,19 @@
 {
-    "proxy": {
-        "payment_token": "0x28B6670dE9BD7fA4e718bd2D0fDdd27C8639c9b6",
-        "staking_token": "0x57044769E5aa95590E4f99C174D9b90e9D7300F8",
-        "generator_registry": "0x5f23d4eC6607fb381759151B02795187815b0487",
-        "attestation_verifier": "0x90201271eD789Ed395ae2F1Cf5b0DC7FD3053176",
-        "entity_registry": "0x9d3b60F3527f3c07bC0Afd15Bc842D191fCD5c6D",
-        "proof_market_place": "0x2F1A3149D2798cA9Dfd7445B3cb713B4CD416b7d",
-        "transfer_verifier_wrapper": "0x158E4B78f26A38978BdA2fC6F5326711D3b7a9D6",
-        "zkb_verifier_wrapper": "0x0f782039EBDaba3D6f260298DFce5A35129BC716",
-        "priority_list": "0x980fC290Ae6FBfD16f21C7e7a493F490acE4064C",
-        "input_and_proof_format": "0x2424b9471b4B37F30d67F8B6b654B6b4720cD0a8"
-    },
-    "implementation": {
-        "generator_registry": "0xcB997e6C00F0a59ABA8fDF122Ced77729fF0BC26",
-        "proof_market_place": "0xE09E6644Db3c964B89212BB2F43ec6b438d56fed"
-    },
-    "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"
+  "proxy": {
+    "payment_token": "0x28B6670dE9BD7fA4e718bd2D0fDdd27C8639c9b6",
+    "staking_token": "0x57044769E5aa95590E4f99C174D9b90e9D7300F8",
+    "generator_registry": "0x5f23d4eC6607fb381759151B02795187815b0487",
+    "attestation_verifier": "0x90201271eD789Ed395ae2F1Cf5b0DC7FD3053176",
+    "entity_registry": "0x9d3b60F3527f3c07bC0Afd15Bc842D191fCD5c6D",
+    "proof_market_place": "0x2F1A3149D2798cA9Dfd7445B3cb713B4CD416b7d",
+    "transfer_verifier_wrapper": "0x158E4B78f26A38978BdA2fC6F5326711D3b7a9D6",
+    "zkb_verifier_wrapper": "0x0f782039EBDaba3D6f260298DFce5A35129BC716",
+    "priority_list": "0x980fC290Ae6FBfD16f21C7e7a493F490acE4064C",
+    "input_and_proof_format": "0x2424b9471b4B37F30d67F8B6b654B6b4720cD0a8"
+  },
+  "implementation": {
+    "generator_registry": "0xcB997e6C00F0a59ABA8fDF122Ced77729fF0BC26",
+    "proof_market_place": "0xE09E6644Db3c964B89212BB2F43ec6b438d56fed"
+  },
+  "zkbMarketId": "0x07b7d625c70be57115ab18fc435ed0253425671cb91bd6547b7defbc75f52082"
 }
