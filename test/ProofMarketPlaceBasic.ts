@@ -353,6 +353,44 @@ describe("Proof market place", () => {
         expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
       });
 
+      it("request for market place exit", async () => {
+        await generatorRegistry
+          .connect(generator)
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
+
+        await generatorRegistry
+          .connect(generator)
+          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
+
+        await expect(generatorRegistry.connect(generator).requestForExitMarketPlace(marketId))
+          .to.emit(generatorRegistry, "RequestExitMarketPlace")
+          .withArgs(await generator.getAddress(), marketId);
+      });
+
+      it("request for market place exit: array", async () => {
+        await generatorRegistry
+          .connect(generator)
+          .register(
+            await generator.getAddress(),
+            computeUnitsRequired,
+            generatorStakingAmount.toFixed(0),
+            generatorData,
+          );
+
+        await generatorRegistry
+          .connect(generator)
+          .joinMarketPlace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
+
+        await expect(generatorRegistry.connect(generator).requestForExitMarketPlaces([marketId]))
+          .to.emit(generatorRegistry, "RequestExitMarketPlace")
+          .withArgs(await generator.getAddress(), marketId);
+      });
+
       it("leave market place", async () => {
         await generatorRegistry
           .connect(generator)

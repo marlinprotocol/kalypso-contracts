@@ -331,7 +331,7 @@ contract ProofMarketPlace is
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        if (market.proverImageId != bytes32(0)) {
+        if (market.proverImageId != bytes32(0) || market.proverImageId == HELPER.NO_ENCLAVE_ID) {
             emit AskCreated(askId, true, privateInputs, acl);
         } else {
             emit AskCreated(askId, false, privateInputs, "");
@@ -364,7 +364,7 @@ contract ProofMarketPlace is
         emit UpdateCostPerBytes(secretType, costPerByte);
     }
 
-    // Todo: Optimise the function
+    // Possible States: NULL, CREATE, UNASSIGNED, ASSIGNED, COMPLETE, DEADLINE_CROSSED
     function getAskState(uint256 askId) public view returns (AskState) {
         AskWithState memory askWithState = listOfAsk[askId];
 
