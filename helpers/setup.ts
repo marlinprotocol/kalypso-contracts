@@ -135,7 +135,6 @@ export const rawSetup = async (
       treasury,
       await generatorRegistry.getAddress(),
       await entityKeyRegistry.getAddress(),
-      await mockAttestationVerifier.getAddress(),
     ],
     initializer: false,
   });

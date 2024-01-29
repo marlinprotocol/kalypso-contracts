@@ -46,7 +46,11 @@ contract Dispute is HELPER {
         bytes32 imageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData);
         require(imageId == expectedImageId, Error.INCORRECT_IMAGE_ID);
 
-        require(block.timestamp <= HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData), Error.ATTESTATION_TIMEOUT);
+        require(
+            block.timestamp <=
+                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+            Error.ATTESTATION_TIMEOUT
+        );
 
         (, address signer) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
 

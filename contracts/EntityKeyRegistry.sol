@@ -43,7 +43,11 @@ contract EntityKeyRegistry is AccessControl, HELPER {
         bytes calldata attestation_data
     ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
         attestationVerifier.verify(attestation_data);
-        require(block.timestamp <= HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestation_data), Error.ATTESTATION_TIMEOUT);
+        require(
+            block.timestamp <=
+                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestation_data) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+            Error.ATTESTATION_TIMEOUT
+        );
         require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
 
         pub_key[keyOwner][keyIndex] = pubkey;

@@ -55,4 +55,6 @@ contract HELPER {
     }
 
     bytes32 internal constant NO_ENCLAVE_ID = 0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647;
+
+    uint256 internal constant ACCEPTABLE_ATTESTATION_DELAY = 60000; // 60 seconds, 60,000 milliseconds
 }

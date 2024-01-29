@@ -111,7 +111,6 @@ describe("Proof market place", () => {
         await treasury.getAddress(),
         await generatorRegistry.getAddress(),
         await entityRegistry.getAddress(),
-        await mockAttestationVerifier.getAddress(),
       ],
       initializer: false,
     });
