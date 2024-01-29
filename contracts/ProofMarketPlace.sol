@@ -67,6 +67,9 @@ contract ProofMarketPlace is
         bytes calldata meSignature
     ) public {
         address _thisAddress = address(this);
+
+        require(block.timestamp <= HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData), Error.ATTESTATION_TIMEOUT);
+
         (bytes memory pubkey, address meSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
@@ -252,7 +255,12 @@ contract ProofMarketPlace is
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
-        require(ATTESTATION_VERIFIER.verify(_ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
+
+        ATTESTATION_VERIFIER.verify(_ivsAttestationBytes);
+        require(
+            block.timestamp <= HELPER.GET_TIMESTAMP_FROM_ATTESTATION(_ivsAttestationBytes),
+            Error.ATTESTATION_TIMEOUT
+        );
 
         (bytes memory ivsPubkey, address ivsSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(_ivsAttestationBytes);
         _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);

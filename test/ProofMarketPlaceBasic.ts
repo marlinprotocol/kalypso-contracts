@@ -138,7 +138,7 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-    let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+    let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation();
 
     let types = ["address"];
     let values = [await marketCreator.getAddress()];
@@ -167,7 +167,7 @@ describe("Proof market place", () => {
   });
 
   it("Update Marketplace address", async () => {
-    let attestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+    let attestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation();
 
     let types = ["address"];
     let values = [await proofMarketPlace.getAddress()];
@@ -205,7 +205,7 @@ describe("Proof market place", () => {
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-      let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+      let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation();
 
       let types = ["address"];
       let values = [await marketCreator.getAddress()];
@@ -340,7 +340,7 @@ describe("Proof market place", () => {
               minRewardForGenerator.toFixed(),
               100,
               false,
-              generatorEnclave.getMockUnverifiedAttestation(await generator.getAddress()),
+              generatorEnclave.getMockUnverifiedAttestation(),
               "0x",
             ),
         )
@@ -600,7 +600,7 @@ describe("Proof market place", () => {
 
           latestBlock = await ethers.provider.getBlockNumber();
 
-          let meAttestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+          let meAttestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation();
 
           let types = ["address"];
           let values = [await proofMarketPlace.getAddress()];
@@ -839,7 +839,7 @@ describe("Proof market place", () => {
             ).to.eq(1); // 1 means JOINED and idle now
           });
 
-          it("Submit Proof for invalid request", async () => {
+          it("Submit Proof for invalid request: using default attestation", async () => {
             const types = ["uint256"];
 
             const values = [askId.toFixed(0)];
@@ -876,7 +876,7 @@ describe("Proof market place", () => {
 
             const anotherIvsEnclave = new MockEnclave(MockIVSPCRS);
 
-            const mockAttestation = anotherIvsEnclave.getMockUnverifiedAttestation(await proofMarketPlace.getAddress());
+            const mockAttestation = anotherIvsEnclave.getMockUnverifiedAttestation();
             const signature = await anotherIvsEnclave.signMessage(ethers.getBytes(digest));
 
             const generatorAddress = await generator.getAddress();

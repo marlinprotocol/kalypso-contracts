@@ -196,21 +196,12 @@ export class MockEnclave {
     }
   }
 
-  public getMockUnverifiedAttestation(signerAddress: AddressLike): BytesLike {
+  public getMockUnverifiedAttestation(timestamp: number = new Date().valueOf()): BytesLike {
     let abiCoder = new ethers.AbiCoder();
 
     let attestationBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      [
-        "0x00",
-        signerAddress,
-        this.wallet.uncompressedPublicKey,
-        this.pcrs[0],
-        this.pcrs[1],
-        this.pcrs[2],
-        "0x00",
-        "0x00",
-      ],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
+      ["0x00", this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], "0x00", "0x00", timestamp],
     );
 
     return attestationBytes;
@@ -261,17 +252,17 @@ export class MockEnclave {
   }
 
   public getImageId(): BytesLike {
-    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation(this.wallet.address));
+    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation());
   }
 
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
     let abicode = new ethers.AbiCoder();
 
     let decoded = abicode.decode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       attesationData,
     );
-    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[3], decoded[4], decoded[5]]);
+    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[2], decoded[3], decoded[4]]);
     let digest = ethers.keccak256(encoded);
     return digest;
   }
@@ -280,10 +271,10 @@ export class MockEnclave {
     let abicode = new ethers.AbiCoder();
 
     let decoded = abicode.decode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       attesationData,
     );
-    let pubkey = decoded[2];
+    let pubkey = decoded[1];
     let hash = ethers.keccak256(pubkey);
 
     const address = "0x" + hash.slice(-40);

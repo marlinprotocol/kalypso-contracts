@@ -95,7 +95,7 @@ export const rawSetup = async (
   computeToNewMarket: BigNumber,
 ): Promise<SetupTemplate> => {
   const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
-  let generatorAttestationBytes = generatorEnclaveDetails.getMockUnverifiedAttestation(await generator.getAddress());
+  let generatorAttestationBytes = generatorEnclaveDetails.getMockUnverifiedAttestation();
 
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
@@ -155,9 +155,7 @@ export const rawSetup = async (
 
   await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-  let matchingEngineAttestationBytes = await matchingEngineEnclave.getMockUnverifiedAttestation(
-    await admin.getAddress(),
-  );
+  let matchingEngineAttestationBytes = await matchingEngineEnclave.getMockUnverifiedAttestation();
   let types = ["address"];
 
   let values = [await proofMarketPlace.getAddress()];
@@ -169,7 +167,7 @@ export const rawSetup = async (
 
   await proofMarketPlace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes, signature);
 
-  let ivsAttestationBytes = await ivsEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+  let ivsAttestationBytes = await ivsEnclave.getMockUnverifiedAttestation();
 
   values = [await marketCreator.getAddress()];
   abicode = new ethers.AbiCoder();

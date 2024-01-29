@@ -53,7 +53,12 @@ describe("Entity key registry tests", () => {
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 0, generator_enclave.getUncompressedPubkey(), "0x"),
+      entityKeyRegistry.updatePubkey(
+        randomUser.getAddress(),
+        0,
+        generator_enclave.getUncompressedPubkey(),
+        generator_enclave.getMockUnverifiedAttestation(),
+      ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await randomUser.getAddress(), 0);
@@ -63,7 +68,12 @@ describe("Entity key registry tests", () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
     await expect(
-      entityKeyRegistry.updatePubkey(randomUser.getAddress(), 8, generator_enclave.getUncompressedPubkey(), "0x"),
+      entityKeyRegistry.updatePubkey(
+        randomUser.getAddress(),
+        8,
+        generator_enclave.getUncompressedPubkey(),
+        generator_enclave.getMockUnverifiedAttestation(),
+      ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await randomUser.getAddress(), 8);
@@ -88,8 +98,8 @@ describe("Entity key registry tests", () => {
     const expectedAddress = "0xe511c2c747Fa2F46e8786cbF4d66b015d1FCfaC1";
 
     let inputBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      ["0x00", await signerToUser.getAddress(), knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
+      ["0x00", knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00", new Date().valueOf()],
     );
 
     const info = MockEnclave.getPubKeyAndAddressFromAttestation(inputBytes);
