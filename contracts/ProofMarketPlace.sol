@@ -331,7 +331,7 @@ contract ProofMarketPlace is
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        if (market.proverImageId != bytes32(0) || market.proverImageId == HELPER.NO_ENCLAVE_ID) {
+        if (market.proverImageId != bytes32(0) || market.proverImageId == NO_ENCLAVE_ID) {
             emit AskCreated(askId, true, privateInputs, acl);
         } else {
             emit AskCreated(askId, false, privateInputs, "");
@@ -605,19 +605,15 @@ contract ProofMarketPlace is
             );
     }
 
-    function slashingPenalty(uint256 marketId) public view returns (uint256) {
-        return marketData[marketId].slashingPenalty;
-    }
-
-    function verifier(uint256 marketId) public view returns (address) {
-        return marketData[marketId].verifier;
-    }
-
     function askCounter() public view returns (uint256) {
         return listOfAsk.length;
     }
 
-    function proverImageId(uint256 marketId) public view returns (bytes32) {
-        return marketData[marketId].proverImageId;
+    // function proverImageId(uint256 marketId) public view returns (bytes32) {
+    //     return marketData[marketId].proverImageId;
+    // }
+
+    function slashingPenalty(uint256 marketId) internal view returns (uint256) {
+        return marketData[marketId].slashingPenalty;
     }
 }

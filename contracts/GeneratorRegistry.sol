@@ -345,7 +345,7 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        bytes32 expectedImageId = proofMarketPlace.proverImageId(marketId);
+        (, bytes32 expectedImageId, , , , , , ) = proofMarketPlace.marketData(marketId);
 
         require(
             expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
@@ -403,7 +403,10 @@ contract GeneratorRegistry is
 
         require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
 
-        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
+        (address marketVerifierContractAddress, bytes32 expectedImageId) = _readMarketData(marketId);
+
+        require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
+
         require(info.state == GeneratorState.NULL, Error.ALREADY_JOINED_MARKET);
 
         require(proposedTime != 0, Error.CANNOT_BE_ZERO);
@@ -424,18 +427,34 @@ contract GeneratorRegistry is
             0
         );
 
-        bytes32 expectedImageId = proofMarketPlace.proverImageId(marketId);
-
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
             require(expectedImageId == GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
 
             if (updateMarketDedicatedKey) {
                 _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
-                (bytes memory pubKey, ) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
-                ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubKey, attestationData);
+
+                ENTITY_KEY_REGISTRY.updatePubkey(
+                    generatorAddress,
+                    marketId,
+                    _getPubKey(attestationData),
+                    attestationData
+                );
             }
         }
         emit JoinedMarketPlace(generatorAddress, marketId, computePerRequestRequired);
+    }
+
+    function _getPubKey(bytes memory attestationData) internal pure returns (bytes memory) {
+        (bytes memory pubKey, ) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        return pubKey;
+    }
+
+    function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
+        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , , , ) = proofMarketPlace.marketData(
+            marketId
+        );
+
+        return (marketVerifierContractAddress, expectedImageId);
     }
 
     function getGeneratorState(
@@ -530,7 +549,8 @@ contract GeneratorRegistry is
     }
 
     function _leaveMarketPlace(address generatorAddress, uint256 marketId) internal {
-        require(proofMarketPlace.verifier(marketId) != address(0), Error.INVALID_MARKET);
+        (address marketVerifierContractAddress, , , , , , , ) = proofMarketPlace.marketData(marketId);
+        require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
         require(info.state != GeneratorState.NULL, Error.INVALID_GENERATOR_STATE_PER_MARKET);

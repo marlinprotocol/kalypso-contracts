@@ -163,7 +163,7 @@ describe("Proof market place", () => {
       .to.emit(proofMarketPlace, "MarketPlaceCreated")
       .withArgs(marketId);
 
-    expect(await proofMarketPlace.verifier(marketId)).to.eq(await mockVerifier.getAddress());
+    expect((await proofMarketPlace.marketData(marketId)).verifier).to.eq(await mockVerifier.getAddress());
   });
 
   it("Update Marketplace address", async () => {
