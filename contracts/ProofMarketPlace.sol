@@ -16,7 +16,6 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
 import "./Dispute.sol";
-import "./interfaces/IAttestationVerifier.sol";
 import "./interfaces/IVerifier.sol";
 import "./lib/Error.sol";
 
@@ -67,6 +66,13 @@ contract ProofMarketPlace is
         bytes calldata meSignature
     ) public {
         address _thisAddress = address(this);
+
+        require(
+            block.timestamp <=
+                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+            Error.ATTESTATION_TIMEOUT
+        );
+
         (bytes memory pubkey, address meSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
@@ -110,9 +116,6 @@ contract ProofMarketPlace is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IAttestationVerifier public immutable ATTESTATION_VERIFIER;
 
     Dispute private dispute;
 
@@ -199,8 +202,7 @@ contract ProofMarketPlace is
         uint256 _marketCreationCost,
         address _treasury,
         GeneratorRegistry _generatorRegistry,
-        EntityKeyRegistry _entityRegistry,
-        IAttestationVerifier _attestationVerifier
+        EntityKeyRegistry _entityRegistry
     ) {
         PAYMENT_TOKEN = _paymentToken;
         PLATFORM_TOKEN = _platformToken;
@@ -208,7 +210,6 @@ contract ProofMarketPlace is
         TREASURY = _treasury;
         GENERATOR_REGISTRY = _generatorRegistry;
         ENTITY_KEY_REGISTRY = _entityRegistry;
-        ATTESTATION_VERIFIER = _attestationVerifier;
     }
 
     function initialize(address _admin, Dispute _dispute) public initializer {
@@ -252,7 +253,6 @@ contract ProofMarketPlace is
         require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
-        require(ATTESTATION_VERIFIER.verify(_ivsAttestationBytes), Error.ENCLAVE_KEY_NOT_VERIFIED);
 
         (bytes memory ivsPubkey, address ivsSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(_ivsAttestationBytes);
         _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);

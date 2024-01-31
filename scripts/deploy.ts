@@ -170,7 +170,6 @@ async function main(): Promise<string> {
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
         addresses.proxy.entity_registry,
-        addresses.proxy.mock_attestation_verifier,
       ],
     });
     await proxy.waitForDeployment();

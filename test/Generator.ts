@@ -384,7 +384,7 @@ describe("Checking Generator's multiple compute", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let generatorAttestationBytes = generatorEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+    let generatorAttestationBytes = generatorEnclave.getMockUnverifiedAttestation();
 
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
@@ -418,16 +418,16 @@ describe("Checking Generator's multiple compute", () => {
 
     let abiCoder = new ethers.AbiCoder();
     let validAttesationWithInvalidKey = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       [
         "0x00",
-        await admin.getAddress(),
         invalidPubkey,
         MockGeneratorPCRS[0],
         MockGeneratorPCRS[1],
         MockGeneratorPCRS[2],
         "0x00",
         "0x00",
+        new Date().valueOf(),
       ],
     );
 
@@ -448,7 +448,7 @@ describe("Checking Generator's multiple compute", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let newAttesationBytes = generatorEnclave.getMockUnverifiedAttestation(await admin.getAddress());
+    let newAttesationBytes = generatorEnclave.getMockUnverifiedAttestation();
 
     await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, newAttesationBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")

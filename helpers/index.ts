@@ -2,7 +2,8 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PrivateKey } from "eciesjs";
-import { AddressLike, BytesLike } from "ethers";
+import { BytesLike } from "ethers";
+import BigNumber from "bignumber.js";
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -183,6 +184,9 @@ export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000
 export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
 export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647";
 
+function getTimestampInSeconds(): number {
+  return new BigNumber(new BigNumber(new Date().valueOf()).div(1000).toFixed(0)).toNumber();
+}
 export class MockEnclave {
   public wallet: WalletInfo;
   public pcrs: [BytesLike, BytesLike, BytesLike];
@@ -196,21 +200,12 @@ export class MockEnclave {
     }
   }
 
-  public getMockUnverifiedAttestation(signerAddress: AddressLike): BytesLike {
+  public getMockUnverifiedAttestation(timestamp: number = getTimestampInSeconds()): BytesLike {
     let abiCoder = new ethers.AbiCoder();
 
     let attestationBytes = abiCoder.encode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
-      [
-        "0x00",
-        signerAddress,
-        this.wallet.uncompressedPublicKey,
-        this.pcrs[0],
-        this.pcrs[1],
-        this.pcrs[2],
-        "0x00",
-        "0x00",
-      ],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
+      ["0x00", this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], "0x00", "0x00", timestamp],
     );
 
     return attestationBytes;
@@ -261,17 +256,17 @@ export class MockEnclave {
   }
 
   public getImageId(): BytesLike {
-    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation(this.wallet.address));
+    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation());
   }
 
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
     let abicode = new ethers.AbiCoder();
 
     let decoded = abicode.decode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       attesationData,
     );
-    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[3], decoded[4], decoded[5]]);
+    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[2], decoded[3], decoded[4]]);
     let digest = ethers.keccak256(encoded);
     return digest;
   }
@@ -280,10 +275,10 @@ export class MockEnclave {
     let abicode = new ethers.AbiCoder();
 
     let decoded = abicode.decode(
-      ["bytes", "address", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256"],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       attesationData,
     );
-    let pubkey = decoded[2];
+    let pubkey = decoded[1];
     let hash = ethers.keccak256(pubkey);
 
     const address = "0x" + hash.slice(-40);

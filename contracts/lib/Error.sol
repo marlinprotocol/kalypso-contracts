@@ -15,6 +15,7 @@ library Error {
     string public constant CANNOT_USE_MATCHING_ENGINE_ROLE = "A9";
     string public constant INVALID_ENCLAVE_SIGNATURE = "A10";
     string public constant INCORRECT_IMAGE_ID = "A11";
+    string public constant ATTESTATION_TIMEOUT = "A12";
 
     // Generator-related Errors
     string public constant GENERATOR_ALREADY_EXISTS = "G1";

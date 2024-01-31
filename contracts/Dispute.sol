@@ -42,9 +42,15 @@ contract Dispute is HELPER {
         bytes memory attestationData,
         bytes32 expectedImageId,
         bytes memory invalidProofSignature
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         bytes32 imageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData);
         require(imageId == expectedImageId, Error.INCORRECT_IMAGE_ID);
+
+        require(
+            block.timestamp <=
+                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+            Error.ATTESTATION_TIMEOUT
+        );
 
         (, address signer) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
 
@@ -70,7 +76,7 @@ contract Dispute is HELPER {
             (bytes, bytes, bool)
         );
 
-        require(ATTESTATION_VERIFIER.verify(attestationData), Error.ENCLAVE_KEY_NOT_VERIFIED);
+        ATTESTATION_VERIFIER.verify(attestationData);
 
         if (useOnlySignature) {
             return
