@@ -48,7 +48,7 @@ contract Dispute is HELPER {
 
         require(
             block.timestamp <=
-                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+                HELPER.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
             Error.ATTESTATION_TIMEOUT
         );
 

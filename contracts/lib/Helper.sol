@@ -45,13 +45,13 @@ contract HELPER {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
     }
 
-    function GET_TIMESTAMP_FROM_ATTESTATION(bytes memory data) internal pure returns (uint256) {
+    function GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(bytes memory data) internal pure returns (uint256) {
         (, , , , , , , uint256 timestamp) = abi.decode(
             data,
             (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
         );
 
-        return timestamp;
+        return timestamp / 1000;
     }
 
     bytes32 internal constant NO_ENCLAVE_ID = 0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647;

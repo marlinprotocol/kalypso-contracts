@@ -45,7 +45,7 @@ contract EntityKeyRegistry is AccessControl, HELPER {
         attestationVerifier.verify(attestation_data);
         require(
             block.timestamp <=
-                HELPER.GET_TIMESTAMP_FROM_ATTESTATION(attestation_data) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+                HELPER.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(attestation_data) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
             Error.ATTESTATION_TIMEOUT
         );
         require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);

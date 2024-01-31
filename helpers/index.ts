@@ -184,9 +184,10 @@ export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000
 export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
 export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647";
 
-function getTimestampInSeconds(): number {
-  return new BigNumber(new BigNumber(new Date().valueOf()).div(1000).toFixed(0)).toNumber();
+function getTimestampMs(delay: number = 0): number {
+  return new BigNumber(new BigNumber(new Date().valueOf()).plus(delay).toFixed(0)).toNumber();
 }
+
 export class MockEnclave {
   public wallet: WalletInfo;
   public pcrs: [BytesLike, BytesLike, BytesLike];
@@ -200,7 +201,7 @@ export class MockEnclave {
     }
   }
 
-  public getMockUnverifiedAttestation(timestamp: number = getTimestampInSeconds()): BytesLike {
+  public getMockUnverifiedAttestation(timestamp: number = getTimestampMs()): BytesLike {
     let abiCoder = new ethers.AbiCoder();
 
     let attestationBytes = abiCoder.encode(

@@ -395,9 +395,8 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
-    const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(false), admin.provider);
-    await expect(entityKeyRegistry.connect(matchingEngine).addGeneratorRegistry(await proofMarketPlace.getAddress())).to
-      .be.reverted;
+    await expect(entityKeyRegistry.connect(treasury).addGeneratorRegistry(await proofMarketPlace.getAddress())).to.be
+      .reverted;
 
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
     expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
