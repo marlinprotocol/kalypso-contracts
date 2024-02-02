@@ -18,9 +18,12 @@ import {
 
 import {
   GeneratorData,
+  GodEnclavePCRS,
   MarketData,
   MockEnclave,
   MockGeneratorPCRS,
+  MockIVSPCRS,
+  MockMEPCRS,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -53,8 +56,10 @@ describe("Checking Generator's multiple compute", () => {
 
   let generatorData: GeneratorData;
 
-  const ivsEnclave = new MockEnclave();
-  const matchingEngineEnclave = new MockEnclave();
+  const ivsEnclave = new MockEnclave(MockIVSPCRS);
+  const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+
+  const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -153,6 +158,7 @@ describe("Checking Generator's multiple compute", () => {
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
+      godEnclave,
     );
 
     proofMarketPlace = data.proofMarketPlace;
@@ -384,7 +390,7 @@ describe("Checking Generator's multiple compute", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let generatorAttestationBytes = generatorEnclave.getMockUnverifiedAttestation();
+    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
@@ -447,7 +453,7 @@ describe("Checking Generator's multiple compute", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    let newAttesationBytes = generatorEnclave.getMockUnverifiedAttestation();
+    let newAttesationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
     await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, newAttesationBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")

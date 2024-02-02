@@ -137,7 +137,7 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-    let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation();
+    let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
 
     let types = ["address"];
     let values = [await marketCreator.getAddress()];
@@ -166,7 +166,7 @@ describe("Proof market place", () => {
   });
 
   it("Update Marketplace address", async () => {
-    let attestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation();
+    let attestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
     let types = ["address"];
     let values = [await proofMarketPlace.getAddress()];
@@ -204,7 +204,7 @@ describe("Proof market place", () => {
 
       await mockToken.connect(marketCreator).approve(await proofMarketPlace.getAddress(), marketCreationCost.toFixed());
 
-      let ivsAttestationBytes = ivsEnclave.getMockUnverifiedAttestation();
+      let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
 
       let types = ["address"];
       let values = [await marketCreator.getAddress()];
@@ -339,7 +339,7 @@ describe("Proof market place", () => {
               minRewardForGenerator.toFixed(),
               100,
               false,
-              generatorEnclave.getMockUnverifiedAttestation(),
+              await generatorEnclave.getVerifiedAttestation(generatorEnclave),
               "0x",
             ),
         )
@@ -599,7 +599,7 @@ describe("Proof market place", () => {
 
           latestBlock = await ethers.provider.getBlockNumber();
 
-          let meAttestationBytes = matchingEngineEnclave.getMockUnverifiedAttestation();
+          let meAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
           let types = ["address"];
           let values = [await proofMarketPlace.getAddress()];
@@ -875,7 +875,7 @@ describe("Proof market place", () => {
 
             const anotherIvsEnclave = new MockEnclave(MockIVSPCRS);
 
-            const mockAttestation = anotherIvsEnclave.getMockUnverifiedAttestation();
+            const mockAttestation = await anotherIvsEnclave.getVerifiedAttestation(anotherIvsEnclave);
             const signature = await anotherIvsEnclave.signMessage(ethers.getBytes(digest));
 
             const generatorAddress = await generator.getAddress();

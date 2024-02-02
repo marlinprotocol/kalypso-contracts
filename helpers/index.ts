@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PrivateKey } from "eciesjs";
-import { BytesLike } from "ethers";
+import { BytesLike, Signer } from "ethers";
 import BigNumber from "bignumber.js";
 
 export * as secret_operations from "./secretInputOperation";
@@ -180,9 +180,14 @@ export interface WalletInfo extends PubkeyAndAddress {
   privateKey: string;
 }
 
-export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
-export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
-export const NO_ENCLAVE_ID = "0x99FF0D9125E1FC9531A11262E15AEB2C60509A078C4CC4C64CEFDFB06FF68647";
+// export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+// export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+export const BYTES48_ZERO =
+  "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
+export const NO_ENCLAVE_ID = "0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21";
+// console.log("No enclave id", new MockEnclave().getImageId());
 
 function getTimestampMs(delay: number = 0): number {
   return new BigNumber(new BigNumber(new Date().valueOf()).plus(delay).toFixed(0)).toNumber();
@@ -195,18 +200,74 @@ export class MockEnclave {
   constructor(pcrs?: [BytesLike, BytesLike, BytesLike]) {
     this.wallet = this.generateWalletInfo();
     if (pcrs) {
+      pcrs.forEach((pcr, index) => {
+        // Assuming BytesLike can be represented as a string in hexadecimal
+        // This check assumes pcr.length gives the byte length; if pcr is a string, you may need to adjust the logic
+        // For hexadecimal strings, each byte is represented by 2 characters, hence 48 bytes * 2 characters per byte = 96 characters + 2 for the '0x' prefix
+        if (pcr.length !== 98) {
+          // Adjusted to check for 98 characters including '0x'
+          throw new Error(`PCR at index ${index} is not 48 bytes`);
+        }
+      });
       this.pcrs = pcrs;
     } else {
-      this.pcrs = ["0x00", "0x00", "0x00"];
+      this.pcrs = [BYTES48_ZERO, BYTES48_ZERO, BYTES48_ZERO];
     }
   }
 
-  public getMockUnverifiedAttestation(timestamp: number = getTimestampMs()): BytesLike {
+  public async getMockUnverifiedAttestation(timestamp: number = getTimestampMs()): Promise<BytesLike> {
+    throw new Error("mockUnverified attestation is not supported now");
     let abiCoder = new ethers.AbiCoder();
 
     let attestationBytes = abiCoder.encode(
       ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
       ["0x00", this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], "0x00", "0x00", timestamp],
+    );
+
+    return attestationBytes;
+  }
+
+  public async getVerifiedAttestation(
+    attestationVerifierEnclave: MockEnclave,
+    timestamp: number = getTimestampMs(),
+  ): Promise<BytesLike> {
+    let abiCoder = new ethers.AbiCoder();
+
+    const cpu = 4; // hard code this for now
+    const memory = 2000; // // hard code this for now
+
+    const ATTESTATION_PREFIX = "Enclave Attestation Verified";
+    let encoded = abiCoder.encode(
+      ["string", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
+      [
+        ATTESTATION_PREFIX,
+        this.wallet.uncompressedPublicKey,
+        this.pcrs[0],
+        this.pcrs[1],
+        this.pcrs[2],
+        cpu,
+        memory,
+        timestamp,
+      ],
+    );
+    let digest = ethers.keccak256(encoded);
+    // console.log({ messageHash: new BigNumber(digest).toFixed(0) });
+
+    // console.log({ attestationVerifierEnclaveAddress: attestationVerifierEnclave.getAddress() });
+    let firstStageSignature = await attestationVerifierEnclave.signMessage(ethers.getBytes(digest));
+
+    let attestationBytes = abiCoder.encode(
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
+      [
+        firstStageSignature,
+        this.wallet.uncompressedPublicKey,
+        this.pcrs[0],
+        this.pcrs[1],
+        this.pcrs[2],
+        cpu,
+        memory,
+        timestamp,
+      ],
     );
 
     return attestationBytes;
@@ -257,7 +318,7 @@ export class MockEnclave {
   }
 
   public getImageId(): BytesLike {
-    return MockEnclave.getImageIdFromAttestation(this.getMockUnverifiedAttestation());
+    return MockEnclave.getImageId(this.pcrs);
   }
 
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
@@ -268,6 +329,12 @@ export class MockEnclave {
       attesationData,
     );
     let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[2], decoded[3], decoded[4]]);
+    let digest = ethers.keccak256(encoded);
+    return digest;
+  }
+
+  public static getImageId(pcrs: [BytesLike, BytesLike, BytesLike]): BytesLike {
+    let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [pcrs[0], pcrs[1], pcrs[2]]);
     let digest = ethers.keccak256(encoded);
     return digest;
   }
@@ -291,6 +358,24 @@ export class MockEnclave {
   }
 }
 
-export const MockIVSPCRS: [BytesLike, BytesLike, BytesLike] = ["0x01", "0x02", "0x03"];
-export const MockMEPCRS: [BytesLike, BytesLike, BytesLike] = ["0x11", "0x12", "0x13"];
-export const MockGeneratorPCRS: [BytesLike, BytesLike, BytesLike] = ["0x21", "0x32", "0x43"];
+export const MockIVSPCRS: [BytesLike, BytesLike, BytesLike] = [
+  "0x" + "00".repeat(47) + "01",
+  "0x" + "00".repeat(47) + "02",
+  "0x" + "00".repeat(47) + "03",
+];
+export const MockMEPCRS: [BytesLike, BytesLike, BytesLike] = [
+  "0x" + "00".repeat(47) + "11",
+  "0x" + "00".repeat(47) + "12",
+  "0x" + "00".repeat(47) + "13",
+];
+export const MockGeneratorPCRS: [BytesLike, BytesLike, BytesLike] = [
+  "0x" + "00".repeat(47) + "21",
+  "0x" + "00".repeat(47) + "32",
+  "0x" + "00".repeat(47) + "43",
+];
+
+export const GodEnclavePCRS: [BytesLike, BytesLike, BytesLike] = [
+  "0x" + "00".repeat(47) + "65",
+  "0x" + "00".repeat(47) + "36",
+  "0x" + "00".repeat(47) + "93",
+];

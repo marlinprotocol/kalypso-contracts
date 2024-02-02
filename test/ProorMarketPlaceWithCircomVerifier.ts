@@ -17,8 +17,11 @@ import {
 
 import {
   GeneratorData,
+  GodEnclavePCRS,
   MarketData,
   MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
   generatorDataToBytes,
   marketDataToBytes,
   setup,
@@ -52,8 +55,9 @@ describe("Proof Market Place for Circom Verifier", () => {
 
   let iverifier: IVerifier;
 
-  const matchingEngineEnclave = new MockEnclave();
-  const ivsEnclave = new MockEnclave();
+  const ivsEnclave = new MockEnclave(MockIVSPCRS);
+  const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+  const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
@@ -126,6 +130,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
+      godEnclave,
     );
     proofMarketPlace = data.proofMarketPlace;
     generatorRegistry = data.generatorRegistry;
