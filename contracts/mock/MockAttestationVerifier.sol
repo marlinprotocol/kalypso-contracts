@@ -21,4 +21,6 @@ contract MockAttestationVerifier is IAttestationVerifier {
     function isVerified(address) public pure returns (bytes32) {
         return bytes32(0);
     }
+
+    function whitelistEnclave(bytes32 imageId, address enclaveKey) external {}
 }

@@ -57,7 +57,7 @@ describe("Entity key registry tests", () => {
         randomUser.getAddress(),
         0,
         generator_enclave.getUncompressedPubkey(),
-        generator_enclave.getMockUnverifiedAttestation(),
+        await generator_enclave.getVerifiedAttestation(generator_enclave),
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -72,7 +72,7 @@ describe("Entity key registry tests", () => {
         randomUser.getAddress(),
         8,
         generator_enclave.getUncompressedPubkey(),
-        generator_enclave.getMockUnverifiedAttestation(),
+        await generator_enclave.getVerifiedAttestation(generator_enclave),
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
