@@ -183,6 +183,23 @@ describe("Proof market place", () => {
     ).to.be.true;
   });
 
+  it("Update Marketplace address with timeout attesation should fail", async () => {
+    const oldtimestamp = 1000;
+    let attestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave, oldtimestamp);
+
+    let types = ["address"];
+    let values = [await proofMarketPlace.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
+
+    await expect(
+      proofMarketPlace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(attestationBytes, signature),
+    ).to.be.revertedWith(await errorLibrary.ATTESTATION_TIMEOUT());
+  });
+
   describe("Ask", () => {
     let prover: Signer;
     let reward = new BigNumber(10).pow(20).multipliedBy(3);
