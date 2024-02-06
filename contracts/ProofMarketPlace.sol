@@ -234,7 +234,7 @@ contract ProofMarketplace is
      * @param _verifier: Address of the verifier contract
      * @param _slashingPenalty: Slashing Penalty per request
      * @param _ivsAttestationBytes: Attestation Data for the IVS
-     * @param _ivsUrl: URL for the input verification. This is during dispute resolution
+     * @param _defaultIvsUrl: URL for the input verification. This is during dispute resolution
      * @param _enclaveSignature: Signature => signMessage(market_creator_address, enclave_private_key). Prevent replay attacks
      */
     function createMarketplace(
@@ -243,7 +243,7 @@ contract ProofMarketplace is
         uint256 _slashingPenalty,
         bytes32 _proverImageId,
         bytes calldata _ivsAttestationBytes,
-        bytes calldata _ivsUrl,
+        bytes calldata _defaultIvsUrl,
         bytes calldata _enclaveSignature
     ) external nonReentrant {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
@@ -264,7 +264,7 @@ contract ProofMarketplace is
         market.marketmetadata = _marketmetadata;
         market.proverImageId = _proverImageId;
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
-        market.ivsUrl = _ivsUrl;
+        market.ivsUrl = _defaultIvsUrl;
         market.ivsSigner = ivsSigner;
         market.ivsImageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(_ivsAttestationBytes);
 
