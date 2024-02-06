@@ -175,7 +175,8 @@ export const rawSetup = async (
   let digest = ethers.keccak256(encoded);
   let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
-  await proofMarketplace.updateMatchingEngineEncryptionKeyAndSigner(matchingEngineAttestationBytes, signature);
+  await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+  await proofMarketplace.verifyMatchingEngine(matchingEngineAttestationBytes, signature);
 
   let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(godEnclave);
 

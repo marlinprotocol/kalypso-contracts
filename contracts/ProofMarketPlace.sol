@@ -58,26 +58,20 @@ contract ProofMarketplace is
         address account
     ) public virtual override(AccessControlUpgradeable, IAccessControlUpgradeable) {
         require(role != MATCHING_ENGINE_ROLE, Error.CANNOT_USE_MATCHING_ENGINE_ROLE);
-        _grantRole(role, account);
+        super._grantRole(role, account);
     }
 
-    function updateMatchingEngineEncryptionKeyAndSigner(
+    function verifyMatchingEngine(
         bytes memory attestationData,
         bytes calldata meSignature
-    ) public {
+    ) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
-
-        require(
-            block.timestamp <=
-                HELPER.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
-            Error.ATTESTATION_TIMEOUT
-        );
 
         (bytes memory pubkey, address meSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-        //attestationData is verified by er internal, will revert if it is wrong.
+        //attestationData and it's timestamp is verified by ER internal, will revert if it is wrong/timeout.
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
     }
 

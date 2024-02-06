@@ -128,6 +128,8 @@ describe("Proof market place", () => {
     await entityRegistry
       .connect(admin)
       .grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
+
+    await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
   });
 
   it("Create Market", async () => {
@@ -176,7 +178,7 @@ describe("Proof market place", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
-    await proofMarketplace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(attestationBytes, signature);
+    await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
     expect(
       await proofMarketplace.hasRole(await proofMarketplace.MATCHING_ENGINE_ROLE(), matchingEngineEnclave.getAddress()),
@@ -195,9 +197,9 @@ describe("Proof market place", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
-    await expect(
-      proofMarketplace.connect(admin).updateMatchingEngineEncryptionKeyAndSigner(attestationBytes, signature),
-    ).to.be.revertedWith(await errorLibrary.ATTESTATION_TIMEOUT());
+    await expect(proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature)).to.be.revertedWith(
+      await errorLibrary.ATTESTATION_TIMEOUT(),
+    );
   });
 
   describe("Ask", () => {
@@ -626,9 +628,7 @@ describe("Proof market place", () => {
           let digest = ethers.keccak256(encoded);
           let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
-          await proofMarketplace
-            .connect(admin)
-            .updateMatchingEngineEncryptionKeyAndSigner(meAttestationBytes, signature);
+          await proofMarketplace.connect(admin).verifyMatchingEngine(meAttestationBytes, signature);
 
           askId = new BigNumber((await proofMarketplace.askCounter()).toString());
 
