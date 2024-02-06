@@ -8,15 +8,17 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+
+import "./interfaces/IVerifier.sol";
+
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
 import "./Dispute.sol";
-import "./interfaces/IVerifier.sol";
 import "./lib/Error.sol";
 
 contract ProofMarketplace is
@@ -188,6 +190,7 @@ contract ProofMarketplace is
 
     //-------------------------------- Events end --------------------------------//
 
+    // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor

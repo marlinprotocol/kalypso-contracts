@@ -81,10 +81,13 @@ describe("Proof market place", () => {
     mockVerifier = await new MockVerifier__factory(admin).deploy();
 
     const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-    const entityRegistry = await new EntityKeyRegistry__factory(admin).deploy(
-      await mockAttestationVerifier.getAddress(),
-      await admin.getAddress(),
+    const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
+    const _entityKeyRegistry = await upgrades.deployProxy(
+      EntityKeyRegistryContract,
+      [await mockAttestationVerifier.getAddress(), await admin.getAddress()],
+      { kind: "uups", constructorArgs: [] },
     );
+    const entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {

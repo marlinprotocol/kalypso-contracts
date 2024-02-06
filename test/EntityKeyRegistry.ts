@@ -1,8 +1,8 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 
-import { MockEnclave, MockGeneratorPCRS, utf8ToHex } from "../helpers";
+import { MockEnclave, MockGeneratorPCRS } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -29,10 +29,13 @@ describe("Entity key registry tests", () => {
     errorLibrary = await new Error__factory(admin).deploy();
 
     attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-    entityKeyRegistry = await new EntityKeyRegistry__factory(admin).deploy(
-      await attestationVerifier.getAddress(),
-      await admin.getAddress(),
+    const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
+    const _entityKeyRegistry = await upgrades.deployProxy(
+      EntityKeyRegistryContract,
+      [await attestationVerifier.getAddress(), await admin.getAddress()],
+      { kind: "uups", constructorArgs: [] },
     );
+    entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
     await entityKeyRegistry.grantRole(register_role, await admin.getAddress());

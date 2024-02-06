@@ -118,11 +118,19 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.entity_registry) {
-    const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(
-      addresses.proxy.mock_attestation_verifier,
-      await admin.getAddress(),
+    // const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(
+    //   addresses.proxy.mock_attestation_verifier,
+    //   await admin.getAddress(),
+    // );
+    // await entity_registry.waitForDeployment();
+
+    const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
+    const _entityKeyRegistry = await upgrades.deployProxy(
+      EntityKeyRegistryContract,
+      [addresses.proxy.mock_attestation_verifier, await admin.getAddress()],
+      { kind: "uups", constructorArgs: [] },
     );
-    await entity_registry.waitForDeployment();
+    const entity_registry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     addresses.proxy.entity_registry = await entity_registry.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");

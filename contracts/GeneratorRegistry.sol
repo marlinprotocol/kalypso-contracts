@@ -90,9 +90,6 @@ contract GeneratorRegistry is
 
     ProofMarketplace public proofMarketplace;
 
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
     enum GeneratorState {
         NULL,
         JOINED,
@@ -144,6 +141,9 @@ contract GeneratorRegistry is
     event DecreaseCompute(address indexed generator, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
+
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) initializer {
