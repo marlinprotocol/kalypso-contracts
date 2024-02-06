@@ -97,9 +97,6 @@ contract ProofMarketplace is
     IERC20Upgradeable public immutable PAYMENT_TOKEN;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable PLATFORM_TOKEN;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable MARKET_CREATION_COST;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -124,6 +121,8 @@ contract ProofMarketplace is
     AskWithState[] public listOfAsk;
 
     mapping(SecretType => uint256) public costPerInputBytes;
+
+    uint256 public treasuryCollection;
 
     struct Market {
         address verifier; // verifier address for the market place
@@ -194,14 +193,12 @@ contract ProofMarketplace is
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         IERC20Upgradeable _paymentToken,
-        IERC20Upgradeable _platformToken,
         uint256 _marketCreationCost,
         address _treasury,
         GeneratorRegistry _generatorRegistry,
         EntityKeyRegistry _entityRegistry
     ) initializer {
         PAYMENT_TOKEN = _paymentToken;
-        PLATFORM_TOKEN = _platformToken;
         MARKET_CREATION_COST = _marketCreationCost;
         TREASURY = _treasury;
         GENERATOR_REGISTRY = _generatorRegistry;
@@ -307,16 +304,15 @@ contract ProofMarketplace is
         require(ask.reward != 0, Error.CANNOT_BE_ZERO);
         require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
         require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
+        require(acl.length <= 130, Error.INVALID_ECIES_ACL);
 
         Market memory market = marketData[ask.marketId];
         require(block.number > market.activationBlock, Error.INACTIVE_MARKET);
 
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
-        if (platformFee != 0) {
-            PLATFORM_TOKEN.safeTransferFrom(payFrom, TREASURY, platformFee);
-        }
 
-        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward);
+        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
+        treasuryCollection += platformFee;
 
         require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
 
@@ -490,9 +486,8 @@ contract ProofMarketplace is
             PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
         }
 
-        if (toTreasury != 0) {
-            PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
-        }
+        // transfer the amount to treasury collection
+        treasuryCollection += toTreasury;
 
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, _slashingPenalty);
         emit InvalidInputsDetected(askId);
@@ -611,5 +606,12 @@ contract ProofMarketplace is
 
     function slashingPenalty(uint256 marketId) internal view returns (uint256) {
         return marketData[marketId].slashingPenalty;
+    }
+
+    function flushToTreasury() public {
+        if (treasuryCollection != 0) {
+            PAYMENT_TOKEN.safeTransfer(TREASURY, treasuryCollection);
+            treasuryCollection = 0;
+        }
     }
 }

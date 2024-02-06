@@ -27,7 +27,6 @@ interface SetupTemplate {
   generatorRegistry: GeneratorRegistry;
   proofMarketplace: ProofMarketplace;
   priorityLog: PriorityLog;
-  platformToken: MockToken;
   errorLibrary: Error;
   entityKeyRegistry: EntityKeyRegistry;
 }
@@ -63,11 +62,6 @@ export const createAsk = async (
     (await setupTemplate.proofMarketplace.costPerInputBytes(secretType)).toString(),
   ).multipliedBy((proverBytes.length - 2) / 2);
 
-  await setupTemplate.platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-  await setupTemplate.platformToken
-    .connect(prover)
-    .approve(await setupTemplate.proofMarketplace.getAddress(), platformFee.toFixed());
-
   const askId = await setupTemplate.proofMarketplace.askCounter();
   await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x");
 
@@ -102,13 +96,6 @@ export const rawSetup = async (
     "PT",
   );
 
-  const platformToken = await new MockToken__factory(admin).deploy(
-    await tokenHolder.getAddress(),
-    totalTokenSupply.toFixed(),
-    "Staking Token",
-    "ST",
-  );
-
   if (!godEnclave) {
     godEnclave = new MockEnclave(GodEnclavePCRS);
   }
@@ -141,7 +128,6 @@ export const rawSetup = async (
     kind: "uups",
     constructorArgs: [
       await mockToken.getAddress(),
-      await platformToken.getAddress(),
       marketCreationCost.toFixed(),
       treasury,
       await generatorRegistry.getAddress(),
@@ -238,7 +224,6 @@ export const rawSetup = async (
     generatorRegistry,
     proofMarketplace,
     priorityLog,
-    platformToken,
     errorLibrary,
     entityKeyRegistry,
   };

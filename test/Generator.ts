@@ -37,7 +37,6 @@ describe("Checking Generator's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
-  let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
@@ -165,7 +164,6 @@ describe("Checking Generator's multiple compute", () => {
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
-    platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
@@ -213,7 +211,6 @@ describe("Checking Generator's multiple compute", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },
@@ -228,7 +225,6 @@ describe("Checking Generator's multiple compute", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },
@@ -301,9 +297,6 @@ describe("Checking Generator's multiple compute", () => {
           (proverBytes.length - 2) / 2,
         );
 
-        await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-        await platformToken.connect(prover).approve(await proofMarketplace.getAddress(), platformFee.toFixed());
-
         const askId = await proofMarketplace.askCounter();
 
         await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
@@ -331,7 +324,6 @@ describe("Checking Generator's multiple compute", () => {
             proofMarketplace,
             generatorRegistry,
             priorityLog,
-            platformToken,
             errorLibrary,
             entityKeyRegistry,
           },
@@ -346,7 +338,6 @@ describe("Checking Generator's multiple compute", () => {
             proofMarketplace,
             generatorRegistry,
             priorityLog,
-            platformToken,
             errorLibrary,
             entityKeyRegistry,
           },
