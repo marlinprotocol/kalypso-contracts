@@ -7,7 +7,7 @@ import {
   IVerifier,
   IVerifier__factory,
   MockToken,
-  ProofMarketPlace,
+  ProofMarketplace,
   XorVerifier__factory,
   Xor2_verifier_wrapper__factory,
   PriorityLog,
@@ -32,7 +32,7 @@ import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.
 import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
 
 describe("Proof Market Place for Circom Verifier", () => {
-  let proofMarketPlace: ProofMarketPlace;
+  let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
   let platformToken: MockToken;
@@ -132,7 +132,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       computeGivenToNewMarket,
       godEnclave,
     );
-    proofMarketPlace = data.proofMarketPlace;
+    proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     platformToken = data.platformToken;
@@ -140,11 +140,11 @@ describe("Proof Market Place for Circom Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    await circomVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
+    await circomVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
 
-    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+    marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check circom verifier", async () => {
@@ -171,7 +171,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       },
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -186,7 +186,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       admin.provider,
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -201,8 +201,8 @@ describe("Proof Market Place for Circom Verifier", () => {
       ["uint[2]", "uint[2][2]", "uint[2]"],
       [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
     );
-    await expect(proofMarketPlace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketPlace, "ProofCreated")
+    await expect(proofMarketplace.submitProof(askId, proofBytes))
+      .to.emit(proofMarketplace, "ProofCreated")
       .withArgs(askId, proofBytes);
   });
 });

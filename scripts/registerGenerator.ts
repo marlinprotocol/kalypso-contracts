@@ -88,7 +88,7 @@
 //       .connect(generator)
 //       .register(await generator.getAddress(), 100, config.generatorStakingAmount, geneatorDataString);
 //     await tx.wait();
-//     await generator_registry.connect(generator).joinMarketPlace(
+//     await generator_registry.connect(generator).joinMarketplace(
 //       addresses.zkbMarketId,
 //       new BigNumber(10)
 //         .pow(19)

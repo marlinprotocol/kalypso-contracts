@@ -15,7 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
-import "./ProofMarketPlace.sol";
+import "./ProofMarketplace.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -88,7 +88,7 @@ contract GeneratorRegistry is
     mapping(address => uint256) unstakeRequestBlock;
     mapping(address => uint256) reduceComputeRequestBlock;
 
-    ProofMarketPlace public proofMarketPlace;
+    ProofMarketplace public proofMarketplace;
 
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -107,7 +107,7 @@ contract GeneratorRegistry is
         uint256 sumOfComputeAllocations;
         uint256 computeConsumed;
         uint256 stakeLocked;
-        uint256 activeMarketPlaces;
+        uint256 activeMarketplaces;
         uint256 declaredCompute;
         uint256 intendedStakeUtilization;
         uint256 intendedComputeUtilization;
@@ -131,8 +131,8 @@ contract GeneratorRegistry is
 
     event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
 
-    event JoinedMarketPlace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
-    event RequestExitMarketPlace(address indexed generator, uint256 indexed marketId);
+    event JoinedMarketplace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
+    event RequestExitMarketplace(address indexed generator, uint256 indexed marketId);
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
     event AddedStake(address indexed generator, uint256 amount);
@@ -146,12 +146,12 @@ contract GeneratorRegistry is
     //-------------------------------- Events end --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) {
+    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) initializer {
         STAKING_TOKEN = _stakingToken;
         ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
-    function initialize(address _admin, address _proofMarketPlace) public initializer {
+    function initialize(address _admin, address _proofMarketplace) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -160,8 +160,8 @@ contract GeneratorRegistry is
         __UUPSUpgradeable_init_unchained();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(SLASHER_ROLE, _proofMarketPlace);
-        proofMarketPlace = ProofMarketPlace(_proofMarketPlace);
+        _grantRole(SLASHER_ROLE, _proofMarketplace);
+        proofMarketplace = ProofMarketplace(_proofMarketplace);
     }
 
     function register(
@@ -344,7 +344,7 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        (, bytes32 expectedImageId, , , , , , ) = proofMarketPlace.marketData(marketId);
+        (, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(marketId);
 
         require(
             expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
@@ -386,7 +386,7 @@ contract GeneratorRegistry is
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
-    function joinMarketPlace(
+    function joinMarketplace(
         uint256 marketId,
         uint256 computePerRequestRequired,
         uint256 proofGenerationCost,
@@ -416,7 +416,7 @@ contract GeneratorRegistry is
             generator.sumOfComputeAllocations <= generator.declaredCompute,
             Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE
         );
-        generator.activeMarketPlaces++;
+        generator.activeMarketplaces++;
 
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
             GeneratorState.JOINED,
@@ -440,7 +440,7 @@ contract GeneratorRegistry is
                 );
             }
         }
-        emit JoinedMarketPlace(generatorAddress, marketId, computePerRequestRequired);
+        emit JoinedMarketplace(generatorAddress, marketId, computePerRequestRequired);
     }
 
     function _getPubKey(bytes memory attestationData) internal pure returns (bytes memory) {
@@ -449,7 +449,7 @@ contract GeneratorRegistry is
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , , , ) = proofMarketPlace.marketData(
+        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(
             marketId
         );
 
@@ -510,31 +510,31 @@ contract GeneratorRegistry is
         return maxUsableStake - generator.stakeLocked;
     }
 
-    function leaveMarketPlaces(uint256[] calldata marketIds) external {
+    function leaveMarketplaces(uint256[] calldata marketIds) external {
         address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
-            _leaveMarketPlace(generatorAddress, marketIds[index]);
+            _leaveMarketplace(generatorAddress, marketIds[index]);
         }
     }
 
-    function leaveMarketPlace(uint256 marketId) external {
+    function leaveMarketplace(uint256 marketId) external {
         address generatorAddress = _msgSender();
-        _leaveMarketPlace(generatorAddress, marketId);
+        _leaveMarketplace(generatorAddress, marketId);
     }
 
-    function requestForExitMarketPlaces(uint256[] calldata marketIds) external {
+    function requestForExitMarketplaces(uint256[] calldata marketIds) external {
         address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
-            _requestForExitMarketPlace(generatorAddress, marketIds[index]);
+            _requestForExitMarketplace(generatorAddress, marketIds[index]);
         }
     }
 
-    function requestForExitMarketPlace(uint256 marketId) external {
+    function requestForExitMarketplace(uint256 marketId) external {
         address generatorAddress = _msgSender();
-        _requestForExitMarketPlace(generatorAddress, marketId);
+        _requestForExitMarketplace(generatorAddress, marketId);
     }
 
-    function _requestForExitMarketPlace(address generatorAddress, uint256 marketId) internal {
+    function _requestForExitMarketplace(address generatorAddress, uint256 marketId) internal {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
@@ -544,11 +544,11 @@ contract GeneratorRegistry is
 
         info.state = GeneratorState.REQUESTED_FOR_EXIT;
 
-        emit RequestExitMarketPlace(generatorAddress, marketId);
+        emit RequestExitMarketplace(generatorAddress, marketId);
     }
 
-    function _leaveMarketPlace(address generatorAddress, uint256 marketId) internal {
-        (address marketVerifierContractAddress, , , , , , , ) = proofMarketPlace.marketData(marketId);
+    function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
+        (address marketVerifierContractAddress, , , , , , , ) = proofMarketplace.marketData(marketId);
         require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
@@ -557,7 +557,7 @@ contract GeneratorRegistry is
 
         Generator storage generator = generatorRegistry[generatorAddress];
         generator.sumOfComputeAllocations -= info.computePerRequestRequired;
-        generator.activeMarketPlaces -= 1;
+        generator.activeMarketplaces -= 1;
 
         delete generatorInfoPerMarket[generatorAddress][marketId];
         emit LeftMarketplace(generatorAddress, marketId);

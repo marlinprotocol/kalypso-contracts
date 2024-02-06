@@ -14,7 +14,7 @@
 // import {
 //   GeneratorRegistry__factory,
 //   MockToken__factory,
-//   ProofMarketPlace__factory,
+//   ProofMarketplace__factory,
 //   EntityKeyRegistry__factory,
 // } from "../typechain-types";
 
@@ -99,7 +99,7 @@
 //     await tx.wait();
 //     tx = await generator_registry.connect(wallet).stake(await wallet.getAddress(), config.generatorStakingAmount);
 //     await tx.wait();
-//     tx = await generator_registry.connect(wallet).joinMarketPlace(
+//     tx = await generator_registry.connect(wallet).joinMarketplace(
 //       addresses.zkbMarketId,
 //       new BigNumber(10)
 //         .pow(19)
@@ -131,7 +131,7 @@
 //     tx = await mockToken.connect(prover).approve(addresses.proxy.proof_market_place, reward);
 //     console.log("prover allowance to proof marketplace", (await tx.wait())?.hash);
 
-//     const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, prover);
+//     const proof_market_place = ProofMarketplace__factory.connect(addresses.proxy.proof_market_place, prover);
 
 //     const platformFee = new BigNumber((await proof_market_place.costPerInputBytes(1)).toString()).multipliedBy(
 //       (inputBytes.length - 2) / 2,

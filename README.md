@@ -1,6 +1,6 @@
 Contracts for interacting with Kalypso
 
-## ProofMarketPlace
+## ProofMarketplace
 
 Primary contract for create request (ASK)
 

@@ -25,12 +25,12 @@ contract transfer_verifier_wrapper is IVerifier {
     }
 
     function createRequest(
-        ProofMarketPlace.Ask calldata ask,
-        ProofMarketPlace.SecretType secretType,
+        ProofMarketplace.Ask calldata ask,
+        ProofMarketplace.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketPlace.Ask memory newAsk = ProofMarketPlace.Ask(
+        ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
             ask.marketId,
             ask.reward,
             ask.expiry,
@@ -40,7 +40,7 @@ contract transfer_verifier_wrapper is IVerifier {
             encodeInputs(verifyAndDecodeInputs(ask.proverData))
         );
 
-        proofMarketPlace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint256[5] memory) {

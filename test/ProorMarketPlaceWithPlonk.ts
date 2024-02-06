@@ -8,7 +8,7 @@ import {
   IVerifier__factory,
   MockToken,
   PriorityLog,
-  ProofMarketPlace,
+  ProofMarketplace,
   UltraVerifier__factory,
   Plonk_verifier_wrapper__factory,
   Error,
@@ -33,7 +33,7 @@ import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.js
 const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
 
 describe("Proof Market Place for Plonk Verifier", () => {
-  let proofMarketPlace: ProofMarketPlace;
+  let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
   let platformToken: MockToken;
@@ -131,7 +131,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       computeGivenToNewMarket,
       godEnclave,
     );
-    proofMarketPlace = data.proofMarketPlace;
+    proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     platformToken = data.platformToken;
@@ -139,11 +139,11 @@ describe("Proof Market Place for Plonk Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    await plonkVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
+    await plonkVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
 
-    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+    marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check plonk verifier", async () => {
@@ -170,7 +170,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       },
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -185,7 +185,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       admin.provider,
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -198,8 +198,8 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
     // console.log({ plonkProof });
     let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
-    await expect(proofMarketPlace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketPlace, "ProofCreated")
+    await expect(proofMarketplace.submitProof(askId, proofBytes))
+      .to.emit(proofMarketplace, "ProofCreated")
       .withArgs(askId, proofBytes);
   });
 });

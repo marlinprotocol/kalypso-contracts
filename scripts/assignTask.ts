@@ -1,5 +1,5 @@
 // import { ethers } from "hardhat";
-// import { ProofMarketPlace__factory } from "../typechain-types";
+// import { ProofMarketplace__factory } from "../typechain-types";
 
 // import * as fs from "fs";
 // import { checkFileExists } from "../helpers";
@@ -32,7 +32,7 @@
 //   let matchingEngine = signers[5];
 
 //   const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-//   const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
+//   const proof_market_place = ProofMarketplace__factory.connect(addresses.proxy.proof_market_place, matchingEngine);
 
 //   const askId = 2;
 //   const generator = "0x01f01074dc5454B15faBf1F1006864D0b71e3f19";

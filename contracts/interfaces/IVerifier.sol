@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-import "../ProofMarketPlace.sol";
+import "../ProofMarketplace.sol";
 
 pragma solidity ^0.8.9;
 
 abstract contract IVerifier {
-    ProofMarketPlace public proofMarketPlace;
+    ProofMarketplace public proofMarketplace;
 
-    function setProofMarketPlaceContract(ProofMarketPlace _proofMarketplace) external {
-        require(address(proofMarketPlace) == address(0), "Already Set");
-        proofMarketPlace = _proofMarketplace;
+    function setProofMarketplaceContract(ProofMarketplace _proofMarketplace) external {
+        require(address(proofMarketplace) == address(0), "Already Set");
+        proofMarketplace = _proofMarketplace;
     }
 
     function verify(bytes calldata encodedPublicInputsAndProofs) external view virtual returns (bool);

@@ -1,6 +1,6 @@
 // import { ethers } from "hardhat";
 // import { checkFileExists, secret_operations } from "../helpers";
-// import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
+// import { MockToken__factory, ProofMarketplace__factory } from "../typechain-types";
 // import BigNumber from "bignumber.js";
 
 // import * as fs from "fs";
@@ -58,7 +58,7 @@
 //     tx = await mockToken.connect(prover).approve(addresses.proxy.proof_market_place, reward);
 //     console.log("prover allowance to proof marketplace", (await tx.wait())?.hash);
 
-//     const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, prover);
+//     const proof_market_place = ProofMarketplace__factory.connect(addresses.proxy.proof_market_place, prover);
 
 //     const platformFee = new BigNumber((await proof_market_place.costPerInputBytes(1)).toString()).multipliedBy(
 //       (inputBytes.length - 2) / 2,

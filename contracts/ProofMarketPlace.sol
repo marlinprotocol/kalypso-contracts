@@ -19,7 +19,7 @@ import "./Dispute.sol";
 import "./interfaces/IVerifier.sol";
 import "./lib/Error.sol";
 
-contract ProofMarketPlace is
+contract ProofMarketplace is
     Initializable,
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -187,13 +187,15 @@ contract ProofMarketPlace is
 
     event InvalidInputsDetected(uint256 indexed askId);
 
-    event MarketPlaceCreated(uint256 indexed marketId);
+    event MarketplaceCreated(uint256 indexed marketId);
 
     event AskCancelled(uint256 indexed askId);
 
     event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
 
     //-------------------------------- Events end --------------------------------//
+
+    uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
@@ -203,7 +205,7 @@ contract ProofMarketPlace is
         address _treasury,
         GeneratorRegistry _generatorRegistry,
         EntityKeyRegistry _entityRegistry
-    ) {
+    ) initializer {
         PAYMENT_TOKEN = _paymentToken;
         PLATFORM_TOKEN = _platformToken;
         MARKET_CREATION_COST = _marketCreationCost;
@@ -235,7 +237,7 @@ contract ProofMarketPlace is
      * @param _ivsUrl: URL for the input verification. This is during dispute resolution
      * @param _enclaveSignature: Signature => signMessage(market_creator_address, enclave_private_key). Prevent replay attacks
      */
-    function createMarketPlace(
+    function createMarketplace(
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _slashingPenalty,
@@ -269,7 +271,7 @@ contract ProofMarketPlace is
         ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
-        emit MarketPlaceCreated(marketCounter);
+        emit MarketplaceCreated(marketCounter);
         marketCounter++;
     }
 

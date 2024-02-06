@@ -10,7 +10,7 @@ import {
   IVerifier__factory,
   MockToken,
   PriorityLog,
-  ProofMarketPlace,
+  ProofMarketplace,
   TransferVerifier__factory,
   Transfer_verifier_wrapper__factory,
 } from "../typechain-types";
@@ -32,7 +32,7 @@ import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/tr
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
 describe("Proof Market Place for Transfer Verifier", () => {
-  let proofMarketPlace: ProofMarketPlace;
+  let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
   let platformToken: MockToken;
@@ -156,7 +156,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       computeGivenToNewMarket,
       godEnclave,
     );
-    proofMarketPlace = data.proofMarketPlace;
+    proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
@@ -164,11 +164,11 @@ describe("Proof Market Place for Transfer Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    await transferVerifierWrapper.setProofMarketPlaceContract(await proofMarketPlace.getAddress());
+    await transferVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
 
-    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+    marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check transfer verifier", async () => {
@@ -206,7 +206,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       },
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -221,7 +221,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       admin.provider,
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -247,8 +247,8 @@ describe("Proof Market Place for Transfer Verifier", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketPlace, "ProofCreated")
+    await expect(proofMarketplace.submitProof(askId, proofBytes))
+      .to.emit(proofMarketplace, "ProofCreated")
       .withArgs(askId, proofBytes);
   });
 });

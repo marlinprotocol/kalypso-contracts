@@ -1,7 +1,7 @@
 // import { ethers } from "hardhat";
 // import * as fs from "fs";
 // import { MarketData, checkFileExists, marketDataToBytes } from "../helpers";
-// import { MockToken__factory, ProofMarketPlace__factory } from "../typechain-types";
+// import { MockToken__factory, ProofMarketplace__factory } from "../typechain-types";
 
 // async function main(): Promise<string> {
 //   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -37,7 +37,7 @@
 //   if (!addresses?.proxy?.proof_market_place) {
 //     throw new Error("Proof Market Place Is Not Deployed");
 //   }
-//   const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, marketCreator);
+//   const proof_market_place = ProofMarketplace__factory.connect(addresses.proxy.proof_market_place, marketCreator);
 
 //   if (!addresses?.proxy?.payment_token) {
 //     throw new Error("payment_token Is Not Deployed");
@@ -77,7 +77,7 @@
 
 //     const tx = await proof_market_place
 //       .connect(marketCreator)
-//       .createMarketPlace(
+//       .createMarketplace(
 //         marketSetupBytes,
 //         addresses.proxy.transfer_verifier_wrapper,
 //         config.generatorSlashingPenalty,

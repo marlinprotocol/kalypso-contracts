@@ -2,7 +2,7 @@
 // import { checkFileExists, hexStringToMarketData } from "../helpers";
 
 // import * as fs from "fs";
-// import { ProofMarketPlace__factory } from "../typechain-types";
+// import { ProofMarketplace__factory } from "../typechain-types";
 
 // async function main(): Promise<string> {
 //   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -20,7 +20,7 @@
 
 //   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-//   const proof_market_place = ProofMarketPlace__factory.connect(addresses.proxy.proof_market_place, admin);
+//   const proof_market_place = ProofMarketplace__factory.connect(addresses.proxy.proof_market_place, admin);
 
 //   const marketIdsToRead = [addresses.zkbMarketId];
 

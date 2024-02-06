@@ -8,7 +8,7 @@ import {
   GeneratorRegistry,
   MockToken,
   PriorityLog,
-  ProofMarketPlace,
+  ProofMarketplace,
   TransferVerifier__factory,
   EntityKeyRegistry,
   Transfer_verifier_wrapper__factory,
@@ -34,7 +34,7 @@ import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/tr
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
 describe("Checking Generator's multiple compute", () => {
-  let proofMarketPlace: ProofMarketPlace;
+  let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
   let platformToken: MockToken;
@@ -161,7 +161,7 @@ describe("Checking Generator's multiple compute", () => {
       godEnclave,
     );
 
-    proofMarketPlace = data.proofMarketPlace;
+    proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
@@ -169,9 +169,9 @@ describe("Checking Generator's multiple compute", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    marketId = new BigNumber((await proofMarketPlace.marketCounter()).toString()).minus(1).toFixed();
+    marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketPlace.MARKET_ACTIVATION_DELAY();
+    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
@@ -210,7 +210,7 @@ describe("Checking Generator's multiple compute", () => {
       },
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -225,7 +225,7 @@ describe("Checking Generator's multiple compute", () => {
       admin.provider as Provider,
       {
         mockToken: tokenToUse,
-        proofMarketPlace,
+        proofMarketplace,
         generatorRegistry,
         priorityLog,
         platformToken,
@@ -251,8 +251,8 @@ describe("Checking Generator's multiple compute", () => {
         ],
       ],
     );
-    await expect(proofMarketPlace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketPlace, "ProofCreated")
+    await expect(proofMarketplace.submitProof(askId, proofBytes))
+      .to.emit(proofMarketplace, "ProofCreated")
       .withArgs(askId, proofBytes);
   });
 
@@ -294,24 +294,24 @@ describe("Checking Generator's multiple compute", () => {
 
         await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-        await tokenToUse.connect(prover).approve(await proofMarketPlace.getAddress(), ask.reward.toString());
+        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
         const proverBytes = ask.proverData;
-        const platformFee = new BigNumber((await proofMarketPlace.costPerInputBytes(1)).toString()).multipliedBy(
+        const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
           (proverBytes.length - 2) / 2,
         );
 
         await platformToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee.toFixed());
-        await platformToken.connect(prover).approve(await proofMarketPlace.getAddress(), platformFee.toFixed());
+        await platformToken.connect(prover).approve(await proofMarketplace.getAddress(), platformFee.toFixed());
 
-        const askId = await proofMarketPlace.askCounter();
+        const askId = await proofMarketplace.askCounter();
 
-        await proofMarketPlace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
         await expect(
-          proofMarketPlace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
+          proofMarketplace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
         ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
       } else {
         const askId = await setup.createAsk(
@@ -328,7 +328,7 @@ describe("Checking Generator's multiple compute", () => {
           },
           {
             mockToken: tokenToUse,
-            proofMarketPlace,
+            proofMarketplace,
             generatorRegistry,
             priorityLog,
             platformToken,
@@ -343,7 +343,7 @@ describe("Checking Generator's multiple compute", () => {
           admin.provider as Provider,
           {
             mockToken: tokenToUse,
-            proofMarketPlace,
+            proofMarketplace,
             generatorRegistry,
             priorityLog,
             platformToken,
@@ -373,8 +373,8 @@ describe("Checking Generator's multiple compute", () => {
     //     ],
     //   ],
     // );
-    // await expect(proofMarketPlace.submitProof(taskId, proofBytes))
-    //   .to.emit(proofMarketPlace, "ProofCreated")
+    // await expect(proofMarketplace.submitProof(taskId, proofBytes))
+    //   .to.emit(proofMarketplace, "ProofCreated")
     //   .withArgs(askId, taskId, proofBytes);
   });
 
@@ -401,11 +401,11 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
-    await expect(entityKeyRegistry.connect(treasury).addGeneratorRegistry(await proofMarketPlace.getAddress())).to.be
+    await expect(entityKeyRegistry.connect(treasury).addGeneratorRegistry(await proofMarketplace.getAddress())).to.be
       .reverted;
 
-    await entityKeyRegistry.addGeneratorRegistry(await proofMarketPlace.getAddress());
-    expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketPlace.getAddress())).to.eq(true);
+    await entityKeyRegistry.addGeneratorRegistry(await proofMarketplace.getAddress());
+    expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketplace.getAddress())).to.eq(true);
   });
 
   it("Updating with invalid key should revert", async () => {
@@ -479,7 +479,7 @@ describe("Checking Generator's multiple compute", () => {
     expect(generatorData.computeConsumed).to.eq(0);
     expect(generatorData.totalStake).to.eq(generatorStakingAmount.toFixed(0));
     expect(generatorData.stakeLocked).to.eq(0);
-    expect(generatorData.activeMarketPlaces).to.eq(1);
+    expect(generatorData.activeMarketplaces).to.eq(1);
     expect(generatorData.intendedComputeUtilization).to.eq(exponent);
     expect(generatorData.intendedStakeUtilization).to.eq(exponent);
 
