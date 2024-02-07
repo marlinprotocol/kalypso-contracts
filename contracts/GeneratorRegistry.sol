@@ -15,7 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
-import "./ProofMarketplace.sol";
+import "./ProofMarketPlace.sol";
 
 contract GeneratorRegistry is
     Initializable,

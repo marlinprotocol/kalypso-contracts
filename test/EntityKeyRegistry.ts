@@ -86,9 +86,12 @@ describe("Entity key registry tests", () => {
     expect(pub_key).to.eq(generator_enclave.getUncompressedPubkey());
 
     // Removing key from registry
-    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress(), 9))
+    await expect(entityKeyRegistry.removePubkey(randomUser.getAddress(), 8))
       .to.emit(entityKeyRegistry, "RemoveKey")
-      .withArgs(await randomUser.getAddress(), 9);
+      .withArgs(await randomUser.getAddress(), 8);
+
+    const pub_key_check = await entityKeyRegistry.pub_key(randomUser.getAddress(), 8);
+    expect(pub_key_check).to.eq("0x"); // ensuring the key is removed
   });
 
   it("Test Attestation to pubkey and address", async () => {

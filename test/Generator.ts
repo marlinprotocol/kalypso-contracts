@@ -293,9 +293,9 @@ describe("Checking Generator's multiple compute", () => {
         await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
         const proverBytes = ask.proverData;
-        const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-          (proverBytes.length - 2) / 2,
-        );
+        // const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
+        //   (proverBytes.length - 2) / 2,
+        // );
 
         const askId = await proofMarketplace.askCounter();
 
@@ -383,6 +383,12 @@ describe("Checking Generator's multiple compute", () => {
 
     let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
+    // should revert for unregistered user
+    await expect(
+      generatorRegistry.connect(treasury).updateEncryptionKey(marketId, generatorAttestationBytes,signature)
+    )
+      .to.be.reverted;
+
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
     )
@@ -460,6 +466,9 @@ describe("Checking Generator's multiple compute", () => {
     await expect(generatorRegistry.connect(generator).removeEncryptionKey(marketId))
       .to.emit(entityKeyRegistry, "RemoveKey")
       .withArgs(await generator.getAddress(), marketId);
+
+    const pub_key_check = await entityKeyRegistry.pub_key(generator.getAddress(), marketId);
+    expect(pub_key_check).to.eq("0x"); // ensuring the key is removed
   });
 
   it("Generator Prechecks", async () => {

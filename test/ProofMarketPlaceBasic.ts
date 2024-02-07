@@ -288,9 +288,6 @@ describe("Proof market place", () => {
     it("Should Fail: when try creating market in invalid market", async () => {
       await mockToken.connect(prover).approve(await proofMarketplace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-        (proverBytes.length - 2) / 2,
-      );
 
       const latestBlock = await ethers.provider.getBlockNumber();
 
@@ -606,9 +603,6 @@ describe("Proof market place", () => {
         let askId: BigNumber;
         beforeEach(async () => {
           proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-          const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-            (proverBytes.length - 2) / 2,
-          );
 
           latestBlock = await ethers.provider.getBlockNumber();
 
@@ -748,9 +742,6 @@ describe("Proof market place", () => {
 
           let anotherAskId = new BigNumber((await proofMarketplace.askCounter()).toString());
           let anotherProverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-          const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-            (anotherProverBytes.length - 2) / 2,
-          );
 
           await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), reward.toFixed());
           await mockToken.connect(prover).approve(await proofMarketplace.getAddress(), reward.toFixed());
@@ -927,7 +918,7 @@ describe("Proof market place", () => {
             ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
           });
 
-          describe("Failed submiited proof", () => {
+          describe("Failed submitted proof", () => {
             let slasher: Signer;
 
             beforeEach(async () => {

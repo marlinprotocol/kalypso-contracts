@@ -35,7 +35,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
-  let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
@@ -160,7 +159,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
-    platformToken = data.platformToken;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
@@ -209,7 +207,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },
@@ -224,7 +221,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },

@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@adraffy/ens-normalize@1.9.2":
-  "integrity" "sha512-0h+FrQDqe2Wn+IIGFkTCd4aAwTJ+7834Ek1COohCyV26AXhwQ7WQaz+4F/nLOeVl/3BtWHOHLPsq46V8YB46Eg=="
-  "resolved" "https://registry.npmjs.org/@adraffy/ens-normalize/-/ens-normalize-1.9.2.tgz"
-  "version" "1.9.2"
+"@adraffy/ens-normalize@1.10.0":
+  "integrity" "sha512-nA9XHtlAkYfJxY7bce8DcN7eKxWWCWkU+1GR9d+U6MbNpfwQp8TI7vqOsBsMcHoT4mBu2kypKoSKnghEzOOq5Q=="
+  "resolved" "https://registry.npmjs.org/@adraffy/ens-normalize/-/ens-normalize-1.10.0.tgz"
+  "version" "1.10.0"
 
 "@aws-crypto/sha256-js@1.2.2":
   "integrity" "sha512-Nr1QJIbW/afYYGzYvrF70LtaHrIRtd4TNAglX8BvlfxJLZ45SAmueIKYl5tWoNBPzp65ymXGFK0Bb1vZUpuc9g=="
@@ -459,7 +459,7 @@
   "resolved" "https://registry.npmjs.org/@noble/ciphers/-/ciphers-0.1.4.tgz"
   "version" "0.1.4"
 
-"@noble/curves@^1.1.0":
+"@noble/curves@^1.1.0", "@noble/curves@1.2.0":
   "integrity" "sha512-oYclrNgRaM9SsBUBVbb8M6DTV7ZHRTKugureoYEncY5c65HOmRzvSiTE3y5CYaPYJA/GVkrhXEoF0M3Ya9PMnw=="
   "resolved" "https://registry.npmjs.org/@noble/curves/-/curves-1.2.0.tgz"
   "version" "1.2.0"
@@ -470,11 +470,6 @@
   "integrity" "sha512-FZfhjEDbT5GRswV3C6uvLPHMiVD6lQBmpoX5+eSiPaMTXte/IKqI5dykDxzZB/WBeK/CDuQRBWarPdi3FNY2zQ=="
   "resolved" "https://registry.npmjs.org/@noble/hashes/-/hashes-1.2.0.tgz"
   "version" "1.2.0"
-
-"@noble/hashes@1.1.2":
-  "integrity" "sha512-KYRCASVTv6aeUi1tsF8/vpyR7zpfs3FUzy2Jqm+MU+LmUKhQ0y2FpfwqkCcxSg2ua4GALJd8k2R76WxwZGbQpA=="
-  "resolved" "https://registry.npmjs.org/@noble/hashes/-/hashes-1.1.2.tgz"
-  "version" "1.1.2"
 
 "@noble/hashes@1.3.2":
   "integrity" "sha512-MVC8EAQp7MvEcm30KWENFjgR+Mkmf+D189XJTkFIlwohU5hcBbn1ZkKq7KVTi2Hme3PMGF390DaL52beVrIihQ=="
@@ -659,10 +654,10 @@
     "debug" "^4.1.1"
     "lodash.isequal" "^4.5.0"
 
-"@nomicfoundation/hardhat-network-helpers@^1.0.0":
-  "integrity" "sha512-MNqQbzUJZnCMIYvlniC3U+kcavz/PhhQSsY90tbEtUyMj/IQqsLwIRZa4ctjABh3Bz0KCh9OXUZ7Yk/d9hr45Q=="
-  "resolved" "https://registry.npmjs.org/@nomicfoundation/hardhat-network-helpers/-/hardhat-network-helpers-1.0.8.tgz"
-  "version" "1.0.8"
+"@nomicfoundation/hardhat-network-helpers@^1.0.0", "@nomicfoundation/hardhat-network-helpers@^1.0.10":
+  "integrity" "sha512-R35/BMBlx7tWN5V6d/8/19QCwEmIdbnA4ZrsuXgvs8i2qFx5i7h6mH5pBS4Pwi4WigLH+upl6faYusrNPuzMrQ=="
+  "resolved" "https://registry.npmjs.org/@nomicfoundation/hardhat-network-helpers/-/hardhat-network-helpers-1.0.10.tgz"
+  "version" "1.0.10"
   dependencies:
     "ethereumjs-util" "^7.1.4"
 
@@ -671,10 +666,10 @@
   "resolved" "https://registry.npmjs.org/@nomicfoundation/hardhat-toolbox/-/hardhat-toolbox-3.0.0.tgz"
   "version" "3.0.0"
 
-"@nomicfoundation/hardhat-verify@^1.0.0":
-  "integrity" "sha512-zKH7lCgesD9MQbrMsV9DH9NS5Qhkv9K1W9LvbkZWvUQdpyS6zzDyIuJwmfxRKfUGXVlpA2X8nSL3MtxSj3s5aw=="
-  "resolved" "https://registry.npmjs.org/@nomicfoundation/hardhat-verify/-/hardhat-verify-1.0.4.tgz"
-  "version" "1.0.4"
+"@nomicfoundation/hardhat-verify@^1.0.0", "@nomicfoundation/hardhat-verify@^1.1.1":
+  "integrity" "sha512-9QsTYD7pcZaQFEA3tBb/D/oCStYDiEVDN7Dxeo/4SCyHRSm86APypxxdOMEPlGmXsAvd+p1j/dTODcpxb8aztA=="
+  "resolved" "https://registry.npmjs.org/@nomicfoundation/hardhat-verify/-/hardhat-verify-1.1.1.tgz"
+  "version" "1.1.1"
   dependencies:
     "@ethersproject/abi" "^5.1.2"
     "@ethersproject/address" "^5.0.2"
@@ -686,14 +681,9 @@
     "table" "^6.8.0"
     "undici" "^5.14.0"
 
-"@nomicfoundation/solidity-analyzer-linux-x64-gnu@0.1.1":
-  "integrity" "sha512-5WN7leSr5fkUBBjE4f3wKENUy9HQStu7HmWqbtknfXkkil+eNWiBV275IOlpXku7v3uLsXTOKpnnGHJYI2qsdA=="
-  "resolved" "https://registry.npmjs.org/@nomicfoundation/solidity-analyzer-linux-x64-gnu/-/solidity-analyzer-linux-x64-gnu-0.1.1.tgz"
-  "version" "0.1.1"
-
-"@nomicfoundation/solidity-analyzer-linux-x64-musl@0.1.1":
-  "integrity" "sha512-KdYMkJOq0SYPQMmErv/63CwGwMm5XHenEna9X9aB8mQmhDBrYrlAOSsIPgFCUSL0hjxE3xHP65/EPXR/InD2+w=="
-  "resolved" "https://registry.npmjs.org/@nomicfoundation/solidity-analyzer-linux-x64-musl/-/solidity-analyzer-linux-x64-musl-0.1.1.tgz"
+"@nomicfoundation/solidity-analyzer-darwin-arm64@0.1.1":
+  "integrity" "sha512-KcTodaQw8ivDZyF+D76FokN/HdpgGpfjc/gFCImdLUyqB6eSWVaZPazMbeAjmfhx3R0zm/NYVzxwAokFKgrc0w=="
+  "resolved" "https://registry.npmjs.org/@nomicfoundation/solidity-analyzer-darwin-arm64/-/solidity-analyzer-darwin-arm64-0.1.1.tgz"
   "version" "0.1.1"
 
 "@nomicfoundation/solidity-analyzer@^0.1.0":
@@ -882,6 +872,11 @@
   dependencies:
     "antlr4ts" "^0.5.0-alpha.4"
 
+"@solidity-parser/parser@^0.18.0":
+  "integrity" "sha512-yfORGUIPgLck41qyN7nbwJRAx17/jAIXCTanHOJZhB6PJ1iAk/84b/xlsVKFSyNyLXIj0dhppoE0+CRws7wlzA=="
+  "resolved" "https://registry.npmjs.org/@solidity-parser/parser/-/parser-0.18.0.tgz"
+  "version" "0.18.0"
+
 "@tsconfig/node10@^1.0.7":
   "integrity" "sha512-jNsYVVxU8v5g43Erja32laIDHXeoNvFEpX33OK4d6hljo3jDhCBDhx5dhCCTMWUojscpAagGiRkBKxpdl9fxqA=="
   "resolved" "https://registry.npmjs.org/@tsconfig/node10/-/node10-1.0.9.tgz"
@@ -910,7 +905,7 @@
     "lodash" "^4.17.15"
     "ts-essentials" "^7.0.1"
 
-"@typechain/hardhat@^8.0.0":
+"@typechain/hardhat@^8.0.0", "@typechain/hardhat@^8.0.3":
   "integrity" "sha512-MytSmJJn+gs7Mqrpt/gWkTCOpOQ6ZDfRrRT2gtZL0rfGe4QrU4x9ZdW15fFbVM/XTa+5EsKiOMYXhRABibNeng=="
   "resolved" "https://registry.npmjs.org/@typechain/hardhat/-/hardhat-8.0.3.tgz"
   "version" "8.0.3"
@@ -975,10 +970,10 @@
   "resolved" "https://registry.npmjs.org/@types/minimatch/-/minimatch-5.1.2.tgz"
   "version" "5.1.2"
 
-"@types/mocha@>=9.1.0":
-  "integrity" "sha512-/fvYntiO1GeICvqbQ3doGDIP97vWmvFt83GKguJ6prmQM2iXZfFcq6YE8KteFyRtX2/h5Hf91BYvPodJKFYv5Q=="
-  "resolved" "https://registry.npmjs.org/@types/mocha/-/mocha-10.0.1.tgz"
-  "version" "10.0.1"
+"@types/mocha@^10.0.6", "@types/mocha@>=9.1.0":
+  "integrity" "sha512-dJvrYWxP/UcXm36Qn36fxhUKu8A/xMRXVT2cliFF1Z7UA9liG5Psj3ezNSZw+5puH2czDXRLcXQxf8JbJt0ejg=="
+  "resolved" "https://registry.npmjs.org/@types/mocha/-/mocha-10.0.6.tgz"
+  "version" "10.0.6"
 
 "@types/node-gzip@^1.1.0":
   "integrity" "sha512-j7cGb6HIOZbDx3sqe9/9VAPeSvyt143yu5k35gzRXE3mxEgK6BOZ6BAiJ3ToXBcJqLzL9Cr53dav21jlp3f9gw=="
@@ -2318,14 +2313,14 @@
     "@ethersproject/web" "5.7.1"
     "@ethersproject/wordlists" "5.7.0"
 
-"ethers@^6.1.0", "ethers@^6.4.0", "ethers@^6.6.0", "ethers@^6.6.6", "ethers@6.x":
-  "integrity" "sha512-u3WbQn9bzreuLRGHJx/ZlrRSLYiiIu5FLGcR9VChu5D4+udINfNJZl+Y1DVgKlU6o7i3y31ATxs5HYrKogyvlA=="
-  "resolved" "https://registry.npmjs.org/ethers/-/ethers-6.6.6.tgz"
-  "version" "6.6.6"
+"ethers@^6.1.0", "ethers@^6.10.0", "ethers@^6.4.0", "ethers@^6.6.0", "ethers@6.x":
+  "integrity" "sha512-nMNwYHzs6V1FR3Y4cdfxSQmNgZsRj1RiTU25JwvnJLmyzw9z3SKxNc2XKDuiXXo/v9ds5Mp9m6HBabgYQQ26tA=="
+  "resolved" "https://registry.npmjs.org/ethers/-/ethers-6.10.0.tgz"
+  "version" "6.10.0"
   dependencies:
-    "@adraffy/ens-normalize" "1.9.2"
-    "@noble/hashes" "1.1.2"
-    "@noble/secp256k1" "1.7.1"
+    "@adraffy/ens-normalize" "1.10.0"
+    "@noble/curves" "1.2.0"
+    "@noble/hashes" "1.3.2"
     "@types/node" "18.15.13"
     "aes-js" "4.0.0-beta.5"
     "tslib" "2.4.0"
@@ -2544,6 +2539,16 @@
   "integrity" "sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw=="
   "resolved" "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz"
   "version" "1.0.0"
+
+"fsevents@~2.1.1":
+  "integrity" "sha512-Auw9a4AxqWpa9GUfj370BMPzzyncfBABW8Mab7BGWBYDj4Isgq+cDKtx0i6u9jcX9pQDnswsaaOTgTmA5pEjuQ=="
+  "resolved" "https://registry.npmjs.org/fsevents/-/fsevents-2.1.3.tgz"
+  "version" "2.1.3"
+
+"fsevents@~2.3.2":
+  "integrity" "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="
+  "resolved" "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz"
+  "version" "2.3.2"
 
 "function-bind@^1.1.1":
   "integrity" "sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A=="
@@ -3569,7 +3574,7 @@
   dependencies:
     "obliterator" "^2.0.0"
 
-"mocha@^10.0.0":
+"mocha@^10.0.0", "mocha@^10.2.0":
   "integrity" "sha512-IDY7fl/BecMwFHzoqF2sg/SHHANeBoMMXFlS9r0OXKDssYE1M5O43wUY/9BVPeIvfH2zmEbBfseqN9gBQZzXkg=="
   "resolved" "https://registry.npmjs.org/mocha/-/mocha-10.2.0.tgz"
   "version" "10.2.0"
@@ -3600,36 +3605,6 @@
   "integrity" "sha512-O9CIypScywTVpNaRrCAgoUnJgozpIofjKUYmJhiCIJMiuYnLI6otcb1/kpW9/n/tJODHGZ7i8aLQoDVsMtOKQQ=="
   "resolved" "https://registry.npmjs.org/mocha/-/mocha-7.2.0.tgz"
   "version" "7.2.0"
-  dependencies:
-    "ansi-colors" "3.2.3"
-    "browser-stdout" "1.3.1"
-    "chokidar" "3.3.0"
-    "debug" "3.2.6"
-    "diff" "3.5.0"
-    "escape-string-regexp" "1.0.5"
-    "find-up" "3.0.0"
-    "glob" "7.1.3"
-    "growl" "1.10.5"
-    "he" "1.2.0"
-    "js-yaml" "3.13.1"
-    "log-symbols" "3.0.0"
-    "minimatch" "3.0.4"
-    "mkdirp" "0.5.5"
-    "ms" "2.1.1"
-    "node-environment-flags" "1.0.6"
-    "object.assign" "4.1.0"
-    "strip-json-comments" "2.0.1"
-    "supports-color" "6.0.0"
-    "which" "1.3.1"
-    "wide-align" "1.1.3"
-    "yargs" "13.3.2"
-    "yargs-parser" "13.1.2"
-    "yargs-unparser" "1.6.0"
-
-"mocha@7.1.2":
-  "integrity" "sha512-o96kdRKMKI3E8U0bjnfqW4QMk12MwZ4mhdBTf+B5a1q9+aq2HRnj+3ZdJu0B/ZhJeK78MgYuv6L8d/rA5AeBJA=="
-  "resolved" "https://registry.npmjs.org/mocha/-/mocha-7.1.2.tgz"
-  "version" "7.1.2"
   dependencies:
     "ansi-colors" "3.2.3"
     "browser-stdout" "1.3.1"
@@ -4465,13 +4440,13 @@
   "resolved" "https://registry.npmjs.org/solidity-comments-extractor/-/solidity-comments-extractor-0.0.7.tgz"
   "version" "0.0.7"
 
-"solidity-coverage@^0.8.1":
-  "integrity" "sha512-xeHOfBOjdMF6hWTbt42iH4x+7j1Atmrf5OldDPMxI+i/COdExUxszOswD9qqvcBTaLGiOrrpnh9UZjSpt4rBsg=="
-  "resolved" "https://registry.npmjs.org/solidity-coverage/-/solidity-coverage-0.8.4.tgz"
-  "version" "0.8.4"
+"solidity-coverage@^0.8.1", "solidity-coverage@^0.8.6":
+  "integrity" "sha512-vV03mA/0nNMskOdVwNarUcqk0N/aYdelxAbf6RZ5l84FcYHbqDTr2JXyeYMp4bT48qHtAQjnKrygW1FrECyWNw=="
+  "resolved" "https://registry.npmjs.org/solidity-coverage/-/solidity-coverage-0.8.6.tgz"
+  "version" "0.8.6"
   dependencies:
     "@ethersproject/abi" "^5.0.9"
-    "@solidity-parser/parser" "^0.16.0"
+    "@solidity-parser/parser" "^0.18.0"
     "chalk" "^2.4.2"
     "death" "^1.1.0"
     "detect-port" "^1.3.0"
@@ -4482,7 +4457,7 @@
     "globby" "^10.0.1"
     "jsonschema" "^1.2.4"
     "lodash" "^4.17.15"
-    "mocha" "7.1.2"
+    "mocha" "^10.2.0"
     "node-emoji" "^1.10.0"
     "pify" "^4.0.1"
     "recursive-readdir" "^2.2.2"
@@ -4807,10 +4782,10 @@
   "resolved" "https://registry.npmjs.org/ts-essentials/-/ts-essentials-7.0.3.tgz"
   "version" "7.0.3"
 
-"ts-node@*", "ts-node@>=8.0.0":
-  "integrity" "sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw=="
-  "resolved" "https://registry.npmjs.org/ts-node/-/ts-node-10.9.1.tgz"
-  "version" "10.9.1"
+"ts-node@*", "ts-node@^10.9.2", "ts-node@>=8.0.0":
+  "integrity" "sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ=="
+  "resolved" "https://registry.npmjs.org/ts-node/-/ts-node-10.9.2.tgz"
+  "version" "10.9.2"
   dependencies:
     "@cspotcode/source-map-support" "^0.8.0"
     "@tsconfig/node10" "^1.0.7"
@@ -4900,10 +4875,10 @@
   "resolved" "https://registry.npmjs.org/type-fest/-/type-fest-0.7.1.tgz"
   "version" "0.7.1"
 
-"typechain@^8.2.0", "typechain@^8.3.1":
-  "integrity" "sha512-fA7clol2IP/56yq6vkMTR+4URF1nGjV82Wx6Rf09EsqD4tkzMAvEaqYxVFCavJm/1xaRga/oD55K+4FtuXwQOQ=="
-  "resolved" "https://registry.npmjs.org/typechain/-/typechain-8.3.1.tgz"
-  "version" "8.3.1"
+"typechain@^8.2.0", "typechain@^8.3.1", "typechain@^8.3.2":
+  "integrity" "sha512-x/sQYr5w9K7yv3es7jo4KTX05CLxOf7TRWwoHlrjRh8H82G64g+k7VuWPJlgMo6qrjfCulOdfBjiaDtmhFYD/Q=="
+  "resolved" "https://registry.npmjs.org/typechain/-/typechain-8.3.2.tgz"
+  "version" "8.3.2"
   dependencies:
     "@types/prettier" "^2.1.1"
     "debug" "^4.3.1"
