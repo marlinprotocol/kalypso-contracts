@@ -24,9 +24,9 @@ contract EntityKeyRegistry is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    HELPER
+    ReentrancyGuardUpgradeable
 {
+    using HELPER for bytes;
     IAttestationVerifier public attestationVerifier;
 
     //-------------------------------- Overrides start --------------------------------//

@@ -25,9 +25,9 @@ contract GeneratorRegistry is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    HELPER
+    ReentrancyGuardUpgradeable
 {
+    using HELPER for bytes;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     //-------------------------------- Overrides start --------------------------------//
@@ -351,7 +351,7 @@ contract GeneratorRegistry is
             Error.PUBLIC_MARKETS_DONT_NEED_KEY
         );
 
-        require(expectedImageId == GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+        require(expectedImageId == HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
 
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
@@ -427,7 +427,7 @@ contract GeneratorRegistry is
         );
 
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
-            require(expectedImageId == GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+            require(expectedImageId == HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
 
             if (updateMarketDedicatedKey) {
                 _verifyAttestation(generatorAddress, attestationData, enclaveSignature);

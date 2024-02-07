@@ -4,7 +4,7 @@ import "./Error.sol";
 
 pragma solidity ^0.8.9;
 
-contract HELPER {
+library HELPER {
     function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) internal pure returns (bytes32) {
         (, , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , , ) = abi.decode(
             data,

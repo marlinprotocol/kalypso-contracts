@@ -29,9 +29,9 @@ contract ProofMarketplace is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    HELPER
+    ReentrancyGuardUpgradeable
 {
+    using HELPER for bytes;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     //-------------------------------- Overrides start --------------------------------//
@@ -326,7 +326,7 @@ contract ProofMarketplace is
         IVerifier inputVerifier = IVerifier(market.verifier);
         require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
 
-        if (market.proverImageId != bytes32(0) || market.proverImageId == NO_ENCLAVE_ID) {
+        if (market.proverImageId != bytes32(0) || market.proverImageId == HELPER.NO_ENCLAVE_ID) {
             emit AskCreated(askId, true, privateInputs, acl);
         } else {
             emit AskCreated(askId, false, privateInputs, "");
