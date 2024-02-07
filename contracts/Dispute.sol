@@ -9,6 +9,7 @@ import "./lib/Error.sol";
 import "./lib/Helper.sol";
 
 contract Dispute {
+    
     using HELPER for bytes;
     IAttestationVerifier public immutable ATTESTATION_VERIFIER;
 
