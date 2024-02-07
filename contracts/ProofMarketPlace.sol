@@ -32,6 +32,8 @@ contract ProofMarketplace is
     ReentrancyGuardUpgradeable
 {
     using HELPER for bytes;
+    using HELPER for bytes32;
+
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     //-------------------------------- Overrides start --------------------------------//
@@ -69,7 +71,7 @@ contract ProofMarketplace is
     ) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
 
-        (bytes memory pubkey, address meSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        (bytes memory pubkey, address meSigner) = attestationData.GET_PUBKEY_AND_ADDRESS();
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
@@ -250,7 +252,7 @@ contract ProofMarketplace is
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
 
-        (bytes memory ivsPubkey, address ivsSigner) = HELPER.GET_PUBKEY_AND_ADDRESS(_ivsAttestationBytes);
+        (bytes memory ivsPubkey, address ivsSigner) = _ivsAttestationBytes.GET_PUBKEY_AND_ADDRESS();
         _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);
 
         market.verifier = _verifier;
@@ -260,7 +262,7 @@ contract ProofMarketplace is
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
         market.ivsUrl = _defaultIvsUrl;
         market.ivsSigner = ivsSigner;
-        market.ivsImageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(_ivsAttestationBytes);
+        market.ivsImageId = _ivsAttestationBytes.GET_IMAGE_ID_FROM_ATTESTATION();
 
         ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
@@ -275,7 +277,7 @@ contract ProofMarketplace is
         address ivsSigner
     ) internal pure {
         bytes32 messageHash = keccak256(abi.encode(_msgSender));
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == ivsSigner, Error.INVALID_ENCLAVE_SIGNATURE);
@@ -394,7 +396,7 @@ contract ProofMarketplace is
         require(askIds.length == newAcls.length, Error.ARITY_MISMATCH);
 
         bytes32 messageHash = keccak256(abi.encode(askIds, generators, newAcls));
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
@@ -411,7 +413,7 @@ contract ProofMarketplace is
         bytes calldata signature
     ) external nonReentrant {
         bytes32 messageHash = keccak256(abi.encode(askId, generator, newAcl));
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
         require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);

@@ -28,6 +28,8 @@ contract GeneratorRegistry is
     ReentrancyGuardUpgradeable
 {
     using HELPER for bytes;
+    using HELPER for bytes32;
+
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     //-------------------------------- Overrides start --------------------------------//
@@ -351,15 +353,15 @@ contract GeneratorRegistry is
             Error.PUBLIC_MARKETS_DONT_NEED_KEY
         );
 
-        require(expectedImageId == HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+        require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
 
-        (bytes memory pubkey, address _address) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        (bytes memory pubkey, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
 
         bytes32 messageHash = keccak256(abi.encode(generatorAddress));
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
@@ -377,10 +379,10 @@ contract GeneratorRegistry is
         bytes memory attestationData,
         bytes calldata enclaveSignature
     ) internal pure {
-        (, address _address) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
 
         bytes32 messageHash = keccak256(abi.encode(addressToVerify));
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
@@ -427,7 +429,7 @@ contract GeneratorRegistry is
         );
 
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
-            require(expectedImageId == HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData), Error.INCORRECT_IMAGE_ID);
+            require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
             if (updateMarketDedicatedKey) {
                 _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
@@ -444,7 +446,7 @@ contract GeneratorRegistry is
     }
 
     function _getPubKey(bytes memory attestationData) internal pure returns (bytes memory) {
-        (bytes memory pubKey, ) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        (bytes memory pubKey, ) = attestationData.GET_PUBKEY_AND_ADDRESS();
         return pubKey;
     }
 

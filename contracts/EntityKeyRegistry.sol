@@ -27,6 +27,8 @@ contract EntityKeyRegistry is
     ReentrancyGuardUpgradeable
 {
     using HELPER for bytes;
+    using HELPER for bytes32;
+
     IAttestationVerifier public attestationVerifier;
 
     //-------------------------------- Overrides start --------------------------------//
@@ -70,7 +72,7 @@ contract EntityKeyRegistry is
     mapping(address => mapping(bytes32 => bytes)) public dedicated_pub_key_per_market;
 
     modifier isNotUsedUpKey(bytes calldata pubkey) {
-        address _address = HELPER.PUBKEY_TO_ADDRESS(pubkey);
+        address _address = pubkey.PUBKEY_TO_ADDRESS();
         require(!usedUpKey[_address], Error.KEY_ALREADY_EXISTS);
         _;
     }
@@ -108,13 +110,13 @@ contract EntityKeyRegistry is
         attestationVerifier.verify(attestation_data);
         require(
             block.timestamp <=
-                HELPER.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(attestation_data) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+                attestation_data.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION() + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
             Error.ATTESTATION_TIMEOUT
         );
         require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
 
         pub_key[keyOwner][keyIndex] = pubkey;
-        address _address = HELPER.PUBKEY_TO_ADDRESS(pubkey);
+        address _address = pubkey.PUBKEY_TO_ADDRESS();
 
         usedUpKey[_address] = true;
 

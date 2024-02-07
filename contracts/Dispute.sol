@@ -9,8 +9,9 @@ import "./lib/Error.sol";
 import "./lib/Helper.sol";
 
 contract Dispute {
-    
     using HELPER for bytes;
+    using HELPER for bytes32;
+
     IAttestationVerifier public immutable ATTESTATION_VERIFIER;
 
     constructor(IAttestationVerifier _attestationVerifier) {
@@ -31,7 +32,7 @@ contract Dispute {
             messageHash = keccak256(abi.encode(askId));
         }
 
-        bytes32 ethSignedMessageHash = HELPER.GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
         require(signer == expectedSigner, Error.INVALID_ENCLAVE_KEY);
@@ -45,16 +46,16 @@ contract Dispute {
         bytes32 expectedImageId,
         bytes memory invalidProofSignature
     ) internal view returns (bool) {
-        bytes32 imageId = HELPER.GET_IMAGE_ID_FROM_ATTESTATION(attestationData);
+        bytes32 imageId = attestationData.GET_IMAGE_ID_FROM_ATTESTATION();
         require(imageId == expectedImageId, Error.INCORRECT_IMAGE_ID);
 
         require(
             block.timestamp <=
-                HELPER.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(attestationData) + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
+                attestationData.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION() + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
             Error.ATTESTATION_TIMEOUT
         );
 
-        (, address signer) = HELPER.GET_PUBKEY_AND_ADDRESS(attestationData);
+        (, address signer) = attestationData.GET_PUBKEY_AND_ADDRESS();
 
         return
             checkDisputeUsingSignature(
