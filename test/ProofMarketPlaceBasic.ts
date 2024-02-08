@@ -669,7 +669,7 @@ describe("Proof market place", () => {
 
           // in store it will be 1
           expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
-            1,
+            2,
           );
 
           // but via function it should be 2
@@ -701,7 +701,7 @@ describe("Proof market place", () => {
 
           // in store it will be 1
           expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
-            1,
+            2,
           );
 
           // but via function it should be 2
@@ -733,7 +733,7 @@ describe("Proof market place", () => {
 
           // in store it will be 1
           expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
-            1,
+            2,
           );
 
           // but via function it should be 2

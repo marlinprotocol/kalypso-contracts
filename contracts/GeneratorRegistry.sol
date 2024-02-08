@@ -15,7 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
-import "./ProofMarketplace.sol";
+import "./ProofMarketPlace.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -463,30 +463,9 @@ contract GeneratorRegistry is
         uint256 marketId
     ) public view returns (GeneratorState, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
-        Generator memory generator = generatorRegistry[generatorAddress];
-
-        if (info.state == GeneratorState.NULL) {
-            return (GeneratorState.NULL, 0);
-        }
-
-        if (info.state == GeneratorState.REQUESTED_FOR_EXIT) {
-            return (GeneratorState.REQUESTED_FOR_EXIT, 0);
-        }
-
         uint256 idleCapacity = _maxReducableCompute(generatorAddress);
 
-        if (info.state != GeneratorState.NULL && idleCapacity == 0) {
-            return (GeneratorState.NO_COMPUTE_AVAILABLE, 0);
-        }
-
-        if (idleCapacity == generator.declaredCompute) {
-            return (GeneratorState.JOINED, idleCapacity);
-        }
-
-        if (idleCapacity != 0 && idleCapacity < generator.declaredCompute) {
-            return (GeneratorState.WIP, idleCapacity);
-        }
-        return (GeneratorState.NULL, 0);
+        return (info.state, idleCapacity);
     }
 
     function _maxReducableCompute(address generatorAddress) internal view returns (uint256) {
@@ -616,6 +595,13 @@ contract GeneratorRegistry is
         generator.stakeLocked += stakeToLock;
         generator.computeConsumed += info.computePerRequestRequired;
         info.activeRequests++;
+
+        uint256 newIdleCapacity = _maxReducableCompute(generatorAddress);
+        if (newIdleCapacity > 0) {
+            info.state = GeneratorState.WIP;
+        } else {
+            info.state = GeneratorState.NO_COMPUTE_AVAILABLE;
+        }
     }
 
     function completeGeneratorTask(
@@ -639,6 +625,13 @@ contract GeneratorRegistry is
 
         generator.stakeLocked -= stakeToRelease;
         info.activeRequests--;
+
+        uint256 newIdleCapacity = _maxReducableCompute(generatorAddress);
+        if (newIdleCapacity == generator.declaredCompute) {
+            info.state = GeneratorState.JOINED;
+        } else {
+            info.state = GeneratorState.WIP;
+        }
     }
 
     function getGeneratorAssignmentDetails(

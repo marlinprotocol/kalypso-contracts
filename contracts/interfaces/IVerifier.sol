@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-import "../ProofMarketplace.sol";
+import "../ProofMarketPlace.sol";
 
 pragma solidity ^0.8.9;
 
