@@ -75,8 +75,6 @@ contract EntityKeyRegistry is
     mapping(address => mapping(uint256 => bytes)) public pub_key;
     mapping(address => bool) public usedUpKey;
 
-    mapping(address => mapping(bytes32 => bytes)) public dedicated_pub_key_per_market;
-
     modifier isNotUsedUpKey(bytes calldata pubkey) {
         address _address = pubkey.PUBKEY_TO_ADDRESS();
         require(!usedUpKey[_address], Error.KEY_ALREADY_EXISTS);
