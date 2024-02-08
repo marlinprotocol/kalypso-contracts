@@ -26,6 +26,12 @@ contract EntityKeyRegistry is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() initializer {}
+
     using HELPER for bytes;
     using HELPER for bytes32;
 
@@ -77,12 +83,6 @@ contract EntityKeyRegistry is
         _;
     }
 
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() initializer {}
-
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
     event RemoveKey(address indexed user, uint256 indexed keyIndex);
 
@@ -128,4 +128,7 @@ contract EntityKeyRegistry is
 
         emit RemoveKey(keyOwner, keyIndex);
     }
+
+    // for further increase
+    uint256[50] private __gap1_0;
 }

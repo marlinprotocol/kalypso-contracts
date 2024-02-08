@@ -31,6 +31,24 @@ contract ProofMarketplace is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(
+        IERC20Upgradeable _paymentToken,
+        uint256 _marketCreationCost,
+        address _treasury,
+        GeneratorRegistry _generatorRegistry,
+        EntityKeyRegistry _entityRegistry
+    ) initializer {
+        PAYMENT_TOKEN = _paymentToken;
+        MARKET_CREATION_COST = _marketCreationCost;
+        TREASURY = _treasury;
+        GENERATOR_REGISTRY = _generatorRegistry;
+        ENTITY_KEY_REGISTRY = _entityRegistry;
+    }
+
     using HELPER for bytes;
     using HELPER for bytes32;
 
@@ -191,24 +209,6 @@ contract ProofMarketplace is
     event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
 
     //-------------------------------- Events end --------------------------------//
-
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        IERC20Upgradeable _paymentToken,
-        uint256 _marketCreationCost,
-        address _treasury,
-        GeneratorRegistry _generatorRegistry,
-        EntityKeyRegistry _entityRegistry
-    ) initializer {
-        PAYMENT_TOKEN = _paymentToken;
-        MARKET_CREATION_COST = _marketCreationCost;
-        TREASURY = _treasury;
-        GENERATOR_REGISTRY = _generatorRegistry;
-        ENTITY_KEY_REGISTRY = _entityRegistry;
-    }
 
     function initialize(address _admin, Dispute _dispute) public initializer {
         __Context_init_unchained();
@@ -619,4 +619,7 @@ contract ProofMarketplace is
             treasuryCollection = 0;
         }
     }
+
+    // for further increase
+    uint256[50] private __gap1_0;
 }

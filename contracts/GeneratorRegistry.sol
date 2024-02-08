@@ -27,6 +27,15 @@ contract GeneratorRegistry is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) initializer {
+        STAKING_TOKEN = _stakingToken;
+        ENTITY_KEY_REGISTRY = _entityRegistry;
+    }
+
     using HELPER for bytes;
     using HELPER for bytes32;
 
@@ -143,15 +152,6 @@ contract GeneratorRegistry is
     event DecreaseCompute(address indexed generator, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
-
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) initializer {
-        STAKING_TOKEN = _stakingToken;
-        ENTITY_KEY_REGISTRY = _entityRegistry;
-    }
 
     function initialize(address _admin, address _proofMarketplace) public initializer {
         __Context_init_unchained();
@@ -660,21 +660,6 @@ contract GeneratorRegistry is
         return (generator.rewardAddress, info.proofGenerationCost);
     }
 
-    // function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) public pure returns (bytes32) {
-    //     (, , , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , ) = abi.decode(
-    //         data,
-    //         (bytes, address, bytes, bytes, bytes, bytes, uint256, uint256)
-    //     );
-
-    //     return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
-    // }
-
-    // function GET_IMAGED_ID_FROM_PCRS(
-    //     bytes memory PCR0,
-    //     bytes memory PCR1,
-    //     bytes memory PCR2
-    // ) public pure returns (bytes32) {
-    //     bytes32 imageId = keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
-    //     return imageId;
-    // }
+    // for further increase
+    uint256[50] private __gap1_0;
 }
