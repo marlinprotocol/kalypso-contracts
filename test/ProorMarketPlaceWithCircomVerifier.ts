@@ -35,7 +35,6 @@ describe("Proof Market Place for Circom Verifier", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
-  let platformToken: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
@@ -135,7 +134,6 @@ describe("Proof Market Place for Circom Verifier", () => {
     proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
-    platformToken = data.platformToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
@@ -174,7 +172,6 @@ describe("Proof Market Place for Circom Verifier", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },
@@ -189,7 +186,6 @@ describe("Proof Market Place for Circom Verifier", () => {
         proofMarketplace,
         generatorRegistry,
         priorityLog,
-        platformToken,
         errorLibrary,
         entityKeyRegistry,
       },

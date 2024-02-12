@@ -11,10 +11,15 @@ library HELPER {
             (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
         );
 
-        return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+        return GET_IMAGE_ID_FROM_PCRS(PCR0, PCR1, PCR2);
     }
 
-    function GET_IMAGED_ID_FROM_PCRS(
+    function GET_IMAGE_ID_FROM_PCRS(bytes calldata pcrs) internal pure returns (bytes32) {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
+        return GET_IMAGE_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+    }
+
+    function GET_IMAGE_ID_FROM_PCRS(
         bytes memory PCR0,
         bytes memory PCR1,
         bytes memory PCR2

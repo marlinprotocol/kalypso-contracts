@@ -135,15 +135,6 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
 
-    let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
-
-    let types = ["address"];
-    let values = [await marketCreator.getAddress()];
-    let abicode = new ethers.AbiCoder();
-    let encoded = abicode.encode(types, values);
-    let digest = ethers.keccak256(encoded);
-    let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
-
     await expect(
       proofMarketplace
         .connect(marketCreator)
@@ -151,9 +142,8 @@ describe("Proof market place", () => {
           marketBytes,
           await mockVerifier.getAddress(),
           exponent.div(100).toFixed(0),
-          NO_ENCLAVE_ID,
-          ivsAttestationBytes,
-          signature,
+          new MockEnclave().getPcrRlp(),
+          ivsEnclave.getPcrRlp(),
         ),
     )
       .to.emit(proofMarketplace, "MarketplaceCreated")
@@ -218,25 +208,13 @@ describe("Proof market place", () => {
 
       await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
 
-      let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
-
-      let types = ["address"];
-      let values = [await marketCreator.getAddress()];
-      let abicode = new ethers.AbiCoder();
-      let encoded = abicode.encode(types, values);
-      let digest = ethers.keccak256(encoded);
-      let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
-
-      await proofMarketplace
-        .connect(marketCreator)
-        .createMarketplace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.div(100).toFixed(0),
-          NO_ENCLAVE_ID,
-          ivsAttestationBytes,
-          signature,
-        );
+      await proofMarketplace.connect(marketCreator).createMarketplace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        new MockEnclave().getPcrRlp(), // no pcrs means not enclave
+        ivsEnclave.getPcrRlp(),
+      );
 
       let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
       await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());

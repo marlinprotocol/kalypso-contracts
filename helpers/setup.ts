@@ -165,15 +165,7 @@ export const rawSetup = async (
   await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
   await proofMarketplace.verifyMatchingEngine(matchingEngineAttestationBytes, signature);
 
-  let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(godEnclave);
-
-  values = [await marketCreator.getAddress()];
-  abicode = new ethers.AbiCoder();
-  encoded = abicode.encode(types, values);
-  digest = ethers.keccak256(encoded);
-  signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
-
-  const enclaveImageId = MockEnclave.getImageId(MockGeneratorPCRS);
+  const generatorEnclaveRef = new MockEnclave(MockGeneratorPCRS);
 
   await proofMarketplace
     .connect(marketCreator)
@@ -181,9 +173,8 @@ export const rawSetup = async (
       marketSetupBytes,
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
-      enclaveImageId,
-      ivsAttestationBytes,
-      signature,
+      generatorEnclaveRef.getPcrRlp(),
+      ivsEnclave.getPcrRlp(),
     );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
@@ -202,8 +193,7 @@ export const rawSetup = async (
       generatorData,
     );
 
-  const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
-  let generatorAttestationBytes = await generatorEnclaveDetails.getVerifiedAttestation(godEnclave);
+  let generatorAttestationBytes = await generatorEnclaveRef.getVerifiedAttestation(godEnclave);
   await generatorRegistry
     .connect(generator)
     .joinMarketplace(

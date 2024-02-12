@@ -321,6 +321,14 @@ export class MockEnclave {
     return MockEnclave.getImageId(this.pcrs);
   }
 
+  public getPcrRlp(): BytesLike {
+    let abicode = new ethers.AbiCoder();
+
+    let encoded = abicode.encode(["bytes", "bytes", "bytes"], [this.pcrs[0], this.pcrs[1], this.pcrs[2]]);
+
+    return encoded;
+  }
+
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
     let abicode = new ethers.AbiCoder();
 

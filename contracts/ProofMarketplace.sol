@@ -85,8 +85,9 @@ contract ProofMarketplace is
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         matchingEngineImageId = attestationData.GET_IMAGE_ID_FROM_ATTESTATION();
-        // whitelist by default as admin control only
-        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData, true);
+
+        ENTITY_KEY_REGISTRY.whitelistImageUsingAttestationIfNot(attestationData);
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
     }
 
     function _revokeRole(
@@ -215,20 +216,12 @@ contract ProofMarketplace is
         dispute = _dispute;
     }
 
-    /**
-     * @param _marketmetadata: Metadata for the market
-     * @param _verifier: Address of the verifier contract
-     * @param _slashingPenalty: Slashing Penalty per request
-     * @param _ivsAttestationBytes: Attestation Data for the IVS
-     * @param _enclaveSignature: Signature => signMessage(market_creator_address, enclave_private_key). Prevent replay attacks
-     */
     function createMarketplace(
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _slashingPenalty,
-        bytes32 _proverImageId,
-        bytes calldata _ivsAttestationBytes,
-        bytes calldata _enclaveSignature
+        bytes calldata _proverPcrs,
+        bytes calldata _ivsPcrs
     ) external nonReentrant {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
@@ -240,18 +233,16 @@ contract ProofMarketplace is
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
 
-        (, address ivsSigner) = _ivsAttestationBytes.GET_PUBKEY_AND_ADDRESS();
-        _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);
-
         market.verifier = _verifier;
         market.slashingPenalty = _slashingPenalty;
         market.marketmetadata = _marketmetadata;
-        market.proverImageId = _proverImageId;
+        market.proverImageId = _proverPcrs.GET_IMAGE_ID_FROM_PCRS();
+        market.ivsImageId = _ivsPcrs.GET_IMAGE_ID_FROM_PCRS();
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
-        market.ivsImageId = _ivsAttestationBytes.GET_IMAGE_ID_FROM_ATTESTATION();
 
         // whitelist every IVS here, because market maker is specifying it
-        ENTITY_KEY_REGISTRY.whitelistImageIfNot(_ivsAttestationBytes);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(_proverPcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(_ivsPcrs);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketplaceCreated(marketCounter);

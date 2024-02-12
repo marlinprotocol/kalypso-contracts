@@ -42,25 +42,25 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key should revert for address without key_register_role", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x", true)).to.be
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
       .reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x", true)).to.be.revertedWith(
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
 
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
+    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrsIfNot(bytes)"](generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
         0,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
-        true,
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -70,13 +70,13 @@ describe("Entity key registry tests", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
+    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrsIfNot(bytes)"](generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
         8,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
-        true,
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
