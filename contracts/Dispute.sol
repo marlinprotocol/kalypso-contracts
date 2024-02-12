@@ -71,11 +71,27 @@ contract Dispute {
         uint256 askId,
         bytes calldata proverData,
         bytes calldata completeData,
-        bytes32 expectedImageId
+        bytes32 expectedImageId,
+        address ivsSigner
     ) public view returns (bool) {
-        (bytes memory attestationData, bytes memory invalidProofSignature) = abi.decode(completeData, (bytes, bytes));
+        (bytes memory attestationData, bytes memory invalidProofSignature, bool useGeneratorKey) = abi.decode(
+            completeData,
+            (bytes, bytes, bool)
+        );
 
         ATTESTATION_VERIFIER.verify(attestationData);
+
+        if (useGeneratorKey) {
+            require(ivsSigner != address(0), Error.CANNOT_BE_ZERO);
+            return
+                checkDisputeUsingSignature(
+                    askId,
+                    proverData,
+                    invalidProofSignature,
+                    ivsSigner,
+                    expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID
+                );
+        }
 
         return checkDisputeUsingAttesation(askId, proverData, attestationData, expectedImageId, invalidProofSignature);
     }

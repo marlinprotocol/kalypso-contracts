@@ -128,6 +128,7 @@ contract GeneratorRegistry is
         uint256 proofGenerationCost;
         uint256 proposedTime;
         uint256 activeRequests;
+        address ivsSignerAddress;
     }
 
     //-------------------------------- State variables end --------------------------------//
@@ -370,6 +371,30 @@ contract GeneratorRegistry is
         ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
     }
 
+    function updateIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
+        address generatorAddress = _msgSender();
+        Generator memory generator = generatorRegistry[generatorAddress];
+
+        (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
+
+        require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
+
+        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+
+        (bytes memory pubkey, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
+
+        bytes32 messageHash = keccak256(abi.encode(generatorAddress));
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
+
+        // don't whitelist, because same imageId must be used to update the key
+        ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
+
+        generatorInfoPerMarket[generatorAddress][marketId].ivsSignerAddress = _address;
+    }
+
     function removeEncryptionKey(uint256 marketId) external {
         address generatorAddress = _msgSender();
         ENTITY_KEY_REGISTRY.removePubkey(generatorAddress, marketId);
@@ -426,7 +451,8 @@ contract GeneratorRegistry is
             computePerRequestRequired,
             proofGenerationCost,
             proposedTime,
-            0
+            0,
+            address(0)
         );
 
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
@@ -655,11 +681,11 @@ contract GeneratorRegistry is
     function getGeneratorRewardDetails(
         address generatorAddress,
         uint256 marketId
-    ) public view returns (address, uint256) {
+    ) public view returns (address, uint256, address) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        return (generator.rewardAddress, info.proofGenerationCost);
+        return (generator.rewardAddress, info.proofGenerationCost, info.ivsSignerAddress);
     }
 
     // for further increase

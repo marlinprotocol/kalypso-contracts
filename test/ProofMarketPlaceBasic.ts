@@ -125,6 +125,10 @@ describe("Proof market place", () => {
       .connect(admin)
       .grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
+    await entityRegistry
+      .connect(admin)
+      .grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await generatorRegistry.getAddress());
+
     await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
   });
 
@@ -776,13 +780,29 @@ describe("Proof market place", () => {
 
         describe("Submit Proof", () => {
           let proof: string;
+          let newIvsEnclave: MockEnclave;
 
           beforeEach(async () => {
+            newIvsEnclave = new MockEnclave(MockIVSPCRS);
             proof = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
 
             await proofMarketplace
               .connect(matchingEngineSigner)
               .assignTask(askId.toString(), await generator.getAddress(), "0x");
+
+            // generator should register his ivs for invalid inputs
+
+            let types = ["address"];
+            let values = [await generator.getAddress()];
+
+            let abicode = new ethers.AbiCoder();
+            let encoded = abicode.encode(types, values);
+            let digest = ethers.keccak256(encoded);
+            let signature = await newIvsEnclave.signMessage(ethers.getBytes(digest));
+
+            // use any enclave to get verfied attestation as mockAttesationVerifier is used here
+            let generatorIvsAttestationBytes = await newIvsEnclave.getVerifiedAttestation(newIvsEnclave);
+            await generatorRegistry.connect(generator).updateIvsKey(marketId, generatorIvsAttestationBytes, signature);
           });
 
           it("submit proof", async () => {
@@ -827,6 +847,37 @@ describe("Proof market place", () => {
             ).to.eq(1); // 1 means JOINED and idle now
           });
 
+          it("Submit Proof for invalid request: using generator own ivs", async () => {
+            const types = ["uint256"];
+
+            const values = [askId.toFixed(0)];
+
+            const abicode = new ethers.AbiCoder();
+            const encoded = abicode.encode(types, values);
+            const digest = ethers.keccak256(encoded);
+            const signature = await newIvsEnclave.signMessage(ethers.getBytes(digest));
+
+            const generatorAddress = await generator.getAddress();
+            const expectedGeneratorReward = (await generatorRegistry.generatorInfoPerMarket(generatorAddress, marketId))
+              .proofGenerationCost;
+            const treasuryRefundAddress = await treasury.getAddress();
+            const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
+
+            const completeData = abicode.encode(["bytes", "bytes", "bool"], ["0x00", signature, true]);
+
+            await proofMarketplace.flushToTreasury(); // remove anything if is already there
+
+            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
+              .to.emit(proofMarketplace, "InvalidInputsDetected")
+              .withArgs(askId)
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward);
+
+            await expect(proofMarketplace.flushToTreasury())
+              .to.emit(mockToken, "Transfer")
+              .withArgs(await proofMarketplace.getAddress(), treasuryRefundAddress, expectedRefund);
+          });
+
           it("Submit Proof for invalid request, from another ivs enclave with same image id", async () => {
             const types = ["uint256"];
 
@@ -847,7 +898,7 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            const completeData = abicode.encode(["bytes", "bytes"], [mockAttestation, signature]);
+            const completeData = abicode.encode(["bytes", "bytes", "bool"], [mockAttestation, signature, false]);
 
             await proofMarketplace.flushToTreasury(); // remove anything if is already there
 
