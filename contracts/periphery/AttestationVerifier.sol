@@ -228,7 +228,7 @@ contract AttestationVerifier is Initializable,  // initializer
         uint256 enclaveMemory,
         uint256 timestamp
     ) internal view {
-        bytes32 digest = keccak256(abi.encode(
+        bytes32 messageHash = keccak256(abi.encode(
             ATTESTATION_PREFIX, 
             enclaveKey, 
             image.PCR0, 
@@ -239,7 +239,9 @@ contract AttestationVerifier is Initializable,  // initializer
             timestamp
         ));
 
-        address signer = ECDSAUpgradeable.recover(digest, attestation);
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, attestation);
+
         bytes32 sourceImageId = isVerified[signer];
 
         require(
