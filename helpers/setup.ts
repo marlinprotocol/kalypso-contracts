@@ -138,7 +138,7 @@ export const rawSetup = async (
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
 
-  const dispute = await new Dispute__factory(admin).deploy(await attestationVerifier.getAddress());
+  const dispute = await new Dispute__factory(admin).deploy(await entityKeyRegistry.getAddress());
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
   await proofMarketplace.initialize(await admin.getAddress(), await dispute.getAddress());

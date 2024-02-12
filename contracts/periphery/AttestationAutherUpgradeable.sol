@@ -93,6 +93,8 @@ contract AttestationAutherUpgradeable is
         emit EnclaveKeyRevoked(enclavePubKey);
     }
 
+    function isValidKey(address key, bytes memory attestation) external view returns (bool) {}
+
     // add enclave key of a whitelisted image to the list of verified enclave keys
     function _verifyKey(
         bytes memory signature,
@@ -121,6 +123,18 @@ contract AttestationAutherUpgradeable is
 
         verifiedKeys[enclaveKey] = imageId;
         emit EnclaveKeyVerified(enclavePubKey, imageId);
+    }
+
+    function verifyKey(bytes memory data) external {
+        (
+            bytes memory signature,
+            bytes memory enclaveKey,
+            bytes32 imageId,
+            uint256 enclaveCPUs,
+            uint256 enclaveMemory,
+            uint256 timestampInMilliseconds
+        ) = abi.decode(data, (bytes, bytes, bytes32, uint256, uint256, uint256));
+        return _verifyKey(signature, enclaveKey, imageId, enclaveCPUs, enclaveMemory, timestampInMilliseconds);
     }
 
     function verifyKey(

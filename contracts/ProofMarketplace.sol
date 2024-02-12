@@ -448,14 +448,16 @@ contract ProofMarketplace is
     function _verifyAndGetData(
         uint256 askId,
         AskWithState memory askWithState
-    ) internal view returns (uint256, address, address) {
-        (address generatorRewardAddress, uint256 minRewardForGenerator, address ivsSigner) = GENERATOR_REGISTRY
-            .getGeneratorRewardDetails(askWithState.generator, askWithState.ask.marketId);
+    ) internal view returns (uint256, address) {
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
+            askWithState.generator,
+            askWithState.ask.marketId
+        );
 
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
 
-        return (minRewardForGenerator, generatorRewardAddress, ivsSigner);
+        return (minRewardForGenerator, generatorRewardAddress);
     }
 
     function _completeProofForInvalidRequests(
@@ -482,25 +484,16 @@ contract ProofMarketplace is
         emit InvalidInputsDetected(askId);
     }
 
-    function submitProofForInvalidInputs(uint256 askId, bytes calldata externalData) external nonReentrant {
+    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
         uint256 marketId = askWithState.ask.marketId;
         Market memory currentMarket = marketData[marketId];
 
-        (uint256 minRewardForGenerator, address generatorRewardAddress, address generatorIvsSigner) = _verifyAndGetData(
-            askId,
-            askWithState
-        );
+        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
         // dispute will check the attestation
         require(
-            dispute.checkDispute(
-                askId,
-                askWithState.ask.proverData,
-                externalData,
-                currentMarket.ivsImageId,
-                generatorIvsSigner
-            ),
+            dispute.checkDispute(askId, askWithState.ask.proverData, invalidProofSignature, currentMarket.ivsImageId),
             Error.CAN_NOT_SLASH_USING_VALID_INPUTS
         );
 
@@ -531,8 +524,10 @@ contract ProofMarketplace is
         uint256 marketId = askWithState.ask.marketId;
         IVerifier proofVerifier = IVerifier(marketData[marketId].verifier);
 
-        (address generatorRewardAddress, uint256 minRewardForGenerator, ) = GENERATOR_REGISTRY
-            .getGeneratorRewardDetails(askWithState.generator, askWithState.ask.marketId);
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
+            askWithState.generator,
+            askWithState.ask.marketId
+        );
 
         require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);

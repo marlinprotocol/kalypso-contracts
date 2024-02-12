@@ -681,11 +681,11 @@ contract GeneratorRegistry is
     function getGeneratorRewardDetails(
         address generatorAddress,
         uint256 marketId
-    ) public view returns (address, uint256, address) {
+    ) public view returns (address, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        return (generator.rewardAddress, info.proofGenerationCost, info.ivsSignerAddress);
+        return (generator.rewardAddress, info.proofGenerationCost);
     }
 
     // for further increase

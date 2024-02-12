@@ -113,7 +113,7 @@ describe("Proof market place", () => {
 
     proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), signers[0]);
 
-    const dispute = await new Dispute__factory(admin).deploy(await mockAttestationVerifier.getAddress());
+    const dispute = await new Dispute__factory(admin).deploy(await entityRegistry.getAddress());
 
     await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
     await proofMarketplace.initialize(await admin.getAddress(), await dispute.getAddress());
@@ -791,19 +791,22 @@ describe("Proof market place", () => {
               .assignTask(askId.toString(), await generator.getAddress(), "0x");
 
             // generator should register his ivs for invalid inputs
+            await updateIvsKey(newIvsEnclave);
+          });
 
+          const updateIvsKey = async (ivsEnclave: MockEnclave) => {
             let types = ["address"];
             let values = [await generator.getAddress()];
 
             let abicode = new ethers.AbiCoder();
             let encoded = abicode.encode(types, values);
             let digest = ethers.keccak256(encoded);
-            let signature = await newIvsEnclave.signMessage(ethers.getBytes(digest));
+            let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
             // use any enclave to get verfied attestation as mockAttesationVerifier is used here
-            let generatorIvsAttestationBytes = await newIvsEnclave.getVerifiedAttestation(newIvsEnclave);
+            let generatorIvsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
             await generatorRegistry.connect(generator).updateIvsKey(marketId, generatorIvsAttestationBytes, signature);
-          });
+          };
 
           it("submit proof", async () => {
             const generatorAddress = await generator.getAddress();
@@ -863,11 +866,9 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            const completeData = abicode.encode(["bytes", "bytes", "bool"], ["0x00", signature, true]);
-
             await proofMarketplace.flushToTreasury(); // remove anything if is already there
 
-            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
+            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))
               .to.emit(proofMarketplace, "InvalidInputsDetected")
               .withArgs(askId)
               .to.emit(mockToken, "Transfer")
@@ -886,10 +887,7 @@ describe("Proof market place", () => {
             const abicode = new ethers.AbiCoder();
             const encoded = abicode.encode(types, values);
             const digest = ethers.keccak256(encoded);
-
             const anotherIvsEnclave = new MockEnclave(MockIVSPCRS);
-
-            const mockAttestation = await anotherIvsEnclave.getVerifiedAttestation(anotherIvsEnclave);
             const signature = await anotherIvsEnclave.signMessage(ethers.getBytes(digest));
 
             const generatorAddress = await generator.getAddress();
@@ -898,11 +896,15 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            const completeData = abicode.encode(["bytes", "bytes", "bool"], [mockAttestation, signature, false]);
-
             await proofMarketplace.flushToTreasury(); // remove anything if is already there
 
-            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), completeData))
+            // because enclave key for new enclave is not verified yet
+            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature)).to.be.revertedWith(
+              await errorLibrary.INVALID_ENCLAVE_KEY(),
+            );
+            await updateIvsKey(anotherIvsEnclave);
+
+            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))
               .to.emit(proofMarketplace, "InvalidInputsDetected")
               .withArgs(askId)
               .to.emit(mockToken, "Transfer")
