@@ -154,11 +154,11 @@ contract AttestationAutherUpgradeable is
         );
     }
 
-    function getWhitelistedImage(bytes32 _imageId) external view returns (EnclaveImage memory) {
+    function _getWhitelistedImage(bytes32 _imageId) internal view returns (EnclaveImage memory) {
         return whitelistedImages[_imageId];
     }
 
-    function getVerifiedKey(address _key) external view returns (bytes32) {
+    function _getVerifiedKey(address _key) internal view returns (bytes32) {
         return verifiedKeys[_key];
     }
 }

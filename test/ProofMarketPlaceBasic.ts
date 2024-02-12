@@ -84,8 +84,8 @@ describe("Proof market place", () => {
     const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
     const _entityKeyRegistry = await upgrades.deployProxy(
       EntityKeyRegistryContract,
-      [await mockAttestationVerifier.getAddress(), await admin.getAddress()],
-      { kind: "uups", constructorArgs: [] },
+      [await admin.getAddress(), []],
+      { kind: "uups", constructorArgs: [await mockAttestationVerifier.getAddress()] },
     );
     const entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
@@ -193,7 +193,7 @@ describe("Proof market place", () => {
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
     await expect(proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature)).to.be.revertedWith(
-      await errorLibrary.ATTESTATION_TIMEOUT(),
+      "AA:VK-Attestation too old",
     );
   });
 

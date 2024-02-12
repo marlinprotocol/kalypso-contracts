@@ -32,8 +32,8 @@ describe("Entity key registry tests", () => {
     const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
     const _entityKeyRegistry = await upgrades.deployProxy(
       EntityKeyRegistryContract,
-      [await attestationVerifier.getAddress(), await admin.getAddress()],
-      { kind: "uups", constructorArgs: [] },
+      [await admin.getAddress(), []],
+      { kind: "uups", constructorArgs: [await attestationVerifier.getAddress()] },
     );
     entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
@@ -42,13 +42,13 @@ describe("Entity key registry tests", () => {
     // console.log({ entityKeyRegistry: await entityKeyRegistry.getAddress() });
   });
 
-  it("Update key should revert for invalid admin", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
+  it("Update key should revert for address without key_register_role", async () => {
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x", true)).to.be
       .reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x", true)).to.be.revertedWith(
       await errorLibrary.INVALID_ENCLAVE_KEY(),
     );
   });
@@ -61,6 +61,7 @@ describe("Entity key registry tests", () => {
         0,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
+        true
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -76,6 +77,7 @@ describe("Entity key registry tests", () => {
         8,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
+        true
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")

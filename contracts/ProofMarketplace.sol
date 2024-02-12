@@ -93,8 +93,9 @@ contract ProofMarketplace is
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-        //attestationData and it's timestamp is verified by ER internal, will revert if it is wrong/timeout.
-        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
+        
+        // whitelist every image here (till there are admin controls over this function)
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData, true);
     }
 
     function _revokeRole(
@@ -264,7 +265,8 @@ contract ProofMarketplace is
         market.ivsSigner = ivsSigner;
         market.ivsImageId = _ivsAttestationBytes.GET_IMAGE_ID_FROM_ATTESTATION();
 
-        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes);
+        // whitelist every IVS here, because market maker is specifying it
+        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes, true);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketplaceCreated(marketCounter);

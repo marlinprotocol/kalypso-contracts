@@ -366,7 +366,8 @@ contract GeneratorRegistry is
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
 
-        ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
+        // don't whitelist, because same imageId must be used to update the key
+        ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData, false);
     }
 
     function removeEncryptionKey(uint256 marketId) external {
@@ -430,15 +431,18 @@ contract GeneratorRegistry is
 
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
             require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
-
+    
+            ENTITY_KEY_REGISTRY.whitelistImageIfNot(attestationData);
             if (updateMarketDedicatedKey) {
                 _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
 
+                // whitelist every image here because it is verified by the generator
                 ENTITY_KEY_REGISTRY.updatePubkey(
                     generatorAddress,
                     marketId,
                     _getPubKey(attestationData),
-                    attestationData
+                    attestationData,
+                    false
                 );
             }
         }
