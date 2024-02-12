@@ -4,9 +4,9 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./EntityKeyRegistry.sol";
-import "./lib/Error.sol";
-import "./lib/Helper.sol";
+import "../EntityKeyRegistry.sol";
+import "./Error.sol";
+import "./Helper.sol";
 
 contract Dispute {
     using HELPER for bytes;
