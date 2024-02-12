@@ -165,6 +165,10 @@ contract EntityKeyRegistry is
         emit RemoveKey(keyOwner, keyIndex);
     }
 
+    function allowOnlyVerified(address key, bytes32 _imageId) external view returns (bool) {
+        return _allowOnlyVerified(key, _imageId);
+    }
+
     // for further increase
     uint256[50] private __gap1_0;
 }

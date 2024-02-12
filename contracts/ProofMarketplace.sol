@@ -75,14 +75,6 @@ contract ProofMarketplace is
         super._grantRole(role, account);
     }
 
-    function grantRole(
-        bytes32 role,
-        address account
-    ) public virtual override(AccessControlUpgradeable, IAccessControlUpgradeable) {
-        require(role != MATCHING_ENGINE_ROLE, Error.CANNOT_USE_MATCHING_ENGINE_ROLE);
-        super._grantRole(role, account);
-    }
-
     function verifyMatchingEngine(
         bytes memory attestationData,
         bytes calldata meSignature
@@ -92,9 +84,8 @@ contract ProofMarketplace is
         (bytes memory pubkey, address meSigner) = attestationData.GET_PUBKEY_AND_ADDRESS();
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
-        _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-
-        // whitelist every image here (till there are admin controls over this function)
+        matchingEngineImageId = attestationData.GET_IMAGE_ID_FROM_ATTESTATION();
+        // whitelist by default as admin control only
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData, true);
     }
 
@@ -113,7 +104,6 @@ contract ProofMarketplace is
     //-------------------------------- Overrides end --------------------------------//
 
     //-------------------------------- Constants and Immutable start --------------------------------//
-    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -146,6 +136,8 @@ contract ProofMarketplace is
     mapping(SecretType => uint256) public costPerInputBytes;
 
     uint256 public treasuryCollection;
+
+    bytes32 public matchingEngineImageId;
 
     struct Market {
         address verifier; // verifier address for the market place
@@ -220,7 +212,6 @@ contract ProofMarketplace is
         __UUPSUpgradeable_init_unchained();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-        _setRoleAdmin(MATCHING_ENGINE_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
 
         dispute = _dispute;
@@ -401,7 +392,10 @@ contract ProofMarketplace is
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
+        require(
+            ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, matchingEngineImageId),
+            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
+        );
 
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], generators[index], newAcls[index]);
@@ -418,16 +412,19 @@ contract ProofMarketplace is
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-        require(hasRole(MATCHING_ENGINE_ROLE, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
+        require(
+            ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, matchingEngineImageId),
+            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
+        );
 
         _assignTask(askId, generator, newAcl);
     }
 
-    function assignTask(
-        uint256 askId,
-        address generator,
-        bytes calldata new_acl
-    ) external nonReentrant onlyRole(MATCHING_ENGINE_ROLE) {
+    function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
+        require(
+            ENTITY_KEY_REGISTRY.allowOnlyVerified(_msgSender(), matchingEngineImageId),
+            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
+        );
         _assignTask(askId, generator, new_acl);
     }
 

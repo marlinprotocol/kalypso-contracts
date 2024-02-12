@@ -16,6 +16,7 @@ import {
   ProofMarketplace__factory,
   EntityKeyRegistry__factory,
   Dispute__factory,
+  EntityKeyRegistry,
 } from "../typechain-types";
 
 import {
@@ -49,6 +50,7 @@ describe("Proof market place", () => {
 
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
+  let entityRegistry: EntityKeyRegistry;
   let mockVerifier: MockVerifier;
 
   let errorLibrary: Error;
@@ -86,7 +88,7 @@ describe("Proof market place", () => {
       kind: "uups",
       constructorArgs: [await mockAttestationVerifier.getAddress()],
     });
-    const entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
+    entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
     const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
@@ -123,7 +125,7 @@ describe("Proof market place", () => {
       .connect(admin)
       .grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
-    await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+    await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
   });
 
   it("Create Market", async () => {
@@ -175,7 +177,7 @@ describe("Proof market place", () => {
     await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
     expect(
-      await proofMarketplace.hasRole(await proofMarketplace.MATCHING_ENGINE_ROLE(), matchingEngineEnclave.getAddress()),
+      await entityRegistry.allowOnlyVerified(matchingEngineEnclave.getAddress(), matchingEngineEnclave.getImageId()),
     ).to.be.true;
   });
 
@@ -261,7 +263,7 @@ describe("Proof market place", () => {
       const secretInfo = "0x2345";
       const aclInfo = "0x21";
 
-      await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+      await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
       await proofMarketplace.connect(admin).updateCostPerBytes(1, 1000);
 
       const platformFee = await proofMarketplace.getPlatformFee(1, askRequest, secretInfo, aclInfo);

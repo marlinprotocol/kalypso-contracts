@@ -147,4 +147,9 @@ contract AttestationAutherUpgradeable is
     function _getVerifiedKey(address _key) internal view returns (bytes32) {
         return verifiedKeys[_key];
     }
+
+    function _allowOnlyVerified(address key, bytes32 _imageId) internal view returns (bool) {
+        bytes32 imageId = verifiedKeys[key];
+        return imageId != bytes32(0) && imageId == _imageId && whitelistedImages[imageId].PCR0.length != 0;
+    }
 }
