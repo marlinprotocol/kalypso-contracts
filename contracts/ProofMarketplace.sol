@@ -144,9 +144,7 @@ contract ProofMarketplace is
         bytes32 proverImageId; // use bytes32(0) for public market
         uint256 slashingPenalty;
         uint256 activationBlock;
-        address ivsSigner;
         bytes32 ivsImageId;
-        bytes ivsUrl;
         bytes marketmetadata;
     }
 
@@ -222,7 +220,6 @@ contract ProofMarketplace is
      * @param _verifier: Address of the verifier contract
      * @param _slashingPenalty: Slashing Penalty per request
      * @param _ivsAttestationBytes: Attestation Data for the IVS
-     * @param _defaultIvsUrl: URL for the input verification. This is during dispute resolution
      * @param _enclaveSignature: Signature => signMessage(market_creator_address, enclave_private_key). Prevent replay attacks
      */
     function createMarketplace(
@@ -231,7 +228,6 @@ contract ProofMarketplace is
         uint256 _slashingPenalty,
         bytes32 _proverImageId,
         bytes calldata _ivsAttestationBytes,
-        bytes calldata _defaultIvsUrl,
         bytes calldata _enclaveSignature
     ) external nonReentrant {
         require(_slashingPenalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
@@ -244,7 +240,7 @@ contract ProofMarketplace is
         require(_verifier != address(0), Error.CANNOT_BE_ZERO);
         require(IVerifier(_verifier).checkSampleInputsAndProof(), Error.INVALID_INPUTS);
 
-        (bytes memory ivsPubkey, address ivsSigner) = _ivsAttestationBytes.GET_PUBKEY_AND_ADDRESS();
+        (, address ivsSigner) = _ivsAttestationBytes.GET_PUBKEY_AND_ADDRESS();
         _verifyEnclaveSignature(_enclaveSignature, _msgSender, ivsSigner);
 
         market.verifier = _verifier;
@@ -252,12 +248,10 @@ contract ProofMarketplace is
         market.marketmetadata = _marketmetadata;
         market.proverImageId = _proverImageId;
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
-        market.ivsUrl = _defaultIvsUrl;
-        market.ivsSigner = ivsSigner;
         market.ivsImageId = _ivsAttestationBytes.GET_IMAGE_ID_FROM_ATTESTATION();
 
         // whitelist every IVS here, because market maker is specifying it
-        ENTITY_KEY_REGISTRY.updatePubkey(ivsSigner, 0, ivsPubkey, _ivsAttestationBytes, true);
+        ENTITY_KEY_REGISTRY.whitelistImageIfNot(_ivsAttestationBytes);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketplaceCreated(marketCounter);
@@ -506,13 +500,7 @@ contract ProofMarketplace is
 
         // dispute will check the attestation
         require(
-            dispute.checkDisputeUsingAttestationAndOrSignature(
-                askId,
-                askWithState.ask.proverData,
-                externalData,
-                currentMarket.ivsImageId,
-                currentMarket.ivsSigner
-            ),
+            dispute.checkDispute(askId, askWithState.ask.proverData, externalData, currentMarket.ivsImageId),
             Error.CAN_NOT_SLASH_USING_VALID_INPUTS
         );
 

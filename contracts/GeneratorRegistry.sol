@@ -346,7 +346,7 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        (, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(marketId);
+        (, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
 
         require(
             expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
@@ -455,7 +455,7 @@ contract GeneratorRegistry is
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(
+        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(
             marketId
         );
 
@@ -554,7 +554,7 @@ contract GeneratorRegistry is
     }
 
     function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
-        (address marketVerifierContractAddress, , , , , , , ) = proofMarketplace.marketData(marketId);
+        (address marketVerifierContractAddress, , , , , ) = proofMarketplace.marketData(marketId);
         require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 

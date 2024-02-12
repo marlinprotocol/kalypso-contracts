@@ -183,7 +183,6 @@ export const rawSetup = async (
       generatorSlashingPenalty.toFixed(0),
       enclaveImageId,
       ivsAttestationBytes,
-      Buffer.from(ivsUrl, "ascii"),
       signature,
     );
 

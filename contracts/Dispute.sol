@@ -67,30 +67,15 @@ contract Dispute {
             );
     }
 
-    function checkDisputeUsingAttestationAndOrSignature(
+    function checkDispute(
         uint256 askId,
         bytes calldata proverData,
         bytes calldata completeData,
-        bytes32 expectedImageId,
-        address defaultIvsSigner
+        bytes32 expectedImageId
     ) public view returns (bool) {
-        (bytes memory attestationData, bytes memory invalidProofSignature, bool useOnlySignature) = abi.decode(
-            completeData,
-            (bytes, bytes, bool)
-        );
+        (bytes memory attestationData, bytes memory invalidProofSignature) = abi.decode(completeData, (bytes, bytes));
 
         ATTESTATION_VERIFIER.verify(attestationData);
-
-        if (useOnlySignature) {
-            return
-                checkDisputeUsingSignature(
-                    askId,
-                    proverData,
-                    invalidProofSignature,
-                    defaultIvsSigner,
-                    expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID
-                );
-        }
 
         return checkDisputeUsingAttesation(askId, proverData, attestationData, expectedImageId, invalidProofSignature);
     }
