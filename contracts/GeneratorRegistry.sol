@@ -431,7 +431,7 @@ contract GeneratorRegistry is
 
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
             require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
-    
+
             ENTITY_KEY_REGISTRY.whitelistImageIfNot(attestationData);
             if (updateMarketDedicatedKey) {
                 _verifyAttestation(generatorAddress, attestationData, enclaveSignature);

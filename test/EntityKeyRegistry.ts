@@ -30,11 +30,10 @@ describe("Entity key registry tests", () => {
 
     attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
     const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-    const _entityKeyRegistry = await upgrades.deployProxy(
-      EntityKeyRegistryContract,
-      [await admin.getAddress(), []],
-      { kind: "uups", constructorArgs: [await attestationVerifier.getAddress()] },
-    );
+    const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
+      kind: "uups",
+      constructorArgs: [await attestationVerifier.getAddress()],
+    });
     entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
@@ -61,7 +60,7 @@ describe("Entity key registry tests", () => {
         0,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
-        true
+        true,
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -77,7 +76,7 @@ describe("Entity key registry tests", () => {
         8,
         generator_enclave.getUncompressedPubkey(),
         await generator_enclave.getVerifiedAttestation(generator_enclave),
-        true
+        true,
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")

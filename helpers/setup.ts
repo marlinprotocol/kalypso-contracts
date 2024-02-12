@@ -110,11 +110,10 @@ export const rawSetup = async (
   );
 
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-  const _entityKeyRegistry = await upgrades.deployProxy(
-    EntityKeyRegistryContract,
-    [await admin.getAddress(), []],
-    { kind: "uups", constructorArgs: [await attestationVerifier.getAddress()] },
-  );
+  const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
+    kind: "uups",
+    constructorArgs: [await attestationVerifier.getAddress()],
+  });
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");

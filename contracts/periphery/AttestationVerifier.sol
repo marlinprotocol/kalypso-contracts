@@ -11,14 +11,15 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "../interfaces/IAttestationVerifier.sol";
 
-contract AttestationVerifier is Initializable,  // initializer
-    ContextUpgradeable,  // _msgSender, _msgData
-    ERC165Upgradeable,  // supportsInterface
-    AccessControlUpgradeable,  // RBAC
-    AccessControlEnumerableUpgradeable,  // RBAC enumeration
-    ERC1967UpgradeUpgradeable,  // delegate slots, proxy admin, private upgrade
-    UUPSUpgradeable,  // public upgrade
-    IAttestationVerifier  // interface
+contract AttestationVerifier is
+    Initializable, // initializer
+    ContextUpgradeable, // _msgSender, _msgData
+    ERC165Upgradeable, // supportsInterface
+    AccessControlUpgradeable, // RBAC
+    AccessControlEnumerableUpgradeable, // RBAC enumeration
+    ERC1967UpgradeUpgradeable, // delegate slots, proxy admin, private upgrade
+    UUPSUpgradeable, // public upgrade
+    IAttestationVerifier // interface
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -33,30 +34,48 @@ contract AttestationVerifier is Initializable,  // initializer
         _;
     }
 
-//-------------------------------- Overrides start --------------------------------//
+    //-------------------------------- Overrides start --------------------------------//
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable, AccessControlEnumerableUpgradeable) returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    )
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable, AccessControlEnumerableUpgradeable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 
-    function _grantRole(bytes32 role, address account) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
+    function _grantRole(
+        bytes32 role,
+        address account
+    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
         super._grantRole(role, account);
     }
 
-    function _revokeRole(bytes32 role, address account) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
+    function _revokeRole(
+        bytes32 role,
+        address account
+    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
         super._revokeRole(role, account);
 
         // protect against accidentally removing all admins
         require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, "AV:RR-All admins cant be removed");
     }
 
-    function _authorizeUpgrade(address /*account*/) onlyAdmin internal view override {}
+    function _authorizeUpgrade(address /*account*/) internal view override onlyAdmin {}
 
-//-------------------------------- Overrides end --------------------------------//
+    //-------------------------------- Overrides end --------------------------------//
 
-//-------------------------------- Initializer start --------------------------------//
+    //-------------------------------- Initializer start --------------------------------//
 
-    function initialize(EnclaveImage[] memory images, address[] memory enclaveKeys, address _admin) external initializer {
+    function initialize(
+        EnclaveImage[] memory images,
+        address[] memory enclaveKeys,
+        address _admin
+    ) external initializer {
         // The images and their enclave keys are whitelisted without verification that enclave keys are created within
         // the enclave. This is to initialize chain of trust and will be replaced with a more robust solution.
         require(images.length != 0, "AV:I-At least one image must be provided");
@@ -81,9 +100,9 @@ contract AttestationVerifier is Initializable,  // initializer
         }
     }
 
-//-------------------------------- Initializer start --------------------------------//
+    //-------------------------------- Initializer start --------------------------------//
 
-//-------------------------------- Declarations start --------------------------------//
+    //-------------------------------- Declarations start --------------------------------//
 
     struct EnclaveImage {
         bytes PCR0;
@@ -105,9 +124,9 @@ contract AttestationVerifier is Initializable,  // initializer
     event EnclaveKeyWhitelisted(bytes32 indexed imageId, address indexed enclaveKey);
     event EnclaveKeyVerified(bytes32 indexed imageId, bytes enclaveKey);
 
-//-------------------------------- Declarations end --------------------------------//
+    //-------------------------------- Declarations end --------------------------------//
 
-//-------------------------------- Admin methods start --------------------------------//
+    //-------------------------------- Admin methods start --------------------------------//
 
     function whitelistImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) external onlyAdmin {
         _whitelistImage(EnclaveImage(PCR0, PCR1, PCR2));
@@ -134,9 +153,9 @@ contract AttestationVerifier is Initializable,  // initializer
         emit WhitelistedEnclaveKeyRevoked(imageId, enclaveKey);
     }
 
-//-------------------------------- Admin methods end --------------------------------//
+    //-------------------------------- Admin methods end --------------------------------//
 
-//-------------------------------- Open methods start -------------------------------//
+    //-------------------------------- Open methods start -------------------------------//
 
     uint256 public constant MAX_AGE = 300;
 
@@ -144,22 +163,16 @@ contract AttestationVerifier is Initializable,  // initializer
     function verifyEnclaveKey(
         bytes memory attestation,
         bytes memory enclavePubKey,
-        bytes32 imageId, 
-        uint256 enclaveCPUs, 
+        bytes32 imageId,
+        uint256 enclaveCPUs,
         uint256 enclaveMemory,
         // in milliseconds
         uint256 timestamp
     ) external {
-        require(timestamp / 1000 > block.timestamp - MAX_AGE , "AV:V-Attestation too old");
-        require(
-            whitelistedImages[imageId].PCR0.length != 0,
-            "AV:V-Enclave image to verify not whitelisted"
-        );
+        require(timestamp / 1000 > block.timestamp - MAX_AGE, "AV:V-Attestation too old");
+        require(whitelistedImages[imageId].PCR0.length != 0, "AV:V-Enclave image to verify not whitelisted");
         address enclaveKey = pubKeyToAddress(enclavePubKey);
-        require(
-            isVerified[enclaveKey] == bytes32(0),
-            "AV:V-Enclave key already verified"
-        );
+        require(isVerified[enclaveKey] == bytes32(0), "AV:V-Enclave key already verified");
 
         EnclaveImage memory image = whitelistedImages[imageId];
         _verify(attestation, enclavePubKey, image, enclaveCPUs, enclaveMemory, timestamp);
@@ -168,9 +181,9 @@ contract AttestationVerifier is Initializable,  // initializer
         emit EnclaveKeyVerified(imageId, enclavePubKey);
     }
 
-//-------------------------------- Open methods end -------------------------------//
+    //-------------------------------- Open methods end -------------------------------//
 
-//-------------------------------- Read only methods start -------------------------------//
+    //-------------------------------- Read only methods start -------------------------------//
 
     // These functions are used to verify enclave key of any image by the enclave key generated in a whitelisted image.
 
@@ -184,32 +197,30 @@ contract AttestationVerifier is Initializable,  // initializer
         uint256 enclaveMemory,
         uint256 timestamp
     ) external view {
-         _verify(attestation, enclaveKey, EnclaveImage(PCR0, PCR1, PCR2), enclaveCPUs, enclaveMemory, timestamp);
+        _verify(attestation, enclaveKey, EnclaveImage(PCR0, PCR1, PCR2), enclaveCPUs, enclaveMemory, timestamp);
     }
 
     function verify(bytes memory data) external view {
         (
-            bytes memory attestation, 
+            bytes memory attestation,
             bytes memory enclaveKey,
-            bytes memory PCR0, 
-            bytes memory PCR1, 
-            bytes memory PCR2, 
-            uint256 enclaveCPUs, 
+            bytes memory PCR0,
+            bytes memory PCR1,
+            bytes memory PCR2,
+            uint256 enclaveCPUs,
             uint256 enclaveMemory,
             uint256 timestamp
         ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
         _verify(attestation, enclaveKey, EnclaveImage(PCR0, PCR1, PCR2), enclaveCPUs, enclaveMemory, timestamp);
     }
 
-//-------------------------------- Read only methods end -------------------------------//
+    //-------------------------------- Read only methods end -------------------------------//
 
-//-------------------------------- Internal methods start -------------------------------//
+    //-------------------------------- Internal methods start -------------------------------//
 
-    function _whitelistImage(EnclaveImage memory image) internal returns(bytes32) {
+    function _whitelistImage(EnclaveImage memory image) internal returns (bytes32) {
         require(
-            image.PCR0.length == 48 &&
-            image.PCR1.length == 48 &&
-            image.PCR2.length == 48,
+            image.PCR0.length == 48 && image.PCR1.length == 48 && image.PCR2.length == 48,
             "AV:IWI-PCR values must be 48 bytes"
         );
 
@@ -228,16 +239,18 @@ contract AttestationVerifier is Initializable,  // initializer
         uint256 enclaveMemory,
         uint256 timestamp
     ) internal view {
-        bytes32 messageHash = keccak256(abi.encode(
-            ATTESTATION_PREFIX, 
-            enclaveKey, 
-            image.PCR0, 
-            image.PCR1, 
-            image.PCR2, 
-            enclaveCPUs, 
-            enclaveMemory,
-            timestamp
-        ));
+        bytes32 messageHash = keccak256(
+            abi.encode(
+                ATTESTATION_PREFIX,
+                enclaveKey,
+                image.PCR0,
+                image.PCR1,
+                image.PCR2,
+                enclaveCPUs,
+                enclaveMemory,
+                timestamp
+            )
+        );
 
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, attestation);
@@ -245,12 +258,12 @@ contract AttestationVerifier is Initializable,  // initializer
         bytes32 sourceImageId = isVerified[signer];
 
         require(
-            sourceImageId != bytes32(0) && whitelistedImages[sourceImageId].PCR0.length != 0, 
+            sourceImageId != bytes32(0) && whitelistedImages[sourceImageId].PCR0.length != 0,
             "AV:V-invalid attestation or unwhitelisted image/signer"
         );
     }
 
-//-------------------------------- Internal methods end -------------------------------//
+    //-------------------------------- Internal methods end -------------------------------//
 
     function pubKeyToAddress(bytes memory pubKey) public pure returns (address) {
         require(pubKey.length == 64, "Invalid public key length");

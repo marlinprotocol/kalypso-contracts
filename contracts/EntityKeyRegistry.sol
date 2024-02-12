@@ -31,7 +31,9 @@ contract EntityKeyRegistry is
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IAttestationVerifier _av) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
+    constructor(
+        IAttestationVerifier _av
+    ) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
 
     using HELPER for bytes;
     using HELPER for bytes32;
@@ -107,47 +109,52 @@ contract EntityKeyRegistry is
         emit UpdateKey(keyOwner, keyIndex);
     }
 
-    function whitelistImageIfNot(bytes calldata attestation_data) onlyRole(KEY_REGISTER_ROLE) external {
-        (
-            , 
-            ,
-            bytes memory PCR0, 
-            bytes memory PCR1, 
-            bytes memory PCR2, 
-            , 
-            ,
-            
-        ) = abi.decode(attestation_data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
+    function whitelistImageIfNot(bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
+        (, , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , , ) = abi.decode(
+            attestation_data,
+            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
+        );
 
         _whitelistImageIfNot(PCR0, PCR1, PCR2);
     }
 
-    function whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) onlyRole(KEY_REGISTER_ROLE) external {    
+    function whitelistImageIfNot(
+        bytes memory PCR0,
+        bytes memory PCR1,
+        bytes memory PCR2
+    ) external onlyRole(KEY_REGISTER_ROLE) {
         _whitelistImageIfNot(PCR0, PCR1, PCR2);
     }
 
     function _verifyKeyInternal(bytes calldata data, bool whitelistImage) internal {
         (
-            bytes memory attestation, 
+            bytes memory attestation,
             bytes memory enclaveKey,
-            bytes memory PCR0, 
-            bytes memory PCR1, 
-            bytes memory PCR2, 
-            uint256 enclaveCPUs, 
+            bytes memory PCR0,
+            bytes memory PCR1,
+            bytes memory PCR2,
+            uint256 enclaveCPUs,
             uint256 enclaveMemory,
             uint256 timestamp
         ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
 
-        if(whitelistImage){
+        if (whitelistImage) {
             _whitelistImageIfNot(PCR0, PCR1, PCR2);
         }
         // compute image id in proper way
-        _verifyKey(attestation, enclaveKey, PCR0.GET_IMAGED_ID_FROM_PCRS(PCR1, PCR2), enclaveCPUs, enclaveMemory, timestamp);
+        _verifyKey(
+            attestation,
+            enclaveKey,
+            PCR0.GET_IMAGED_ID_FROM_PCRS(PCR1, PCR2),
+            enclaveCPUs,
+            enclaveMemory,
+            timestamp
+        );
     }
 
     function _whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGED_ID_FROM_PCRS(PCR1, PCR2);
-        if(_getWhitelistedImage(imageId).PCR0.length == 0){
+        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
             _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
         }
     }

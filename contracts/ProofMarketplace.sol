@@ -93,7 +93,7 @@ contract ProofMarketplace is
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
         _grantRole(MATCHING_ENGINE_ROLE, meSigner);
-        
+
         // whitelist every image here (till there are admin controls over this function)
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData, true);
     }
