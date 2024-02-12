@@ -75,6 +75,11 @@ contract ProofMarketplace is
         super._grantRole(role, account);
     }
 
+    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
+        matchingEngineImageId = pcrs.GET_IMAGE_ID_FROM_PCRS();
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(pcrs);
+    }
+
     function verifyMatchingEngine(
         bytes memory attestationData,
         bytes calldata meSignature
@@ -84,9 +89,6 @@ contract ProofMarketplace is
         (bytes memory pubkey, address meSigner) = attestationData.GET_PUBKEY_AND_ADDRESS();
         _verifyEnclaveSignature(meSignature, _thisAddress, meSigner);
 
-        matchingEngineImageId = attestationData.GET_IMAGE_ID_FROM_ATTESTATION();
-
-        ENTITY_KEY_REGISTRY.whitelistImageUsingAttestationIfNot(attestationData);
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
     }
 

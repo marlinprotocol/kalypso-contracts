@@ -163,6 +163,7 @@ export const rawSetup = async (
   let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
   await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+  await proofMarketplace.setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
   await proofMarketplace.verifyMatchingEngine(matchingEngineAttestationBytes, signature);
 
   const generatorEnclaveRef = new MockEnclave(MockGeneratorPCRS);

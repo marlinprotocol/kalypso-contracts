@@ -163,6 +163,7 @@ describe("Proof market place", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
+    await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
     await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
     expect(
@@ -182,6 +183,7 @@ describe("Proof market place", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
+    await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
     await expect(proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature)).to.be.revertedWith(
       "AA:VK-Attestation too old",
     );
@@ -599,6 +601,7 @@ describe("Proof market place", () => {
           let digest = ethers.keccak256(encoded);
           let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
+          await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
           await proofMarketplace.connect(admin).verifyMatchingEngine(meAttestationBytes, signature);
 
           askId = new BigNumber((await proofMarketplace.askCounter()).toString());
