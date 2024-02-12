@@ -141,7 +141,7 @@ export const rawSetup = async (
   const dispute = await new Dispute__factory(admin).deploy(await entityKeyRegistry.getAddress());
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
-  await proofMarketplace.initialize(await admin.getAddress(), await dispute.getAddress());
+  await proofMarketplace.initialize(await admin.getAddress());
 
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
 

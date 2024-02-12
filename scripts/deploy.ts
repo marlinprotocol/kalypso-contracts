@@ -169,7 +169,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proof_market_place) {
     const proof_market_place = await ethers.getContractFactory("ProofMarketplace");
-    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress(), addresses.proxy.dispute], {
+    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,

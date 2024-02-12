@@ -116,7 +116,7 @@ describe("Proof market place", () => {
     const dispute = await new Dispute__factory(admin).deploy(await entityRegistry.getAddress());
 
     await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
-    await proofMarketplace.initialize(await admin.getAddress(), await dispute.getAddress());
+    await proofMarketplace.initialize(await admin.getAddress());
 
     expect(ethers.isAddress(await proofMarketplace.getAddress())).is.true;
     await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());

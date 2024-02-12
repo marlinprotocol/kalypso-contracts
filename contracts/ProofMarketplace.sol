@@ -18,7 +18,6 @@ import "./interfaces/IVerifier.sol";
 
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
-import "./Dispute.sol";
 import "./lib/Error.sol";
 
 contract ProofMarketplace is
@@ -124,8 +123,6 @@ contract ProofMarketplace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
-    Dispute private dispute;
-
     uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
 
     //-------------------------------- Constants and Immutable start --------------------------------//
@@ -204,7 +201,7 @@ contract ProofMarketplace is
 
     //-------------------------------- Events end --------------------------------//
 
-    function initialize(address _admin, Dispute _dispute) public initializer {
+    function initialize(address _admin) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -214,8 +211,6 @@ contract ProofMarketplace is
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
-
-        dispute = _dispute;
     }
 
     function createMarketplace(
@@ -491,9 +486,13 @@ contract ProofMarketplace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
-        // dispute will check the attestation
         require(
-            dispute.checkDispute(askId, askWithState.ask.proverData, invalidProofSignature, currentMarket.ivsImageId),
+            checkDisputeUsingSignature(
+                askId,
+                askWithState.ask.proverData,
+                invalidProofSignature,
+                currentMarket.ivsImageId
+            ),
             Error.CAN_NOT_SLASH_USING_VALID_INPUTS
         );
 
@@ -598,6 +597,30 @@ contract ProofMarketplace is
             PAYMENT_TOKEN.safeTransfer(TREASURY, treasuryCollection);
             treasuryCollection = 0;
         }
+    }
+
+    function checkDisputeUsingSignature(
+        uint256 askId,
+        bytes memory proverData,
+        bytes memory invalidProofSignature,
+        bytes32 expectedImageId
+    ) internal view returns (bool) {
+        bytes32 messageHash;
+        bool isPublic = expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID;
+
+        if (isPublic) {
+            messageHash = keccak256(abi.encode(askId, proverData));
+        } else {
+            messageHash = keccak256(abi.encode(askId));
+        }
+
+        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
+        require(signer != address(0), Error.CANNOT_BE_ZERO);
+
+        require(ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, expectedImageId), Error.INVALID_ENCLAVE_KEY);
+        return true;
     }
 
     // for further increase
