@@ -77,7 +77,7 @@ contract ProofMarketplace is
 
     function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
         matchingEngineImageId = pcrs.GET_IMAGE_ID_FROM_PCRS();
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(pcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(pcrs);
     }
 
     function verifyMatchingEngine(
@@ -243,8 +243,8 @@ contract ProofMarketplace is
         market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
 
         // whitelist every IVS here, because market maker is specifying it
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(_proverPcrs);
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrsIfNot(_ivsPcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_ivsPcrs);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         emit MarketplaceCreated(marketCounter);
