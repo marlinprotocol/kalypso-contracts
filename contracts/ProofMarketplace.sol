@@ -117,6 +117,8 @@ contract ProofMarketplace is
     //-------------------------------- Constants and Immutable start --------------------------------//
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
+    uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
+
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20Upgradeable public immutable PAYMENT_TOKEN;
 
@@ -131,8 +133,6 @@ contract ProofMarketplace is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-
-    uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 

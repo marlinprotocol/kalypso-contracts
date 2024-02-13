@@ -93,6 +93,9 @@ contract EntityKeyRegistry is
         _grantRole(KEY_REGISTER_ROLE, _generatorRegistry);
     }
 
+    /**
+     * @notice Ads a new user after verification
+     */
     function updatePubkey(
         address keyOwner,
         uint256 keyIndex,
@@ -108,10 +111,16 @@ contract EntityKeyRegistry is
         emit UpdateKey(keyOwner, keyIndex);
     }
 
+    /**
+     * @notice Verifies a new key against enclave
+     */
     function verifyKey(bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
         _verifyKeyInternal(attestation_data);
     }
 
+    /**
+     * @notice Whitelist a new image. Called when a market creator creates a new market
+     */
     function whitelistImageUsingPcrs(bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
         (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
 
@@ -148,12 +157,18 @@ contract EntityKeyRegistry is
         }
     }
 
+    /**
+     * @notice Removes an existing pubkey
+     */
     function removePubkey(address keyOwner, uint256 keyIndex) external onlyRole(KEY_REGISTER_ROLE) {
         delete pub_key[keyOwner][keyIndex];
 
         emit RemoveKey(keyOwner, keyIndex);
     }
 
+    /**
+     * @notice Check if the given address is allowed to operate for a given enclave
+     */
     function allowOnlyVerified(address key, bytes32 _imageId) external view returns (bool) {
         return _allowOnlyVerified(key, _imageId);
     }
