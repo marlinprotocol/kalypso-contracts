@@ -805,7 +805,7 @@ describe("Proof market place", () => {
 
             // use any enclave to get verfied attestation as mockAttesationVerifier is used here
             let generatorIvsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
-            await generatorRegistry.connect(generator).updateIvsKey(marketId, generatorIvsAttestationBytes, signature);
+            await generatorRegistry.connect(generator).addIvsKey(marketId, generatorIvsAttestationBytes, signature);
           };
 
           it("submit proof", async () => {

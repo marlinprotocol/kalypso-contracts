@@ -108,26 +108,13 @@ contract EntityKeyRegistry is
         emit UpdateKey(keyOwner, keyIndex);
     }
 
-    function whitelistImageUsingAttestation(bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
-        (, , bytes memory PCR0, bytes memory PCR1, bytes memory PCR2, , , ) = abi.decode(
-            attestation_data,
-            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
-        );
-
-        _whitelistImageIfNot(PCR0, PCR1, PCR2);
+    function verifyKey(bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
+        _verifyKeyInternal(attestation_data);
     }
 
     function whitelistImageUsingPcrs(bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
         (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
 
-        _whitelistImageIfNot(PCR0, PCR1, PCR2);
-    }
-
-    function whitelistImageUsingPcrs(
-        bytes memory PCR0,
-        bytes memory PCR1,
-        bytes memory PCR2
-    ) external onlyRole(KEY_REGISTER_ROLE) {
         _whitelistImageIfNot(PCR0, PCR1, PCR2);
     }
 

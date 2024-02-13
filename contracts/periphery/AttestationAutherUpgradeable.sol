@@ -93,8 +93,6 @@ contract AttestationAutherUpgradeable is
         emit EnclaveKeyRevoked(enclavePubKey);
     }
 
-    function isValidKey(address key, bytes memory attestation) external view returns (bool) {}
-
     // add enclave key of a whitelisted image to the list of verified enclave keys
     function _verifyKey(
         bytes memory signature,
@@ -125,18 +123,6 @@ contract AttestationAutherUpgradeable is
         emit EnclaveKeyVerified(enclavePubKey, imageId);
     }
 
-    function verifyKey(bytes memory data) external {
-        (
-            bytes memory signature,
-            bytes memory enclaveKey,
-            bytes32 imageId,
-            uint256 enclaveCPUs,
-            uint256 enclaveMemory,
-            uint256 timestampInMilliseconds
-        ) = abi.decode(data, (bytes, bytes, bytes32, uint256, uint256, uint256));
-        return _verifyKey(signature, enclaveKey, imageId, enclaveCPUs, enclaveMemory, timestampInMilliseconds);
-    }
-
     function verifyKey(
         bytes memory signature,
         bytes memory enclavePubKey,
@@ -154,15 +140,15 @@ contract AttestationAutherUpgradeable is
         require(whitelistedImages[imageId].PCR0.length != 0, "AA:AOV-Source image must be whitelisted");
     }
 
-    function _getWhitelistedImage(bytes32 _imageId) internal view returns (EnclaveImage memory) {
+    function _getWhitelistedImage(bytes32 _imageId) internal view virtual returns (EnclaveImage memory) {
         return whitelistedImages[_imageId];
     }
 
-    function _getVerifiedKey(address _key) internal view returns (bytes32) {
+    function _getVerifiedKey(address _key) internal view virtual returns (bytes32) {
         return verifiedKeys[_key];
     }
 
-    function _allowOnlyVerified(address key, bytes32 _imageId) internal view returns (bool) {
+    function _allowOnlyVerified(address key, bytes32 _imageId) internal view virtual returns (bool) {
         bytes32 imageId = verifiedKeys[key];
         return imageId != bytes32(0) && imageId == _imageId && whitelistedImages[imageId].PCR0.length != 0;
     }

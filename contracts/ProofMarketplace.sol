@@ -487,7 +487,7 @@ contract ProofMarketplace is
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
         require(
-            checkDisputeUsingSignature(
+            _checkDisputeUsingSignature(
                 askId,
                 askWithState.ask.proverData,
                 invalidProofSignature,
@@ -599,7 +599,7 @@ contract ProofMarketplace is
         }
     }
 
-    function checkDisputeUsingSignature(
+    function _checkDisputeUsingSignature(
         uint256 askId,
         bytes memory proverData,
         bytes memory invalidProofSignature,
