@@ -366,6 +366,8 @@ describe("Proof market place", () => {
 
         await expect(generatorRegistry.connect(generator).requestForExitMarketplace(marketId))
           .to.emit(generatorRegistry, "RequestExitMarketplace")
+          .withArgs(await generator.getAddress(), marketId)
+          .to.emit(generatorRegistry, "LeftMarketplace")
           .withArgs(await generator.getAddress(), marketId);
       });
 

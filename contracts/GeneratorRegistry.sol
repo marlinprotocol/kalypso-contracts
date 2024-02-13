@@ -588,6 +588,10 @@ contract GeneratorRegistry is
         info.state = GeneratorState.REQUESTED_FOR_EXIT;
 
         emit RequestExitMarketplace(generatorAddress, marketId);
+
+        if (info.activeRequests == 0) {
+            _leaveMarketplace(generatorAddress, marketId);
+        }
     }
 
     function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
