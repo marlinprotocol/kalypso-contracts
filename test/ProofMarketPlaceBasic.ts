@@ -763,8 +763,11 @@ describe("Proof market place", () => {
           });
 
           const updateIvsKey = async (ivsEnclave: MockEnclave) => {
-            let types = ["address"];
-            let values = [await generator.getAddress()];
+            // use any enclave here as AV is mocked
+            let generatorIvsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
+
+            let types = ["bytes", "address"];
+            let values = [generatorIvsAttestationBytes, await generator.getAddress()];
 
             let abicode = new ethers.AbiCoder();
             let encoded = abicode.encode(types, values);
@@ -772,7 +775,6 @@ describe("Proof market place", () => {
             let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
             // use any enclave to get verfied attestation as mockAttesationVerifier is used here
-            let generatorIvsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
             await generatorRegistry.connect(generator).addIvsKey(marketId, generatorIvsAttestationBytes, signature);
           };
 

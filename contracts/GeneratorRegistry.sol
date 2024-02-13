@@ -407,22 +407,15 @@ contract GeneratorRegistry is
      * @notice Add IVS key for a given market
      */
     function addIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
-        address generatorAddress = _msgSender();
-        Generator memory generator = generatorRegistry[generatorAddress];
+        address _msgSender = _msgSender();
 
         (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
 
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender);
+
         require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
-
         (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
-
-        bytes32 messageHash = keccak256(abi.encode(generatorAddress));
-        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
-
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
 
         // only whitelist key
         ENTITY_KEY_REGISTRY.verifyKey(attestationData);
