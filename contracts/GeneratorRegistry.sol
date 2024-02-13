@@ -168,6 +168,9 @@ contract GeneratorRegistry is
         proofMarketplace = ProofMarketplace(_proofMarketplace);
     }
 
+    /**
+     * @notice Register Generator
+     */
     function register(
         address rewardAddress,
         uint256 declaredCompute,
@@ -202,7 +205,11 @@ contract GeneratorRegistry is
         emit RegisteredGenerator(_msgSender, declaredCompute, initialStake);
     }
 
+    /**
+     * @notice Change Generator's reward address
+     */
     function changeRewardAddress(address newRewardAddress) external {
+        require(newRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
@@ -212,6 +219,9 @@ contract GeneratorRegistry is
         emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
     }
 
+    /**
+     * @notice Increase generator's compute
+     */
     function increaseDeclaredCompute(uint256 computeToIncrease) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -224,6 +234,9 @@ contract GeneratorRegistry is
         emit IncreasedCompute(_msgSender, computeToIncrease);
     }
 
+    /**
+     * @notice Notify matching engine about compute reduction. This will stop matching engine from assigning new tasks till the compute is down
+     */
     function intendToReduceCompute(uint256 newUtilization) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -245,6 +258,9 @@ contract GeneratorRegistry is
         emit RequestComputeDecrease(_msgSender, newUtilization);
     }
 
+    /**
+     * @notice Free up the unused compute. intendToReduceCompute must have been called before this function
+     */
     function decreaseDeclaredCompute() external {
         address generatorAddress = _msgSender();
 
@@ -274,6 +290,9 @@ contract GeneratorRegistry is
         emit DecreaseCompute(generatorAddress, computeToRelease);
     }
 
+    /**
+     * @notice Add/Increase stake
+     */
     function stake(address generatorAddress, uint256 amount) external nonReentrant returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
@@ -287,6 +306,9 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
+    /**
+     * @notice Notify matching engine about stake reduction. This will stop matching engine from assigning new tasks till the locked stake is down
+     */
     function intendToReduceStake(uint256 newUtilization) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -303,6 +325,9 @@ contract GeneratorRegistry is
         emit RequestStakeDecrease(_msgSender, newUtilization);
     }
 
+    /**
+     * @notice Free up the unused stake. intendToReduceStake must have been called before this function
+     */
     function unstake(address to) external nonReentrant {
         address generatorAddress = _msgSender();
 
@@ -329,6 +354,9 @@ contract GeneratorRegistry is
         emit RemovedStake(generatorAddress, amountToTransfer);
     }
 
+    /**
+     * @notice Deregister the generator
+     */
     function deregister(address refundAddress) external nonReentrant {
         address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
@@ -340,6 +368,9 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
+    /**
+     * @notice update the encryption key
+     */
     function updateEncryptionKey(
         uint256 marketId,
         bytes memory attestationData,
@@ -372,6 +403,9 @@ contract GeneratorRegistry is
         ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
     }
 
+    /**
+     * @notice Add IVS key for a given market
+     */
     function addIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
         address generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[generatorAddress];
@@ -395,23 +429,12 @@ contract GeneratorRegistry is
         emit AddIvsKey(marketId, _address);
     }
 
+    /**
+     * @notice Remove generator's encryption key
+     */
     function removeEncryptionKey(uint256 marketId) external {
         address generatorAddress = _msgSender();
         ENTITY_KEY_REGISTRY.removePubkey(generatorAddress, marketId);
-    }
-
-    function _verifyAttestation(
-        address addressToVerify,
-        bytes memory attestationData,
-        bytes calldata enclaveSignature
-    ) internal pure {
-        (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
-
-        bytes32 messageHash = keccak256(abi.encode(addressToVerify));
-        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
-
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     function joinMarketplace(
@@ -458,7 +481,7 @@ contract GeneratorRegistry is
             require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
             if (updateMarketDedicatedKey) {
-                _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
+                attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
 
                 // whitelist every image here because it is verified by the generator
                 ENTITY_KEY_REGISTRY.updatePubkey(
@@ -478,11 +501,9 @@ contract GeneratorRegistry is
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(
-            marketId
-        );
+        (IVerifier _verifier, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
 
-        return (marketVerifierContractAddress, expectedImageId);
+        return (address(_verifier), expectedImageId);
     }
 
     function getGeneratorState(
@@ -577,8 +598,8 @@ contract GeneratorRegistry is
     }
 
     function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
-        (address marketVerifierContractAddress, , , , , ) = proofMarketplace.marketData(marketId);
-        require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
+        (IVerifier marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
+        require(address(marketVerifier) != address(0), Error.INVALID_MARKET);
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
         require(info.state != GeneratorState.NULL, Error.INVALID_GENERATOR_STATE_PER_MARKET);

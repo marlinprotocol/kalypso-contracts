@@ -661,38 +661,6 @@ describe("Proof market place", () => {
           expect(data[0]).to.eq(2);
         });
 
-        it("Matching engine should assign tasks using relayer", async () => {
-          const types = ["uint256", "address", "bytes"];
-
-          const values = [askId.toFixed(0), await generator.getAddress(), "0x1234"];
-
-          const abicode = new ethers.AbiCoder();
-          const encoded = abicode.encode(types, values);
-          const digest = ethers.keccak256(encoded);
-          const signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
-
-          const someRandomRelayer = admin;
-
-          await expect(
-            proofMarketplace
-              .connect(someRandomRelayer)
-              .relayAssignTask(askId.toString(), await generator.getAddress(), "0x1234", signature),
-          )
-            .to.emit(proofMarketplace, "TaskCreated")
-            .withArgs(askId, await generator.getAddress(), "0x1234");
-
-          expect((await proofMarketplace.listOfAsk(askId.toString())).state).to.eq(3); // 3 means ASSIGNED
-
-          // in store it will be 1
-          expect((await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId)).state).to.eq(
-            1,
-          );
-
-          // but via function it should be 2
-          const data = await generatorRegistry.getGeneratorState(await generator.getAddress(), marketId);
-          expect(data[0]).to.eq(2);
-        });
-
         it("Matching Engine should assign using relayers [multiple tasks]", async () => {
           const types = ["uint256[]", "address[]", "bytes[]"];
 
