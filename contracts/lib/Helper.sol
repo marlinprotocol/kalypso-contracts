@@ -74,7 +74,7 @@ library HELPER {
     ) internal pure {
         (, address _address) = GET_PUBKEY_AND_ADDRESS(attestationData);
 
-        bytes32 messageHash = keccak256(abi.encode(addressToVerify));
+        bytes32 messageHash = keccak256(abi.encode(attestationData, addressToVerify));
         bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);

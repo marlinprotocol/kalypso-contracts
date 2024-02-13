@@ -154,8 +154,8 @@ export const rawSetup = async (
 
   let matchingEngineAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(godEnclave);
 
-  let types = ["address"];
-  let values = [await proofMarketplace.getAddress()];
+  let types = ["bytes", "address"];
+  let values = [matchingEngineAttestationBytes, await proofMarketplace.getAddress()];
 
   let abicode = new ethers.AbiCoder();
   let encoded = abicode.encode(types, values);

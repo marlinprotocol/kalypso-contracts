@@ -159,8 +159,8 @@ describe("Proof market place", () => {
   it("Update Marketplace address", async () => {
     let attestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
-    let types = ["address"];
-    let values = [await proofMarketplace.getAddress()];
+    let types = ["bytes", "address"];
+    let values = [attestationBytes, await proofMarketplace.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
@@ -179,8 +179,8 @@ describe("Proof market place", () => {
     const oldtimestamp = 1000;
     let attestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave, oldtimestamp);
 
-    let types = ["address"];
-    let values = [await proofMarketplace.getAddress()];
+    let types = ["bytes", "address"];
+    let values = [attestationBytes, await proofMarketplace.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
@@ -597,8 +597,8 @@ describe("Proof market place", () => {
 
           let meAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
-          let types = ["address"];
-          let values = [await proofMarketplace.getAddress()];
+          let types = ["bytes", "address"];
+          let values = [meAttestationBytes, await proofMarketplace.getAddress()];
 
           let abicode = new ethers.AbiCoder();
           let encoded = abicode.encode(types, values);
@@ -640,7 +640,7 @@ describe("Proof market place", () => {
             .joinMarketplace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
         });
 
-        it("Matching engine assings", async () => {
+        it("Matching engine assignment", async () => {
           await expect(
             proofMarketplace
               .connect(matchingEngineSigner)
