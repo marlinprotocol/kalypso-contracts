@@ -6,13 +6,13 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./interfaces/IVerifier.sol";
 
@@ -27,8 +27,9 @@ contract ProofMarketplace is
     AccessControlUpgradeable,
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -217,9 +218,19 @@ contract ProofMarketplace is
         __AccessControlEnumerable_init_unchained();
         __ERC1967Upgrade_init_unchained();
         __UUPSUpgradeable_init_unchained();
+        __ReentrancyGuard_init_unchained();
+        __ReentrancyGuard_init_unchained();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
+    }
+
+    function pause() external onlyRole(UPDATER_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(UPDATER_ROLE) {
+        _unpause();
     }
 
     /**
@@ -259,6 +270,7 @@ contract ProofMarketplace is
     }
 
     /**
+     * @notice Create requests. Can be paused to prevent temporary escrowing of unwanted amount
      * @param ask: Details of the ASK request
      * @param secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
      * @param privateInputs: Private Inputs to the circuit.
@@ -270,7 +282,7 @@ contract ProofMarketplace is
         SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
-    ) external nonReentrant {
+    ) external whenNotPaused nonReentrant {
         _createAsk(ask, msg.sender, secretType, privateInputs, acl);
     }
 
