@@ -48,7 +48,7 @@ async function main() {
       config.marketCreationCost,
       await treasury.getAddress(),
       addresses.proxy.generator_registry,
-      addresses.proxy.EntityRegistry,
+      addresses.proxy.entity_registry,
       addresses.proxy.mock_attestation_verifier,
     ],
   });
