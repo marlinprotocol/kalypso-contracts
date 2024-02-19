@@ -77,19 +77,19 @@ contract GeneratorRegistry is
     //-------------------------------- Overrides end --------------------------------//
 
     //-------------------------------- Constants and Immutable start --------------------------------//
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable STAKING_TOKEN;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-
-    bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
+    bytes32 public constant PROOF_MARKET_PLACE_ROLE = keccak256("PROOF_MARKET_PLACE_ROLE");
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
     uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
 
     uint256 internal constant EXPONENT = 10 ** 18;
     uint256 internal constant REDUCTION_REQUEST_BLOCK_GAP = 1;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IERC20Upgradeable public immutable STAKING_TOKEN;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -143,6 +143,8 @@ contract GeneratorRegistry is
     event RequestExitMarketplace(address indexed generator, uint256 indexed marketId);
     event LeftMarketplace(address indexed generator, uint256 indexed marketId);
 
+    event AddIvsKey(uint256 indexed marketId, address indexed signer);
+
     event AddedStake(address indexed generator, uint256 amount);
     event RequestStakeDecrease(address indexed generator, uint256 intendedUtilization);
     event RemovedStake(address indexed generator, uint256 amount);
@@ -162,10 +164,13 @@ contract GeneratorRegistry is
         __UUPSUpgradeable_init_unchained();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(SLASHER_ROLE, _proofMarketplace);
+        _grantRole(PROOF_MARKET_PLACE_ROLE, _proofMarketplace);
         proofMarketplace = ProofMarketplace(_proofMarketplace);
     }
 
+    /**
+     * @notice Register Generator
+     */
     function register(
         address rewardAddress,
         uint256 declaredCompute,
@@ -179,6 +184,7 @@ contract GeneratorRegistry is
         require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
         require(declaredCompute != 0, Error.CANNOT_BE_ZERO);
 
+        // prevents registering multiple times, unless deregistered
         require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
 
         generatorRegistry[_msgSender] = Generator(
@@ -194,13 +200,18 @@ contract GeneratorRegistry is
             generatorData
         );
 
+        // optional to stake during registration itself
         if (initialStake != 0) {
             STAKING_TOKEN.safeTransferFrom(_msgSender, address(this), initialStake);
         }
         emit RegisteredGenerator(_msgSender, declaredCompute, initialStake);
     }
 
+    /**
+     * @notice Change Generator's reward address
+     */
     function changeRewardAddress(address newRewardAddress) external {
+        require(newRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
 
@@ -210,6 +221,9 @@ contract GeneratorRegistry is
         emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
     }
 
+    /**
+     * @notice Increase generator's compute
+     */
     function increaseDeclaredCompute(uint256 computeToIncrease) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -222,6 +236,10 @@ contract GeneratorRegistry is
         emit IncreasedCompute(_msgSender, computeToIncrease);
     }
 
+    /**
+     * @notice Notify matching engine about compute reduction. This will stop matching engine from assigning new tasks till the compute is down
+     * @param newUtilization New Utilization is in percentage scaled up to 10e18
+     */
     function intendToReduceCompute(uint256 newUtilization) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -229,20 +247,33 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
 
+        // if request is already in place, this will ICU will be less than EXP (as per design)
         require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+
+        // new utilization should be always less than EXP
         require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
+        // new utilization after update
         uint256 newTotalCompute = (newUtilization * generator.declaredCompute) / EXPONENT;
 
-        // ensures no spamming in the contracts.
+        // this is min compute requires for atleast 1 request from each supported market
         require(newTotalCompute >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
+        // ensures that new utilization is not too small to release and prevent generator dead lock
+        // uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
+        require(generator.declaredCompute - newTotalCompute != 0, Error.CANNOT_BE_ZERO);
+
+        // temporary value to store the new utilization
         generator.intendedComputeUtilization = newUtilization;
 
+        // block number after which this intent which execute
         reduceComputeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestComputeDecrease(_msgSender, newUtilization);
     }
 
+    /**
+     * @notice Free up the unused compute. intendToReduceCompute must have been called before this function
+     */
     function decreaseDeclaredCompute() external {
         address generatorAddress = _msgSender();
 
@@ -257,8 +288,6 @@ contract GeneratorRegistry is
         require(newTotalCompute >= generator.computeConsumed, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
         require(newTotalCompute >= generator.sumOfComputeAllocations, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
 
-        require(computeToRelease != 0, Error.CANNOT_BE_ZERO);
-
         generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
@@ -272,6 +301,9 @@ contract GeneratorRegistry is
         emit DecreaseCompute(generatorAddress, computeToRelease);
     }
 
+    /**
+     * @notice Add/Increase stake
+     */
     function stake(address generatorAddress, uint256 amount) external nonReentrant returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
         require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
@@ -285,6 +317,10 @@ contract GeneratorRegistry is
         return generator.totalStake;
     }
 
+    /**
+     * @notice Notify matching engine about stake reduction. This will stop matching engine from assigning new tasks till the locked stake is down
+     * @param newUtilization New Utilization is in percentage scaled up to 10e18
+     */
     function intendToReduceStake(uint256 newUtilization) external {
         address _msgSender = _msgSender();
         Generator storage generator = generatorRegistry[_msgSender];
@@ -292,15 +328,28 @@ contract GeneratorRegistry is
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
 
+        // if request is already in place, this will ICU will be less than EXP (as per design)
         require(generator.intendedStakeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+
+        // new utilization should be always less than EXP
         require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
 
         generator.intendedStakeUtilization = newUtilization;
+
+        // new utilization after update
+        uint256 newTotalStake = (newUtilization * generator.totalStake) / EXPONENT;
+
+        // ensures that new utilization is not too small to release and prevent generator dead lock
+        // uint256 stakeToRelease = generator.totalStake - newTotalStake;
+        require(generator.totalStake - newTotalStake != 0, Error.CANNOT_BE_ZERO);
 
         unstakeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestStakeDecrease(_msgSender, newUtilization);
     }
 
+    /**
+     * @notice Free up the unused stake. intendToReduceStake must have been called before this function
+     */
     function unstake(address to) external nonReentrant {
         address generatorAddress = _msgSender();
 
@@ -310,10 +359,13 @@ contract GeneratorRegistry is
         require(generator.intendedStakeUtilization != EXPONENT, Error.UNSTAKE_REQUEST_NOT_IN_PLACE);
 
         uint256 newTotalStake = (generator.intendedStakeUtilization * generator.totalStake) / EXPONENT;
-        uint256 amountToTransfer = generator.totalStake - newTotalStake;
-        require(amountToTransfer != 0, Error.CANNOT_BE_ZERO);
 
+        uint256 amountToTransfer = generator.totalStake - newTotalStake;
+
+        // prevent removing amount unless existing stake is not released
         require(newTotalStake >= generator.stakeLocked, Error.INSUFFICIENT_STAKE_TO_LOCK);
+
+        // amountToTransfer will be non-zero
         STAKING_TOKEN.safeTransfer(to, amountToTransfer);
 
         generator.totalStake = newTotalStake;
@@ -327,6 +379,9 @@ contract GeneratorRegistry is
         emit RemovedStake(generatorAddress, amountToTransfer);
     }
 
+    /**
+     * @notice Deregister the generator
+     */
     function deregister(address refundAddress) external nonReentrant {
         address _msgSender = _msgSender();
         Generator memory generator = generatorRegistry[_msgSender];
@@ -338,6 +393,9 @@ contract GeneratorRegistry is
         emit DeregisteredGenerator(_msgSender);
     }
 
+    /**
+     * @notice update the encryption key
+     */
     function updateEncryptionKey(
         uint256 marketId,
         bytes memory attestationData,
@@ -346,7 +404,7 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[generatorAddress];
 
-        (, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(marketId);
+        (, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
 
         require(
             expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
@@ -366,26 +424,37 @@ contract GeneratorRegistry is
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
         require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
 
+        // don't whitelist, because same imageId must be used to update the key
         ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
     }
 
+    /**
+     * @notice Add IVS key for a given market
+     */
+    function addIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
+        address _msgSender = _msgSender();
+
+        (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
+
+        // ensure only right image is used
+        require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
+
+        // enforces enclave ownership
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender);
+
+        (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
+
+        // only whitelist key, after verifying the attestation
+        ENTITY_KEY_REGISTRY.verifyKey(attestationData);
+        emit AddIvsKey(marketId, _address);
+    }
+
+    /**
+     * @notice Remove generator's encryption key
+     */
     function removeEncryptionKey(uint256 marketId) external {
         address generatorAddress = _msgSender();
         ENTITY_KEY_REGISTRY.removePubkey(generatorAddress, marketId);
-    }
-
-    function _verifyAttestation(
-        address addressToVerify,
-        bytes memory attestationData,
-        bytes calldata enclaveSignature
-    ) internal pure {
-        (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
-
-        bytes32 messageHash = keccak256(abi.encode(addressToVerify));
-        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
-
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     function joinMarketplace(
@@ -406,20 +475,31 @@ contract GeneratorRegistry is
 
         (address marketVerifierContractAddress, bytes32 expectedImageId) = _readMarketData(marketId);
 
+        // prevent joining invalid market
         require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
 
+        // prevents re-joining
         require(info.state == GeneratorState.NULL, Error.ALREADY_JOINED_MARKET);
 
+        // proof generation time can't be zero.
         require(proposedTime != 0, Error.CANNOT_BE_ZERO);
+
+        // compute required per proof
         require(computePerRequestRequired != 0, Error.CANNOT_BE_ZERO);
 
+        // sum of compute allocation of all supported markets
         generator.sumOfComputeAllocations += computePerRequestRequired;
+
+        // ensures that generator will support atleast 1 request for every market
         require(
             generator.sumOfComputeAllocations <= generator.declaredCompute,
             Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE
         );
+
+        // increment the number of active market places supported
         generator.activeMarketplaces++;
 
+        // update market specific info for the generator
         generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
             GeneratorState.JOINED,
             computePerRequestRequired,
@@ -428,12 +508,17 @@ contract GeneratorRegistry is
             0
         );
 
+        // if prover is public, no need to check the enclave signatures
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
+            // check the image
             require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
+            // if users decides to update the market key in the same transaction
             if (updateMarketDedicatedKey) {
-                _verifyAttestation(generatorAddress, attestationData, enclaveSignature);
+                // ensure ownership of the enclave
+                attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
 
+                // whitelist every image here because it is verified by the generator
                 ENTITY_KEY_REGISTRY.updatePubkey(
                     generatorAddress,
                     marketId,
@@ -451,11 +536,9 @@ contract GeneratorRegistry is
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address marketVerifierContractAddress, bytes32 expectedImageId, , , , , , ) = proofMarketplace.marketData(
-            marketId
-        );
+        (IVerifier _verifier, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
 
-        return (marketVerifierContractAddress, expectedImageId);
+        return (address(_verifier), expectedImageId);
     }
 
     function getGeneratorState(
@@ -538,6 +621,8 @@ contract GeneratorRegistry is
 
     function _requestForExitMarketplace(address generatorAddress, uint256 marketId) internal {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+
+        // only valid generators can exit the market
         require(
             state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
             Error.ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT
@@ -546,18 +631,30 @@ contract GeneratorRegistry is
 
         info.state = GeneratorState.REQUESTED_FOR_EXIT;
 
+        // alerts matching engine to stop assinging the requests of given market
         emit RequestExitMarketplace(generatorAddress, marketId);
+
+        // if there are no active requests, proceed to leave market plaes
+        if (info.activeRequests == 0) {
+            _leaveMarketplace(generatorAddress, marketId);
+        }
     }
 
     function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
-        (address marketVerifierContractAddress, , , , , , , ) = proofMarketplace.marketData(marketId);
-        require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
+        (IVerifier marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
+
+        // check if market is valid
+        require(address(marketVerifier) != address(0), Error.INVALID_MARKET);
+
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
         require(info.state != GeneratorState.NULL, Error.INVALID_GENERATOR_STATE_PER_MARKET);
+
+        // check if there are any active requestsw
         require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
 
         Generator storage generator = generatorRegistry[generatorAddress];
+
         generator.sumOfComputeAllocations -= info.computePerRequestRequired;
         generator.activeMarketplaces -= 1;
 
@@ -565,14 +662,18 @@ contract GeneratorRegistry is
         emit LeftMarketplace(generatorAddress, marketId);
     }
 
+    /**
+     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE
+     */
     function slashGenerator(
         address generatorAddress,
         uint256 marketId,
         uint256 slashingAmount,
         address rewardAddress
-    ) external onlyRole(SLASHER_ROLE) returns (uint256) {
+    ) external onlyRole(PROOF_MARKET_PLACE_ROLE) returns (uint256) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
-        // TODO: Refine this
+
+        // other generator states can't be slashed
         require(
             state == GeneratorState.WIP ||
                 state == GeneratorState.REQUESTED_FOR_EXIT ||
@@ -599,7 +700,7 @@ contract GeneratorRegistry is
         address generatorAddress,
         uint256 marketId,
         uint256 stakeToLock
-    ) external nonReentrant onlyRole(SLASHER_ROLE) {
+    ) external nonReentrant onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
         require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
 
@@ -622,7 +723,7 @@ contract GeneratorRegistry is
         address generatorAddress,
         uint256 marketId,
         uint256 stakeToRelease
-    ) external onlyRole(SLASHER_ROLE) {
+    ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
         require(
             state == GeneratorState.WIP ||

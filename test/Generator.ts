@@ -292,11 +292,6 @@ describe("Checking Generator's multiple compute", () => {
 
         await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
-        const proverBytes = ask.proverData;
-        const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-          (proverBytes.length - 2) / 2,
-        );
-
         const askId = await proofMarketplace.askCounter();
 
         await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
@@ -348,28 +343,9 @@ describe("Checking Generator's multiple compute", () => {
         // console.log({ taskId, index });
       }
     }
-
-    // let proofBytes = abiCoder.encode(
-    //   ["uint256[8]"],
-    //   [
-    //     [
-    //       transfer_verifier_proof.a[0],
-    //       transfer_verifier_proof.a[1],
-    //       transfer_verifier_proof.b[0][0],
-    //       transfer_verifier_proof.b[0][1],
-    //       transfer_verifier_proof.b[1][0],
-    //       transfer_verifier_proof.b[1][1],
-    //       transfer_verifier_proof.c[0],
-    //       transfer_verifier_proof.c[1],
-    //     ],
-    //   ],
-    // );
-    // await expect(proofMarketplace.submitProof(taskId, proofBytes))
-    //   .to.emit(proofMarketplace, "ProofCreated")
-    //   .withArgs(askId, taskId, proofBytes);
   });
 
-  it("Only registered generator should be able to add entity keys", async () => {
+  it("Only registered generator should be able to add/update entity keys", async () => {
     const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
     let types = ["address"];

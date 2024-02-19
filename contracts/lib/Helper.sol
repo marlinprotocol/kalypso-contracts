@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "./Error.sol";
 
 pragma solidity ^0.8.9;
@@ -11,10 +12,15 @@ library HELPER {
             (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
         );
 
-        return GET_IMAGED_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+        return GET_IMAGE_ID_FROM_PCRS(PCR0, PCR1, PCR2);
     }
 
-    function GET_IMAGED_ID_FROM_PCRS(
+    function GET_IMAGE_ID_FROM_PCRS(bytes calldata pcrs) internal pure returns (bytes32) {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
+        return GET_IMAGE_ID_FROM_PCRS(PCR0, PCR1, PCR2);
+    }
+
+    function GET_IMAGE_ID_FROM_PCRS(
         bytes memory PCR0,
         bytes memory PCR1,
         bytes memory PCR2
@@ -52,6 +58,27 @@ library HELPER {
         );
 
         return timestamp / 1000;
+    }
+
+    function IS_ENCLAVE(bytes32 imageId) internal pure returns (bool) {
+        return imageId != bytes32(0) || imageId == NO_ENCLAVE_ID;
+    }
+
+    /**
+     * @notice Checks if addressToVerify posses access to enclave
+     */
+    function VERIFY_ENCLAVE_SIGNATURE(
+        bytes memory attestationData,
+        bytes calldata enclaveSignature,
+        address addressToVerify
+    ) internal pure {
+        (, address _address) = GET_PUBKEY_AND_ADDRESS(attestationData);
+
+        bytes32 messageHash = keccak256(abi.encode(attestationData, addressToVerify));
+        bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
+
+        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;

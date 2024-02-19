@@ -12,7 +12,8 @@ import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
-import "./interfaces/IAttestationVerifier.sol";
+import "./periphery/AttestationAutherUpgradeable.sol";
+
 import "./lib/Error.sol";
 import "./lib/Helper.sol";
 
@@ -24,18 +25,19 @@ contract EntityKeyRegistry is
     AccessControlEnumerableUpgradeable,
     ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    AttestationAutherUpgradeable
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() initializer {}
+    constructor(
+        IAttestationVerifier _av
+    ) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
 
     using HELPER for bytes;
     using HELPER for bytes32;
-
-    IAttestationVerifier public attestationVerifier;
 
     //-------------------------------- Overrides start --------------------------------//
 
@@ -73,58 +75,103 @@ contract EntityKeyRegistry is
     bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
     mapping(address => mapping(uint256 => bytes)) public pub_key;
-    mapping(address => bool) public usedUpKey;
 
     modifier isNotUsedUpKey(bytes calldata pubkey) {
         address _address = pubkey.PUBKEY_TO_ADDRESS();
-        require(!usedUpKey[_address], Error.KEY_ALREADY_EXISTS);
+        require(_getVerifiedKey(_address) == bytes32(0), Error.KEY_ALREADY_EXISTS);
         _;
     }
 
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
     event RemoveKey(address indexed user, uint256 indexed keyIndex);
 
-    function initialize(IAttestationVerifier _attestationVerifier, address _admin) public initializer {
-        attestationVerifier = _attestationVerifier;
+    function initialize(address _admin, EnclaveImage[] memory initWhitelistImages) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-    }
-
-    function updateAttestationVerifier(
-        IAttestationVerifier _attestationVerifier
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        attestationVerifier = _attestationVerifier;
+        __AttestationAuther_init_unchained(initWhitelistImages);
     }
 
     function addGeneratorRegistry(address _generatorRegistry) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _grantRole(KEY_REGISTER_ROLE, _generatorRegistry);
     }
 
+    /**
+     * @notice Ads a new user after verification
+     */
     function updatePubkey(
         address keyOwner,
         uint256 keyIndex,
         bytes calldata pubkey,
         bytes calldata attestation_data
     ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
-        attestationVerifier.verify(attestation_data);
-        require(
-            block.timestamp <=
-                attestation_data.GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION() + HELPER.ACCEPTABLE_ATTESTATION_DELAY,
-            Error.ATTESTATION_TIMEOUT
-        );
         require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
 
         pub_key[keyOwner][keyIndex] = pubkey;
-        address _address = pubkey.PUBKEY_TO_ADDRESS();
 
-        usedUpKey[_address] = true;
+        _verifyKeyInternal(attestation_data);
 
         emit UpdateKey(keyOwner, keyIndex);
     }
 
+    /**
+     * @notice Verifies a new key against enclave
+     */
+    function verifyKey(bytes calldata attestation_data) external onlyRole(KEY_REGISTER_ROLE) {
+        _verifyKeyInternal(attestation_data);
+    }
+
+    /**
+     * @notice Whitelist a new image. Called when a market creator creates a new market
+     */
+    function whitelistImageUsingPcrs(bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
+
+        _whitelistImageIfNot(PCR0, PCR1, PCR2);
+    }
+
+    function _verifyKeyInternal(bytes calldata data) internal {
+        (
+            bytes memory attestation,
+            bytes memory enclaveKey,
+            bytes memory PCR0,
+            bytes memory PCR1,
+            bytes memory PCR2,
+            uint256 enclaveCPUs,
+            uint256 enclaveMemory,
+            uint256 timestamp
+        ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
+
+        // compute image id in proper way
+        _verifyKey(
+            attestation,
+            enclaveKey,
+            PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2),
+            enclaveCPUs,
+            enclaveMemory,
+            timestamp
+        );
+    }
+
+    function _whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
+        bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
+        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
+            _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+        }
+    }
+
+    /**
+     * @notice Removes an existing pubkey
+     */
     function removePubkey(address keyOwner, uint256 keyIndex) external onlyRole(KEY_REGISTER_ROLE) {
         delete pub_key[keyOwner][keyIndex];
 
         emit RemoveKey(keyOwner, keyIndex);
+    }
+
+    /**
+     * @notice Check if the given address is allowed to operate for a given enclave
+     */
+    function allowOnlyVerified(address key, bytes32 _imageId) external view returns (bool) {
+        return _allowOnlyVerified(key, _imageId);
     }
 
     // for further increase

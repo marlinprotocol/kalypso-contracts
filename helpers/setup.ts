@@ -110,11 +110,10 @@ export const rawSetup = async (
   );
 
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-  const _entityKeyRegistry = await upgrades.deployProxy(
-    EntityKeyRegistryContract,
-    [await attestationVerifier.getAddress(), await admin.getAddress()],
-    { kind: "uups", constructorArgs: [] },
-  );
+  const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
+    kind: "uups",
+    constructorArgs: [await attestationVerifier.getAddress()],
+  });
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
@@ -139,10 +138,10 @@ export const rawSetup = async (
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
 
-  const dispute = await new Dispute__factory(admin).deploy(await attestationVerifier.getAddress());
+  const dispute = await new Dispute__factory(admin).deploy(await entityKeyRegistry.getAddress());
 
   await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
-  await proofMarketplace.initialize(await admin.getAddress(), await dispute.getAddress());
+  await proofMarketplace.initialize(await admin.getAddress());
 
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
 
@@ -155,8 +154,8 @@ export const rawSetup = async (
 
   let matchingEngineAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(godEnclave);
 
-  let types = ["address"];
-  let values = [await proofMarketplace.getAddress()];
+  let types = ["bytes", "address"];
+  let values = [matchingEngineAttestationBytes, await proofMarketplace.getAddress()];
 
   let abicode = new ethers.AbiCoder();
   let encoded = abicode.encode(types, values);
@@ -164,17 +163,10 @@ export const rawSetup = async (
   let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
   await proofMarketplace.grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+  await proofMarketplace.setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
   await proofMarketplace.verifyMatchingEngine(matchingEngineAttestationBytes, signature);
 
-  let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(godEnclave);
-
-  values = [await marketCreator.getAddress()];
-  abicode = new ethers.AbiCoder();
-  encoded = abicode.encode(types, values);
-  digest = ethers.keccak256(encoded);
-  signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
-
-  const enclaveImageId = MockEnclave.getImageId(MockGeneratorPCRS);
+  const generatorEnclaveRef = new MockEnclave(MockGeneratorPCRS);
 
   await proofMarketplace
     .connect(marketCreator)
@@ -182,10 +174,8 @@ export const rawSetup = async (
       marketSetupBytes,
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
-      enclaveImageId,
-      ivsAttestationBytes,
-      Buffer.from(ivsUrl, "ascii"),
-      signature,
+      generatorEnclaveRef.getPcrRlp(),
+      ivsEnclave.getPcrRlp(),
     );
 
   await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
@@ -204,8 +194,7 @@ export const rawSetup = async (
       generatorData,
     );
 
-  const generatorEnclaveDetails = new MockEnclave(MockGeneratorPCRS);
-  let generatorAttestationBytes = await generatorEnclaveDetails.getVerifiedAttestation(godEnclave);
+  let generatorAttestationBytes = await generatorEnclaveRef.getVerifiedAttestation(godEnclave);
   await generatorRegistry
     .connect(generator)
     .joinMarketplace(

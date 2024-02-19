@@ -30,11 +30,10 @@ describe("Entity key registry tests", () => {
 
     attestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
     const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-    const _entityKeyRegistry = await upgrades.deployProxy(
-      EntityKeyRegistryContract,
-      [await attestationVerifier.getAddress(), await admin.getAddress()],
-      { kind: "uups", constructorArgs: [] },
-    );
+    const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
+      kind: "uups",
+      constructorArgs: [await attestationVerifier.getAddress()],
+    });
     entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
@@ -42,7 +41,7 @@ describe("Entity key registry tests", () => {
     // console.log({ entityKeyRegistry: await entityKeyRegistry.getAddress() });
   });
 
-  it("Update key should revert for invalid admin", async () => {
+  it("Update key should revert for address without key_register_role", async () => {
     await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
       .reverted;
   });
@@ -55,6 +54,7 @@ describe("Entity key registry tests", () => {
 
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
+    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrs(bytes)"](generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
@@ -70,6 +70,7 @@ describe("Entity key registry tests", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
+    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrs(bytes)"](generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),

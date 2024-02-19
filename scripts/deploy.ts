@@ -160,7 +160,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
   if (!addresses.proxy.dispute) {
-    const dispute = await new Dispute__factory(admin).deploy(addresses.proxy.mock_attestation_verifier);
+    const dispute = await new Dispute__factory(admin).deploy(addresses.proxy.addresses.proxy.entity_registry);
     await dispute.waitForDeployment();
     addresses.proxy.dispute = await dispute.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
@@ -169,7 +169,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.proof_market_place) {
     const proof_market_place = await ethers.getContractFactory("ProofMarketplace");
-    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress(), addresses.proxy.dispute], {
+    const proxy = await upgrades.deployProxy(proof_market_place, [await admin.getAddress()], {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,
