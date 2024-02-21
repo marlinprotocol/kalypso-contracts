@@ -177,8 +177,8 @@ contract GeneratorRegistry is
         uint256 initialStake,
         bytes memory generatorData
     ) external nonReentrant {
-        address _msgSender = _msgSender();
-        Generator memory generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator memory generator = generatorRegistry[_generatorAddress];
 
         require(generatorData.length != 0, Error.CANNOT_BE_ZERO);
         require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
@@ -187,7 +187,7 @@ contract GeneratorRegistry is
         // prevents registering multiple times, unless deregistered
         require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
 
-        generatorRegistry[_msgSender] = Generator(
+        generatorRegistry[_generatorAddress] = Generator(
             rewardAddress,
             initialStake,
             0,
@@ -212,28 +212,28 @@ contract GeneratorRegistry is
      */
     function changeRewardAddress(address newRewardAddress) external {
         require(newRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        address _msgSender = _msgSender();
-        Generator storage generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator storage generator = generatorRegistry[_generatorAddress];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
         generator.rewardAddress = newRewardAddress;
 
-        emit ChangedGeneratorRewardAddress(_msgSender, newRewardAddress);
+        emit ChangedGeneratorRewardAddress(_generatorAddress, newRewardAddress);
     }
 
     /**
      * @notice Increase generator's compute
      */
     function increaseDeclaredCompute(uint256 computeToIncrease) external {
-        address _msgSender = _msgSender();
-        Generator storage generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator storage generator = generatorRegistry[_generatorAddress];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
 
         generator.declaredCompute += computeToIncrease;
 
-        emit IncreasedCompute(_msgSender, computeToIncrease);
+        emit IncreasedCompute(_generatorAddress, computeToIncrease);
     }
 
     /**
@@ -241,8 +241,8 @@ contract GeneratorRegistry is
      * @param newUtilization New Utilization is in percentage scaled up to 10e18
      */
     function intendToReduceCompute(uint256 newUtilization) external {
-        address _msgSender = _msgSender();
-        Generator storage generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator storage generator = generatorRegistry[_generatorAddress];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
@@ -267,8 +267,8 @@ contract GeneratorRegistry is
         generator.intendedComputeUtilization = newUtilization;
 
         // block number after which this intent which execute
-        reduceComputeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
-        emit RequestComputeDecrease(_msgSender, newUtilization);
+        reduceComputeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
+        emit RequestComputeDecrease(_generatorAddress, newUtilization);
     }
 
     /**
@@ -322,8 +322,8 @@ contract GeneratorRegistry is
      * @param newUtilization New Utilization is in percentage scaled up to 10e18
      */
     function intendToReduceStake(uint256 newUtilization) external {
-        address _msgSender = _msgSender();
-        Generator storage generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator storage generator = generatorRegistry[_generatorAddress];
 
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
         require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
@@ -343,8 +343,8 @@ contract GeneratorRegistry is
         // uint256 stakeToRelease = generator.totalStake - newTotalStake;
         require(generator.totalStake - newTotalStake != 0, Error.CANNOT_BE_ZERO);
 
-        unstakeRequestBlock[_msgSender] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
-        emit RequestStakeDecrease(_msgSender, newUtilization);
+        unstakeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
+        emit RequestStakeDecrease(_generatorAddress, newUtilization);
     }
 
     /**
@@ -383,14 +383,14 @@ contract GeneratorRegistry is
      * @notice Deregister the generator
      */
     function deregister(address refundAddress) external nonReentrant {
-        address _msgSender = _msgSender();
-        Generator memory generator = generatorRegistry[_msgSender];
+        address _generatorAddress = _msgSender();
+        Generator memory generator = generatorRegistry[_generatorAddress];
 
         require(generator.sumOfComputeAllocations == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
         STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
-        delete generatorRegistry[_msgSender];
+        delete generatorRegistry[_generatorAddress];
 
-        emit DeregisteredGenerator(_msgSender);
+        emit DeregisteredGenerator(_generatorAddress);
     }
 
     /**
@@ -432,15 +432,13 @@ contract GeneratorRegistry is
      * @notice Add IVS key for a given market
      */
     function addIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
-        address _msgSender = _msgSender();
-
         (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
 
         // ensure only right image is used
         require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
         // enforces enclave ownership
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender);
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender());
 
         // only whitelist key, after verifying the attestation
         ENTITY_KEY_REGISTRY.verifyKey(attestationData);
@@ -451,8 +449,8 @@ contract GeneratorRegistry is
      * @notice Remove generator's encryption key
      */
     function removeEncryptionKey(uint256 marketId) external {
-        address generatorAddress = _msgSender();
-        ENTITY_KEY_REGISTRY.removePubkey(generatorAddress, marketId);
+        // generatorAddress = _msgSender();
+        ENTITY_KEY_REGISTRY.removePubkey(_msgSender(), marketId);
     }
 
     function joinMarketplace(
@@ -589,27 +587,27 @@ contract GeneratorRegistry is
     }
 
     function leaveMarketplaces(uint256[] calldata marketIds) external {
-        address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
-            _leaveMarketplace(generatorAddress, marketIds[index]);
+            // generatorAddress = _msgSender();
+            _leaveMarketplace(_msgSender(), marketIds[index]);
         }
     }
 
     function leaveMarketplace(uint256 marketId) external {
-        address generatorAddress = _msgSender();
-        _leaveMarketplace(generatorAddress, marketId);
+        // generatorAddress = _msgSender();
+        _leaveMarketplace(_msgSender(), marketId);
     }
 
     function requestForExitMarketplaces(uint256[] calldata marketIds) external {
-        address generatorAddress = _msgSender();
         for (uint256 index = 0; index < marketIds.length; index++) {
-            _requestForExitMarketplace(generatorAddress, marketIds[index]);
+            // generatorAddress = _msgSender();
+            _requestForExitMarketplace(_msgSender(), marketIds[index]);
         }
     }
 
     function requestForExitMarketplace(uint256 marketId) external {
-        address generatorAddress = _msgSender();
-        _requestForExitMarketplace(generatorAddress, marketId);
+        // generatorAddress = _msgSender();
+        _requestForExitMarketplace(_msgSender(), marketId);
     }
 
     function _requestForExitMarketplace(address generatorAddress, uint256 marketId) internal {

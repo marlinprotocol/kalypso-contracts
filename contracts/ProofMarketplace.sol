@@ -243,15 +243,14 @@ contract ProofMarketplace is
         require(_penalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
         require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
 
-        address _msgSender = _msgSender();
-
         require(address(_verifier) != address(0), Error.CANNOT_BE_ZERO);
         require(_verifier.checkSampleInputsAndProof(), Error.INVALID_INPUTS);
 
         // White list image if is not
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_ivsPcrs);
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
+        // transfer amount from _msgSender()
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
         uint256 marketId = marketData.length;
         marketData.push(
