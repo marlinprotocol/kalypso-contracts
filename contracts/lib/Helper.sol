@@ -90,13 +90,11 @@ library HELPER {
         bytes calldata enclaveSignature,
         address addressToVerify
     ) internal pure {
-        (, address _address) = GET_PUBKEY_AND_ADDRESS(attestationData);
-
         bytes32 messageHash = keccak256(abi.encode(attestationData, addressToVerify));
         bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
+        require(signer == GET_ADDRESS(attestationData), Error.INVALID_ENCLAVE_SIGNATURE);
     }
 
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;

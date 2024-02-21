@@ -442,11 +442,9 @@ contract GeneratorRegistry is
         // enforces enclave ownership
         attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender);
 
-        (, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
-
         // only whitelist key, after verifying the attestation
         ENTITY_KEY_REGISTRY.verifyKey(attestationData);
-        emit AddIvsKey(marketId, _address);
+        emit AddIvsKey(marketId, attestationData.GET_ADDRESS());
     }
 
     /**
@@ -522,17 +520,12 @@ contract GeneratorRegistry is
                 ENTITY_KEY_REGISTRY.updatePubkey(
                     generatorAddress,
                     marketId,
-                    _getPubKey(attestationData),
+                    attestationData.GET_PUBKEY(),
                     attestationData
                 );
             }
         }
         emit JoinedMarketplace(generatorAddress, marketId, computePerRequestRequired);
-    }
-
-    function _getPubKey(bytes memory attestationData) internal pure returns (bytes memory) {
-        (bytes memory pubKey, ) = attestationData.GET_PUBKEY_AND_ADDRESS();
-        return pubKey;
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {

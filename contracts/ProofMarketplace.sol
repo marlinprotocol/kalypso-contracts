@@ -95,10 +95,8 @@ contract ProofMarketplace is
         // check proof of ownership of enclave
         attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
 
-        (bytes memory pubkey, ) = attestationData.GET_PUBKEY_AND_ADDRESS();
-
         // checks attestation and updates the key
-        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, pubkey, attestationData);
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
     }
 
     function _revokeRole(
