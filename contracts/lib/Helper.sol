@@ -38,6 +38,24 @@ library HELPER {
         return (enclaveEciesKey, PUBKEY_TO_ADDRESS(enclaveEciesKey));
     }
 
+    function GET_PUBKEY(bytes memory data) internal pure returns (bytes memory) {
+        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(
+            data,
+            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
+        );
+
+        return (enclaveEciesKey);
+    }
+
+    function GET_ADDRESS(bytes memory data) internal pure returns (address) {
+        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(
+            data,
+            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
+        );
+
+        return (PUBKEY_TO_ADDRESS(enclaveEciesKey));
+    }
+
     function PUBKEY_TO_ADDRESS(bytes memory publicKey) internal pure returns (address) {
         // Ensure the internal key is 64 bytes long
         require(publicKey.length == 64, Error.INVALID_ENCLAVE_KEY);
