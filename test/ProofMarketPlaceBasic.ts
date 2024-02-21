@@ -271,9 +271,6 @@ describe("Proof market place", () => {
     it("Should Fail: when try creating market in invalid market", async () => {
       await mockToken.connect(prover).approve(await proofMarketplace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const platformFee = new BigNumber((await proofMarketplace.costPerInputBytes(1)).toString()).multipliedBy(
-        (proverBytes.length - 2) / 2,
-      );
 
       const latestBlock = await ethers.provider.getBlockNumber();
 
@@ -295,7 +292,7 @@ describe("Proof market place", () => {
           "0x",
           "0x",
         ),
-      ).to.be.revertedWith(await errorLibrary.INVALID_MARKET());
+      ).to.be.revertedWithPanic(0x32); // 0x32 mean array out of bounds // market is not created
     });
 
     describe("Generator", () => {

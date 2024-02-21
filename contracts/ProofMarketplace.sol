@@ -138,8 +138,7 @@ contract ProofMarketplace is
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    uint256 public marketCounter;
-    mapping(uint256 => Market) public marketData;
+    Market[] public marketData;
 
     AskWithState[] public listOfAsk;
 
@@ -248,25 +247,26 @@ contract ProofMarketplace is
 
         address _msgSender = _msgSender();
 
-        Market storage market = marketData[marketCounter];
-        require(market.marketmetadata.length == 0, Error.MARKET_ALREADY_EXISTS);
         require(address(_verifier) != address(0), Error.CANNOT_BE_ZERO);
         require(_verifier.checkSampleInputsAndProof(), Error.INVALID_INPUTS);
-
-        market.verifier = _verifier;
-        market.slashingPenalty = _penalty;
-        market.marketmetadata = _marketmetadata;
-        market.proverImageId = _proverPcrs.GET_IMAGE_ID_FROM_PCRS();
-        market.ivsImageId = _ivsPcrs.GET_IMAGE_ID_FROM_PCRS();
-        market.activationBlock = block.number + MARKET_ACTIVATION_DELAY;
 
         // White list image if is not
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_ivsPcrs);
         PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
-        emit MarketplaceCreated(marketCounter);
-        marketCounter++;
+        uint256 marketId = marketData.length;
+        marketData.push(
+            Market(
+                _verifier,
+                _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
+                _penalty,
+                block.number + MARKET_ACTIVATION_DELAY,
+                _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
+                _marketmetadata
+            )
+        );
+        emit MarketplaceCreated(marketId);
     }
 
     /**
@@ -651,6 +651,10 @@ contract ProofMarketplace is
 
     function askCounter() public view returns (uint256) {
         return listOfAsk.length;
+    }
+
+    function marketCounter() public view returns (uint256) {
+        return marketData.length;
     }
 
     // for further increase
