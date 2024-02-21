@@ -202,9 +202,9 @@ contract GeneratorRegistry is
 
         // optional to stake during registration itself
         if (initialStake != 0) {
-            STAKING_TOKEN.safeTransferFrom(_msgSender, address(this), initialStake);
+            STAKING_TOKEN.safeTransferFrom(_generatorAddress, address(this), initialStake);
         }
-        emit RegisteredGenerator(_msgSender, declaredCompute, initialStake);
+        emit RegisteredGenerator(_generatorAddress, declaredCompute, initialStake);
     }
 
     /**
