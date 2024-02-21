@@ -634,10 +634,10 @@ contract ProofMarketplace is
         bytes32 messageHash;
 
         // when public inputs, sign both ask id and prover data
-        if (expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID) {
-            messageHash = keccak256(abi.encode(askId, proverData));
-        } else {
+        if (expectedImageId.IS_ENCLAVE()) {
             messageHash = keccak256(abi.encode(askId));
+        } else {
+            messageHash = keccak256(abi.encode(askId, proverData));
         }
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
