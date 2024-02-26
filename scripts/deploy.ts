@@ -19,6 +19,9 @@ import { checkFileExists, createFileIfNotExists } from "../helpers";
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
+import * as zkb_verifier_inputs from "../helpers/sample/zkbVerifier/transfer_input.json";
+import * as zkb_verifier_proof from "../helpers/sample/zkbVerifier/transfer_proof.json";
+
 const abiCoder = new ethers.AbiCoder();
 
 async function main(): Promise<string> {
@@ -45,7 +48,7 @@ async function main(): Promise<string> {
   let treasury = signers[2];
   // let marketCreator = signers[3];
   // let generator = signers[4];
-  let matchingEngine = signers[5];
+  let sampleSigner = signers[5];
 
   const path = `./addresses/${chainId}.json`;
   createFileIfNotExists(path);
@@ -118,18 +121,11 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.entity_registry) {
-    // const entity_registry = await new EntityKeyRegistry__factory(admin).deploy(
-    //   addresses.proxy.mock_attestation_verifier,
-    //   await admin.getAddress(),
-    // );
-    // await entity_registry.waitForDeployment();
-
     const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-    const _entityKeyRegistry = await upgrades.deployProxy(
-      EntityKeyRegistryContract,
-      [addresses.proxy.mock_attestation_verifier, await admin.getAddress()],
-      { kind: "uups", constructorArgs: [] },
-    );
+    const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
+      kind: "uups",
+      constructorArgs: [addresses.proxy.attestation_verifier],
+    });
     const entity_registry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
     addresses.proxy.entity_registry = await entity_registry.getAddress();
@@ -160,7 +156,7 @@ async function main(): Promise<string> {
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
   if (!addresses.proxy.dispute) {
-    const dispute = await new Dispute__factory(admin).deploy(addresses.proxy.addresses.proxy.entity_registry);
+    const dispute = await new Dispute__factory(admin).deploy(addresses.proxy.entity_registry);
     await dispute.waitForDeployment();
     addresses.proxy.dispute = await dispute.getAddress();
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
@@ -173,7 +169,6 @@ async function main(): Promise<string> {
       kind: "uups",
       constructorArgs: [
         addresses.proxy.payment_token,
-        addresses.proxy.staking_token,
         config.marketCreationCost,
         await treasury.getAddress(),
         addresses.proxy.generator_registry,
@@ -251,11 +246,11 @@ async function main(): Promise<string> {
       ["uint256[5]"],
       [
         [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
+          zkb_verifier_inputs[0],
+          zkb_verifier_inputs[1],
+          zkb_verifier_inputs[2],
+          zkb_verifier_inputs[3],
+          zkb_verifier_inputs[4],
         ],
       ],
     );
@@ -264,14 +259,14 @@ async function main(): Promise<string> {
       ["uint256[8]"],
       [
         [
-          transfer_verifier_proof.a[0],
-          transfer_verifier_proof.a[1],
-          transfer_verifier_proof.b[0][0],
-          transfer_verifier_proof.b[0][1],
-          transfer_verifier_proof.b[1][0],
-          transfer_verifier_proof.b[1][1],
-          transfer_verifier_proof.c[0],
-          transfer_verifier_proof.c[1],
+          zkb_verifier_proof.a[0],
+          zkb_verifier_proof.a[1],
+          zkb_verifier_proof.b[0][0],
+          zkb_verifier_proof.b[0][1],
+          zkb_verifier_proof.b[1][0],
+          zkb_verifier_proof.b[1][1],
+          zkb_verifier_proof.c[0],
+          zkb_verifier_proof.c[1],
         ],
       ],
     );

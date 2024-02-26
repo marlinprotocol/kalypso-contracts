@@ -22,6 +22,8 @@ contract transfer_verifier_wrapper is IVerifier {
 
         sampleInput = _sampleInput;
         sampleProof = _sampleProof;
+
+        checkSampleInputsAndProof();
     }
 
     function createRequest(
