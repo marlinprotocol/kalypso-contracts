@@ -20,6 +20,7 @@ import {
 } from "../typechain-types";
 
 import {
+  GodEnclavePCRS,
   MockEnclave,
   MockGeneratorPCRS,
   MockIVSPCRS,
@@ -763,10 +764,11 @@ describe("Proof market place", () => {
 
           const updateIvsKey = async (ivsEnclave: MockEnclave) => {
             // use any enclave here as AV is mocked
-            let generatorIvsAttestationBytes = await ivsEnclave.getVerifiedAttestation(ivsEnclave);
+            const noUseEnclave = new MockEnclave([MockIVSPCRS[2], MockGeneratorPCRS[2], GodEnclavePCRS[2]]);
+            let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(noUseEnclave); // means ivs should get verified attestation from noUseEnclave
 
             let types = ["bytes", "address"];
-            let values = [generatorIvsAttestationBytes, await generator.getAddress()];
+            let values = [ivsAttestationBytes, await generator.getAddress()];
 
             let abicode = new ethers.AbiCoder();
             let encoded = abicode.encode(types, values);
@@ -774,7 +776,9 @@ describe("Proof market place", () => {
             let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
             // use any enclave to get verfied attestation as mockAttesationVerifier is used here
-            await generatorRegistry.connect(generator).addIvsKey(marketId, generatorIvsAttestationBytes, signature);
+            await expect(generatorRegistry.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
+              .to.emit(generatorRegistry, "AddIvsKey")
+              .withArgs(marketId, ivsEnclave.getAddress());
           };
 
           it("submit proof", async () => {

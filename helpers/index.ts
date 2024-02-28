@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PrivateKey } from "eciesjs";
-import { BytesLike, Signer } from "ethers";
+import { AddressLike, BytesLike, Signer } from "ethers";
 import BigNumber from "bignumber.js";
 
 export * as secret_operations from "./secretInputOperation";
@@ -363,6 +363,14 @@ export class MockEnclave {
       uncompressedPublicKey: pubkey,
       address,
     };
+  }
+
+  public static pubkeyToAddress(pubkey: BytesLike): AddressLike {
+    let hash = ethers.keccak256(ethers.getBytes(pubkey));
+
+    const address = "0x" + hash.slice(-40);
+
+    return address;
   }
 }
 

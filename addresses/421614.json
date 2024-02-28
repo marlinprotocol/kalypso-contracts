@@ -1,21 +1,21 @@
 {
-    "proxy": {
-        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-        "mock_attestation_verifier": "0x6997E63Fc852d088011cc7f2cDDD49A1Dea47da2",
-        "attestation_verifier": "0xDa7a2cBe0a23bb6bF4B3a6cFF0Fba7D0159967A1",
-        "entity_registry": "0x7376a8729dEEa9BF57e46123A5b74c8419a6Ab62",
-        "generator_registry": "0x41345DA0907ef0633ef420ae8c9D88444622cf81",
-        "dispute": "0xCA46a5Fcd9D86b8Fe7155336b1D9649feeA80Db5",
-        "proof_market_place": "0x6F45cb6F85A7fc2C36b18eFA524DE23263Dc2D24",
-        "transfer_verifier_wrapper": "0xF2E5d89B682B6E5ba9525F0aC8a817ED2D8AB746",
-        "zkb_verifier_wrapper": "0x21d588dCBB97fa83Aac877dF91C9c1bC156573e0",
-        "priority_list": "0xEa62955f1F451F0Ef8862bF0118FEDFBa1bdB5E8",
-        "input_and_proof_format": "0x1C6E41E532307b0fd69700eC6f16f6fBdfe966D3"
-    },
-    "implementation": {
-        "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
-        "generator_registry": "0xA8E2149B6eee3996FbDaF65C7198701354d803B7",
-        "proof_market_place": "0x5787d8fd6127bd94a319882E1Af5605cBB8CC049"
-    }
+  "proxy": {
+    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+    "mock_attestation_verifier": "0x6997E63Fc852d088011cc7f2cDDD49A1Dea47da2",
+    "attestation_verifier": "0xDa7a2cBe0a23bb6bF4B3a6cFF0Fba7D0159967A1",
+    "entity_registry": "0x7376a8729dEEa9BF57e46123A5b74c8419a6Ab62",
+    "generator_registry": "0x41345DA0907ef0633ef420ae8c9D88444622cf81",
+    "dispute": "0xCA46a5Fcd9D86b8Fe7155336b1D9649feeA80Db5",
+    "proof_market_place": "0x6F45cb6F85A7fc2C36b18eFA524DE23263Dc2D24",
+    "transfer_verifier_wrapper": "0xF2E5d89B682B6E5ba9525F0aC8a817ED2D8AB746",
+    "zkb_verifier_wrapper": "0x21d588dCBB97fa83Aac877dF91C9c1bC156573e0",
+    "priority_list": "0xEa62955f1F451F0Ef8862bF0118FEDFBa1bdB5E8",
+    "input_and_proof_format": "0x1C6E41E532307b0fd69700eC6f16f6fBdfe966D3"
+  },
+  "implementation": {
+    "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
+    "generator_registry": "0xA8E2149B6eee3996FbDaF65C7198701354d803B7",
+    "proof_market_place": "0x5787d8fd6127bd94a319882E1Af5605cBB8CC049"
+  }
 }
