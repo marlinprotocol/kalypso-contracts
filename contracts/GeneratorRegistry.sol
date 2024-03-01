@@ -416,13 +416,10 @@ contract GeneratorRegistry is
         // just an extra check to prevent spam
         require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
 
-        (bytes memory pubkey, address _address) = attestationData.GET_PUBKEY_AND_ADDRESS();
+        bytes memory pubkey = attestationData.GET_PUBKEY();
 
-        bytes32 messageHash = keccak256(abi.encode(generatorAddress));
-        bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
-
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == _address, Error.INVALID_ENCLAVE_SIGNATURE);
+        // confirms that _msgSender() has access to enclave
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender());
 
         // don't whitelist, because same imageId must be used to update the key
         ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
@@ -437,7 +434,7 @@ contract GeneratorRegistry is
         // ensure only right image is used
         require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
 
-        // enforces enclave ownership
+        // confirms that _msgSender() has access to enclave
         attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender());
 
         // only whitelist key, after verifying the attestation
@@ -511,7 +508,7 @@ contract GeneratorRegistry is
 
             // if users decides to update the market key in the same transaction
             if (updateMarketDedicatedKey) {
-                // ensure ownership of the enclave
+                // confirms that generatorAddress has access to enclave
                 attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
 
                 // whitelist every image here because it is verified by the generator

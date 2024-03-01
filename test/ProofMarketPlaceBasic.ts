@@ -775,6 +775,12 @@ describe("Proof market place", () => {
             let digest = ethers.keccak256(encoded);
             let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
+            // console.log("let ivs_attestation = \""+ivsAttestationBytes+"\";")
+            // console.log("let expected_signature = \""+signature+"\";")
+            // console.log("let recovery_address = \""+ivsEnclave.getAddress()+"\";")
+            // console.log("let private_key = \""+ivsEnclave.getPrivateKey(true)+"\";")
+            // console.log("let address_to_sign = \""+await generator.getAddress()+"\";")
+
             // use any enclave to get verfied attestation as mockAttesationVerifier is used here
             await expect(generatorRegistry.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
               .to.emit(generatorRegistry, "AddIvsKey")

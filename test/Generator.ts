@@ -348,16 +348,16 @@ describe("Checking Generator's multiple compute", () => {
   it("Only registered generator should be able to add/update entity keys", async () => {
     const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
-    let types = ["address"];
+    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
-    let values = [await generator.getAddress()];
+    let types = ["bytes", "address"];
+
+    let values = [generatorAttestationBytes, await generator.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
-
-    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
@@ -377,15 +377,6 @@ describe("Checking Generator's multiple compute", () => {
 
   it("Updating with invalid key should revert", async () => {
     const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
-
-    let types = ["address"];
-    let values = [await generator.getAddress()];
-
-    let abicode = new ethers.AbiCoder();
-    let encoded = abicode.encode(types, values);
-    let digest = ethers.keccak256(encoded);
-    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
-
     const invalidPubkey = "0x1234";
 
     let abiCoder = new ethers.AbiCoder();
@@ -403,6 +394,14 @@ describe("Checking Generator's multiple compute", () => {
       ],
     );
 
+    let types = ["bytes", "address"];
+    let values = [validAttesationWithInvalidKey, await generator.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
+
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, validAttesationWithInvalidKey, signature),
     ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
@@ -411,16 +410,16 @@ describe("Checking Generator's multiple compute", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
-    let types = ["address"];
+    let newAttesationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
-    let values = [await generator.getAddress()];
+    let types = ["bytes", "address"];
+
+    let values = [newAttesationBytes, await generator.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
-
-    let newAttesationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
     await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, newAttesationBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")

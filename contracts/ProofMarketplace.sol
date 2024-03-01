@@ -92,7 +92,7 @@ contract ProofMarketplace is
     ) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
 
-        // check proof of ownership of enclave
+        // confirms that admin has access to enclave
         attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
 
         // checks attestation and updates the key
