@@ -9,9 +9,9 @@
     "dispute": "0x8a9E313c1Db691BAEa8B1Cf4D32645E05608c2e3",
     "proof_market_place": "0x9db3AF484D362765064854f73d90312e662dB65a",
     "transfer_verifier_wrapper": "0x98EF29f10518B5b3384596fCa6F39816C363CCbd",
-    "zkb_verifier_wrapper": "0x16237643290a485F3CC77B0dfA0d459885Ca3505",
     "priority_list": "0x87508a0025a1FC7aE9DCD20ae63A58dFf75f0c0F",
-    "input_and_proof_format": "0x2783aBc51a7C7Bac3c031E2fCD28a31356Efa425"
+    "input_and_proof_format": "0x2783aBc51a7C7Bac3c031E2fCD28a31356Efa425",
+    "zkb_verifier_wrapper": "0xb39010E04Dbd9D9E51e9155c9632535D66Abd4e9"
   },
   "implementation": {
     "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
