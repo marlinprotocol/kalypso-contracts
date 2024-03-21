@@ -1,21 +1,21 @@
 {
-  "proxy": {
-    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-    "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
-    "attestation_verifier": "0x3aB3487269206d5f6a10725d4e477BaA3611adcA",
-    "entity_registry": "0xc54F0B48727902472e077Ae56b6321c4f2d77aD6",
-    "generator_registry": "0x6FD6ED78f6D8a04bC9DF9480B4CD4A7E37e885a4",
-    "dispute": "0x8a9E313c1Db691BAEa8B1Cf4D32645E05608c2e3",
-    "proof_market_place": "0x9db3AF484D362765064854f73d90312e662dB65a",
-    "transfer_verifier_wrapper": "0x98EF29f10518B5b3384596fCa6F39816C363CCbd",
-    "priority_list": "0x87508a0025a1FC7aE9DCD20ae63A58dFf75f0c0F",
-    "input_and_proof_format": "0x2783aBc51a7C7Bac3c031E2fCD28a31356Efa425",
-    "zkb_verifier_wrapper": "0xb39010E04Dbd9D9E51e9155c9632535D66Abd4e9"
-  },
-  "implementation": {
-    "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
-    "generator_registry": "0xBEb49F114f735186463bC0D2a8836Ed009F280e9",
-    "proof_market_place": "0x88A5eae4A7C4A68f55e8946396c865Fd5730Fb30"
-  }
+    "proxy": {
+        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+        "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
+        "attestation_verifier": "0x3aB3487269206d5f6a10725d4e477BaA3611adcA",
+        "entity_registry": "0xBf6AfC0dB112e1e330Ea3fF4640Bac5fBA3e4B65",
+        "generator_registry": "0x2CcCb1ac0fa40922bc800619E09fc3bD821ea4F8",
+        "dispute": "0xB6fd179Df4F71F5b6053B9fCeA35ba479F5DcD70",
+        "proof_market_place": "0x81C80965f4E1b073858cc9D55d7D9A517C9fF258",
+        "transfer_verifier_wrapper": "0x21E375738B4cf2d7FFbDF26b4bB6bF082f8EE8BE",
+        "zkb_verifier_wrapper": "0x8042cC4A7C4edab47E13844b4A234d0cA7170c88",
+        "priority_list": "0x1573e360330e7B36592DFC5157b5Ce56cccb6cb5",
+        "input_and_proof_format": "0xB586c6e1397BEC6cBc0C3Ad608263cA48CD78E17"
+    },
+    "implementation": {
+        "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
+        "generator_registry": "0x331BC8070e94c37625723D6E02844c7D674fFfFd",
+        "proof_market_place": "0x0bC3c82E12edcae6139e77Ad8F7afF55Ab0cF6C0"
+    }
 }

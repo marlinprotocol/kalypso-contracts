@@ -830,9 +830,10 @@ describe("Proof market place", () => {
           });
 
           it("Submit Proof for invalid request: using generator own ivs", async () => {
-            const types = ["uint256"];
+            const askData = await proofMarketplace.listOfAsk(askId.toFixed(0));
+            const types = ["uint256", "bytes"];
 
-            const values = [askId.toFixed(0)];
+            const values = [askId.toFixed(0), askData.ask.proverData];
 
             const abicode = new ethers.AbiCoder();
             const encoded = abicode.encode(types, values);
@@ -859,9 +860,10 @@ describe("Proof market place", () => {
           });
 
           it("Submit Proof for invalid request, from another ivs enclave with same image id", async () => {
-            const types = ["uint256"];
+            const askData = await proofMarketplace.listOfAsk(askId.toFixed(0));
+            const types = ["uint256", "bytes"];
 
-            const values = [askId.toFixed(0)];
+            const values = [askId.toFixed(0), askData.ask.proverData];
 
             const abicode = new ethers.AbiCoder();
             const encoded = abicode.encode(types, values);

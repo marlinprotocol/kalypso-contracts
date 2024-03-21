@@ -628,14 +628,7 @@ contract ProofMarketplace is
         bytes memory invalidProofSignature,
         bytes32 expectedImageId
     ) internal view returns (bool) {
-        bytes32 messageHash;
-
-        // when public inputs, sign both ask id and prover data
-        if (expectedImageId.IS_ENCLAVE()) {
-            messageHash = keccak256(abi.encode(askId));
-        } else {
-            messageHash = keccak256(abi.encode(askId, proverData));
-        }
+        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
