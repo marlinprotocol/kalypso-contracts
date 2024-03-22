@@ -1,18 +1,19 @@
 import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
+import { ethers } from "hardhat";
+import * as fs from "fs";
+import { Provider, Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
+  Error,
   GeneratorRegistry,
-  IVerifier,
-  IVerifier__factory,
   MockToken,
   PriorityLog,
   ProofMarketplace,
-  UltraVerifier__factory,
-  Plonk_verifier_wrapper__factory,
-  Error,
+  TransferVerifier__factory,
   EntityKeyRegistry,
+  Transfer_verifier_wrapper__factory,
+  IVerifier__factory,
+  IVerifier,
 } from "../typechain-types";
 
 import {
@@ -28,18 +29,18 @@ import {
   setup,
   skipBlocks,
 } from "../helpers";
-import * as fs from "fs";
 
-import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
-const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
-describe("Proof Market Place for Plonk Verifier", () => {
+describe("Checking Case where generator and ivs image is same", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let iverifier: IVerifier;
 
   let signers: Signer[];
   let admin: Signer;
@@ -54,11 +55,9 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
   let generatorData: GeneratorData;
 
-  let iverifier: IVerifier;
-
-  const ivsEnclave = new MockEnclave(MockIVSPCRS);
+  const ivsAndGeneratorEnclaveCombined = new MockEnclave(MockGeneratorPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
-  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
+
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
@@ -82,7 +81,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
     generator = signers[5];
 
     marketSetupData = {
-      zkAppName: "plonk verifier",
+      zkAppName: "transfer verifier",
       proverCode: "url of the prover code",
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
@@ -94,22 +93,50 @@ describe("Proof Market Place for Plonk Verifier", () => {
       name: "some custom name for the generator",
     };
 
-    const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
+    await admin.sendTransaction({ to: ivsAndGeneratorEnclaveCombined.getAddress(), value: "1000000000000000000" });
+    await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
+
+    const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
-    let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
 
-    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
-      await plonkVerifier.getAddress(),
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await transferVerifier.getAddress(),
       inputBytes,
       proofBytes,
     );
 
-    iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
+    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
-    await treasury.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     let data = await setup.rawSetup(
       admin,
@@ -125,14 +152,15 @@ describe("Proof Market Place for Plonk Verifier", () => {
       iverifier,
       generator,
       generatorDataToBytes(generatorData),
-      ivsEnclave,
+      ivsAndGeneratorEnclaveCombined, // USED AS IVS HERE
       matchingEngineEnclave,
-      generatorEnclave,
+      ivsAndGeneratorEnclaveCombined, // USED AS GENERATOR HERE
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
       godEnclave,
     );
+
     proofMarketplace = data.proofMarketplace;
     generatorRegistry = data.generatorRegistry;
     tokenToUse = data.mockToken;
@@ -140,22 +168,31 @@ describe("Proof Market Place for Plonk Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    await plonkVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
-
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
-  it("Check plonk verifier", async () => {
-    let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
-    // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlockNumber();
+  it("Submit proof for invalid requests directly from generator", async () => {
+    let abiCoder = new ethers.AbiCoder();
     let assignmentExpiry = 100; // in blocks
     let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
+    const latestBlock = await ethers.provider.getBlockNumber();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
 
     const askId = await setup.createAsk(
       prover,
@@ -182,7 +219,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
 
     await setup.createTask(
       matchingEngineEnclave,
-      admin.provider,
+      admin.provider as Provider,
       {
         mockToken: tokenToUse,
         proofMarketplace,
@@ -195,10 +232,21 @@ describe("Proof Market Place for Plonk Verifier", () => {
       generator,
     );
 
-    // console.log({ plonkProof });
-    let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
-    await expect(proofMarketplace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketplace, "ProofCreated")
-      .withArgs(askId, proofBytes);
+    const askData = await proofMarketplace.listOfAsk(askId);
+    const types = ["uint256", "bytes"];
+
+    const values = [askId, askData.ask.proverData];
+
+    const abicode = new ethers.AbiCoder();
+    const encoded = abicode.encode(types, values);
+    const digest = ethers.keccak256(encoded);
+    const signature = await ivsAndGeneratorEnclaveCombined.signMessage(ethers.getBytes(digest));
+
+    await proofMarketplace.flushToTreasury(); // remove anything if is already there
+
+    await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(
+      proofMarketplace,
+      "InvalidInputsDetected",
+    );
   });
 });

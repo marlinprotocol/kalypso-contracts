@@ -829,7 +829,7 @@ describe("Proof market place", () => {
             ).to.eq(1); // 1 means JOINED and idle now
           });
 
-          it("Submit Proof for invalid request: using generator own ivs", async () => {
+          it("Submit Proof for invalid request: using own ivs", async () => {
             const askData = await proofMarketplace.listOfAsk(askId.toFixed(0));
             const types = ["uint256", "bytes"];
 

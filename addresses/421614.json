@@ -4,18 +4,18 @@
         "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
         "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
         "attestation_verifier": "0x3aB3487269206d5f6a10725d4e477BaA3611adcA",
-        "entity_registry": "0xBf6AfC0dB112e1e330Ea3fF4640Bac5fBA3e4B65",
-        "generator_registry": "0x2CcCb1ac0fa40922bc800619E09fc3bD821ea4F8",
-        "dispute": "0xB6fd179Df4F71F5b6053B9fCeA35ba479F5DcD70",
-        "proof_market_place": "0x81C80965f4E1b073858cc9D55d7D9A517C9fF258",
-        "transfer_verifier_wrapper": "0x21E375738B4cf2d7FFbDF26b4bB6bF082f8EE8BE",
-        "zkb_verifier_wrapper": "0x8042cC4A7C4edab47E13844b4A234d0cA7170c88",
-        "priority_list": "0x1573e360330e7B36592DFC5157b5Ce56cccb6cb5",
-        "input_and_proof_format": "0xB586c6e1397BEC6cBc0C3Ad608263cA48CD78E17"
+        "entity_registry": "0x03F29e4E0F39F2EA64C6938a664770696C6d9609",
+        "generator_registry": "0x6eAfDf4493580959635135E949370DA674f09465",
+        "dispute": "0x0c9B4dC0d68534063dc616F0d3C3b471B8068E1c",
+        "proof_market_place": "0x285cd239e5d0D8FD69bAa7C3D6592cb8430B75cC",
+        "transfer_verifier_wrapper": "0x6e940BeD0497e6b15bDFD08077F0ebc6F1d7917d",
+        "zkb_verifier_wrapper": "0xAF516Daac473e2bD4aAeDDCA5489347820cc57Eb",
+        "priority_list": "0xD81eD45Eee1150c9E22D693a165525f858A925AE",
+        "input_and_proof_format": "0x914ed0F6C1e74D772C4c676FC913Be3221077a74"
     },
     "implementation": {
         "attestation_verifier": "0x45A0Cf5c7D91F72fa662fF1b5f6B949067cf2412",
-        "generator_registry": "0x331BC8070e94c37625723D6E02844c7D674fFfFd",
-        "proof_market_place": "0x0bC3c82E12edcae6139e77Ad8F7afF55Ab0cF6C0"
+        "generator_registry": "0x16BD29553f159a7A5Dd115C2E29F8092A8119933",
+        "proof_market_place": "0x82C4838bbe7aa788A4ab8173793815B0b6831689"
     }
 }

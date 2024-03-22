@@ -20,6 +20,7 @@ import {
   GodEnclavePCRS,
   MarketData,
   MockEnclave,
+  MockGeneratorPCRS,
   MockIVSPCRS,
   MockMEPCRS,
   generatorDataToBytes,
@@ -56,6 +57,7 @@ describe("Proof Market Place for Circom Verifier", () => {
 
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
@@ -126,6 +128,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       generatorDataToBytes(generatorData),
       ivsEnclave,
       matchingEngineEnclave,
+      generatorEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,

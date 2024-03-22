@@ -83,6 +83,7 @@ export const rawSetup = async (
   generatorData: string,
   ivsEnclave: MockEnclave,
   matchingEngineEnclave: MockEnclave,
+  generatorEnclave: MockEnclave,
   minRewardForGenerator: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
@@ -166,15 +167,13 @@ export const rawSetup = async (
   await proofMarketplace.setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
   await proofMarketplace.verifyMatchingEngine(matchingEngineAttestationBytes, signature);
 
-  const generatorEnclaveRef = new MockEnclave(MockGeneratorPCRS);
-
   await proofMarketplace
     .connect(marketCreator)
     .createMarketplace(
       marketSetupBytes,
       await iverifier.getAddress(),
       generatorSlashingPenalty.toFixed(0),
-      generatorEnclaveRef.getPcrRlp(),
+      generatorEnclave.getPcrRlp(),
       ivsEnclave.getPcrRlp(),
     );
 
@@ -194,18 +193,30 @@ export const rawSetup = async (
       generatorData,
     );
 
-  let generatorAttestationBytes = await generatorEnclaveRef.getVerifiedAttestation(godEnclave);
-  await generatorRegistry
-    .connect(generator)
-    .joinMarketplace(
-      marketId,
-      computeToNewMarket.toFixed(0),
-      minRewardForGenerator.toFixed(),
-      100,
-      false,
-      generatorAttestationBytes,
-      "0x",
-    );
+  {
+    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
+
+    let types = ["bytes", "address"];
+
+    let values = [generatorAttestationBytes, await generator.getAddress()];
+
+    let abicode = new ethers.AbiCoder();
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
+
+    await generatorRegistry
+      .connect(generator)
+      .joinMarketplace(
+        marketId,
+        computeToNewMarket.toFixed(0),
+        minRewardForGenerator.toFixed(),
+        100,
+        true,
+        generatorAttestationBytes,
+        signature,
+      );
+  }
 
   const priorityLog = await new PriorityLog__factory(admin).deploy();
 

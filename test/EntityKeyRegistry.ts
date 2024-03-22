@@ -54,7 +54,7 @@ describe("Entity key registry tests", () => {
 
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrs(bytes)"](generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
@@ -70,7 +70,7 @@ describe("Entity key registry tests", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin)["whitelistImageUsingPcrs(bytes)"](generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),

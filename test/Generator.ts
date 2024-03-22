@@ -57,6 +57,7 @@ describe("Checking Generator's multiple compute", () => {
 
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
 
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
@@ -154,6 +155,7 @@ describe("Checking Generator's multiple compute", () => {
       generatorDataToBytes(generatorData),
       ivsEnclave,
       matchingEngineEnclave,
+      generatorEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
