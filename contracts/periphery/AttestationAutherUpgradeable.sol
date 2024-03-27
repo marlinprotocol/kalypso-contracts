@@ -2,14 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "../interfaces/IAttestationVerifier.sol";
+import "./interfaces/IAttestationVerifier.sol";
 
 contract AttestationAutherUpgradeable is
     Initializable // initializer
@@ -32,13 +26,37 @@ contract AttestationAutherUpgradeable is
         bytes PCR2;
     }
 
-    mapping(bytes32 => EnclaveImage) private whitelistedImages;
-    mapping(address => bytes32) private verifiedKeys;
+    /// @custom:storage-location erc7201:marlin.oyster.storage.AttestationAuther
+    struct AttestationAutherStorage {
+        mapping(bytes32 => EnclaveImage) whitelistedImages;
+        mapping(address => bytes32) verifiedKeys;
+        mapping(bytes32 => mapping(bytes32 => bool)) imageFamilies;
+    }
 
-    uint256[48] private __gap;
+    // keccak256(abi.encode(uint256(keccak256("marlin.oyster.storage.AttestationAuther")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant AttestationAutherStorageLocation =
+        0xc17b4b708b6f44255c20913a9d97a05300b670342c71fe5ae5b617bd4db55000;
+
+    function _getAttestationAutherStorage() private pure returns (AttestationAutherStorage storage $) {
+        assembly {
+            $.slot := AttestationAutherStorageLocation
+        }
+    }
+
+    error AttestationAutherPubkeyLengthInvalid();
+    error AttestationAutherPCRsInvalid();
+    error AttestationAutherImageNotWhitelisted();
+    error AttestationAutherImageAlreadyWhitelisted();
+    error AttestationAutherImageNotInFamily();
+    error AttestationAutherKeyNotVerified();
+    error AttestationAutherKeyAlreadyVerified();
+    error AttestationAutherAttestationTooOld();
+    error AttestationAutherMismatchedLengths();
 
     event EnclaveImageWhitelisted(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
     event EnclaveImageRevoked(bytes32 indexed imageId);
+    event EnclaveImageAddedToFamily(bytes32 indexed imageId, bytes32 family);
+    event EnclaveImageRemovedFromFamily(bytes32 indexed imageId, bytes32 family);
     event EnclaveKeyWhitelisted(bytes indexed enclavePubKey, bytes32 indexed imageId);
     event EnclaveKeyRevoked(bytes indexed enclavePubKey);
     event EnclaveKeyVerified(bytes indexed enclavePubKey, bytes32 indexed imageId);
@@ -49,107 +67,142 @@ contract AttestationAutherUpgradeable is
         }
     }
 
+    function __AttestationAuther_init_unchained(
+        EnclaveImage[] memory images,
+        bytes32[] memory families
+    ) internal onlyInitializing {
+        if (!(images.length == families.length)) revert AttestationAutherMismatchedLengths();
+        for (uint256 i = 0; i < images.length; i++) {
+            bytes32 imageId = _whitelistEnclaveImage(images[i]);
+            _addEnclaveImageToFamily(imageId, families[i]);
+        }
+    }
+
     function _pubKeyToAddress(bytes memory pubKey) internal pure returns (address) {
-        require(pubKey.length == 64, "Invalid public key length");
+        if (!(pubKey.length == 64)) revert AttestationAutherPubkeyLengthInvalid();
 
         bytes32 hash = keccak256(pubKey);
         return address(uint160(uint256(hash)));
     }
 
     function _whitelistEnclaveImage(EnclaveImage memory image) internal returns (bytes32) {
-        require(
-            image.PCR0.length == 48 && image.PCR1.length == 48 && image.PCR2.length == 48,
-            "AA:WI-PCR values must be 48 bytes"
-        );
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        if (!(image.PCR0.length == 48 && image.PCR1.length == 48 && image.PCR2.length == 48))
+            revert AttestationAutherPCRsInvalid();
 
         bytes32 imageId = keccak256(abi.encodePacked(image.PCR0, image.PCR1, image.PCR2));
-        require(whitelistedImages[imageId].PCR0.length == 0, "AA:WI-image already whitelisted");
-        whitelistedImages[imageId] = EnclaveImage(image.PCR0, image.PCR1, image.PCR2);
+        if (!($.whitelistedImages[imageId].PCR0.length == 0)) revert AttestationAutherImageAlreadyWhitelisted();
+        $.whitelistedImages[imageId] = EnclaveImage(image.PCR0, image.PCR1, image.PCR2);
         emit EnclaveImageWhitelisted(imageId, image.PCR0, image.PCR1, image.PCR2);
         return imageId;
     }
 
     function _revokeEnclaveImage(bytes32 imageId) internal {
-        require(whitelistedImages[imageId].PCR0.length != 0, "AA:RI-Image not whitelisted");
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
-        delete whitelistedImages[imageId];
+        if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
+
+        delete $.whitelistedImages[imageId];
         emit EnclaveImageRevoked(imageId);
     }
 
-    function _whitelistEnclaveKey(bytes memory enclavePubKey, bytes32 imageId) internal {
-        require(whitelistedImages[imageId].PCR0.length != 0, "AA:WK-Image not whitelisted");
-        address enclaveKey = _pubKeyToAddress(enclavePubKey);
-        require(verifiedKeys[enclaveKey] == bytes32(0), "AA:WK-Enclave key already verified");
+    function _addEnclaveImageToFamily(bytes32 imageId, bytes32 family) internal {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
-        verifiedKeys[enclaveKey] = imageId;
+        $.imageFamilies[family][imageId] = true;
+        emit EnclaveImageAddedToFamily(imageId, family);
+    }
+
+    function _removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) internal {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        $.imageFamilies[family][imageId] = false;
+        emit EnclaveImageRemovedFromFamily(imageId, family);
+    }
+
+    function _whitelistEnclaveKey(bytes memory enclavePubKey, bytes32 imageId) internal {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
+        address enclaveKey = _pubKeyToAddress(enclavePubKey);
+        if (!($.verifiedKeys[enclaveKey] == bytes32(0))) revert AttestationAutherKeyAlreadyVerified();
+
+        $.verifiedKeys[enclaveKey] = imageId;
         emit EnclaveKeyWhitelisted(enclavePubKey, imageId);
     }
 
     function _revokeEnclaveKey(bytes memory enclavePubKey) internal {
-        address enclaveKey = _pubKeyToAddress(enclavePubKey);
-        require(verifiedKeys[enclaveKey] != bytes32(0), "AA:RK-Enclave key not verified");
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
-        delete verifiedKeys[enclaveKey];
+        address enclaveKey = _pubKeyToAddress(enclavePubKey);
+        if (!($.verifiedKeys[enclaveKey] != bytes32(0))) revert AttestationAutherKeyNotVerified();
+
+        delete $.verifiedKeys[enclaveKey];
         emit EnclaveKeyRevoked(enclavePubKey);
     }
 
     // add enclave key of a whitelisted image to the list of verified enclave keys
-    function _verifyKey(
-        bytes memory signature,
-        bytes memory enclavePubKey,
-        bytes32 imageId,
-        uint256 enclaveCPUs,
-        uint256 enclaveMemory,
-        uint256 timestampInMilliseconds
-    ) internal {
-        require(whitelistedImages[imageId].PCR0.length != 0, "AA:VK-Enclave image to verify not whitelisted");
-        address enclaveKey = _pubKeyToAddress(enclavePubKey);
-        require(verifiedKeys[enclaveKey] == bytes32(0), "AA:VK-Enclave key already verified");
-        require(timestampInMilliseconds / 1000 > block.timestamp - ATTESTATION_MAX_AGE, "AA:VK-Attestation too old");
+    function _verifyEnclaveKey(bytes memory signature, IAttestationVerifier.Attestation memory attestation) internal {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
-        EnclaveImage memory image = whitelistedImages[imageId];
-        ATTESTATION_VERIFIER.verify(
-            signature,
-            enclavePubKey,
-            image.PCR0,
-            image.PCR1,
-            image.PCR2,
-            enclaveCPUs,
-            enclaveMemory,
-            timestampInMilliseconds
-        );
+        bytes32 imageId = keccak256(abi.encodePacked(attestation.PCR0, attestation.PCR1, attestation.PCR2));
+        if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
+        address enclaveKey = _pubKeyToAddress(attestation.enclavePubKey);
+        if (!($.verifiedKeys[enclaveKey] == bytes32(0))) revert AttestationAutherKeyAlreadyVerified();
+        if (!(attestation.timestampInMilliseconds / 1000 > block.timestamp - ATTESTATION_MAX_AGE))
+            revert AttestationAutherAttestationTooOld();
 
-        verifiedKeys[enclaveKey] = imageId;
-        emit EnclaveKeyVerified(enclavePubKey, imageId);
+        ATTESTATION_VERIFIER.verify(signature, attestation);
+
+        $.verifiedKeys[enclaveKey] = imageId;
+        emit EnclaveKeyVerified(attestation.enclavePubKey, imageId);
     }
 
-    function verifyKey(
-        bytes memory signature,
-        bytes memory enclavePubKey,
-        bytes32 imageId,
-        uint256 enclaveCPUs,
-        uint256 enclaveMemory,
-        uint256 timestampInMilliseconds
-    ) external {
-        return _verifyKey(signature, enclavePubKey, imageId, enclaveCPUs, enclaveMemory, timestampInMilliseconds);
+    function verifyEnclaveKey(bytes memory signature, IAttestationVerifier.Attestation memory attestation) external {
+        return _verifyEnclaveKey(signature, attestation);
     }
 
     function _allowOnlyVerified(address key) internal view {
-        bytes32 imageId = verifiedKeys[key];
-        require(imageId != bytes32(0), "AA:AOV-Enclave key must be verified");
-        require(whitelistedImages[imageId].PCR0.length != 0, "AA:AOV-Source image must be whitelisted");
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        bytes32 imageId = $.verifiedKeys[key];
+        if (!(imageId != bytes32(0))) revert AttestationAutherKeyNotVerified();
+        if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
     }
 
-    function _getWhitelistedImage(bytes32 _imageId) internal view virtual returns (EnclaveImage memory) {
-        return whitelistedImages[_imageId];
+    function _allowOnlyVerifiedFamily(address key, bytes32 family) internal view {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        bytes32 imageId = $.verifiedKeys[key];
+        if (!(imageId != bytes32(0))) revert AttestationAutherKeyNotVerified();
+        if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
+        if (!($.imageFamilies[family][imageId])) revert AttestationAutherImageNotInFamily();
     }
 
-    function _getVerifiedKey(address _key) internal view virtual returns (bytes32) {
-        return verifiedKeys[_key];
+    function getWhitelistedImage(bytes32 _imageId) external view returns (EnclaveImage memory) {
+        return _getWhitelistedImage(_imageId);
     }
 
-    function _allowOnlyVerified(address key, bytes32 _imageId) internal view virtual returns (bool) {
-        bytes32 imageId = verifiedKeys[key];
-        return imageId != bytes32(0) && imageId == _imageId && whitelistedImages[imageId].PCR0.length != 0;
+    function _getWhitelistedImage(bytes32 _imageId) internal view returns (EnclaveImage memory) {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        return $.whitelistedImages[_imageId];
+    }
+
+    function getVerifiedKey(address _key) external view returns (bytes32) {
+        return _getVerifiedKey(_key);
+    }
+
+    function _getVerifiedKey(address _key) internal view returns (bytes32) {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        return $.verifiedKeys[_key];
+    }
+
+    function isImageInFamily(bytes32 imageId, bytes32 family) external view returns (bool) {
+        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
+
+        return $.imageFamilies[family][imageId];
     }
 }

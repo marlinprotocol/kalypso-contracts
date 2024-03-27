@@ -135,20 +135,11 @@ contract EntityKeyRegistry is
             bytes memory PCR0,
             bytes memory PCR1,
             bytes memory PCR2,
-            uint256 enclaveCPUs,
-            uint256 enclaveMemory,
             uint256 timestamp
-        ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
+        ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256));
 
         // compute image id in proper way
-        _verifyKey(
-            attestation,
-            enclaveKey,
-            PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2),
-            enclaveCPUs,
-            enclaveMemory,
-            timestamp
-        );
+        _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
     }
 
     function _whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
@@ -170,8 +161,9 @@ contract EntityKeyRegistry is
     /**
      * @notice Check if the given address is allowed to operate for a given enclave
      */
-    function allowOnlyVerified(address key, bytes32 _imageId) external view returns (bool) {
-        return _allowOnlyVerified(key, _imageId);
+    function onlyImage(bytes32 _imageId, address key) external view returns (bool) {
+        bytes32 imageId = _getVerifiedKey(key);
+        return imageId != bytes32(0) && imageId == _imageId && _getWhitelistedImage(_imageId).PCR0.length != 0;
     }
 
     // for further increase

@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PrivateKey } from "eciesjs";
-import { AddressLike, BytesLike, Signer } from "ethers";
+import { AddressLike, BytesLike, Signer, SigningKey } from "ethers";
 import BigNumber from "bignumber.js";
 
 export * as secret_operations from "./secretInputOperation";
@@ -192,7 +192,6 @@ export const NO_ENCLAVE_ID = "0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a
 function getTimestampMs(delay: number = 0): number {
   return new BigNumber(new BigNumber(new Date().valueOf()).plus(delay).toFixed(0)).toNumber();
 }
-
 export class MockEnclave {
   public wallet: WalletInfo;
   public pcrs: [BytesLike, BytesLike, BytesLike];
@@ -220,8 +219,8 @@ export class MockEnclave {
     let abiCoder = new ethers.AbiCoder();
 
     let attestationBytes = abiCoder.encode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      ["0x00", this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], "0x00", "0x00", timestamp],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"],
+      ["0x00", this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], timestamp],
     );
 
     return attestationBytes;
@@ -233,41 +232,45 @@ export class MockEnclave {
   ): Promise<BytesLike> {
     let abiCoder = new ethers.AbiCoder();
 
-    const cpu = 4; // hard code this for now
-    const memory = 2000; // // hard code this for now
+    const EIP712Domain = ethers.keccak256(ethers.toUtf8Bytes("EIP712Domain(string name,string version)"));
+    const nameHash = ethers.keccak256(ethers.toUtf8Bytes("marlin.oyster.AttestationVerifier"));
+    const versionHash = ethers.keccak256(ethers.toUtf8Bytes("1"));
 
-    const ATTESTATION_PREFIX = "Enclave Attestation Verified";
-    let encoded = abiCoder.encode(
-      ["string", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      [
-        ATTESTATION_PREFIX,
-        this.wallet.uncompressedPublicKey,
-        this.pcrs[0],
-        this.pcrs[1],
-        this.pcrs[2],
-        cpu,
-        memory,
-        timestamp,
-      ],
+    const DOMAIN_SEPARATOR = ethers.keccak256(
+      abiCoder.encode(["bytes32", "bytes32", "bytes32"], [EIP712Domain, nameHash, versionHash]),
     );
-    let digest = ethers.keccak256(encoded);
-    // console.log({ messageHash: new BigNumber(digest).toFixed(0) });
 
-    // console.log({ attestationVerifierEnclaveAddress: attestationVerifierEnclave.getAddress() });
-    let firstStageSignature = await attestationVerifierEnclave.signMessage(ethers.getBytes(digest));
+    const ATTESTATION_TYPEHASH = ethers.keccak256(
+      ethers.toUtf8Bytes(
+        "Attestation(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)",
+      ),
+    );
+
+    // Encode and hash the attestation structure
+    const hashStruct = ethers.keccak256(
+      abiCoder.encode(
+        ["bytes32", "bytes32", "bytes32", "bytes32", "bytes32", "uint256"],
+        [
+          ATTESTATION_TYPEHASH,
+          ethers.keccak256(ethers.getBytes(this.wallet.uncompressedPublicKey)),
+          ethers.keccak256(ethers.getBytes(this.pcrs[0])),
+          ethers.keccak256(ethers.getBytes(this.pcrs[1])),
+          ethers.keccak256(ethers.getBytes(this.pcrs[2])),
+          timestamp,
+        ],
+      ),
+    );
+
+    // Create the digest
+    const digest = ethers.keccak256(
+      ethers.solidityPacked(["bytes", "bytes32", "bytes32"], ["0x1901", DOMAIN_SEPARATOR, hashStruct]),
+    );
+
+    let firstStageSignature = await attestationVerifierEnclave.signMessageWithoutPrefix(ethers.getBytes(digest));
 
     let attestationBytes = abiCoder.encode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      [
-        firstStageSignature,
-        this.wallet.uncompressedPublicKey,
-        this.pcrs[0],
-        this.pcrs[1],
-        this.pcrs[2],
-        cpu,
-        memory,
-        timestamp,
-      ],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"],
+      [firstStageSignature, this.wallet.uncompressedPublicKey, this.pcrs[0], this.pcrs[1], this.pcrs[2], timestamp],
     );
 
     return attestationBytes;
@@ -302,6 +305,12 @@ export class MockEnclave {
     return this.wallet.privateKey;
   }
 
+  public async signMessageWithoutPrefix(ethHash: BytesLike): Promise<string> {
+    const generatorEnclaveSigningKey = new SigningKey(this.wallet.privateKey);
+    const signature = generatorEnclaveSigningKey.sign(ethHash).serialized;
+    return signature;
+  }
+
   public async signMessage(ethHash: BytesLike): Promise<string> {
     let generateEnclaveSigner = new ethers.Wallet(this.wallet.privateKey);
     let signature = await generateEnclaveSigner.signMessage(ethHash);
@@ -332,10 +341,7 @@ export class MockEnclave {
   public static getImageIdFromAttestation(attesationData: BytesLike): BytesLike {
     let abicode = new ethers.AbiCoder();
 
-    let decoded = abicode.decode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      attesationData,
-    );
+    let decoded = abicode.decode(["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"], attesationData);
     let encoded = ethers.solidityPacked(["bytes", "bytes", "bytes"], [decoded[2], decoded[3], decoded[4]]);
     let digest = ethers.keccak256(encoded);
     return digest;
@@ -350,10 +356,7 @@ export class MockEnclave {
   public static getPubKeyAndAddressFromAttestation(attesationData: BytesLike): PubkeyAndAddress {
     let abicode = new ethers.AbiCoder();
 
-    let decoded = abicode.decode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      attesationData,
-    );
+    let decoded = abicode.decode(["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"], attesationData);
     let pubkey = decoded[1];
     let hash = ethers.keccak256(pubkey);
 

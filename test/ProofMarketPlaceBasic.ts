@@ -171,9 +171,8 @@ describe("Proof market place", () => {
     await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
     await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
-    expect(
-      await entityRegistry.allowOnlyVerified(matchingEngineEnclave.getAddress(), matchingEngineEnclave.getImageId()),
-    ).to.be.true;
+    expect(await entityRegistry.onlyImage(matchingEngineEnclave.getImageId(), matchingEngineEnclave.getAddress())).to.be
+      .true;
   });
 
   it("Update Marketplace address with timeout attesation should fail", async () => {
@@ -189,9 +188,9 @@ describe("Proof market place", () => {
     let signature = await matchingEngineEnclave.signMessage(ethers.getBytes(digest));
 
     await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
-    await expect(proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature)).to.be.revertedWith(
-      "AA:VK-Attestation too old",
-    );
+    await expect(
+      proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature),
+    ).to.be.revertedWithCustomError(entityRegistry, "AttestationAutherAttestationTooOld");
   });
 
   describe("Ask", () => {

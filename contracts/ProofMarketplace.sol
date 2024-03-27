@@ -393,10 +393,7 @@ contract ProofMarketplace is
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-        require(
-            ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, matchingEngineImageId),
-            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
-        );
+        require(ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
 
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], generators[index], newAcls[index]);
@@ -408,7 +405,7 @@ contract ProofMarketplace is
      */
     function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
         require(
-            ENTITY_KEY_REGISTRY.allowOnlyVerified(_msgSender(), matchingEngineImageId),
+            ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, _msgSender()),
             Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
         );
         _assignTask(askId, generator, new_acl);
@@ -634,7 +631,7 @@ contract ProofMarketplace is
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
         require(signer != address(0), Error.CANNOT_BE_ZERO);
-        require(ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, expectedImageId), Error.INVALID_ENCLAVE_KEY);
+        require(ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer), Error.INVALID_ENCLAVE_KEY);
         return true;
     }
 

@@ -38,7 +38,7 @@ contract Dispute {
         address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
         require(signer != address(0), Error.CANNOT_BE_ZERO);
 
-        require(ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, expectedImageId), Error.INVALID_ENCLAVE_KEY);
+        require(ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer), Error.INVALID_ENCLAVE_KEY);
         return true;
     }
 
