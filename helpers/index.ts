@@ -306,13 +306,13 @@ export class MockEnclave {
   }
 
   public async signMessageWithoutPrefix(ethHash: BytesLike): Promise<string> {
-    const generatorEnclaveSigningKey = new SigningKey(this.wallet.privateKey);
+    const generatorEnclaveSigningKey = new SigningKey(this.getPrivateKey(true));
     const signature = generatorEnclaveSigningKey.sign(ethHash).serialized;
     return signature;
   }
 
   public async signMessage(ethHash: BytesLike): Promise<string> {
-    let generateEnclaveSigner = new ethers.Wallet(this.wallet.privateKey);
+    let generateEnclaveSigner = new ethers.Wallet(this.getPrivateKey(true));
     let signature = await generateEnclaveSigner.signMessage(ethHash);
 
     return signature;
