@@ -102,8 +102,8 @@ describe("Entity key registry tests", () => {
     const expectedAddress = "0xe511c2c747Fa2F46e8786cbF4d66b015d1FCfaC1";
 
     let inputBytes = abiCoder.encode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      ["0x00", knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00", new Date().valueOf()],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"],
+      ["0x00", knownPubkey, "0x00", "0x00", "0x00", new Date().valueOf()],
     );
 
     const info = MockEnclave.getPubKeyAndAddressFromAttestation(inputBytes);

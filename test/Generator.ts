@@ -383,17 +383,8 @@ describe("Checking Generator's multiple compute", () => {
 
     let abiCoder = new ethers.AbiCoder();
     let validAttesationWithInvalidKey = abiCoder.encode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      [
-        "0x00",
-        invalidPubkey,
-        MockGeneratorPCRS[0],
-        MockGeneratorPCRS[1],
-        MockGeneratorPCRS[2],
-        "0x00",
-        "0x00",
-        new Date().valueOf(),
-      ],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"],
+      ["0x00", invalidPubkey, MockGeneratorPCRS[0], MockGeneratorPCRS[1], MockGeneratorPCRS[2], new Date().valueOf()],
     );
 
     let types = ["bytes", "address"];
