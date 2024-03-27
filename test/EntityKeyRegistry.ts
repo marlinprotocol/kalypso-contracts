@@ -47,8 +47,9 @@ describe("Entity key registry tests", () => {
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
-      await errorLibrary.INVALID_ENCLAVE_KEY(),
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWithCustomError(
+      entityKeyRegistry,
+      "InvalidEnclaveKey",
     );
   });
 

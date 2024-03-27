@@ -58,7 +58,9 @@ library HELPER {
 
     function PUBKEY_TO_ADDRESS(bytes memory publicKey) internal pure returns (address) {
         // Ensure the internal key is 64 bytes long
-        require(publicKey.length == 64, Error.INVALID_ENCLAVE_KEY);
+        if (publicKey.length != 64) {
+            revert Error.InvalidEnclaveKey();
+        }
 
         // Perform the elliptic curve recover operation to get the Ethereum address
         bytes32 hash = keccak256(publicKey);
@@ -94,7 +96,9 @@ library HELPER {
         bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
-        require(signer == GET_ADDRESS(attestationData), Error.INVALID_ENCLAVE_SIGNATURE);
+        if (signer != GET_ADDRESS(attestationData)) {
+            revert Error.InvalidEnclaveSignature(signer);
+        }
     }
 
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;

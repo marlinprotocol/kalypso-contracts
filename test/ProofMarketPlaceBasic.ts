@@ -439,9 +439,9 @@ describe("Proof market place", () => {
           .connect(generator)
           .joinMarketplace(marketId, computeUnitsRequired, minRewardForGenerator.toFixed(), 100, false, "0x", "0x");
 
-        await expect(generatorRegistry.connect(generator).deregister(await generator.getAddress())).to.be.revertedWith(
-          await errorLibrary.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET(),
-        );
+        await expect(
+          generatorRegistry.connect(generator).deregister(await generator.getAddress()),
+        ).to.be.revertedWithCustomError(errorLibrary, "CannotLeaveWithActiveMarket");
       });
 
       it("Deregister generator data", async () => {
@@ -501,14 +501,15 @@ describe("Proof market place", () => {
         });
 
         it("unstake should fail without request", async () => {
-          await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress())).to.be.revertedWith(
-            await errorLibrary.UNSTAKE_REQUEST_NOT_IN_PLACE(),
-          );
+          await expect(
+            generatorRegistry.connect(generator).unstake(await generator.getAddress()),
+          ).to.be.revertedWithCustomError(errorLibrary, "UnstakeRequestNotInPlace");
         });
 
         it("Decrease Compute should fail without request", async () => {
-          await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWith(
-            await errorLibrary.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE(),
+          await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWithCustomError(
+            errorLibrary,
+            "ReduceComputeRequestNotInPlace",
           );
         });
 
@@ -541,9 +542,9 @@ describe("Proof market place", () => {
 
           it("Should fail if unstake is called more than once per request", async () => {
             await generatorRegistry.connect(generator).unstake(await generator.getAddress());
-            await expect(generatorRegistry.connect(generator).unstake(await generator.getAddress())).to.be.revertedWith(
-              await errorLibrary.UNSTAKE_REQUEST_NOT_IN_PLACE(),
-            );
+            await expect(
+              generatorRegistry.connect(generator).unstake(await generator.getAddress()),
+            ).to.be.revertedWithCustomError(errorLibrary, "UnstakeRequestNotInPlace");
           });
         });
 
@@ -574,8 +575,9 @@ describe("Proof market place", () => {
 
           it("Should fail if decrease compute is called more than once per request", async () => {
             await generatorRegistry.connect(generator).decreaseDeclaredCompute();
-            await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWith(
-              await errorLibrary.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE(),
+            await expect(generatorRegistry.connect(generator).decreaseDeclaredCompute()).to.be.revertedWithCustomError(
+              errorLibrary,
+              "ReduceComputeRequestNotInPlace",
             );
           });
         });
@@ -724,7 +726,7 @@ describe("Proof market place", () => {
             proofMarketplace
               .connect(matchingEngineSigner)
               .assignTask(anotherAskId.toString(), await generator.getAddress(), "0x1234"),
-          ).to.be.revertedWith(await errorLibrary.ASSIGN_ONLY_TO_IDLE_GENERATORS());
+          ).to.be.revertedWithCustomError(errorLibrary, "AssignOnlyToIdleGenerators");
         });
 
         it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
@@ -733,7 +735,7 @@ describe("Proof market place", () => {
             proofMarketplace
               .connect(matchingEngineSigner)
               .assignTask(askId.toString(), await generator.getAddress(), "0x"),
-          ).to.be.rejectedWith(await errorLibrary.SHOULD_BE_IN_CREATE_STATE());
+          ).to.be.revertedWithCustomError(errorLibrary, "ShouldBeInCreateState");
         });
 
         it("Can cancel ask once the ask is expired", async () => {
@@ -879,9 +881,9 @@ describe("Proof market place", () => {
             await proofMarketplace.flushToTreasury(); // remove anything if is already there
 
             // because enclave key for new enclave is not verified yet
-            await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature)).to.be.revertedWith(
-              await errorLibrary.INVALID_ENCLAVE_KEY(),
-            );
+            await expect(
+              proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature),
+            ).to.be.revertedWithCustomError(errorLibrary, "InvalidEnclaveKey");
             await updateIvsKey(anotherIvsEnclave);
 
             await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))
@@ -906,7 +908,7 @@ describe("Proof market place", () => {
           it("Can't slash request before deadline", async () => {
             await expect(
               proofMarketplace.connect(admin).slashGenerator(askId.toString(), await admin.getAddress()),
-            ).to.be.revertedWith(await errorLibrary.SHOULD_BE_IN_CROSSED_DEADLINE_STATE());
+            ).to.be.revertedWithCustomError(errorLibrary, "ShouldBeInCrossedDeadlineState");
           });
 
           describe("Failed submiited proof", () => {

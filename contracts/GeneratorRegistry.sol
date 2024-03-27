@@ -69,7 +69,9 @@ contract GeneratorRegistry is
         super._revokeRole(role, account);
 
         // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
+        if (getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0) {
+            revert Error.CannotBeAdminLess();
+        }
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -180,12 +182,14 @@ contract GeneratorRegistry is
         address _generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[_generatorAddress];
 
-        require(generatorData.length != 0, Error.CANNOT_BE_ZERO);
-        require(rewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(declaredCompute != 0, Error.CANNOT_BE_ZERO);
+        if (generatorData.length == 0 || rewardAddress == address(0) || declaredCompute == 0) {
+            revert Error.CannotBeZero();
+        }
 
         // prevents registering multiple times, unless deregistered
-        require(generator.rewardAddress == address(0), Error.GENERATOR_ALREADY_EXISTS);
+        if (generator.rewardAddress != address(0)) {
+            revert Error.GeneratorAlreadyExists();
+        }
 
         generatorRegistry[_generatorAddress] = Generator(
             rewardAddress,
@@ -211,11 +215,12 @@ contract GeneratorRegistry is
      * @notice Change Generator's reward address
      */
     function changeRewardAddress(address newRewardAddress) external {
-        require(newRewardAddress != address(0), Error.CANNOT_BE_ZERO);
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
+        if (newRewardAddress == address(0) || generator.rewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
         generator.rewardAddress = newRewardAddress;
 
         emit ChangedGeneratorRewardAddress(_generatorAddress, newRewardAddress);
@@ -228,8 +233,9 @@ contract GeneratorRegistry is
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
-        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+            revert Error.CannotBeZero();
+        }
 
         generator.declaredCompute += computeToIncrease;
 
@@ -244,24 +250,33 @@ contract GeneratorRegistry is
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
-        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+            revert Error.CannotBeZero();
+        }
 
         // if request is already in place, this will ICU will be less than EXP (as per design)
-        require(generator.intendedComputeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+        if (generator.intendedComputeUtilization != EXPONENT) {
+            revert Error.RequestAlreadyInPlace();
+        }
 
         // new utilization should be always less than EXP
-        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
+        if (newUtilization >= EXPONENT) {
+            revert Error.ExceedsAcceptableRange();
+        }
 
         // new utilization after update
         uint256 newTotalCompute = (newUtilization * generator.declaredCompute) / EXPONENT;
 
         // this is min compute requires for atleast 1 request from each supported market
-        require(newTotalCompute >= generator.sumOfComputeAllocations, Error.EXCEEDS_ACCEPTABLE_RANGE);
+        if (newTotalCompute <= generator.sumOfComputeAllocations) {
+            revert Error.ExceedsAcceptableRange();
+        }
 
         // ensures that new utilization is not too small to release and prevent generator dead lock
         // uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
-        require(generator.declaredCompute - newTotalCompute != 0, Error.CANNOT_BE_ZERO);
+        if (generator.declaredCompute - newTotalCompute == 0) {
+            revert Error.CannotBeZero();
+        }
 
         // temporary value to store the new utilization
         generator.intendedComputeUtilization = newUtilization;
@@ -278,24 +293,35 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
 
         Generator storage generator = generatorRegistry[generatorAddress];
-        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
-        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
-        require(generator.intendedComputeUtilization != EXPONENT, Error.REDUCE_COMPUTE_REQUEST_NOT_IN_PLACE);
+
+        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
+            revert Error.InvalidGenerator();
+        }
+
+        if (generator.intendedComputeUtilization == EXPONENT) {
+            revert Error.ReduceComputeRequestNotInPlace();
+        }
 
         uint256 newTotalCompute = (generator.intendedComputeUtilization * generator.declaredCompute) / EXPONENT;
         uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
 
-        require(newTotalCompute >= generator.computeConsumed, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
-        require(newTotalCompute >= generator.sumOfComputeAllocations, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
+        if (newTotalCompute < generator.computeConsumed) {
+            revert Error.InsufficientGeneratorComputeAvailable();
+        }
+
+        if (newTotalCompute < generator.sumOfComputeAllocations) {
+            revert Error.InsufficientGeneratorComputeAvailable();
+        }
 
         generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
-        require(
-            block.number >= reduceComputeRequestBlock[generatorAddress] &&
-                reduceComputeRequestBlock[generatorAddress] != 0,
-            Error.REDUCTION_REQUEST_NOT_VALID
-        );
+        if (
+            !(block.number >= reduceComputeRequestBlock[generatorAddress] &&
+                reduceComputeRequestBlock[generatorAddress] != 0)
+        ) {
+            revert Error.ReductionRequestNotValid();
+        }
 
         delete reduceComputeRequestBlock[generatorAddress];
         emit DecreaseCompute(generatorAddress, computeToRelease);
@@ -306,9 +332,13 @@ contract GeneratorRegistry is
      */
     function stake(address generatorAddress, uint256 amount) external nonReentrant returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
-        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
-        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
-        require(amount != 0, Error.CANNOT_BE_ZERO);
+        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
+            revert Error.InvalidGenerator();
+        }
+
+        if (amount == 0) {
+            revert Error.CannotBeZero();
+        }
 
         STAKING_TOKEN.safeTransferFrom(_msgSender(), address(this), amount);
         generator.totalStake += amount;
@@ -325,14 +355,19 @@ contract GeneratorRegistry is
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO); // Check if generator is valid
-        require(generator.generatorData.length != 0, Error.CANNOT_BE_ZERO);
+        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+            revert Error.CannotBeZero();
+        }
 
         // if request is already in place, this will ICU will be less than EXP (as per design)
-        require(generator.intendedStakeUtilization == EXPONENT, Error.REQUEST_ALREADY_IN_PLACE);
+        if (generator.intendedComputeUtilization != EXPONENT) {
+            revert Error.RequestAlreadyInPlace();
+        }
 
         // new utilization should be always less than EXP
-        require(newUtilization < EXPONENT, Error.EXCEEDS_ACCEPTABLE_RANGE);
+        if (newUtilization >= EXPONENT) {
+            revert Error.ExceedsAcceptableRange();
+        }
 
         generator.intendedStakeUtilization = newUtilization;
 
@@ -341,7 +376,9 @@ contract GeneratorRegistry is
 
         // ensures that new utilization is not too small to release and prevent generator dead lock
         // uint256 stakeToRelease = generator.totalStake - newTotalStake;
-        require(generator.totalStake - newTotalStake != 0, Error.CANNOT_BE_ZERO);
+        if (generator.totalStake - newTotalStake == 0) {
+            revert Error.CannotBeZero();
+        }
 
         unstakeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestStakeDecrease(_generatorAddress, newUtilization);
@@ -354,16 +391,22 @@ contract GeneratorRegistry is
         address generatorAddress = _msgSender();
 
         Generator storage generator = generatorRegistry[generatorAddress];
-        require(generator.generatorData.length != 0, Error.INVALID_GENERATOR);
-        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
-        require(generator.intendedStakeUtilization != EXPONENT, Error.UNSTAKE_REQUEST_NOT_IN_PLACE);
+        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
+            revert Error.InvalidGenerator();
+        }
+
+        if (generator.intendedStakeUtilization == EXPONENT) {
+            revert Error.UnstakeRequestNotInPlace();
+        }
 
         uint256 newTotalStake = (generator.intendedStakeUtilization * generator.totalStake) / EXPONENT;
 
         uint256 amountToTransfer = generator.totalStake - newTotalStake;
 
         // prevent removing amount unless existing stake is not released
-        require(newTotalStake >= generator.stakeLocked, Error.INSUFFICIENT_STAKE_TO_LOCK);
+        if (newTotalStake < generator.stakeLocked) {
+            revert Error.InsufficientStakeToLock();
+        }
 
         // amountToTransfer will be non-zero
         STAKING_TOKEN.safeTransfer(to, amountToTransfer);
@@ -371,10 +414,10 @@ contract GeneratorRegistry is
         generator.totalStake = newTotalStake;
         generator.intendedStakeUtilization = EXPONENT;
 
-        require(
-            block.number >= unstakeRequestBlock[generatorAddress] && unstakeRequestBlock[generatorAddress] != 0,
-            Error.REDUCTION_REQUEST_NOT_VALID
-        );
+        if (!(block.number >= unstakeRequestBlock[generatorAddress] && unstakeRequestBlock[generatorAddress] != 0)) {
+            revert Error.ReductionRequestNotValid();
+        }
+
         delete unstakeRequestBlock[generatorAddress];
         emit RemovedStake(generatorAddress, amountToTransfer);
     }
@@ -386,7 +429,10 @@ contract GeneratorRegistry is
         address _generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[_generatorAddress];
 
-        require(generator.sumOfComputeAllocations == 0, Error.CAN_NOT_LEAVE_WITH_ACTIVE_MARKET);
+        if (generator.sumOfComputeAllocations != 0) {
+            revert Error.CannotLeaveWithActiveMarket();
+        }
+
         STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_generatorAddress];
 
@@ -406,15 +452,18 @@ contract GeneratorRegistry is
 
         (, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
 
-        require(
-            expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID,
-            Error.PUBLIC_MARKETS_DONT_NEED_KEY
-        );
+        if (!(expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID)) {
+            revert Error.PublicMarketsDontNeedKey();
+        }
 
-        require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
+        if (expectedImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
+            revert Error.IncorrectImageId();
+        }
 
         // just an extra check to prevent spam
-        require(generator.rewardAddress != address(0), Error.CANNOT_BE_ZERO);
+        if (generator.rewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
         bytes memory pubkey = attestationData.GET_PUBKEY();
 
@@ -432,7 +481,9 @@ contract GeneratorRegistry is
         (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
 
         // ensure only right image is used
-        require(expectedIvsImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
+        if (expectedIvsImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
+            revert Error.IncorrectImageId();
+        }
 
         // confirms that _msgSender() has access to enclave
         attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender());
@@ -464,30 +515,31 @@ contract GeneratorRegistry is
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        require(generator.rewardAddress != address(0), Error.INVALID_GENERATOR);
+        // proof generation time can't be zero.
+        // compute required per proof can't be zero
+        if (generator.rewardAddress == address(0) || proposedTime == 0 || computePerRequestRequired == 0) {
+            revert Error.CannotBeZero();
+        }
 
         (address marketVerifierContractAddress, bytes32 expectedImageId) = _readMarketData(marketId);
 
         // prevent joining invalid market
-        require(marketVerifierContractAddress != address(0), Error.INVALID_MARKET);
+        if (marketVerifierContractAddress == address(0)) {
+            revert Error.InvalidMarket();
+        }
 
         // prevents re-joining
-        require(info.state == GeneratorState.NULL, Error.ALREADY_JOINED_MARKET);
-
-        // proof generation time can't be zero.
-        require(proposedTime != 0, Error.CANNOT_BE_ZERO);
-
-        // compute required per proof
-        require(computePerRequestRequired != 0, Error.CANNOT_BE_ZERO);
+        if (info.state != GeneratorState.NULL) {
+            revert Error.AlreadyJoinedMarket();
+        }
 
         // sum of compute allocation of all supported markets
         generator.sumOfComputeAllocations += computePerRequestRequired;
 
         // ensures that generator will support atleast 1 request for every market
-        require(
-            generator.sumOfComputeAllocations <= generator.declaredCompute,
-            Error.CAN_NOT_BE_MORE_THAN_DECLARED_COMPUTE
-        );
+        if (generator.sumOfComputeAllocations > generator.declaredCompute) {
+            revert Error.CannotBeMoreThanDeclaredCompute();
+        }
 
         // increment the number of active market places supported
         generator.activeMarketplaces++;
@@ -504,7 +556,9 @@ contract GeneratorRegistry is
         // if prover is public, no need to check the enclave signatures
         if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
             // check the image
-            require(expectedImageId == attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), Error.INCORRECT_IMAGE_ID);
+            if (expectedImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
+                revert Error.IncorrectImageId();
+            }
 
             // if users decides to update the market key in the same transaction
             if (updateMarketDedicatedKey) {
@@ -611,10 +665,9 @@ contract GeneratorRegistry is
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
         // only valid generators can exit the market
-        require(
-            state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT,
-            Error.ONLY_VALID_GENERATORS_CAN_REQUEST_EXIT
-        );
+        if (!(state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT)) {
+            revert Error.OnlyValidGeneratorsCanRequestExit();
+        }
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
         info.state = GeneratorState.REQUESTED_FOR_EXIT;
@@ -632,14 +685,20 @@ contract GeneratorRegistry is
         (IVerifier marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
 
         // check if market is valid
-        require(address(marketVerifier) != address(0), Error.INVALID_MARKET);
+        if (address(marketVerifier) == address(0)) {
+            revert Error.InvalidMarket();
+        }
 
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
-        require(info.state != GeneratorState.NULL, Error.INVALID_GENERATOR_STATE_PER_MARKET);
+        if (info.state == GeneratorState.NULL) {
+            revert Error.InvalidGeneratorStatePerMarket();
+        }
 
         // check if there are any active requestsw
-        require(info.activeRequests == 0, Error.CAN_NOT_LEAVE_MARKET_WITH_ACTIVE_REQUEST);
+        if (info.activeRequests != 0) {
+            revert Error.CannotLeaveMarketWithActiveRequest();
+        }
 
         Generator storage generator = generatorRegistry[generatorAddress];
 
@@ -662,12 +721,13 @@ contract GeneratorRegistry is
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
         // other generator states can't be slashed
-        require(
-            state == GeneratorState.WIP ||
+        if (
+            !(state == GeneratorState.WIP ||
                 state == GeneratorState.REQUESTED_FOR_EXIT ||
-                state == GeneratorState.NO_COMPUTE_AVAILABLE,
-            Error.CAN_N0T_BE_SLASHED
-        );
+                state == GeneratorState.NO_COMPUTE_AVAILABLE)
+        ) {
+            revert Error.CannotBeSlashed();
+        }
 
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
@@ -690,17 +750,26 @@ contract GeneratorRegistry is
         uint256 stakeToLock
     ) external nonReentrant onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
-        require(state == GeneratorState.JOINED || state == GeneratorState.WIP, Error.ASSIGN_ONLY_TO_IDLE_GENERATORS);
+
+        if (!(state == GeneratorState.JOINED || state == GeneratorState.WIP)) {
+            revert Error.AssignOnlyToIdleGenerators();
+        }
 
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
         // requiredCompute <= idleCapacity
-        require(info.computePerRequestRequired <= idleCapacity, Error.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE);
-        require(info.activeRequests <= PARALLEL_REQUESTS_UPPER_LIMIT, Error.MAX_PARALLEL_REQUESTS_PER_MARKET_EXCEEDED);
+        if (info.computePerRequestRequired > idleCapacity) {
+            revert Error.InsufficientGeneratorComputeAvailable();
+        }
+        if (info.activeRequests > PARALLEL_REQUESTS_UPPER_LIMIT) {
+            revert Error.MaxParallelRequestsPerMarketExceeded();
+        }
 
         uint256 availableStake = _maxReducableStake(generatorAddress);
-        require(availableStake >= stakeToLock, Error.INSUFFICIENT_STAKE_TO_LOCK);
+        if (availableStake < stakeToLock) {
+            revert Error.InsufficientStakeToLock();
+        }
 
         generator.stakeLocked += stakeToLock;
         generator.computeConsumed += info.computePerRequestRequired;
@@ -713,12 +782,13 @@ contract GeneratorRegistry is
         uint256 stakeToRelease
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
-        require(
-            state == GeneratorState.WIP ||
+        if (
+            !(state == GeneratorState.WIP ||
                 state == GeneratorState.REQUESTED_FOR_EXIT ||
-                state == GeneratorState.NO_COMPUTE_AVAILABLE,
-            Error.ONLY_WORKING_GENERATORS
-        );
+                state == GeneratorState.NO_COMPUTE_AVAILABLE)
+        ) {
+            revert Error.OnlyWorkingGenerators();
+        }
 
         Generator storage generator = generatorRegistry[generatorAddress];
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];

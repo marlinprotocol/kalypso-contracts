@@ -36,9 +36,13 @@ contract Dispute {
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
-        require(signer != address(0), Error.CANNOT_BE_ZERO);
+        if (signer == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
-        require(ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer), Error.INVALID_ENCLAVE_KEY);
+        if (!ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer)) {
+            revert Error.InvalidEnclaveKey();
+        }
         return true;
     }
 

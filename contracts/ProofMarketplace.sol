@@ -106,7 +106,9 @@ contract ProofMarketplace is
         super._revokeRole(role, account);
 
         // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
+        if (getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0) {
+            revert Error.CannotBeAdminLess();
+        }
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -240,11 +242,13 @@ contract ProofMarketplace is
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
-        require(_penalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
-        require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
+        if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
-        require(address(_verifier) != address(0), Error.CANNOT_BE_ZERO);
-        require(_verifier.checkSampleInputsAndProof(), Error.INVALID_INPUTS);
+        if (!_verifier.checkSampleInputsAndProof()) {
+            revert Error.InvalidInputs();
+        }
 
         // White list image if is not
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
@@ -290,27 +294,40 @@ contract ProofMarketplace is
         bytes calldata privateInputs,
         bytes calldata acl
     ) internal {
-        require(ask.reward != 0, Error.CANNOT_BE_ZERO);
-        require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
-        require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
-        require(acl.length <= 130, Error.INVALID_ECIES_ACL);
+        if (ask.reward == 0 || ask.proverData.length == 0) {
+            revert Error.CannotBeZero();
+        }
+        if (ask.expiry <= block.number) {
+            revert Error.CannotAssignExpiredTasks();
+        }
+        // ensures that the cipher used is small enough
+        if (acl.length > 130) {
+            revert Error.InvalidECIESACL();
+        }
 
         Market memory market = marketData[ask.marketId];
-        require(block.number > market.activationBlock, Error.INACTIVE_MARKET);
+        if (block.number < market.activationBlock) {
+            revert Error.InactiveMarket();
+        }
 
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
         treasuryCollection += platformFee;
 
-        require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
 
         uint256 askId = listOfAsk.length;
         AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender, address(0));
         listOfAsk.push(askRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
-        require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
+
+        if (!inputVerifier.verifyInputs(ask.proverData)) {
+            revert Error.InvalidInputs();
+        }
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
@@ -386,14 +403,18 @@ contract ProofMarketplace is
         bytes[] calldata newAcls,
         bytes calldata signature
     ) external nonReentrant {
-        require(askIds.length == generators.length, Error.ARITY_MISMATCH);
-        require(askIds.length == newAcls.length, Error.ARITY_MISMATCH);
+        if (askIds.length != generators.length || generators.length != newAcls.length) {
+            revert Error.ArityMismatch();
+        }
 
         bytes32 messageHash = keccak256(abi.encode(askIds, generators, newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-        require(ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, signer), Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN);
+
+        if (!ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, signer)) {
+            revert Error.OnlyMatchingEngineCanAssign();
+        }
 
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], generators[index], newAcls[index]);
@@ -404,16 +425,17 @@ contract ProofMarketplace is
      * @notice Assign Tasks for Generators directly if ME signer has the gas
      */
     function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
-        require(
-            ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, _msgSender()),
-            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
-        );
+        if (!ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, _msgSender())) {
+            revert Error.OnlyMatchingEngineCanAssign();
+        }
         _assignTask(askId, generator, new_acl);
     }
 
     function _assignTask(uint256 askId, address generator, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
+        if (getAskState(askId) != AskState.CREATE) {
+            revert Error.ShouldBeInCreateState();
+        }
 
         AskWithState storage askWithState = listOfAsk[askId];
         (uint256 proofGenerationCost, uint256 generatorProposedTime) = GENERATOR_REGISTRY.getGeneratorAssignmentDetails(
@@ -422,10 +444,14 @@ contract ProofMarketplace is
         );
 
         // Can not assign task if price mismatch happens
-        require(askWithState.ask.reward >= proofGenerationCost, Error.PROOF_PRICE_MISMATCH);
+        if (askWithState.ask.reward < proofGenerationCost) {
+            revert Error.ProofPriceMismatch(askId);
+        }
 
         // Can not assign task if time mismatch happens
-        require(askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime, Error.PROOF_TIME_MISMATCH);
+        if (askWithState.ask.timeTakenForProofGeneration < generatorProposedTime) {
+            revert Error.ProofTimeMismatch(askId);
+        }
 
         askWithState.state = AskState.ASSIGNED;
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
@@ -441,7 +467,9 @@ contract ProofMarketplace is
      */
     function cancelAsk(uint256 askId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        require(getAskState(askId) == AskState.UNASSIGNED, Error.ONLY_EXPIRED_ASKS_CAN_BE_CANCELLED);
+        if (getAskState(askId) != AskState.UNASSIGNED) {
+            revert Error.OnlyExpiredAsksCanBeCancelled(askId);
+        }
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
@@ -459,8 +487,13 @@ contract ProofMarketplace is
             askWithState.ask.marketId
         );
 
-        require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (generatorRewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
+
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
 
         return (minRewardForGenerator, generatorRewardAddress);
     }
@@ -474,7 +507,9 @@ contract ProofMarketplace is
         uint256 _penalty
     ) internal {
         // Only assigned requests can be proved
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
         listOfAsk[askId].state = AskState.COMPLETE;
 
         // tokens related to incorrect request will be sen't to treasury
@@ -501,15 +536,16 @@ contract ProofMarketplace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
-        require(
-            _checkDisputeUsingSignature(
+        if (
+            !_checkDisputeUsingSignature(
                 askId,
                 askWithState.ask.proverData,
                 invalidProofSignature,
                 currentMarket.ivsImageId
-            ),
-            Error.CAN_NOT_SLASH_USING_VALID_INPUTS
-        );
+            )
+        ) {
+            revert Error.CannotSlashUsingValidInputs(askId);
+        }
 
         _completeProofForInvalidRequests(
             askId,
@@ -525,7 +561,9 @@ contract ProofMarketplace is
      * @notice Submit Multiple proofs in single transaction
      */
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
+        if (taskIds.length != proofs.length) {
+            revert Error.ArityMismatch();
+        }
         for (uint256 index = 0; index < taskIds.length; index++) {
             _submitProof(taskIds[index], proofs[index]);
         }
@@ -548,14 +586,21 @@ contract ProofMarketplace is
             askWithState.ask.marketId
         );
 
-        require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (generatorRewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
+
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
         // check what needs to be encoded from proof, ask and task for proof to be verified
 
         bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
 
         // Verify input and proof against verifier
-        require(marketData[marketId].verifier.verify(inputAndProof), Error.INVALID_PROOF);
+        if (!marketData[marketId].verifier.verify(inputAndProof)) {
+            revert Error.InvalidProof(askId);
+        }
         listOfAsk[askId].state = AskState.COMPLETE;
 
         uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
@@ -577,7 +622,9 @@ contract ProofMarketplace is
      * @notice Slash Generator for deadline crossed requests
      */
     function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant returns (uint256) {
-        require(getAskState(askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
+        if (getAskState(askId) != AskState.DEADLINE_CROSSED) {
+            revert Error.ShouldBeInCrossedDeadlineState(askId);
+        }
         return _slashGenerator(askId, rewardAddress);
     }
 
@@ -586,8 +633,12 @@ contract ProofMarketplace is
      */
     function discardRequest(uint256 askId) external nonReentrant returns (uint256) {
         AskWithState memory askWithState = listOfAsk[askId];
-        require(getAskState(askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
-        require(askWithState.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.ShouldBeInAssignedState(askId);
+        }
+        if (askWithState.generator != _msgSender()) {
+            revert Error.OnlyGeneratorCanDiscardRequest(askId);
+        }
         return _slashGenerator(askId, TREASURY);
     }
 
@@ -630,8 +681,13 @@ contract ProofMarketplace is
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
-        require(signer != address(0), Error.CANNOT_BE_ZERO);
-        require(ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer), Error.INVALID_ENCLAVE_KEY);
+        if (signer == address(0)) {
+            revert Error.InvalidEnclaveSignature(signer);
+        }
+
+        if (!ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer)) {
+            revert Error.InvalidEnclaveKey();
+        }
         return true;
     }
 

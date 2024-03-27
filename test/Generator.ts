@@ -302,7 +302,7 @@ describe("Checking Generator's multiple compute", () => {
 
         await expect(
           proofMarketplace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
-        ).to.be.revertedWith(await errorLibrary.INSUFFICIENT_GENERATOR_COMPUTE_AVAILABLE());
+        ).to.be.revertedWithCustomError(errorLibrary, "InsufficientGeneratorComputeAvailable");
       } else {
         const askId = await setup.createAsk(
           prover,
@@ -397,7 +397,7 @@ describe("Checking Generator's multiple compute", () => {
 
     await expect(
       generatorRegistry.connect(generator).updateEncryptionKey(marketId, validAttesationWithInvalidKey, signature),
-    ).to.be.revertedWith(await errorLibrary.INVALID_ENCLAVE_KEY());
+    ).to.be.revertedWithCustomError(errorLibrary, "InvalidEnclaveKey");
   });
 
   it("Remove key", async () => {

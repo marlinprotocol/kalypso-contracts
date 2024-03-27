@@ -67,7 +67,9 @@ contract EntityKeyRegistry is
         super._revokeRole(role, account);
 
         // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
+        if (getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0) {
+            revert Error.CannotBeAdminLess();
+        }
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -78,7 +80,9 @@ contract EntityKeyRegistry is
 
     modifier isNotUsedUpKey(bytes calldata pubkey) {
         address _address = pubkey.PUBKEY_TO_ADDRESS();
-        require(_getVerifiedKey(_address) == bytes32(0), Error.KEY_ALREADY_EXISTS);
+        if (_getVerifiedKey(_address) != bytes32(0)) {
+            revert Error.KeyAlreadyExists(_address);
+        }
         _;
     }
 
@@ -103,7 +107,9 @@ contract EntityKeyRegistry is
         bytes calldata pubkey,
         bytes calldata attestation_data
     ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
-        require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
+        if (pubkey.length != 64) {
+            revert Error.InvalidEnclaveKey();
+        }
 
         pub_key[keyOwner][keyIndex] = pubkey;
 
