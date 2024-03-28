@@ -180,25 +180,21 @@ contract AttestationAutherUpgradeable is
         if (!($.imageFamilies[family][imageId])) revert AttestationAutherImageNotInFamily();
     }
 
-    function getWhitelistedImage(bytes32 _imageId) public view returns (EnclaveImage memory) {
+    function _getWhitelistedImage(bytes32 _imageId) internal view returns (EnclaveImage memory) {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         return $.whitelistedImages[_imageId];
     }
 
-    function getVerifiedKey(address _key) public view returns (bytes32) {
+    function _getVerifiedKey(address _key) internal view returns (bytes32) {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         return $.verifiedKeys[_key];
     }
 
-    function isImageInFamily(bytes32 imageId, bytes32 family) public view returns (bool) {
+    function _isImageInFamily(bytes32 imageId, bytes32 family) internal view returns (bool) {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         return $.imageFamilies[family][imageId];
-    }
-
-    function isKeyInFamily(bytes32 family, address _key) public view returns (bool){
-        return isImageInFamily(getVerifiedKey(_key), family);
     }
 }

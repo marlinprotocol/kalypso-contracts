@@ -142,7 +142,7 @@ contract EntityKeyRegistry is
 
     function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
-        if (getWhitelistedImage(imageId).PCR0.length == 0) {
+        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
             _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
         }
 
@@ -156,6 +156,10 @@ contract EntityKeyRegistry is
         delete pub_key[keyOwner][keyIndex];
 
         emit RemoveKey(keyOwner, keyIndex);
+    }
+
+    function isKeyInFamily(bytes32 familyId, address _key) external view returns (bool) {
+        return _isImageInFamily(_getVerifiedKey(_key), familyId);
     }
 
     // for further increase
