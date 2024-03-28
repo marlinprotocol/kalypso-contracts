@@ -22,16 +22,9 @@ contract Dispute {
         uint256 askId,
         bytes calldata proverData,
         bytes memory invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 familyId
     ) internal view returns (bool) {
-        bytes32 messageHash;
-        bool isPublic = expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID;
-
-        if (isPublic) {
-            messageHash = keccak256(abi.encode(askId, proverData));
-        } else {
-            messageHash = keccak256(abi.encode(askId));
-        }
+        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
@@ -40,7 +33,7 @@ contract Dispute {
             revert Error.CannotBeZero();
         }
 
-        if (!ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer)) {
+        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(familyId, signer)) {
             revert Error.InvalidEnclaveKey();
         }
         return true;

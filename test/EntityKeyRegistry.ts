@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 
-import { MockEnclave, MockGeneratorPCRS } from "../helpers";
+import { MockEnclave, MockGeneratorPCRS, generatorFamilyId } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -55,7 +55,7 @@ describe("Entity key registry tests", () => {
 
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
@@ -71,7 +71,7 @@ describe("Entity key registry tests", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),

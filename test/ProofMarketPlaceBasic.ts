@@ -28,6 +28,7 @@ import {
   NO_ENCLAVE_ID,
   bytesToHexString,
   generateRandomBytes,
+  matchingEngineFamilyId,
   skipBlocks,
 } from "../helpers";
 
@@ -171,8 +172,12 @@ describe("Proof market place", () => {
     await proofMarketplace.connect(admin).setMatchingEngineImage(matchingEngineEnclave.getPcrRlp());
     await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
-    expect(await entityRegistry.onlyImage(matchingEngineEnclave.getImageId(), matchingEngineEnclave.getAddress())).to.be
-      .true;
+    expect(
+      await entityRegistry.isKeyInFamily(
+        matchingEngineFamilyId(await proofMarketplace.MATCHING_ENGINE_ROLE()),
+        matchingEngineEnclave.getAddress(),
+      ),
+    ).to.be.true;
   });
 
   it("Update Marketplace address with timeout attesation should fail", async () => {

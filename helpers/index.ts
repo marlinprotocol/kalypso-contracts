@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { ethers } from "hardhat";
 import { PrivateKey } from "eciesjs";
-import { AddressLike, BytesLike, Signer, SigningKey } from "ethers";
+import { AddressLike, BigNumberish, BytesLike, Signer, SigningKey } from "ethers";
 import BigNumber from "bignumber.js";
 
 export * as secret_operations from "./secretInputOperation";
@@ -398,3 +398,24 @@ export const GodEnclavePCRS: [BytesLike, BytesLike, BytesLike] = [
   "0x" + "00".repeat(47) + "36",
   "0x" + "00".repeat(47) + "93",
 ];
+
+export function generatorFamilyId(marketId: BigNumberish): BytesLike {
+  let abicode = new ethers.AbiCoder();
+  let encoded = abicode.encode(["string", "uint256"], ["gen", marketId]);
+  let digest = ethers.keccak256(encoded);
+  return digest;
+}
+
+export function ivsFamilyId(marketId: BigNumberish): BytesLike {
+  let abicode = new ethers.AbiCoder();
+  let encoded = abicode.encode(["string", "uint256"], ["ivs", marketId]);
+  let digest = ethers.keccak256(encoded);
+  return digest;
+}
+
+export function matchingEngineFamilyId(meRole: BytesLike): BytesLike {
+  let abicode = new ethers.AbiCoder();
+  let encoded = abicode.encode(["bytes32"], [meRole]);
+  let digest = ethers.keccak256(encoded);
+  return digest;
+}

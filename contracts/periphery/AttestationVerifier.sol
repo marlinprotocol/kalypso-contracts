@@ -10,8 +10,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 
-import "hardhat/console.sol";
-
 contract AttestationVerifier is
     Initializable, // initializer
     ContextUpgradeable, // _msgSender, _msgData
@@ -222,11 +220,9 @@ contract AttestationVerifier is
                 attestation.timestampInMilliseconds
             )
         );
-
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashStruct));
 
         address signer = ECDSA.recover(digest, signature);
-
         bytes32 imageId = verifiedKeys[signer];
 
         if (!(imageId != bytes32(0))) revert AttestationVerifierKeyNotVerified();

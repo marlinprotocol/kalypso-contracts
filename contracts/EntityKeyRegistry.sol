@@ -78,14 +78,6 @@ contract EntityKeyRegistry is
 
     mapping(address => mapping(uint256 => bytes)) public pub_key;
 
-    modifier isNotUsedUpKey(bytes calldata pubkey) {
-        address _address = pubkey.PUBKEY_TO_ADDRESS();
-        if (_getVerifiedKey(_address) != bytes32(0)) {
-            revert Error.KeyAlreadyExists(_address);
-        }
-        _;
-    }
-
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
     event RemoveKey(address indexed user, uint256 indexed keyIndex);
 
@@ -106,7 +98,7 @@ contract EntityKeyRegistry is
         uint256 keyIndex,
         bytes calldata pubkey,
         bytes calldata attestation_data
-    ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
+    ) external onlyRole(KEY_REGISTER_ROLE) {
         if (pubkey.length != 64) {
             revert Error.InvalidEnclaveKey();
         }
@@ -128,10 +120,10 @@ contract EntityKeyRegistry is
     /**
      * @notice Whitelist a new image. Called when a market creator creates a new market
      */
-    function whitelistImageUsingPcrs(bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
+    function whitelistImageUsingPcrs(bytes32 family, bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
         (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
 
-        _whitelistImageIfNot(PCR0, PCR1, PCR2);
+        _whitelistImageIfNot(family, PCR0, PCR1, PCR2);
     }
 
     function _verifyKeyInternal(bytes calldata data) internal {
@@ -148,11 +140,13 @@ contract EntityKeyRegistry is
         _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
     }
 
-    function _whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
+    function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
-        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
+        if (getWhitelistedImage(imageId).PCR0.length == 0) {
             _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
         }
+
+        _addEnclaveImageToFamily(imageId, family);
     }
 
     /**
@@ -162,14 +156,6 @@ contract EntityKeyRegistry is
         delete pub_key[keyOwner][keyIndex];
 
         emit RemoveKey(keyOwner, keyIndex);
-    }
-
-    /**
-     * @notice Check if the given address is allowed to operate for a given enclave
-     */
-    function onlyImage(bytes32 _imageId, address key) external view returns (bool) {
-        bytes32 imageId = _getVerifiedKey(key);
-        return imageId != bytes32(0) && imageId == _imageId && _getWhitelistedImage(_imageId).PCR0.length != 0;
     }
 
     // for further increase

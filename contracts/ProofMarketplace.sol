@@ -51,6 +51,7 @@ contract ProofMarketplace is
 
     using HELPER for bytes;
     using HELPER for bytes32;
+    using HELPER for uint256;
 
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -79,8 +80,7 @@ contract ProofMarketplace is
      @notice Enforces PMP to use only one matching engine image
      */
     function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
-        matchingEngineImageId = pcrs.GET_IMAGE_ID_FROM_PCRS();
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(pcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
     }
 
     /**
@@ -135,6 +135,8 @@ contract ProofMarketplace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
+
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -145,8 +147,6 @@ contract ProofMarketplace is
     mapping(SecretType => uint256) public costPerInputBytes;
 
     uint256 public treasuryCollection;
-
-    bytes32 public matchingEngineImageId;
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -249,14 +249,15 @@ contract ProofMarketplace is
         if (!_verifier.checkSampleInputsAndProof()) {
             revert Error.InvalidInputs();
         }
-
-        // White list image if is not
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_ivsPcrs);
-        // transfer amount from _msgSender()
         PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
 
         uint256 marketId = marketData.length;
+
+        // White list image if is not
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
+        // transfer amount from _msgSender()
+
         marketData.push(
             Market(
                 _verifier,
@@ -412,7 +413,7 @@ contract ProofMarketplace is
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
-        if (!ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, signer)) {
+        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer)) {
             revert Error.OnlyMatchingEngineCanAssign();
         }
 
@@ -425,7 +426,7 @@ contract ProofMarketplace is
      * @notice Assign Tasks for Generators directly if ME signer has the gas
      */
     function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
-        if (!ENTITY_KEY_REGISTRY.onlyImage(matchingEngineImageId, _msgSender())) {
+        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender())) {
             revert Error.OnlyMatchingEngineCanAssign();
         }
         _assignTask(askId, generator, new_acl);
@@ -541,7 +542,7 @@ contract ProofMarketplace is
                 askId,
                 askWithState.ask.proverData,
                 invalidProofSignature,
-                currentMarket.ivsImageId
+                marketId.IVS_FAMILY_ID()
             )
         ) {
             revert Error.CannotSlashUsingValidInputs(askId);
@@ -674,7 +675,7 @@ contract ProofMarketplace is
         uint256 askId,
         bytes memory proverData,
         bytes memory invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 familyId
     ) internal view returns (bool) {
         bytes32 messageHash = keccak256(abi.encode(askId, proverData));
 
@@ -685,7 +686,7 @@ contract ProofMarketplace is
             revert Error.InvalidEnclaveSignature(signer);
         }
 
-        if (!ENTITY_KEY_REGISTRY.onlyImage(expectedImageId, signer)) {
+        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(familyId, signer)) {
             revert Error.InvalidEnclaveKey();
         }
         return true;

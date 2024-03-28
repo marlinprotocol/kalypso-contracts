@@ -101,6 +101,18 @@ library HELPER {
         }
     }
 
+    function MATCHING_ENGINE_FAMILY_ID(bytes32 roleId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(roleId));
+    }
+
+    function GENERATOR_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
+        return keccak256(abi.encode("gen", marketId));
+    }
+
+    function IVS_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
+        return keccak256(abi.encode("ivs", marketId));
+    }
+
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;
 
     uint256 internal constant ACCEPTABLE_ATTESTATION_DELAY = 60000; // 60 seconds, 60,000 milliseconds
