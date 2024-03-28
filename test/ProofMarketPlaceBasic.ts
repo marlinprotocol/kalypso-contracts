@@ -173,11 +173,11 @@ describe("Proof market place", () => {
     await proofMarketplace.connect(admin).verifyMatchingEngine(attestationBytes, signature);
 
     expect(
-      await entityRegistry.isKeyInFamily(
+      await entityRegistry.allowOnlyVerifiedFamily(
         matchingEngineFamilyId(await proofMarketplace.MATCHING_ENGINE_ROLE()),
         matchingEngineEnclave.getAddress(),
       ),
-    ).to.be.true;
+    ).to.not.be.reverted;
   });
 
   it("Update Marketplace address with timeout attesation should fail", async () => {
@@ -752,6 +752,37 @@ describe("Proof market place", () => {
             .withArgs(await proofMarketplace.getAddress(), await prover.getAddress(), reward.toFixed());
         });
 
+        it("Matching can't assign task if it image is revoked by moderator", async () => {
+          await entityRegistry
+            .connect(admin)
+            .grantRole(await entityRegistry.MODERATOR_ROLE(), await admin.getAddress());
+          await entityRegistry.connect(admin).revokeEnclaveImage(matchingEngineEnclave.getImageId());
+
+          await expect(
+            proofMarketplace
+              .connect(matchingEngineSigner)
+              .assignTask(askId.toString(), await generator.getAddress(), "0x"),
+          ).to.be.revertedWithCustomError(entityRegistry, "AttestationAutherImageNotWhitelisted");
+        });
+
+        it("Matching can't assign task if it image is removed from family by moderator", async () => {
+          await entityRegistry
+            .connect(admin)
+            .grantRole(await entityRegistry.MODERATOR_ROLE(), await admin.getAddress());
+          await entityRegistry
+            .connect(admin)
+            .removeEnclaveImageFromFamily(
+              matchingEngineEnclave.getImageId(),
+              matchingEngineFamilyId(await proofMarketplace.MATCHING_ENGINE_ROLE()),
+            );
+
+          await expect(
+            proofMarketplace
+              .connect(matchingEngineSigner)
+              .assignTask(askId.toString(), await generator.getAddress(), "0x"),
+          ).to.be.revertedWithCustomError(entityRegistry, "AttestationAutherImageNotInFamily");
+        });
+
         describe("Submit Proof", () => {
           let proof: string;
           let newIvsEnclave: MockEnclave;
@@ -888,7 +919,7 @@ describe("Proof market place", () => {
             // because enclave key for new enclave is not verified yet
             await expect(
               proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature),
-            ).to.be.revertedWithCustomError(errorLibrary, "InvalidEnclaveKey");
+            ).to.be.revertedWithCustomError(entityRegistry, "AttestationAutherKeyNotVerified");
             await updateIvsKey(anotherIvsEnclave);
 
             await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))

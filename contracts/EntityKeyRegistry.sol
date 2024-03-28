@@ -76,6 +76,8 @@ contract EntityKeyRegistry is
 
     bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
+    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+
     mapping(address => mapping(uint256 => bytes)) public pub_key;
 
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
@@ -83,6 +85,7 @@ contract EntityKeyRegistry is
 
     function initialize(address _admin, EnclaveImage[] memory initWhitelistImages) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setRoleAdmin(MODERATOR_ROLE, DEFAULT_ADMIN_ROLE);
         __AttestationAuther_init_unchained(initWhitelistImages);
     }
 
@@ -158,8 +161,17 @@ contract EntityKeyRegistry is
         emit RemoveKey(keyOwner, keyIndex);
     }
 
-    function isKeyInFamily(bytes32 familyId, address _key) external view returns (bool) {
-        return _isImageInFamily(_getVerifiedKey(_key), familyId);
+    function allowOnlyVerifiedFamily(bytes32 familyId, address _key) external view {
+        return _allowOnlyVerifiedFamily(_key, familyId);
+    }
+
+    // ---------- SECURITY FEATURE FUNCTIONS ----------- //
+    function revokeEnclaveImage(bytes32 imageId) external onlyRole(MODERATOR_ROLE) {
+        _revokeEnclaveImage(imageId);
+    }
+
+    function removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) external onlyRole(MODERATOR_ROLE) {
+        _removeEnclaveImageFromFamily(imageId, family);
     }
 
     // for further increase

@@ -33,9 +33,7 @@ contract Dispute {
             revert Error.CannotBeZero();
         }
 
-        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(familyId, signer)) {
-            revert Error.InvalidEnclaveKey();
-        }
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(familyId, signer);
         return true;
     }
 

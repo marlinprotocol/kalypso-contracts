@@ -413,9 +413,7 @@ contract ProofMarketplace is
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
-        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer)) {
-            revert Error.OnlyMatchingEngineCanAssign();
-        }
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
 
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], generators[index], newAcls[index]);
@@ -426,9 +424,7 @@ contract ProofMarketplace is
      * @notice Assign Tasks for Generators directly if ME signer has the gas
      */
     function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
-        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender())) {
-            revert Error.OnlyMatchingEngineCanAssign();
-        }
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
         _assignTask(askId, generator, new_acl);
     }
 
@@ -686,9 +682,7 @@ contract ProofMarketplace is
             revert Error.InvalidEnclaveSignature(signer);
         }
 
-        if (!ENTITY_KEY_REGISTRY.isKeyInFamily(familyId, signer)) {
-            revert Error.InvalidEnclaveKey();
-        }
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(familyId, signer);
         return true;
     }
 

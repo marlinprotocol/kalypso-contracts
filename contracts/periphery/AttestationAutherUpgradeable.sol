@@ -85,7 +85,8 @@ contract AttestationAutherUpgradeable is
         return address(uint160(uint256(hash)));
     }
 
-    function _whitelistEnclaveImage(EnclaveImage memory image) internal returns (bytes32) {
+    // virtual keyword enables inherited contracts to define their own logic for whitelisting images
+    function _whitelistEnclaveImage(EnclaveImage memory image) internal virtual returns (bytes32) {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         if (!(image.PCR0.length == 48 && image.PCR1.length == 48 && image.PCR2.length == 48))
@@ -98,7 +99,8 @@ contract AttestationAutherUpgradeable is
         return imageId;
     }
 
-    function _revokeEnclaveImage(bytes32 imageId) internal {
+    // virtual keyword enables inherited contracts to define their own logic for revoking images
+    function _revokeEnclaveImage(bytes32 imageId) internal virtual {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         if (!($.whitelistedImages[imageId].PCR0.length != 0)) revert AttestationAutherImageNotWhitelisted();
@@ -107,14 +109,16 @@ contract AttestationAutherUpgradeable is
         emit EnclaveImageRevoked(imageId);
     }
 
-    function _addEnclaveImageToFamily(bytes32 imageId, bytes32 family) internal {
+    // virtual keyword enables inherited contracts to define their own logic for adding enclaves to family
+    function _addEnclaveImageToFamily(bytes32 imageId, bytes32 family) internal virtual {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         $.imageFamilies[family][imageId] = true;
         emit EnclaveImageAddedToFamily(imageId, family);
     }
 
-    function _removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) internal {
+    // virtual keywork enables inherited contracts to define remove image from family
+    function _removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) internal virtual {
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         $.imageFamilies[family][imageId] = false;
@@ -190,11 +194,5 @@ contract AttestationAutherUpgradeable is
         AttestationAutherStorage storage $ = _getAttestationAutherStorage();
 
         return $.verifiedKeys[_key];
-    }
-
-    function _isImageInFamily(bytes32 imageId, bytes32 family) internal view returns (bool) {
-        AttestationAutherStorage storage $ = _getAttestationAutherStorage();
-
-        return $.imageFamilies[family][imageId];
     }
 }
