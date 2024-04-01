@@ -242,7 +242,7 @@ describe("Checking Case where generator and ivs image is same", () => {
     const digest = ethers.keccak256(encoded);
     const signature = await ivsAndGeneratorEnclaveCombined.signMessage(ethers.getBytes(digest));
 
-    await proofMarketplace.flushToTreasury(); // remove anything if is already there
+    await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
     await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(
       proofMarketplace,

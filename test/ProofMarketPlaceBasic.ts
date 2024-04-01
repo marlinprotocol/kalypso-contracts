@@ -788,7 +788,9 @@ describe("Proof market place", () => {
           await mine(assignmentExpiry);
           await expect(proofMarketplace.connect(admin).cancelAsk(askId.toString()))
             .to.emit(proofMarketplace, "AskCancelled")
-            .withArgs(askId)
+            .withArgs(askId);
+
+          await expect(proofMarketplace.flush(await prover.getAddress()))
             .to.emit(mockToken, "Transfer")
             .withArgs(await proofMarketplace.getAddress(), await prover.getAddress(), reward.toFixed());
         });
@@ -874,9 +876,13 @@ describe("Proof market place", () => {
 
             await expect(proofMarketplace.submitProof(askId.toString(), proof))
               .to.emit(proofMarketplace, "ProofCreated")
-              .withArgs(askId, proof)
+              .withArgs(askId, proof);
+
+            await expect(proofMarketplace.flush(generatorAddress))
               .to.emit(mockToken, "Transfer")
-              .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward);
+
+            await expect(proofMarketplace.flush(proverRefundAddress))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), proverRefundAddress, expectedProverRefund);
 
@@ -895,9 +901,13 @@ describe("Proof market place", () => {
 
             await expect(proofMarketplace.submitProofs([askId.toString()], [proof]))
               .to.emit(proofMarketplace, "ProofCreated")
-              .withArgs(askId, proof)
+              .withArgs(askId, proof);
+
+            await expect(proofMarketplace.flush(generatorAddress))
               .to.emit(mockToken, "Transfer")
-              .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward)
+              .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward);
+
+            await expect(proofMarketplace.flush(proverRefundAddress))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), proverRefundAddress, expectedProverRefund);
 
@@ -924,15 +934,17 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            await proofMarketplace.flushToTreasury(); // remove anything if is already there
+            await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
             await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))
               .to.emit(proofMarketplace, "InvalidInputsDetected")
-              .withArgs(askId)
+              .withArgs(askId);
+
+            await expect(proofMarketplace.flush(generatorAddress))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward);
 
-            await expect(proofMarketplace.flushToTreasury())
+            await expect(proofMarketplace.flush(await treasury.getAddress()))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), treasuryRefundAddress, expectedRefund);
           });
@@ -955,7 +967,7 @@ describe("Proof market place", () => {
             const treasuryRefundAddress = await treasury.getAddress();
             const expectedRefund = new BigNumber(reward).minus(expectedGeneratorReward.toString());
 
-            await proofMarketplace.flushToTreasury(); // remove anything if is already there
+            await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
             // because enclave key for new enclave is not verified yet
             await expect(
@@ -965,11 +977,13 @@ describe("Proof market place", () => {
 
             await expect(proofMarketplace.submitProofForInvalidInputs(askId.toFixed(0), signature))
               .to.emit(proofMarketplace, "InvalidInputsDetected")
-              .withArgs(askId)
+              .withArgs(askId);
+
+            await expect(proofMarketplace.flush(generatorAddress))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), generatorAddress, expectedGeneratorReward);
 
-            await expect(proofMarketplace.flushToTreasury())
+            await expect(proofMarketplace.flush(await treasury.getAddress()))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), treasuryRefundAddress, expectedRefund);
           });
@@ -977,7 +991,8 @@ describe("Proof market place", () => {
           it("Generator can ignore the request", async () => {
             await expect(proofMarketplace.connect(generator).discardRequest(askId.toString()))
               .to.emit(proofMarketplace, "ProofNotGenerated")
-              .withArgs(askId)
+              .withArgs(askId);
+            await expect(proofMarketplace.flush(await prover.getAddress()))
               .to.emit(mockToken, "Transfer")
               .withArgs(await proofMarketplace.getAddress(), await prover.getAddress(), reward.toFixed(0));
           });
@@ -1003,7 +1018,9 @@ describe("Proof market place", () => {
             it("When deadline is crossed, it is slashable", async () => {
               await expect(proofMarketplace.connect(admin).slashGenerator(askId.toString(), await admin.getAddress()))
                 .to.emit(proofMarketplace, "ProofNotGenerated")
-                .withArgs(askId)
+                .withArgs(askId);
+
+              await expect(proofMarketplace.flush(await prover.getAddress()))
                 .to.emit(mockToken, "Transfer")
                 .withArgs(await proofMarketplace.getAddress(), await prover.getAddress(), reward.toFixed(0));
             });

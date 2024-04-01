@@ -146,7 +146,7 @@ contract ProofMarketplace is
 
     mapping(SecretType => uint256) public costPerInputBytes;
 
-    uint256 public treasuryCollection;
+    mapping(address => uint256) public claimableAmount;
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -314,7 +314,7 @@ contract ProofMarketplace is
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
-        treasuryCollection += platformFee;
+        _increaseClaimableAmount(TREASURY, platformFee);
 
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
@@ -470,7 +470,7 @@ contract ProofMarketplace is
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
     }
@@ -512,12 +512,10 @@ contract ProofMarketplace is
         // tokens related to incorrect request will be sen't to treasury
         uint256 toTreasury = askWithState.ask.reward - minRewardForGenerator;
 
-        if (minRewardForGenerator != 0) {
-            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
-        }
-
+        // transfer the reward to generator
+        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
         // transfer the amount to treasury collection
-        treasuryCollection += toTreasury;
+        _increaseClaimableAmount(TREASURY, toTreasury);
 
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, _penalty);
         emit InvalidInputsDetected(askId);
@@ -600,15 +598,12 @@ contract ProofMarketplace is
         }
         listOfAsk[askId].state = AskState.COMPLETE;
 
-        uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
+        uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
 
-        if (minRewardForGenerator != 0) {
-            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
-        }
-
-        if (toBackToProver != 0) {
-            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
-        }
+        // reward to generator
+        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        // fraction of amount back to requestor
+        _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
 
         uint256 generatorAmountToRelease = _slashingPenalty(marketId);
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
@@ -645,7 +640,7 @@ contract ProofMarketplace is
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
         return
             GENERATOR_REGISTRY.slashGenerator(
@@ -660,10 +655,17 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
-    function flushToTreasury() public {
-        if (treasuryCollection != 0) {
-            PAYMENT_TOKEN.safeTransfer(TREASURY, treasuryCollection);
-            treasuryCollection = 0;
+    function flush(address _address) public {
+        uint256 amount = claimableAmount[_address];
+        if (amount != 0) {
+            PAYMENT_TOKEN.safeTransfer(_address, amount);
+            delete claimableAmount[_address];
+        }
+    }
+
+    function _increaseClaimableAmount(address _address, uint256 _amount) internal {
+        if (_amount != 0) {
+            claimableAmount[_address] += _amount;
         }
     }
 
