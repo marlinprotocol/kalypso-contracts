@@ -350,6 +350,21 @@
       "address": "0x285cd239e5d0D8FD69bAa7C3D6592cb8430B75cC",
       "txHash": "0x54eed439baf24ae039054f69f6ab867ca96fee78ee5de37fcc7c7cb9ab4a3f7e",
       "kind": "uups"
+    },
+    {
+      "address": "0xCFF469299eBD1D24a20d7BC10f00180bB89c6089",
+      "txHash": "0xf704059dabf03d5199c17febb4633f1d3837b96e5f03653465b1b31ecd948186",
+      "kind": "uups"
+    },
+    {
+      "address": "0x444B85D5810d8C39D6766b3a4744722FDb14efa0",
+      "txHash": "0xaf0376819d0e18a75f0f38de7b48e37050185f675a25545defe13556763c8254",
+      "kind": "uups"
+    },
+    {
+      "address": "0xF45734607F3093A9b6c7e436cccA968B304856da",
+      "txHash": "0x2c03975e499528535b0d5c0bf884606990cc2c7b21244a4981010246dcccb44f",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -492,7 +507,13 @@
           },
           "t_enum(GeneratorState)6678": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -793,7 +814,14 @@
           },
           "t_enum(AskState)6727": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1124,7 +1152,13 @@
           },
           "t_enum(GeneratorState)5117": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1447,7 +1481,14 @@
           },
           "t_enum(AskState)7108": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1778,7 +1819,13 @@
           },
           "t_enum(GeneratorState)6891": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2117,7 +2164,14 @@
           },
           "t_enum(AskState)7039": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2448,7 +2502,13 @@
           },
           "t_enum(GeneratorState)5198": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2787,7 +2847,14 @@
           },
           "t_enum(AskState)7102": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3118,7 +3185,13 @@
           },
           "t_enum(GeneratorState)6901": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "LOW_STAKE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3457,7 +3530,14 @@
           },
           "t_enum(AskState)7033": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3788,7 +3868,13 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4143,7 +4229,14 @@
           },
           "t_enum(AskState)6005": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4502,7 +4595,14 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4833,7 +4933,13 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5188,7 +5294,14 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5519,7 +5632,13 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5874,7 +5993,14 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -6205,7 +6331,13 @@
           },
           "t_enum(GeneratorState)5296": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -6560,7 +6692,14 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -6919,7 +7058,14 @@
           },
           "t_enum(AskState)7296": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7262,7 +7408,13 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7609,12 +7761,23 @@
           },
           "t_enum(AskState)6656": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6660": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7979,7 +8142,13 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -8326,12 +8495,23 @@
           },
           "t_enum(AskState)6655": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6659": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -8696,7 +8876,13 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -9043,12 +9229,23 @@
           },
           "t_enum(AskState)6657": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6661": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -9683,7 +9880,13 @@
           },
           "t_enum(GeneratorState)4829": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10030,12 +10233,23 @@
           },
           "t_enum(AskState)6814": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6818": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10406,7 +10620,13 @@
           },
           "t_enum(GeneratorState)4840": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10753,12 +10973,23 @@
           },
           "t_enum(AskState)6807": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6811": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -11129,7 +11360,13 @@
           },
           "t_enum(GeneratorState)6377": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -11476,12 +11713,23 @@
           },
           "t_enum(AskState)8470": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)8474": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -11852,7 +12100,13 @@
           },
           "t_enum(GeneratorState)4801": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12199,12 +12453,23 @@
           },
           "t_enum(AskState)6869": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6873": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12607,7 +12872,13 @@
           },
           "t_enum(GeneratorState)7130": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12986,12 +13257,23 @@
           },
           "t_enum(AskState)9456": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9460": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -13664,7 +13946,13 @@
           },
           "t_enum(GeneratorState)7178": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -14043,12 +14331,23 @@
           },
           "t_enum(AskState)9551": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9555": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -14457,7 +14756,13 @@
           },
           "t_enum(GeneratorState)7178": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -14836,12 +15141,23 @@
           },
           "t_enum(AskState)9551": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9555": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -15826,7 +16142,13 @@
           },
           "t_enum(GeneratorState)7582": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -16245,12 +16567,23 @@
           },
           "t_enum(AskState)9962": {
             "label": "enum ProofMarketplace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9966": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -16955,7 +17288,13 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -17374,12 +17713,23 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -17780,7 +18130,13 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -18199,12 +18555,23 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -18605,7 +18972,13 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -19024,12 +19397,23 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": ["NULL", "CALLDATA", "EXTERNAL"],
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -19148,6 +19532,1100 @@
               {
                 "label": "verifier",
                 "type": "t_contract(IVerifier)9260",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "proverImageId",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "slashingPenalty",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "activationBlock",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "ivsImageId",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "marketmetadata",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(RoleData)179_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Set)4064_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "a3508032594a400aa9012b5233e250b076b1e7e1bc1f08336469a31efea6ace2": {
+      "address": "0xce9aBD7a0a161A1DcD9c4a564cE2C097Cfcf128b",
+      "txHash": "0xedd8b7a65edefcfd2b80f11fdb94ebd928e45d503fafa5ed8519148ccfed3f5c",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)179_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_roleMembers",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:76"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "__gap_0",
+            "offset": 0,
+            "slot": "351",
+            "type": "t_array(t_uint256)500_storage",
+            "contract": "EntityKeyRegistry",
+            "src": "contracts/EntityKeyRegistry.sol:32"
+          },
+          {
+            "label": "pub_key",
+            "offset": 0,
+            "slot": "851",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_bytes_storage))",
+            "contract": "EntityKeyRegistry",
+            "src": "contracts/EntityKeyRegistry.sol:81"
+          },
+          {
+            "label": "blackListedImages",
+            "offset": 0,
+            "slot": "852",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "EntityKeyRegistry",
+            "src": "contracts/EntityKeyRegistry.sol:83"
+          },
+          {
+            "label": "__gap1_0",
+            "offset": 0,
+            "slot": "853",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "EntityKeyRegistry",
+            "src": "contracts/EntityKeyRegistry.sol:188"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)500_storage": {
+            "label": "uint256[500]",
+            "numberOfBytes": "16000"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_uint256,t_bytes_storage))": {
+            "label": "mapping(address => mapping(uint256 => bytes))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)": {
+            "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)179_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_bytes_storage)": {
+            "label": "mapping(uint256 => bytes)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AddressSet)4379_storage": {
+            "label": "struct EnumerableSetUpgradeable.AddressSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)4064_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(RoleData)179_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Set)4064_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "c16f10d77764c6d00c1e0365e889b225a60ffe961ab2aec7cb2c558fa9c0ea8d": {
+      "address": "0x5F4AA5158a1d680CD5A3F4df34C974DdEdD0Bd49",
+      "txHash": "0xd23507b3195cfb7de1a4ecf89aa6b9017c673217cb3b073022cad766ad907baf",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)179_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_roleMembers",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:76"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "__gap_0",
+            "offset": 0,
+            "slot": "351",
+            "type": "t_array(t_uint256)500_storage",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:31"
+          },
+          {
+            "label": "generatorRegistry",
+            "offset": 0,
+            "slot": "851",
+            "type": "t_mapping(t_address,t_struct(Generator)5371_storage)",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:98"
+          },
+          {
+            "label": "generatorInfoPerMarket",
+            "offset": 0,
+            "slot": "852",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(GeneratorInfoPerMarket)5383_storage))",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:99"
+          },
+          {
+            "label": "unstakeRequestBlock",
+            "offset": 0,
+            "slot": "853",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:101"
+          },
+          {
+            "label": "reduceComputeRequestBlock",
+            "offset": 0,
+            "slot": "854",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:102"
+          },
+          {
+            "label": "proofMarketplace",
+            "offset": 0,
+            "slot": "855",
+            "type": "t_contract(ProofMarketplace)9327",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:104"
+          },
+          {
+            "label": "__gap1_0",
+            "offset": 0,
+            "slot": "856",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "GeneratorRegistry",
+            "src": "contracts/GeneratorRegistry.sol:823"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)500_storage": {
+            "label": "uint256[500]",
+            "numberOfBytes": "16000"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_contract(ProofMarketplace)9327": {
+            "label": "contract ProofMarketplace",
+            "numberOfBytes": "20"
+          },
+          "t_enum(GeneratorState)5350": {
+            "label": "enum GeneratorRegistry.GeneratorState",
+            "members": [
+              "NULL",
+              "JOINED",
+              "NO_COMPUTE_AVAILABLE",
+              "WIP",
+              "REQUESTED_FOR_EXIT"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_uint256,t_struct(GeneratorInfoPerMarket)5383_storage))": {
+            "label": "mapping(address => mapping(uint256 => struct GeneratorRegistry.GeneratorInfoPerMarket))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(Generator)5371_storage)": {
+            "label": "mapping(address => struct GeneratorRegistry.Generator)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)": {
+            "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)179_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(GeneratorInfoPerMarket)5383_storage)": {
+            "label": "mapping(uint256 => struct GeneratorRegistry.GeneratorInfoPerMarket)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AddressSet)4379_storage": {
+            "label": "struct EnumerableSetUpgradeable.AddressSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)4064_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Generator)5371_storage": {
+            "label": "struct GeneratorRegistry.Generator",
+            "members": [
+              {
+                "label": "rewardAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalStake",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "sumOfComputeAllocations",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "computeConsumed",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "stakeLocked",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "activeMarketplaces",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "declaredCompute",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "intendedStakeUtilization",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "intendedComputeUtilization",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "8"
+              },
+              {
+                "label": "generatorData",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "9"
+              }
+            ],
+            "numberOfBytes": "320"
+          },
+          "t_struct(GeneratorInfoPerMarket)5383_storage": {
+            "label": "struct GeneratorRegistry.GeneratorInfoPerMarket",
+            "members": [
+              {
+                "label": "state",
+                "type": "t_enum(GeneratorState)5350",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "computePerRequestRequired",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "proofGenerationCost",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "proposedTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "activeRequests",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(RoleData)179_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Set)4064_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "4f89a761aba309652e15709bb6d52100a8c134a3bfca4fdf88954dfd39ec7982": {
+      "address": "0x31066093856bE0b512039881bB5Df21bA7240B6a",
+      "txHash": "0xba9ecd6b9c7034623492e0aa0cb88f3f44af129a88d2d003823e55bf47f4772d",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)179_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_roleMembers",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlEnumerableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:76"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "252",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "351",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "__gap_0",
+            "offset": 0,
+            "slot": "401",
+            "type": "t_array(t_uint256)500_storage",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:35"
+          },
+          {
+            "label": "marketData",
+            "offset": 0,
+            "slot": "901",
+            "type": "t_array(t_struct(Market)7763_storage)dyn_storage",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:143"
+          },
+          {
+            "label": "listOfAsk",
+            "offset": 0,
+            "slot": "902",
+            "type": "t_array(t_struct(AskWithState)7800_storage)dyn_storage",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:145"
+          },
+          {
+            "label": "costPerInputBytes",
+            "offset": 0,
+            "slot": "903",
+            "type": "t_mapping(t_enum(SecretType)7774,t_uint256)",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:147"
+          },
+          {
+            "label": "claimableAmount",
+            "offset": 0,
+            "slot": "904",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:149"
+          },
+          {
+            "label": "__gap1_0",
+            "offset": 0,
+            "slot": "905",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ProofMarketplace",
+            "src": "contracts/ProofMarketplace.sol:700"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(AskWithState)7800_storage)dyn_storage": {
+            "label": "struct ProofMarketplace.AskWithState[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(Market)7763_storage)dyn_storage": {
+            "label": "struct ProofMarketplace.Market[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)500_storage": {
+            "label": "uint256[500]",
+            "numberOfBytes": "16000"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IVerifier)9394": {
+            "label": "contract IVerifier",
+            "numberOfBytes": "20"
+          },
+          "t_enum(AskState)7770": {
+            "label": "enum ProofMarketplace.AskState",
+            "members": [
+              "NULL",
+              "CREATE",
+              "UNASSIGNED",
+              "ASSIGNED",
+              "COMPLETE",
+              "DEADLINE_CROSSED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(SecretType)7774": {
+            "label": "enum ProofMarketplace.SecretType",
+            "members": [
+              "NULL",
+              "CALLDATA",
+              "EXTERNAL"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(AddressSet)4379_storage)": {
+            "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)179_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(SecretType)7774,t_uint256)": {
+            "label": "mapping(enum ProofMarketplace.SecretType => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AddressSet)4379_storage": {
+            "label": "struct EnumerableSetUpgradeable.AddressSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)4064_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Ask)7789_storage": {
+            "label": "struct ProofMarketplace.Ask",
+            "members": [
+              {
+                "label": "marketId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "reward",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "expiry",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "timeTakenForProofGeneration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "deadline",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "refundAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "proverData",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_struct(AskWithState)7800_storage": {
+            "label": "struct ProofMarketplace.AskWithState",
+            "members": [
+              {
+                "label": "ask",
+                "type": "t_struct(Ask)7789_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "state",
+                "type": "t_enum(AskState)7770",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "requester",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "7"
+              },
+              {
+                "label": "generator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "8"
+              }
+            ],
+            "numberOfBytes": "288"
+          },
+          "t_struct(Market)7763_storage": {
+            "label": "struct ProofMarketplace.Market",
+            "members": [
+              {
+                "label": "verifier",
+                "type": "t_contract(IVerifier)9394",
                 "offset": 0,
                 "slot": "0"
               },
