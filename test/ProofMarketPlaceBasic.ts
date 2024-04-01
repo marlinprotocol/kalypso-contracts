@@ -158,6 +158,47 @@ describe("Proof market place", () => {
     expect((await proofMarketplace.marketData(marketId)).verifier).to.eq(await mockVerifier.getAddress());
   });
 
+  it("Can't create a marketplace if generator/ivs enclave is blacklisted", async () => {
+    await entityRegistry.connect(admin).grantRole(await entityRegistry.MODERATOR_ROLE(), await admin.getAddress());
+
+    await entityRegistry.connect(admin).blacklistImage(ivsEnclave.getImageId());
+    const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
+
+    await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
+
+    const tempGenerator = new MockEnclave();
+
+    await expect(
+      proofMarketplace
+        .connect(marketCreator)
+        .createMarketplace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          tempGenerator.getPcrRlp(),
+          ivsEnclave.getPcrRlp(),
+        ),
+    )
+      .to.be.revertedWithCustomError(entityRegistry, "BlacklistedImage")
+      .withArgs(ivsEnclave.getImageId());
+
+    await entityRegistry.connect(admin).blacklistImage(tempGenerator.getImageId());
+
+    await expect(
+      proofMarketplace
+        .connect(marketCreator)
+        .createMarketplace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          tempGenerator.getPcrRlp(),
+          ivsEnclave.getPcrRlp(),
+        ),
+    )
+      .to.be.revertedWithCustomError(entityRegistry, "BlacklistedImage")
+      .withArgs(tempGenerator.getImageId());
+  });
+
   it("Update Marketplace address", async () => {
     let attestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
@@ -752,11 +793,11 @@ describe("Proof market place", () => {
             .withArgs(await proofMarketplace.getAddress(), await prover.getAddress(), reward.toFixed());
         });
 
-        it("Matching can't assign task if it image is revoked by moderator", async () => {
+        it("Matching can't assign task if it image is blacklisted by moderator", async () => {
           await entityRegistry
             .connect(admin)
             .grantRole(await entityRegistry.MODERATOR_ROLE(), await admin.getAddress());
-          await entityRegistry.connect(admin).revokeEnclaveImage(matchingEngineEnclave.getImageId());
+          await entityRegistry.connect(admin).blacklistImage(matchingEngineEnclave.getImageId());
 
           await expect(
             proofMarketplace

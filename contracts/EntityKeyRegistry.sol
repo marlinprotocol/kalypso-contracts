@@ -80,8 +80,12 @@ contract EntityKeyRegistry is
 
     mapping(address => mapping(uint256 => bytes)) public pub_key;
 
+    mapping(bytes32 => bool) public blackListedImages;
+
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
     event RemoveKey(address indexed user, uint256 indexed keyIndex);
+
+    event ImageBlacklisted(bytes32 indexed imageId);
 
     function initialize(address _admin, EnclaveImage[] memory initWhitelistImages) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -145,10 +149,11 @@ contract EntityKeyRegistry is
 
     function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
-        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
-            _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
-        }
 
+        if (blackListedImages[imageId]) {
+            revert Error.BlacklistedImage(imageId);
+        }
+        _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
         _addEnclaveImageToFamily(imageId, family);
     }
 
@@ -166,7 +171,12 @@ contract EntityKeyRegistry is
     }
 
     // ---------- SECURITY FEATURE FUNCTIONS ----------- //
-    function revokeEnclaveImage(bytes32 imageId) external onlyRole(MODERATOR_ROLE) {
+    function blacklistImage(bytes32 imageId) external onlyRole(MODERATOR_ROLE) {
+        if (blackListedImages[imageId]) {
+            revert Error.AlreadyABlacklistedImage(imageId);
+        }
+        blackListedImages[imageId] = true;
+        emit ImageBlacklisted(imageId);
         _revokeEnclaveImage(imageId);
     }
 
