@@ -180,14 +180,8 @@ export interface WalletInfo extends PubkeyAndAddress {
   privateKey: string;
 }
 
-// export const BYTES32_ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
-// export const BYTES32_ONE = "0x0000000000000000000000000000000000000000000000000000000000000001";
-
 export const BYTES48_ZERO =
   "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-
-export const NO_ENCLAVE_ID = "0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21";
-// console.log("No enclave id", new MockEnclave().getImageId());
 
 function getTimestampMs(delay: number = 0): number {
   return new BigNumber(new BigNumber(new Date().valueOf()).plus(delay).toFixed(0)).toNumber();

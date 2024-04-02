@@ -337,7 +337,7 @@ contract ProofMarketplace is
             emit AskCreated(askId, true, privateInputs, acl);
         } else {
             // ACL is not emitted if not private
-            emit AskCreated(askId, false, privateInputs, "");
+            emit AskCreated(askId, false, "", "");
         }
     }
 

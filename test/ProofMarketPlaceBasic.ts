@@ -25,7 +25,6 @@ import {
   MockGeneratorPCRS,
   MockIVSPCRS,
   MockMEPCRS,
-  NO_ENCLAVE_ID,
   bytesToHexString,
   generateRandomBytes,
   matchingEngineFamilyId,
@@ -141,21 +140,78 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
 
-    await expect(
-      proofMarketplace
-        .connect(marketCreator)
-        .createMarketplace(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          exponent.div(100).toFixed(0),
-          new MockEnclave().getPcrRlp(),
-          ivsEnclave.getPcrRlp(),
-        ),
-    )
+    const mockGenerator = new MockEnclave(MockGeneratorPCRS);
+
+    const tx = proofMarketplace
+      .connect(marketCreator)
+      .createMarketplace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        mockGenerator.getPcrRlp(),
+        ivsEnclave.getPcrRlp(),
+      );
+
+    await expect(tx)
       .to.emit(proofMarketplace, "MarketplaceCreated")
-      .withArgs(marketId);
+      .withArgs(marketId)
+      .to.emit(entityRegistry, "EnclaveImageWhitelisted")
+      .withArgs(mockGenerator.getImageId(), ...mockGenerator.pcrs)
+      .to.emit(entityRegistry, "EnclaveImageWhitelisted")
+      .withArgs(ivsEnclave.getImageId(), ...ivsEnclave.pcrs);
 
     expect((await proofMarketplace.marketData(marketId)).verifier).to.eq(await mockVerifier.getAddress());
+  });
+
+  it("Create Public Market", async () => {
+    const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
+
+    const marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).toFixed();
+
+    await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
+
+    const mockGenerator = new MockEnclave(); // pcrs will be 00
+
+    const tx = proofMarketplace
+      .connect(marketCreator)
+      .createMarketplace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        mockGenerator.getPcrRlp(),
+        ivsEnclave.getPcrRlp(),
+      );
+
+    await expect(tx)
+      .to.emit(proofMarketplace, "MarketplaceCreated")
+      .withArgs(marketId)
+      .to.emit(entityRegistry, "EnclaveImageWhitelisted")
+      .withArgs(ivsEnclave.getImageId(), ...ivsEnclave.pcrs);
+
+    expect((await proofMarketplace.marketData(marketId)).verifier).to.eq(await mockVerifier.getAddress());
+  });
+
+  it("Should Fail: Create Market With non enclave IVS:", async () => {
+    const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
+
+    await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
+
+    const mockGenerator = new MockEnclave(MockGeneratorPCRS);
+    const non_enclave_ivs = new MockEnclave();
+
+    const tx = proofMarketplace
+      .connect(marketCreator)
+      .createMarketplace(
+        marketBytes,
+        await mockVerifier.getAddress(),
+        exponent.div(100).toFixed(0),
+        mockGenerator.getPcrRlp(),
+        non_enclave_ivs.getPcrRlp(),
+      );
+
+    await expect(tx)
+      .to.revertedWithCustomError(entityRegistry, "MustBeAnEnclave")
+      .withArgs(non_enclave_ivs.getImageId());
   });
 
   it("Can't create a marketplace if generator/ivs enclave is blacklisted", async () => {
@@ -166,7 +222,7 @@ describe("Proof market place", () => {
 
     await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
 
-    const tempGenerator = new MockEnclave();
+    const tempGenerator = new MockEnclave(MockGeneratorPCRS);
 
     await expect(
       proofMarketplace
@@ -239,7 +295,82 @@ describe("Proof market place", () => {
     ).to.be.revertedWithCustomError(entityRegistry, "AttestationAutherAttestationTooOld");
   });
 
-  describe("Ask", () => {
+  describe("Ask: Private Market", () => {
+    let prover: Signer;
+    let reward = new BigNumber(10).pow(20).multipliedBy(3);
+    let marketId: string;
+
+    let assignmentExpiry = 100; // in blocks
+    let timeTakenForProofGeneration = 1000; // in blocks
+    let maxTimeForProofGeneration = 10000; // in blocks
+
+    beforeEach(async () => {
+      prover = signers[5];
+      await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), reward.toFixed());
+
+      const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
+
+      marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).toFixed();
+
+      await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
+
+      await proofMarketplace
+        .connect(marketCreator)
+        .createMarketplace(
+          marketBytes,
+          await mockVerifier.getAddress(),
+          exponent.div(100).toFixed(0),
+          new MockEnclave(MockGeneratorPCRS).getPcrRlp(),
+          ivsEnclave.getPcrRlp(),
+        );
+
+      let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    });
+
+    it("Create Ask Request", async () => {
+      const latestBlock = await ethers.provider.getBlockNumber();
+
+      const askIdToBeGenerated = await proofMarketplace.askCounter();
+
+      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
+      const askRequest = {
+        marketId,
+        proverData: proverBytes,
+        reward: reward.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      };
+
+      const secretInfo = "0x2345";
+      const aclInfo = "0x21";
+
+      await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
+      await proofMarketplace.connect(admin).updateCostPerBytes(1, 1000);
+
+      const platformFee = await proofMarketplace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
+      await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
+
+      await mockToken
+        .connect(prover)
+        .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
+
+      await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
+        .to.emit(proofMarketplace, "AskCreated")
+        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
+        .to.emit(mockToken, "Transfer")
+        .withArgs(
+          await prover.getAddress(),
+          await proofMarketplace.getAddress(),
+          new BigNumber(platformFee.toString()).plus(reward),
+        );
+
+      expect((await proofMarketplace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
+    });
+  });
+  describe("Ask: Public Market", () => {
     let prover: Signer;
     let reward = new BigNumber(10).pow(20).multipliedBy(3);
     let marketId: string;
@@ -303,7 +434,7 @@ describe("Proof market place", () => {
 
       await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
         .to.emit(proofMarketplace, "AskCreated")
-        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
+        .withArgs(askIdToBeGenerated, false, "0x", "0x")
         .to.emit(mockToken, "Transfer")
         .withArgs(
           await prover.getAddress(),

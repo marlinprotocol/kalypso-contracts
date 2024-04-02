@@ -81,7 +81,7 @@ library HELPER {
     }
 
     function IS_ENCLAVE(bytes32 imageId) internal pure returns (bool) {
-        return imageId != bytes32(0) || imageId == NO_ENCLAVE_ID;
+        return !(imageId == bytes32(0) || imageId == NO_ENCLAVE_ID);
     }
 
     /**
