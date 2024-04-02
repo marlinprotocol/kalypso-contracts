@@ -507,13 +507,7 @@
           },
           "t_enum(GeneratorState)6678": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -814,14 +808,7 @@
           },
           "t_enum(AskState)6727": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1152,13 +1139,7 @@
           },
           "t_enum(GeneratorState)5117": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1481,14 +1462,7 @@
           },
           "t_enum(AskState)7108": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -1819,13 +1793,7 @@
           },
           "t_enum(GeneratorState)6891": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2164,14 +2132,7 @@
           },
           "t_enum(AskState)7039": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2502,13 +2463,7 @@
           },
           "t_enum(GeneratorState)5198": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -2847,14 +2802,7 @@
           },
           "t_enum(AskState)7102": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3185,13 +3133,7 @@
           },
           "t_enum(GeneratorState)6901": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "LOW_STAKE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "LOW_STAKE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3530,14 +3472,7 @@
           },
           "t_enum(AskState)7033": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -3868,13 +3803,7 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4229,14 +4158,7 @@
           },
           "t_enum(AskState)6005": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4595,14 +4517,7 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -4933,13 +4848,7 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5294,14 +5203,7 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5632,13 +5534,7 @@
           },
           "t_enum(GeneratorState)7899": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -5993,14 +5889,7 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -6331,13 +6220,7 @@
           },
           "t_enum(GeneratorState)5296": {
             "label": "enum IGeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -6692,14 +6575,7 @@
           },
           "t_enum(AskState)8080": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7058,14 +6934,7 @@
           },
           "t_enum(AskState)7296": {
             "label": "enum IProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7408,13 +7277,7 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -7761,23 +7624,12 @@
           },
           "t_enum(AskState)6656": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6660": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -8142,13 +7994,7 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -8495,23 +8341,12 @@
           },
           "t_enum(AskState)6655": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6659": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -8876,13 +8711,7 @@
           },
           "t_enum(GeneratorState)4753": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -9229,23 +9058,12 @@
           },
           "t_enum(AskState)6657": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6661": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -9880,13 +9698,7 @@
           },
           "t_enum(GeneratorState)4829": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10233,23 +10045,12 @@
           },
           "t_enum(AskState)6814": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6818": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10620,13 +10421,7 @@
           },
           "t_enum(GeneratorState)4840": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -10973,23 +10768,12 @@
           },
           "t_enum(AskState)6807": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6811": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -11360,13 +11144,7 @@
           },
           "t_enum(GeneratorState)6377": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -11713,23 +11491,12 @@
           },
           "t_enum(AskState)8470": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)8474": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12100,13 +11867,7 @@
           },
           "t_enum(GeneratorState)4801": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12453,23 +12214,12 @@
           },
           "t_enum(AskState)6869": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)6873": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -12872,13 +12622,7 @@
           },
           "t_enum(GeneratorState)7130": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -13257,23 +13001,12 @@
           },
           "t_enum(AskState)9456": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9460": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -13946,13 +13679,7 @@
           },
           "t_enum(GeneratorState)7178": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -14331,23 +14058,12 @@
           },
           "t_enum(AskState)9551": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9555": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -14756,13 +14472,7 @@
           },
           "t_enum(GeneratorState)7178": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -15141,23 +14851,12 @@
           },
           "t_enum(AskState)9551": {
             "label": "enum ProofMarketPlace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9555": {
             "label": "enum ProofMarketPlace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -16142,13 +15841,7 @@
           },
           "t_enum(GeneratorState)7582": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -16567,23 +16260,12 @@
           },
           "t_enum(AskState)9962": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)9966": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -17288,13 +16970,7 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -17713,23 +17389,12 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -18130,13 +17795,7 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -18555,23 +18214,12 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -18972,13 +18620,7 @@
           },
           "t_enum(GeneratorState)5304": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -19397,23 +19039,12 @@
           },
           "t_enum(AskState)7659": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7663": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -20070,13 +19701,7 @@
           },
           "t_enum(GeneratorState)5350": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {
@@ -20487,23 +20112,12 @@
           },
           "t_enum(AskState)7770": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)7774": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_bool)": {

@@ -19,6 +19,7 @@ library Error {
     error InvalidECIESACL();
     error BlacklistedImage(bytes32 imageId);
     error AlreadyABlacklistedImage(bytes32 imageId);
+    error MustBeAnEnclave(bytes32 imageId);
 
     // Generator-related Errors
     error GeneratorAlreadyExists();

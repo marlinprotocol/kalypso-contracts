@@ -150,6 +150,10 @@ contract EntityKeyRegistry is
     function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
 
+        if (!imageId.IS_ENCLAVE()) {
+            revert Error.MustBeAnEnclave(imageId);
+        }
+
         if (blackListedImages[imageId]) {
             revert Error.BlacklistedImage(imageId);
         }
