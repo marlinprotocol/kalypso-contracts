@@ -29,9 +29,7 @@ contract EntityKeyRegistry is
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        IAttestationVerifier _av
-    ) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
+    constructor(IAttestationVerifier _av) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
 
     using HELPER for bytes;
     using HELPER for bytes32;
@@ -134,7 +132,12 @@ contract EntityKeyRegistry is
         if (blackListedImages[imageId]) {
             revert Error.BlacklistedImage(imageId);
         }
-        _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+        (bytes32 inferredImageId, ) = _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+
+        // inferredImage == false && isVerified == x, invalid image, revert
+        if (inferredImageId != imageId) {
+            revert Error.InferredImageIdIsDifferent();
+        }
         _addEnclaveImageToFamily(imageId, family);
     }
 

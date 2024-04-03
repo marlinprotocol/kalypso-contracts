@@ -249,9 +249,7 @@ describe("Checking Generator's multiple compute", () => {
         ],
       ],
     );
-    await expect(proofMarketplace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketplace, "ProofCreated")
-      .withArgs(askId, proofBytes);
+    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
   });
 
   it("Task Assignment fails if it exceeds compute capacity", async () => {
@@ -361,17 +359,14 @@ describe("Checking Generator's multiple compute", () => {
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
 
-    await expect(
-      generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
-    )
+    await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature))
       .to.emit(entityKeyRegistry, "UpdateKey")
       .withArgs(await generator.getAddress(), marketId);
   });
 
   it("Only admin can set the generator registry role", async () => {
     const generatorRole = await entityKeyRegistry.KEY_REGISTER_ROLE();
-    await expect(entityKeyRegistry.connect(treasury).addGeneratorRegistry(await proofMarketplace.getAddress())).to.be
-      .reverted;
+    await expect(entityKeyRegistry.connect(treasury).addGeneratorRegistry(await proofMarketplace.getAddress())).to.be.reverted;
 
     await entityKeyRegistry.addGeneratorRegistry(await proofMarketplace.getAddress());
     expect(await entityKeyRegistry.hasRole(generatorRole, await proofMarketplace.getAddress())).to.eq(true);
@@ -443,10 +438,7 @@ describe("Checking Generator's multiple compute", () => {
     expect(generatorData.intendedStakeUtilization).to.eq(exponent);
 
     const marketId = 0; // likely to be 0, if failed change it
-    const generatorDataPerMarket = await generatorRegistry.generatorInfoPerMarket(
-      await generator.getAddress(),
-      marketId,
-    );
+    const generatorDataPerMarket = await generatorRegistry.generatorInfoPerMarket(await generator.getAddress(), marketId);
 
     expect(generatorDataPerMarket.state).to.not.eq(0); // 0 means no generator
     expect(generatorDataPerMarket.computePerRequestRequired).to.eq(computeGivenToNewMarket.toFixed(0));

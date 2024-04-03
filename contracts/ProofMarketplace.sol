@@ -69,10 +69,7 @@ contract ProofMarketplace is
     /**
      * @notice Verifies the matching engine and its' keys.
      */
-    function verifyMatchingEngine(
-        bytes memory attestationData,
-        bytes calldata meSignature
-    ) external onlyRole(UPDATER_ROLE) {
+    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
 
         // confirms that admin has access to enclave
@@ -125,6 +122,7 @@ contract ProofMarketplace is
         uint256 slashingPenalty;
         uint256 activationBlock;
         bytes32 ivsImageId;
+        address creator;
         bytes marketmetadata;
     }
 
@@ -211,6 +209,7 @@ contract ProofMarketplace is
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
+        address _msgSender = _msgSender();
         if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
@@ -218,16 +217,17 @@ contract ProofMarketplace is
         if (!_verifier.checkSampleInputsAndProof()) {
             revert Error.InvalidInputs();
         }
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         uint256 marketId = marketData.length;
 
-        // White list image if is not
+        // Helps skip whitelisting for public provers
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs);
         }
+
+        // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
-        // transfer amount from _msgSender()
 
         marketData.push(
             Market(
@@ -236,10 +236,53 @@ contract ProofMarketplace is
                 _penalty,
                 block.number + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
+                _msgSender,
                 _marketmetadata
             )
         );
         emit MarketplaceCreated(marketId);
+    }
+
+    /**
+     * @notice Feature for market creator to list new prover images and ivs images
+     */
+    function addExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        if (!market.proverImageId.IS_ENCLAVE()) {
+            revert Error.CannotAddImagesForPublicMarkets();
+        }
+
+        for (uint256 index = 0; index < _proverPcrs.length; index++) {
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs[index]);
+        }
+
+        for (uint256 index = 0; index < _ivsPcrs.length; index++) {
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs[index]);
+        }
+    }
+
+    /**
+     * @notice Once called new images can't be added to market
+     */
+    function freezeMarket(uint256 marketId) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        delete marketData[marketId].creator;
     }
 
     /**
@@ -446,10 +489,7 @@ contract ProofMarketplace is
         emit AskCancelled(askId);
     }
 
-    function _verifyAndGetData(
-        uint256 askId,
-        AskWithState memory askWithState
-    ) internal view returns (uint256, address) {
+    function _verifyAndGetData(uint256 askId, AskWithState memory askWithState) internal view returns (uint256, address) {
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
             askWithState.generator,
             askWithState.ask.marketId
@@ -502,14 +542,7 @@ contract ProofMarketplace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
-        if (
-            !_checkDisputeUsingSignature(
-                askId,
-                askWithState.ask.proverData,
-                invalidProofSignature,
-                marketId.IVS_FAMILY_ID()
-            )
-        ) {
+        if (!_checkDisputeUsingSignature(askId, askWithState.ask.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
             revert Error.CannotSlashUsingValidInputs(askId);
         }
 
@@ -613,13 +646,7 @@ contract ProofMarketplace is
 
         _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
-        return
-            GENERATOR_REGISTRY.slashGenerator(
-                askWithState.generator,
-                marketId,
-                _slashingPenalty(marketId),
-                rewardAddress
-            );
+        return GENERATOR_REGISTRY.slashGenerator(askWithState.generator, marketId, _slashingPenalty(marketId), rewardAddress);
     }
 
     function _slashingPenalty(uint256 marketId) internal view returns (uint256) {

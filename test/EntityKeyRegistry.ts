@@ -42,8 +42,7 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key should revert for address without key_register_role", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
-      .reverted;
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be.reverted;
   });
 
   it("Updating with invalid key should revert", async () => {

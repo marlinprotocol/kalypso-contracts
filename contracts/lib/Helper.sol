@@ -20,38 +20,25 @@ library HELPER {
         return GET_IMAGE_ID_FROM_PCRS(PCR0, PCR1, PCR2);
     }
 
-    function GET_IMAGE_ID_FROM_PCRS(
-        bytes memory PCR0,
-        bytes memory PCR1,
-        bytes memory PCR2
-    ) internal pure returns (bytes32) {
+    function GET_IMAGE_ID_FROM_PCRS(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal pure returns (bytes32) {
         bytes32 imageId = keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
         return imageId;
     }
 
     function GET_PUBKEY_AND_ADDRESS(bytes memory data) internal pure returns (bytes memory, address) {
-        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(
-            data,
-            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
-        );
+        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
 
         return (enclaveEciesKey, PUBKEY_TO_ADDRESS(enclaveEciesKey));
     }
 
     function GET_PUBKEY(bytes memory data) internal pure returns (bytes memory) {
-        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(
-            data,
-            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
-        );
+        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
 
         return (enclaveEciesKey);
     }
 
     function GET_ADDRESS(bytes memory data) internal pure returns (address) {
-        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(
-            data,
-            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
-        );
+        (, bytes memory enclaveEciesKey, , , , , , ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
 
         return (PUBKEY_TO_ADDRESS(enclaveEciesKey));
     }
@@ -72,10 +59,7 @@ library HELPER {
     }
 
     function GET_TIMESTAMP_IN_SEC_FROM_ATTESTATION(bytes memory data) internal pure returns (uint256) {
-        (, , , , , , , uint256 timestamp) = abi.decode(
-            data,
-            (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256)
-        );
+        (, , , , , , , uint256 timestamp) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
 
         return timestamp / 1000;
     }

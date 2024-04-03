@@ -34,6 +34,7 @@ contract GeneratorRegistry is
 
     using HELPER for bytes;
     using HELPER for bytes32;
+    using HELPER for uint256;
 
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -285,10 +286,7 @@ contract GeneratorRegistry is
         generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
-        if (
-            !(block.number >= reduceComputeRequestBlock[generatorAddress] &&
-                reduceComputeRequestBlock[generatorAddress] != 0)
-        ) {
+        if (!(block.number >= reduceComputeRequestBlock[generatorAddress] && reduceComputeRequestBlock[generatorAddress] != 0)) {
             revert Error.ReductionRequestNotValid();
         }
 
@@ -411,33 +409,37 @@ contract GeneratorRegistry is
     /**
      * @notice update the encryption key
      */
-    function updateEncryptionKey(
+    function updateEncryptionKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
+        // generator here is _msgSender()
+        _updateEncryptionKey(_msgSender(), marketId, attestationData, enclaveSignature);
+    }
+
+    function _updateEncryptionKey(
+        address generatorAddress,
         uint256 marketId,
         bytes memory attestationData,
         bytes calldata enclaveSignature
-    ) external {
-        address generatorAddress = _msgSender();
+    ) internal {
         Generator memory generator = generatorRegistry[generatorAddress];
-
-        (, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
-
-        if (!(expectedImageId != bytes32(0) || expectedImageId != HELPER.NO_ENCLAVE_ID)) {
-            revert Error.PublicMarketsDontNeedKey();
-        }
-
-        if (expectedImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
-            revert Error.IncorrectImageId();
-        }
 
         // just an extra check to prevent spam
         if (generator.rewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
+        // only for knowing if the given market is private or public
+        (, bytes32 generatorImageId) = _readMarketData(marketId);
+        if (!generatorImageId.IS_ENCLAVE()) {
+            revert Error.PublicMarketsDontNeedKey();
+        }
+
+        if (!ENTITY_KEY_REGISTRY.isImageInFamily(attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), marketId.GENERATOR_FAMILY_ID())) {
+            revert Error.IncorrectImageId();
+        }
+
         bytes memory pubkey = attestationData.GET_PUBKEY();
 
-        // confirms that _msgSender() has access to enclave
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, _msgSender());
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
 
         // don't whitelist, because same imageId must be used to update the key
         ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
@@ -447,10 +449,8 @@ contract GeneratorRegistry is
      * @notice Add IVS key for a given market
      */
     function addIvsKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
-        (, , , , bytes32 expectedIvsImageId, ) = proofMarketplace.marketData(marketId);
-
         // ensure only right image is used
-        if (expectedIvsImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
+        if (!ENTITY_KEY_REGISTRY.isImageInFamily(attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), marketId.IVS_FAMILY_ID())) {
             revert Error.IncorrectImageId();
         }
 
@@ -490,9 +490,8 @@ contract GeneratorRegistry is
             revert Error.CannotBeZero();
         }
 
-        (address marketVerifierContractAddress, bytes32 expectedImageId) = _readMarketData(marketId);
-
-        // prevent joining invalid market
+        // only for checking if any market id valid or not
+        (address marketVerifierContractAddress, ) = _readMarketData(marketId);
         if (marketVerifierContractAddress == address(0)) {
             revert Error.InvalidMarket();
         }
@@ -522,40 +521,19 @@ contract GeneratorRegistry is
             0
         );
 
-        // if prover is public, no need to check the enclave signatures
-        if (expectedImageId != bytes32(0) && expectedImageId != HELPER.NO_ENCLAVE_ID) {
-            // check the image
-            if (expectedImageId != attestationData.GET_IMAGE_ID_FROM_ATTESTATION()) {
-                revert Error.IncorrectImageId();
-            }
-
-            // if users decides to update the market key in the same transaction
-            if (updateMarketDedicatedKey) {
-                // confirms that generatorAddress has access to enclave
-                attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
-
-                // whitelist every image here because it is verified by the generator
-                ENTITY_KEY_REGISTRY.updatePubkey(
-                    generatorAddress,
-                    marketId,
-                    attestationData.GET_PUBKEY(),
-                    attestationData
-                );
-            }
+        if (updateMarketDedicatedKey) {
+            _updateEncryptionKey(generatorAddress, marketId, attestationData, enclaveSignature);
         }
         emit JoinedMarketplace(generatorAddress, marketId, computePerRequestRequired);
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (IVerifier _verifier, bytes32 expectedImageId, , , , ) = proofMarketplace.marketData(marketId);
+        (IVerifier _verifier, bytes32 generatorImageId, , , , , ) = proofMarketplace.marketData(marketId);
 
-        return (address(_verifier), expectedImageId);
+        return (address(_verifier), generatorImageId);
     }
 
-    function getGeneratorState(
-        address generatorAddress,
-        uint256 marketId
-    ) public view returns (GeneratorState, uint256) {
+    function getGeneratorState(address generatorAddress, uint256 marketId) public view returns (GeneratorState, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 
@@ -651,7 +629,7 @@ contract GeneratorRegistry is
     }
 
     function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
-        (IVerifier marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
+        (IVerifier marketVerifier, , , , , , ) = proofMarketplace.marketData(marketId);
 
         // check if market is valid
         if (address(marketVerifier) == address(0)) {
@@ -690,11 +668,7 @@ contract GeneratorRegistry is
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
         // other generator states can't be slashed
-        if (
-            !(state == GeneratorState.WIP ||
-                state == GeneratorState.REQUESTED_FOR_EXIT ||
-                state == GeneratorState.NO_COMPUTE_AVAILABLE)
-        ) {
+        if (!(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT || state == GeneratorState.NO_COMPUTE_AVAILABLE)) {
             revert Error.CannotBeSlashed();
         }
 
@@ -751,11 +725,7 @@ contract GeneratorRegistry is
         uint256 stakeToRelease
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
-        if (
-            !(state == GeneratorState.WIP ||
-                state == GeneratorState.REQUESTED_FOR_EXIT ||
-                state == GeneratorState.NO_COMPUTE_AVAILABLE)
-        ) {
+        if (!(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT || state == GeneratorState.NO_COMPUTE_AVAILABLE)) {
             revert Error.OnlyWorkingGenerators();
         }
 
@@ -769,19 +739,13 @@ contract GeneratorRegistry is
         info.activeRequests--;
     }
 
-    function getGeneratorAssignmentDetails(
-        address generatorAddress,
-        uint256 marketId
-    ) public view returns (uint256, uint256) {
+    function getGeneratorAssignmentDetails(address generatorAddress, uint256 marketId) public view returns (uint256, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
 
         return (info.proofGenerationCost, info.proposedTime);
     }
 
-    function getGeneratorRewardDetails(
-        address generatorAddress,
-        uint256 marketId
-    ) public view returns (address, uint256) {
+    function getGeneratorRewardDetails(address generatorAddress, uint256 marketId) public view returns (address, uint256) {
         GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
         Generator memory generator = generatorRegistry[generatorAddress];
 

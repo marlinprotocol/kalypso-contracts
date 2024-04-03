@@ -37,9 +37,7 @@ export const createTask = async (
   generator: Signer,
 ) => {
   const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), provider);
-  await setupTemplate.proofMarketplace
-    .connect(matchingEngine)
-    .assignTask(askId.toString(), await generator.getAddress(), "0x");
+  await setupTemplate.proofMarketplace.connect(matchingEngine).assignTask(askId.toString(), await generator.getAddress(), "0x");
 };
 
 export const createAsk = async (
@@ -51,14 +49,12 @@ export const createAsk = async (
 ): Promise<string> => {
   await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-  await setupTemplate.mockToken
-    .connect(prover)
-    .approve(await setupTemplate.proofMarketplace.getAddress(), ask.reward.toString());
+  await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), ask.reward.toString());
 
   const proverBytes = ask.proverData;
-  const platformFee = new BigNumber(
-    (await setupTemplate.proofMarketplace.costPerInputBytes(secretType)).toString(),
-  ).multipliedBy((proverBytes.length - 2) / 2);
+  const platformFee = new BigNumber((await setupTemplate.proofMarketplace.costPerInputBytes(secretType)).toString()).multipliedBy(
+    (proverBytes.length - 2) / 2,
+  );
 
   const askId = await setupTemplate.proofMarketplace.askCounter();
   await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x");
@@ -182,12 +178,7 @@ export const rawSetup = async (
 
   await generatorRegistry
     .connect(generator)
-    .register(
-      await generator.getAddress(),
-      totalComputeAllocation.toFixed(0),
-      generatorStakingAmount.toFixed(0),
-      generatorData,
-    );
+    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorStakingAmount.toFixed(0), generatorData);
 
   {
     let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);

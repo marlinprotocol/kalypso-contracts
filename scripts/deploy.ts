@@ -100,9 +100,7 @@ async function main(): Promise<string> {
     await attestationVerifierProxy.waitForDeployment();
 
     addresses.proxy.attestation_verifier = await attestationVerifierProxy.getAddress();
-    addresses.implementation.attestation_verifier = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.attestation_verifier,
-    );
+    addresses.implementation.attestation_verifier = await upgrades.erc1967.getImplementationAddress(addresses.proxy.attestation_verifier);
     const attestation_verifier = AttestationVerifier__factory.connect(addresses.proxy.attestation_verifier, admin);
     const tx = await attestation_verifier.initialize(
       [
@@ -143,9 +141,7 @@ async function main(): Promise<string> {
     await generatorProxy.waitForDeployment();
 
     addresses.proxy.generator_registry = await generatorProxy.getAddress();
-    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.generator_registry,
-    );
+    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(addresses.proxy.generator_registry);
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
     const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
@@ -178,9 +174,7 @@ async function main(): Promise<string> {
     await proxy.waitForDeployment();
 
     addresses.proxy.proof_market_place = await proxy.getAddress();
-    addresses.implementation.proof_market_place = await upgrades.erc1967.getImplementationAddress(
-      addresses.proxy.proof_market_place,
-    );
+    addresses.implementation.proof_market_place = await upgrades.erc1967.getImplementationAddress(addresses.proxy.proof_market_place);
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
     const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
@@ -244,15 +238,7 @@ async function main(): Promise<string> {
 
     let inputBytes = abiCoder.encode(
       ["uint256[5]"],
-      [
-        [
-          zkb_verifier_inputs[0],
-          zkb_verifier_inputs[1],
-          zkb_verifier_inputs[2],
-          zkb_verifier_inputs[3],
-          zkb_verifier_inputs[4],
-        ],
-      ],
+      [[zkb_verifier_inputs[0], zkb_verifier_inputs[1], zkb_verifier_inputs[2], zkb_verifier_inputs[3], zkb_verifier_inputs[4]]],
     );
 
     let proofBytes = abiCoder.encode(
@@ -291,9 +277,7 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.input_and_proof_format) {
-    const input_and_proof_format = await new InputAndProofFormatRegistry__factory(admin).deploy(
-      await admin.getAddress(),
-    );
+    const input_and_proof_format = await new InputAndProofFormatRegistry__factory(admin).deploy(await admin.getAddress());
     await input_and_proof_format.waitForDeployment();
 
     addresses.proxy.input_and_proof_format = await input_and_proof_format.getAddress();

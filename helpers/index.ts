@@ -180,8 +180,7 @@ export interface WalletInfo extends PubkeyAndAddress {
   privateKey: string;
 }
 
-export const BYTES48_ZERO =
-  "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+export const BYTES48_ZERO = "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 function getTimestampMs(delay: number = 0): number {
   return new BigNumber(new BigNumber(new Date().valueOf()).plus(delay).toFixed(0)).toNumber();
@@ -220,24 +219,17 @@ export class MockEnclave {
     return attestationBytes;
   }
 
-  public async getVerifiedAttestation(
-    attestationVerifierEnclave: MockEnclave,
-    timestamp: number = getTimestampMs(),
-  ): Promise<BytesLike> {
+  public async getVerifiedAttestation(attestationVerifierEnclave: MockEnclave, timestamp: number = getTimestampMs()): Promise<BytesLike> {
     let abiCoder = new ethers.AbiCoder();
 
     const EIP712Domain = ethers.keccak256(ethers.toUtf8Bytes("EIP712Domain(string name,string version)"));
     const nameHash = ethers.keccak256(ethers.toUtf8Bytes("marlin.oyster.AttestationVerifier"));
     const versionHash = ethers.keccak256(ethers.toUtf8Bytes("1"));
 
-    const DOMAIN_SEPARATOR = ethers.keccak256(
-      abiCoder.encode(["bytes32", "bytes32", "bytes32"], [EIP712Domain, nameHash, versionHash]),
-    );
+    const DOMAIN_SEPARATOR = ethers.keccak256(abiCoder.encode(["bytes32", "bytes32", "bytes32"], [EIP712Domain, nameHash, versionHash]));
 
     const ATTESTATION_TYPEHASH = ethers.keccak256(
-      ethers.toUtf8Bytes(
-        "Attestation(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)",
-      ),
+      ethers.toUtf8Bytes("Attestation(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)"),
     );
 
     // Encode and hash the attestation structure
@@ -256,9 +248,7 @@ export class MockEnclave {
     );
 
     // Create the digest
-    const digest = ethers.keccak256(
-      ethers.solidityPacked(["bytes", "bytes32", "bytes32"], ["0x1901", DOMAIN_SEPARATOR, hashStruct]),
-    );
+    const digest = ethers.keccak256(ethers.solidityPacked(["bytes", "bytes32", "bytes32"], ["0x1901", DOMAIN_SEPARATOR, hashStruct]));
 
     let firstStageSignature = await attestationVerifierEnclave.signMessageWithoutPrefix(ethers.getBytes(digest));
 
@@ -368,6 +358,13 @@ export class MockEnclave {
     const address = "0x" + hash.slice(-40);
 
     return address;
+  }
+
+  public static someRandomPcrs(): [BytesLike, BytesLike, BytesLike] {
+    const pcr0 = ethers.hexlify(ethers.randomBytes(48));
+    const pcr1 = ethers.hexlify(ethers.randomBytes(48));
+    const pcr2 = ethers.hexlify(ethers.randomBytes(48));
+    return [pcr0, pcr1, pcr2];
   }
 }
 

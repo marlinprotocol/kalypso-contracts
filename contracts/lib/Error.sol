@@ -20,6 +20,9 @@ library Error {
     error BlacklistedImage(bytes32 imageId);
     error AlreadyABlacklistedImage(bytes32 imageId);
     error MustBeAnEnclave(bytes32 imageId);
+    error FailedWhitelistingImages(bytes32 imageId);
+    error FailedAddingToFamily(bytes32 imageId, bytes32 familyId);
+    error InferredImageIdIsDifferent();
 
     // Generator-related Errors
     error GeneratorAlreadyExists();
@@ -37,6 +40,7 @@ library Error {
     error KeyAlreadyExists(address _address);
     error ReductionRequestNotValid();
     error PublicMarketsDontNeedKey();
+    error CannotAddImagesForPublicMarkets();
 
     // Market-related Errors
     error InvalidMarket();
@@ -45,6 +49,7 @@ library Error {
     error CannotLeaveMarketWithActiveRequest();
     error MarketAlreadyExists();
     error InactiveMarket();
+    error OnlyMarketCreator();
 
     // Task and Request Errors
     error CannotAssignExpiredTasks();

@@ -84,10 +84,7 @@ contract transfer_verifier_wrapper is IVerifier {
         return abi.encode(proof);
     }
 
-    function encodeInputAndProofForVerification(
-        uint256[5] memory inputs,
-        uint256[8] memory proof
-    ) public pure returns (bytes memory) {
+    function encodeInputAndProofForVerification(uint256[5] memory inputs, uint256[8] memory proof) public pure returns (bytes memory) {
         return abi.encode(encodeInputs(inputs), encodeProof(proof));
     }
 }

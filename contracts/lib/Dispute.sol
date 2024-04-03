@@ -41,8 +41,8 @@ contract Dispute {
         uint256 askId,
         bytes calldata proverData,
         bytes calldata invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 expectedFamilyId
     ) public view returns (bool) {
-        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedImageId);
+        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedFamilyId);
     }
 }
