@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 /// This is an optional contract that will store the format of inputs and proofs of circuits
 /// which can be read by external tools

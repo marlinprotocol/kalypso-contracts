@@ -2,14 +2,13 @@
 
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
 import "./periphery/AttestationAutherUpgradeable.sol";
@@ -22,8 +21,6 @@ contract EntityKeyRegistry is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
-    AccessControlEnumerableUpgradeable,
-    ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     AttestationAutherUpgradeable
@@ -43,33 +40,8 @@ contract EntityKeyRegistry is
 
     function supportsInterface(
         bytes4 interfaceId
-    )
-        public
-        view
-        virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable, AccessControlEnumerableUpgradeable)
-        returns (bool)
-    {
+    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    function _grantRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._grantRole(role, account);
-    }
-
-    function _revokeRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._revokeRole(role, account);
-
-        // protect against accidentally removing all admins
-        if (getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0) {
-            revert Error.CannotBeAdminLess();
-        }
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -88,8 +60,14 @@ contract EntityKeyRegistry is
     event ImageBlacklisted(bytes32 indexed imageId);
 
     function initialize(address _admin, EnclaveImage[] memory initWhitelistImages) public initializer {
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(MODERATOR_ROLE, DEFAULT_ADMIN_ROLE);
+
         __AttestationAuther_init_unchained(initWhitelistImages);
     }
 

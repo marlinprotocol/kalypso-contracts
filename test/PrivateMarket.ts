@@ -1,6 +1,5 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import * as fs from "fs";
 import { Provider, Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {

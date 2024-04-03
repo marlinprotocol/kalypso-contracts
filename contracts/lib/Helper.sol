@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import {ECDSA as ECDSAUpgradeable} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./Error.sol";
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 library HELPER {
     function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) internal pure returns (bytes32) {
