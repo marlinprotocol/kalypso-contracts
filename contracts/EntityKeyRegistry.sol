@@ -164,7 +164,7 @@ contract EntityKeyRegistry is
         _revokeEnclaveImage(imageId);
     }
 
-    function removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) external onlyRole(MODERATOR_ROLE) {
+    function removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) external onlyRole(KEY_REGISTER_ROLE) {
         _removeEnclaveImageFromFamily(imageId, family);
     }
 

@@ -51,11 +51,6 @@ export const createAsk = async (
 
   await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), ask.reward.toString());
 
-  const proverBytes = ask.proverData;
-  const platformFee = new BigNumber((await setupTemplate.proofMarketplace.costPerInputBytes(secretType)).toString()).multipliedBy(
-    (proverBytes.length - 2) / 2,
-  );
-
   const askId = await setupTemplate.proofMarketplace.askCounter();
   await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x");
 

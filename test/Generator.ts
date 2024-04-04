@@ -33,6 +33,8 @@ import {
 import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
 import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
 
+import * as invalid_transfer_verifier_proof from "../helpers/sample/zkbVerifier/transfer_proof.json";
+
 describe("Checking Generator's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
@@ -72,7 +74,10 @@ describe("Checking Generator's multiple compute", () => {
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
-  beforeEach(async () => {
+  const refreshSetup = async (
+    modifiedComputeGivenToNewMarket = computeGivenToNewMarket,
+    modifiedGeneratorStakingAmount = generatorStakingAmount,
+  ): Promise<void> => {
     signers = await ethers.getSigners();
     admin = signers[0];
     tokenHolder = signers[1];
@@ -143,7 +148,7 @@ describe("Checking Generator's multiple compute", () => {
       admin,
       tokenHolder,
       totalTokenSupply,
-      generatorStakingAmount,
+      modifiedGeneratorStakingAmount,
       generatorSlashingPenalty,
       treasuryAddress,
       marketCreationCost,
@@ -158,7 +163,7 @@ describe("Checking Generator's multiple compute", () => {
       generatorEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
-      computeGivenToNewMarket,
+      modifiedComputeGivenToNewMarket,
       godEnclave,
     );
 
@@ -173,6 +178,9 @@ describe("Checking Generator's multiple compute", () => {
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+  };
+  beforeEach(async () => {
+    await refreshSetup();
   });
 
   it("Using Simple Transfer Verifier", async () => {
@@ -250,6 +258,85 @@ describe("Checking Generator's multiple compute", () => {
       ],
     );
     await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
+  });
+
+  it("Should Fail invalid Proof: Simple Transfer Verifier, but proof generated for some other request", async () => {
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+    // console.log({ inputBytes });
+    const latestBlock = await ethers.provider.getBlockNumber();
+    let assignmentExpiry = 100; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 10000; // in blocks
+
+    const askId = await setup.createAsk(
+      prover,
+      tokenHolder,
+      {
+        marketId,
+        proverData: inputBytes,
+        reward: rewardForProofGeneration.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      1,
+    );
+
+    await setup.createTask(
+      matchingEngineEnclave,
+      admin.provider as Provider,
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      askId,
+      generator,
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          invalid_transfer_verifier_proof.a[0],
+          invalid_transfer_verifier_proof.a[1],
+          invalid_transfer_verifier_proof.b[0][0],
+          invalid_transfer_verifier_proof.b[0][1],
+          invalid_transfer_verifier_proof.b[1][0],
+          invalid_transfer_verifier_proof.b[1][1],
+          invalid_transfer_verifier_proof.c[0],
+          invalid_transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+    await expect(proofMarketplace.submitProof(askId, proofBytes))
+      .to.revertedWithCustomError(proofMarketplace, "InvalidProof")
+      .withArgs(askId);
   });
 
   it("Task Assignment fails if it exceeds compute capacity", async () => {
@@ -341,6 +428,269 @@ describe("Checking Generator's multiple compute", () => {
         );
 
         // console.log({ taskId, index });
+      }
+    }
+  });
+
+  it("Leave Market Place with active request", async () => {
+    const latestBlock = await ethers.provider.getBlockNumber();
+    let assignmentExpiry = 100; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 10000; // in blocks
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    const askId = await setup.createAsk(
+      prover,
+      tokenHolder,
+      {
+        marketId,
+        proverData: inputBytes,
+        reward: rewardForProofGeneration.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      1,
+    );
+
+    await setup.createTask(
+      matchingEngineEnclave,
+      admin.provider as Provider,
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      askId,
+      generator,
+    );
+
+    await expect(generatorRegistry.connect(generator).leaveMarketplace(marketId)).to.revertedWithCustomError(
+      generatorRegistry,
+      "CannotLeaveMarketWithActiveRequest",
+    );
+  });
+
+  it("Invalid arguments in leave market place", async () => {
+    await expect(generatorRegistry.connect(admin).leaveMarketplace(marketId)).to.revertedWithCustomError(
+      generatorRegistry,
+      "InvalidGeneratorStatePerMarket",
+    );
+
+    // some random market id number
+    await expect(generatorRegistry.connect(generator).leaveMarketplace("287")).to.revertedWithoutReason; // actual reason probably is array-out-of-bonds
+  });
+
+  it("Task Assignment fails if it exceeds maximum parallel requests per generators", async () => {
+    const MAX_PARALLEL_REQUESTS = new BigNumber((await generatorRegistry.PARALLEL_REQUESTS_UPPER_LIMIT()).toString());
+
+    const newComputeGivenToMarket = generatorComputeAllocation.div(MAX_PARALLEL_REQUESTS).div(105).multipliedBy(100);
+
+    await refreshSetup(newComputeGivenToMarket);
+    const max_asks = generatorComputeAllocation.div(newComputeGivenToMarket).toFixed(0);
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+    // console.log({ inputBytes });
+
+    for (let index = 0; index < parseInt(max_asks); index++) {
+      const latestBlock = await ethers.provider.getBlockNumber();
+      let assignmentExpiry = 100; // in blocks
+      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 10000; // in blocks
+
+      if (index > MAX_PARALLEL_REQUESTS.toNumber()) {
+        const ask = {
+          marketId,
+          proverData: inputBytes,
+          reward: rewardForProofGeneration.toFixed(),
+          expiry: assignmentExpiry + latestBlock,
+          timeTakenForProofGeneration,
+          deadline: latestBlock + maxTimeForProofGeneration,
+          refundAddress: await prover.getAddress(),
+        };
+
+        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+
+        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+
+        const askId = await proofMarketplace.askCounter();
+
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+
+        const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
+
+        await expect(
+          proofMarketplace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
+        ).to.be.revertedWithCustomError(generatorRegistry, "MaxParallelRequestsPerMarketExceeded");
+      } else {
+        const askId = await setup.createAsk(
+          prover,
+          tokenHolder,
+          {
+            marketId,
+            proverData: inputBytes,
+            reward: rewardForProofGeneration.toFixed(),
+            expiry: assignmentExpiry + latestBlock,
+            timeTakenForProofGeneration,
+            deadline: latestBlock + maxTimeForProofGeneration,
+            refundAddress: await prover.getAddress(),
+          },
+          {
+            mockToken: tokenToUse,
+            proofMarketplace,
+            generatorRegistry,
+            priorityLog,
+            errorLibrary,
+            entityKeyRegistry,
+          },
+          1,
+        );
+
+        await setup.createTask(
+          matchingEngineEnclave,
+          admin.provider as Provider,
+          {
+            mockToken: tokenToUse,
+            proofMarketplace,
+            generatorRegistry,
+            priorityLog,
+            errorLibrary,
+            entityKeyRegistry,
+          },
+          askId,
+          generator,
+        );
+      }
+    }
+  });
+
+  it("Task Assignment fails if generator doesn't have sufficient stake", async () => {
+    const max_restricted_requests_by_stake = 3;
+    const newGeneratorStake = generatorSlashingPenalty.multipliedBy(max_restricted_requests_by_stake);
+    await refreshSetup(computeGivenToNewMarket, newGeneratorStake);
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    for (let index = 0; index < max_restricted_requests_by_stake + 12; index++) {
+      const latestBlock = await ethers.provider.getBlockNumber();
+      let assignmentExpiry = 100; // in blocks
+      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 10000; // in blocks
+
+      if (index >= max_restricted_requests_by_stake) {
+        const ask = {
+          marketId,
+          proverData: inputBytes,
+          reward: rewardForProofGeneration.toFixed(),
+          expiry: assignmentExpiry + latestBlock,
+          timeTakenForProofGeneration,
+          deadline: latestBlock + maxTimeForProofGeneration,
+          refundAddress: await prover.getAddress(),
+        };
+
+        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+
+        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+
+        const askId = await proofMarketplace.askCounter();
+
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+
+        const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
+
+        await expect(
+          proofMarketplace.connect(matchingEngine).assignTask(askId, await generator.getAddress(), "0x1234"),
+        ).to.be.revertedWithCustomError(generatorRegistry, "InsufficientStakeToLock");
+      } else {
+        const askId = await setup.createAsk(
+          prover,
+          tokenHolder,
+          {
+            marketId,
+            proverData: inputBytes,
+            reward: rewardForProofGeneration.toFixed(),
+            expiry: assignmentExpiry + latestBlock,
+            timeTakenForProofGeneration,
+            deadline: latestBlock + maxTimeForProofGeneration,
+            refundAddress: await prover.getAddress(),
+          },
+          {
+            mockToken: tokenToUse,
+            proofMarketplace,
+            generatorRegistry,
+            priorityLog,
+            errorLibrary,
+            entityKeyRegistry,
+          },
+          1,
+        );
+
+        await setup.createTask(
+          matchingEngineEnclave,
+          admin.provider as Provider,
+          {
+            mockToken: tokenToUse,
+            proofMarketplace,
+            generatorRegistry,
+            priorityLog,
+            errorLibrary,
+            entityKeyRegistry,
+          },
+          askId,
+          generator,
+        );
       }
     }
   });

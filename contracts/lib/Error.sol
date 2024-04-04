@@ -40,7 +40,7 @@ library Error {
     error KeyAlreadyExists(address _address);
     error ReductionRequestNotValid();
     error PublicMarketsDontNeedKey();
-    error CannotAddImagesForPublicMarkets();
+    error CannotModifyImagesForPublicMarkets();
 
     // Market-related Errors
     error InvalidMarket();
@@ -50,6 +50,7 @@ library Error {
     error MarketAlreadyExists();
     error InactiveMarket();
     error OnlyMarketCreator();
+    error CannotRemoveDefaultImageFromMarket(uint256 marketId, bytes32 imageId);
 
     // Task and Request Errors
     error CannotAssignExpiredTasks();

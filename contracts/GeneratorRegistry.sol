@@ -127,6 +127,12 @@ contract GeneratorRegistry is
     event RequestComputeDecrease(address indexed generator, uint256 intendedUtilization);
     event DecreaseCompute(address indexed generator, uint256 compute);
 
+    event StakeLockImposed(address indexed generator, uint256 stake);
+    event ComputeLockImposed(address indexed generator, uint256 stake);
+
+    event StakeLockReleased(address indexed generator, uint256 stake);
+    event ComputeLockReleased(address indexed generator, uint256 stake);
+
     //-------------------------------- Events end --------------------------------//
 
     function initialize(address _admin, address _proofMarketplace) public initializer {
@@ -667,8 +673,9 @@ contract GeneratorRegistry is
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) returns (uint256) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
-        // other generator states can't be slashed
-        if (!(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT || state == GeneratorState.NO_COMPUTE_AVAILABLE)) {
+        // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
+        // only generators in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
+        if (state == GeneratorState.NULL || state == GeneratorState.JOINED) {
             revert Error.CannotBeSlashed();
         }
 
@@ -710,12 +717,17 @@ contract GeneratorRegistry is
         }
 
         uint256 availableStake = _maxReducableStake(generatorAddress);
+
         if (availableStake < stakeToLock) {
             revert Error.InsufficientStakeToLock();
         }
 
+        uint256 computeConsumed = info.computePerRequestRequired;
         generator.stakeLocked += stakeToLock;
-        generator.computeConsumed += info.computePerRequestRequired;
+        generator.computeConsumed += computeConsumed;
+
+        emit StakeLockImposed(generatorAddress, stakeToLock);
+        emit ComputeLockImposed(generatorAddress, computeConsumed);
         info.activeRequests++;
     }
 
@@ -725,7 +737,10 @@ contract GeneratorRegistry is
         uint256 stakeToRelease
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
-        if (!(state == GeneratorState.WIP || state == GeneratorState.REQUESTED_FOR_EXIT || state == GeneratorState.NO_COMPUTE_AVAILABLE)) {
+
+        // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
+        // only generators in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
+        if (state == GeneratorState.NULL || state == GeneratorState.JOINED) {
             revert Error.OnlyWorkingGenerators();
         }
 
@@ -733,9 +748,12 @@ contract GeneratorRegistry is
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
         uint256 computeReleased = info.computePerRequestRequired;
+        generator.stakeLocked -= stakeToRelease;
         generator.computeConsumed -= computeReleased;
 
-        generator.stakeLocked -= stakeToRelease;
+        emit StakeLockReleased(generatorAddress, stakeToRelease);
+        emit ComputeLockReleased(generatorAddress, computeReleased);
+
         info.activeRequests--;
     }
 

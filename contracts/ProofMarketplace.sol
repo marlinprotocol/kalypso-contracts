@@ -256,16 +256,54 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
-        if (!market.proverImageId.IS_ENCLAVE()) {
-            revert Error.CannotAddImagesForPublicMarkets();
-        }
+        if (_proverPcrs.length != 0) {
+            if (!market.proverImageId.IS_ENCLAVE()) {
+                revert Error.CannotModifyImagesForPublicMarkets();
+            }
 
-        for (uint256 index = 0; index < _proverPcrs.length; index++) {
-            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs[index]);
+            for (uint256 index = 0; index < _proverPcrs.length; index++) {
+                ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs[index]);
+            }
         }
 
         for (uint256 index = 0; index < _ivsPcrs.length; index++) {
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs[index]);
+        }
+    }
+
+    /**
+     * @notice Feature for market creator to remove extra provers
+     */
+    function removeExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        if (_proverPcrs.length != 0) {
+            if (!market.proverImageId.IS_ENCLAVE()) {
+                revert Error.CannotModifyImagesForPublicMarkets();
+            }
+
+            for (uint256 index = 0; index < _proverPcrs.length; index++) {
+                bytes32 imageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+                if (imageId == market.proverImageId) {
+                    revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                }
+                ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.GENERATOR_FAMILY_ID());
+            }
+        }
+
+        for (uint256 index = 0; index < _ivsPcrs.length; index++) {
+            bytes32 imageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+            if (imageId == market.ivsImageId) {
+                revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+            }
+            ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.IVS_FAMILY_ID());
         }
     }
 
