@@ -67,7 +67,7 @@ contract ProofMarketplace is
     }
 
     /**
-     * @notice Verifies the matching engine and its' keys.
+     * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
      */
     function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
