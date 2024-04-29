@@ -56,11 +56,7 @@ export async function decryptEcies(privateKey: string, encryptedData: Buffer): P
   return decryptedBuffer;
 }
 
-export async function decryptDataWithEciesandAES(
-  encryptedData: string,
-  aclData: Buffer,
-  privateKey: string,
-): Promise<string> {
+export async function decryptDataWithEciesandAES(encryptedData: string, aclData: Buffer, privateKey: string): Promise<string> {
   // Decrypt the secret key using ECIES private key
   const decryptedSecretKey = await decryptEcies(privateKey, aclData);
 

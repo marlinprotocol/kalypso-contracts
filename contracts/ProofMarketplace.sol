@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20 as IERC20Upgradeable} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20 as SafeERC20Upgradeable} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
 import "./interfaces/IVerifier.sol";
@@ -25,8 +23,6 @@ contract ProofMarketplace is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
-    AccessControlEnumerableUpgradeable,
-    ERC1967UpgradeUpgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
     UUPSUpgradeable
@@ -51,6 +47,7 @@ contract ProofMarketplace is
 
     using HELPER for bytes;
     using HELPER for bytes32;
+    using HELPER for uint256;
 
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -58,38 +55,21 @@ contract ProofMarketplace is
 
     function supportsInterface(
         bytes4 interfaceId
-    )
-        public
-        view
-        virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable, AccessControlEnumerableUpgradeable)
-        returns (bool)
-    {
+    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    function _grantRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._grantRole(role, account);
     }
 
     /**
      @notice Enforces PMP to use only one matching engine image
      */
     function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
-        matchingEngineImageId = pcrs.GET_IMAGE_ID_FROM_PCRS();
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(pcrs);
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
     }
 
     /**
-     * @notice Verifies the matching engine and its' keys.
+     * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
      */
-    function verifyMatchingEngine(
-        bytes memory attestationData,
-        bytes calldata meSignature
-    ) external onlyRole(UPDATER_ROLE) {
+    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
         address _thisAddress = address(this);
 
         // confirms that admin has access to enclave
@@ -97,16 +77,6 @@ contract ProofMarketplace is
 
         // checks attestation and updates the key
         ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
-    }
-
-    function _revokeRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._revokeRole(role, account);
-
-        // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -133,6 +103,8 @@ contract ProofMarketplace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
+
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -142,9 +114,7 @@ contract ProofMarketplace is
 
     mapping(SecretType => uint256) public costPerInputBytes;
 
-    uint256 public treasuryCollection;
-
-    bytes32 public matchingEngineImageId;
+    mapping(address => uint256) public claimableAmount;
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -152,6 +122,7 @@ contract ProofMarketplace is
         uint256 slashingPenalty;
         uint256 activationBlock;
         bytes32 ivsImageId;
+        address creator;
         bytes marketmetadata;
     }
 
@@ -212,13 +183,11 @@ contract ProofMarketplace is
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
-        __AccessControlEnumerable_init_unchained();
-        __ERC1967Upgrade_init_unchained();
         __UUPSUpgradeable_init_unchained();
         __ReentrancyGuard_init_unchained();
         __ReentrancyGuard_init_unchained();
 
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
@@ -240,19 +209,26 @@ contract ProofMarketplace is
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
-        require(_penalty != 0, Error.CANNOT_BE_ZERO); // this also the amount, which will be locked for a generator when task is assigned
-        require(_marketmetadata.length != 0, Error.CANNOT_BE_ZERO);
+        address _msgSender = _msgSender();
+        if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
-        require(address(_verifier) != address(0), Error.CANNOT_BE_ZERO);
-        require(_verifier.checkSampleInputsAndProof(), Error.INVALID_INPUTS);
-
-        // White list image if is not
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_proverPcrs);
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(_ivsPcrs);
-        // transfer amount from _msgSender()
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender(), TREASURY, MARKET_CREATION_COST);
+        if (!_verifier.checkSampleInputsAndProof()) {
+            revert Error.InvalidInputs();
+        }
+        PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
 
         uint256 marketId = marketData.length;
+
+        // Helps skip whitelisting for public provers
+        if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs);
+        }
+
+        // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
+
         marketData.push(
             Market(
                 _verifier,
@@ -260,10 +236,91 @@ contract ProofMarketplace is
                 _penalty,
                 block.number + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
+                _msgSender,
                 _marketmetadata
             )
         );
         emit MarketplaceCreated(marketId);
+    }
+
+    /**
+     * @notice Feature for market creator to list new prover images and ivs images
+     */
+    function addExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        if (_proverPcrs.length != 0) {
+            if (!market.proverImageId.IS_ENCLAVE()) {
+                revert Error.CannotModifyImagesForPublicMarkets();
+            }
+
+            for (uint256 index = 0; index < _proverPcrs.length; index++) {
+                ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs[index]);
+            }
+        }
+
+        for (uint256 index = 0; index < _ivsPcrs.length; index++) {
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs[index]);
+        }
+    }
+
+    /**
+     * @notice Feature for market creator to remove extra provers
+     */
+    function removeExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        if (_proverPcrs.length != 0) {
+            if (!market.proverImageId.IS_ENCLAVE()) {
+                revert Error.CannotModifyImagesForPublicMarkets();
+            }
+
+            for (uint256 index = 0; index < _proverPcrs.length; index++) {
+                bytes32 imageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+                if (imageId == market.proverImageId) {
+                    revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                }
+                ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.GENERATOR_FAMILY_ID());
+            }
+        }
+
+        for (uint256 index = 0; index < _ivsPcrs.length; index++) {
+            bytes32 imageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+            if (imageId == market.ivsImageId) {
+                revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+            }
+            ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.IVS_FAMILY_ID());
+        }
+    }
+
+    /**
+     * @notice Once called new images can't be added to market
+     */
+    function freezeMarket(uint256 marketId) external {
+        Market memory market = marketData[marketId];
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
+
+        if (_msgSender() != market.creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        delete marketData[marketId].creator;
     }
 
     /**
@@ -290,34 +347,47 @@ contract ProofMarketplace is
         bytes calldata privateInputs,
         bytes calldata acl
     ) internal {
-        require(ask.reward != 0, Error.CANNOT_BE_ZERO);
-        require(ask.proverData.length != 0, Error.CANNOT_BE_ZERO);
-        require(ask.expiry > block.number, Error.CAN_NOT_ASSIGN_EXPIRED_TASKS);
-        require(acl.length <= 130, Error.INVALID_ECIES_ACL);
+        if (ask.reward == 0 || ask.proverData.length == 0) {
+            revert Error.CannotBeZero();
+        }
+        if (ask.expiry <= block.number) {
+            revert Error.CannotAssignExpiredTasks();
+        }
+        // ensures that the cipher used is small enough
+        if (acl.length > 130) {
+            revert Error.InvalidECIESACL();
+        }
 
         Market memory market = marketData[ask.marketId];
-        require(block.number > market.activationBlock, Error.INACTIVE_MARKET);
+        if (block.number < market.activationBlock) {
+            revert Error.InactiveMarket();
+        }
 
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
-        treasuryCollection += platformFee;
+        _increaseClaimableAmount(TREASURY, platformFee);
 
-        require(market.marketmetadata.length != 0, Error.INVALID_MARKET);
+        if (market.marketmetadata.length == 0) {
+            revert Error.InvalidMarket();
+        }
 
         uint256 askId = listOfAsk.length;
         AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender, address(0));
         listOfAsk.push(askRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
-        require(inputVerifier.verifyInputs(ask.proverData), Error.INVALID_INPUTS);
+
+        if (!inputVerifier.verifyInputs(ask.proverData)) {
+            revert Error.InvalidInputs();
+        }
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
             emit AskCreated(askId, true, privateInputs, acl);
         } else {
             // ACL is not emitted if not private
-            emit AskCreated(askId, false, privateInputs, "");
+            emit AskCreated(askId, false, "", "");
         }
     }
 
@@ -386,17 +456,16 @@ contract ProofMarketplace is
         bytes[] calldata newAcls,
         bytes calldata signature
     ) external nonReentrant {
-        require(askIds.length == generators.length, Error.ARITY_MISMATCH);
-        require(askIds.length == newAcls.length, Error.ARITY_MISMATCH);
+        if (askIds.length != generators.length || generators.length != newAcls.length) {
+            revert Error.ArityMismatch();
+        }
 
         bytes32 messageHash = keccak256(abi.encode(askIds, generators, newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
-        require(
-            ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, matchingEngineImageId),
-            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
-        );
+
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
 
         for (uint256 index = 0; index < askIds.length; index++) {
             _assignTask(askIds[index], generators[index], newAcls[index]);
@@ -407,16 +476,15 @@ contract ProofMarketplace is
      * @notice Assign Tasks for Generators directly if ME signer has the gas
      */
     function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
-        require(
-            ENTITY_KEY_REGISTRY.allowOnlyVerified(_msgSender(), matchingEngineImageId),
-            Error.ONLY_MATCHING_ENGINE_CAN_ASSIGN
-        );
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
         _assignTask(askId, generator, new_acl);
     }
 
     function _assignTask(uint256 askId, address generator, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        require(getAskState(askId) == AskState.CREATE, Error.SHOULD_BE_IN_CREATE_STATE);
+        if (getAskState(askId) != AskState.CREATE) {
+            revert Error.ShouldBeInCreateState();
+        }
 
         AskWithState storage askWithState = listOfAsk[askId];
         (uint256 proofGenerationCost, uint256 generatorProposedTime) = GENERATOR_REGISTRY.getGeneratorAssignmentDetails(
@@ -425,10 +493,14 @@ contract ProofMarketplace is
         );
 
         // Can not assign task if price mismatch happens
-        require(askWithState.ask.reward >= proofGenerationCost, Error.PROOF_PRICE_MISMATCH);
+        if (askWithState.ask.reward < proofGenerationCost) {
+            revert Error.ProofPriceMismatch(askId);
+        }
 
         // Can not assign task if time mismatch happens
-        require(askWithState.ask.timeTakenForProofGeneration >= generatorProposedTime, Error.PROOF_TIME_MISMATCH);
+        if (askWithState.ask.timeTakenForProofGeneration < generatorProposedTime) {
+            revert Error.ProofTimeMismatch(askId);
+        }
 
         askWithState.state = AskState.ASSIGNED;
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
@@ -444,26 +516,30 @@ contract ProofMarketplace is
      */
     function cancelAsk(uint256 askId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        require(getAskState(askId) == AskState.UNASSIGNED, Error.ONLY_EXPIRED_ASKS_CAN_BE_CANCELLED);
+        if (getAskState(askId) != AskState.UNASSIGNED) {
+            revert Error.OnlyExpiredAsksCanBeCancelled(askId);
+        }
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
     }
 
-    function _verifyAndGetData(
-        uint256 askId,
-        AskWithState memory askWithState
-    ) internal view returns (uint256, address) {
+    function _verifyAndGetData(uint256 askId, AskWithState memory askWithState) internal view returns (uint256, address) {
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
             askWithState.generator,
             askWithState.ask.marketId
         );
 
-        require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (generatorRewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
+
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
 
         return (minRewardForGenerator, generatorRewardAddress);
     }
@@ -477,18 +553,18 @@ contract ProofMarketplace is
         uint256 _penalty
     ) internal {
         // Only assigned requests can be proved
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
         listOfAsk[askId].state = AskState.COMPLETE;
 
         // tokens related to incorrect request will be sen't to treasury
         uint256 toTreasury = askWithState.ask.reward - minRewardForGenerator;
 
-        if (minRewardForGenerator != 0) {
-            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
-        }
-
+        // transfer the reward to generator
+        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
         // transfer the amount to treasury collection
-        treasuryCollection += toTreasury;
+        _increaseClaimableAmount(TREASURY, toTreasury);
 
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, _penalty);
         emit InvalidInputsDetected(askId);
@@ -504,15 +580,9 @@ contract ProofMarketplace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
-        require(
-            _checkDisputeUsingSignature(
-                askId,
-                askWithState.ask.proverData,
-                invalidProofSignature,
-                currentMarket.ivsImageId
-            ),
-            Error.CAN_NOT_SLASH_USING_VALID_INPUTS
-        );
+        if (!_checkDisputeUsingSignature(askId, askWithState.ask.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
+            revert Error.CannotSlashUsingValidInputs(askId);
+        }
 
         _completeProofForInvalidRequests(
             askId,
@@ -528,7 +598,9 @@ contract ProofMarketplace is
      * @notice Submit Multiple proofs in single transaction
      */
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        require(taskIds.length == proofs.length, Error.ARITY_MISMATCH);
+        if (taskIds.length != proofs.length) {
+            revert Error.ArityMismatch();
+        }
         for (uint256 index = 0; index < taskIds.length; index++) {
             _submitProof(taskIds[index], proofs[index]);
         }
@@ -551,25 +623,29 @@ contract ProofMarketplace is
             askWithState.ask.marketId
         );
 
-        require(generatorRewardAddress != address(0), Error.CANNOT_BE_ZERO);
-        require(getAskState(askId) == AskState.ASSIGNED, Error.ONLY_ASSIGNED_ASKS_CAN_BE_PROVED);
+        if (generatorRewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
+
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
         // check what needs to be encoded from proof, ask and task for proof to be verified
 
         bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
 
         // Verify input and proof against verifier
-        require(marketData[marketId].verifier.verify(inputAndProof), Error.INVALID_PROOF);
+        if (!marketData[marketId].verifier.verify(inputAndProof)) {
+            revert Error.InvalidProof(askId);
+        }
         listOfAsk[askId].state = AskState.COMPLETE;
 
-        uint256 toBackToProver = askWithState.ask.reward - minRewardForGenerator;
+        uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
 
-        if (minRewardForGenerator != 0) {
-            PAYMENT_TOKEN.safeTransfer(generatorRewardAddress, minRewardForGenerator);
-        }
-
-        if (toBackToProver != 0) {
-            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToProver);
-        }
+        // reward to generator
+        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        // fraction of amount back to requestor
+        _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
 
         uint256 generatorAmountToRelease = _slashingPenalty(marketId);
         GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
@@ -580,7 +656,9 @@ contract ProofMarketplace is
      * @notice Slash Generator for deadline crossed requests
      */
     function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant returns (uint256) {
-        require(getAskState(askId) == AskState.DEADLINE_CROSSED, Error.SHOULD_BE_IN_CROSSED_DEADLINE_STATE);
+        if (getAskState(askId) != AskState.DEADLINE_CROSSED) {
+            revert Error.ShouldBeInCrossedDeadlineState(askId);
+        }
         return _slashGenerator(askId, rewardAddress);
     }
 
@@ -589,8 +667,12 @@ contract ProofMarketplace is
      */
     function discardRequest(uint256 askId) external nonReentrant returns (uint256) {
         AskWithState memory askWithState = listOfAsk[askId];
-        require(getAskState(askId) == AskState.ASSIGNED, Error.SHOULD_BE_IN_ASSIGNED_STATE);
-        require(askWithState.generator == msg.sender, Error.ONLY_GENERATOR_CAN_DISCARD_REQUEST);
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.ShouldBeInAssignedState(askId);
+        }
+        if (askWithState.generator != _msgSender()) {
+            revert Error.OnlyGeneratorCanDiscardRequest(askId);
+        }
         return _slashGenerator(askId, TREASURY);
     }
 
@@ -600,25 +682,26 @@ contract ProofMarketplace is
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
-        return
-            GENERATOR_REGISTRY.slashGenerator(
-                askWithState.generator,
-                marketId,
-                _slashingPenalty(marketId),
-                rewardAddress
-            );
+        return GENERATOR_REGISTRY.slashGenerator(askWithState.generator, marketId, _slashingPenalty(marketId), rewardAddress);
     }
 
     function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
         return marketData[marketId].slashingPenalty;
     }
 
-    function flushToTreasury() public {
-        if (treasuryCollection != 0) {
-            PAYMENT_TOKEN.safeTransfer(TREASURY, treasuryCollection);
-            treasuryCollection = 0;
+    function flush(address _address) public {
+        uint256 amount = claimableAmount[_address];
+        if (amount != 0) {
+            PAYMENT_TOKEN.safeTransfer(_address, amount);
+            delete claimableAmount[_address];
+        }
+    }
+
+    function _increaseClaimableAmount(address _address, uint256 _amount) internal {
+        if (_amount != 0) {
+            claimableAmount[_address] += _amount;
         }
     }
 
@@ -626,15 +709,18 @@ contract ProofMarketplace is
         uint256 askId,
         bytes memory proverData,
         bytes memory invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 familyId
     ) internal view returns (bool) {
         bytes32 messageHash = keccak256(abi.encode(askId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, invalidProofSignature);
-        require(signer != address(0), Error.CANNOT_BE_ZERO);
-        require(ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, expectedImageId), Error.INVALID_ENCLAVE_KEY);
+        if (signer == address(0)) {
+            revert Error.InvalidEnclaveSignature(signer);
+        }
+
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(familyId, signer);
         return true;
     }
 

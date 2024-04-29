@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 
-import { MockEnclave, MockGeneratorPCRS } from "../helpers";
+import { MockEnclave, MockGeneratorPCRS, generatorFamilyId } from "../helpers";
 import {
   Error,
   Error__factory,
@@ -42,19 +42,19 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key should revert for address without key_register_role", async () => {
-    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be
-      .reverted;
+    await expect(entityKeyRegistry.connect(randomUser).updatePubkey(randomUser.getAddress(), 0, "0x", "0x")).to.be.reverted;
   });
 
   it("Updating with invalid key should revert", async () => {
-    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWith(
-      await errorLibrary.INVALID_ENCLAVE_KEY(),
+    await expect(entityKeyRegistry.updatePubkey(randomUser.getAddress(), 1, "0x", "0x")).to.be.revertedWithCustomError(
+      entityKeyRegistry,
+      "InvalidEnclaveKey",
     );
   });
 
   it("Update key", async () => {
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
@@ -70,7 +70,7 @@ describe("Entity key registry tests", () => {
   it("Remove key", async () => {
     // Adding key to registry
     const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generator_enclave.getPcrRlp());
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
@@ -102,8 +102,8 @@ describe("Entity key registry tests", () => {
     const expectedAddress = "0xe511c2c747Fa2F46e8786cbF4d66b015d1FCfaC1";
 
     let inputBytes = abiCoder.encode(
-      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256", "uint256", "uint256"],
-      ["0x00", knownPubkey, "0x00", "0x00", "0x00", "0x00", "0x00", new Date().valueOf()],
+      ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"],
+      ["0x00", knownPubkey, "0x00", "0x00", "0x00", new Date().valueOf()],
     );
 
     const info = MockEnclave.getPubKeyAndAddressFromAttestation(inputBytes);

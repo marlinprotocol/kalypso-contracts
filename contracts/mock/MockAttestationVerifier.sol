@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IAttestationVerifier.sol";
+import "../periphery/interfaces/IAttestationVerifier.sol";
 
 contract MockAttestationVerifier is IAttestationVerifier {
     function verify(
@@ -11,16 +11,10 @@ contract MockAttestationVerifier is IAttestationVerifier {
         bytes memory PCR0,
         bytes memory PCR1,
         bytes memory PCR2,
-        uint256 enclaveCPUs,
-        uint256 enclaveMemory,
         uint256 timestamp
-    ) public pure override {}
+    ) public pure {}
 
     function verify(bytes memory) public pure override {}
 
-    function isVerified(address) public pure returns (bytes32) {
-        return bytes32(0);
-    }
-
-    function whitelistEnclave(bytes32 imageId, address enclaveKey) external {}
+    function verify(bytes memory signature, IAttestationVerifier.Attestation memory attestation) external pure {}
 }

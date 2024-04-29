@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 import "../interfaces/IVerifier.sol";
 
@@ -81,10 +81,7 @@ contract plonk_verifier_wrapper is IVerifier {
         return abi.encode(proof);
     }
 
-    function encodeInputAndProofForVerification(
-        bytes32[] memory inputs,
-        bytes memory proof
-    ) public pure returns (bytes memory) {
+    function encodeInputAndProofForVerification(bytes32[] memory inputs, bytes memory proof) public pure returns (bytes memory) {
         return abi.encode(encodeInputs(inputs), encodeProof(proof));
     }
 }

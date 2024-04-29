@@ -200,8 +200,6 @@ describe("Proof Market Place for Circom Verifier", () => {
       ["uint[2]", "uint[2][2]", "uint[2]"],
       [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
     );
-    await expect(proofMarketplace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketplace, "ProofCreated")
-      .withArgs(askId, proofBytes);
+    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
   });
 });

@@ -246,8 +246,6 @@ describe("Proof Market Place for Transfer Verifier", () => {
         ],
       ],
     );
-    await expect(proofMarketplace.submitProof(askId, proofBytes))
-      .to.emit(proofMarketplace, "ProofCreated")
-      .withArgs(askId, proofBytes);
+    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
   });
 });

@@ -1,21 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract UC_Rekt is
-    Initializable,
-    ContextUpgradeable,
-    ERC165Upgradeable,
-    ERC1967UpgradeUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract UC_Rekt is Initializable, ContextUpgradeable, ERC165Upgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     bool public rektSlot; // assume this is slot that was un-noticed in immediate parent
     uint96 public rektSlot2; // assume this is slot that was un-noticed in immediate parent
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -22,23 +22,18 @@ contract Dispute {
         uint256 askId,
         bytes calldata proverData,
         bytes memory invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 familyId
     ) internal view returns (bool) {
-        bytes32 messageHash;
-        bool isPublic = expectedImageId == bytes32(0) || expectedImageId == HELPER.NO_ENCLAVE_ID;
-
-        if (isPublic) {
-            messageHash = keccak256(abi.encode(askId, proverData));
-        } else {
-            messageHash = keccak256(abi.encode(askId));
-        }
+        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
-        require(signer != address(0), Error.CANNOT_BE_ZERO);
+        if (signer == address(0)) {
+            revert Error.CannotBeZero();
+        }
 
-        require(ENTITY_KEY_REGISTRY.allowOnlyVerified(signer, expectedImageId), Error.INVALID_ENCLAVE_KEY);
+        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(familyId, signer);
         return true;
     }
 
@@ -46,8 +41,8 @@ contract Dispute {
         uint256 askId,
         bytes calldata proverData,
         bytes calldata invalidProofSignature,
-        bytes32 expectedImageId
+        bytes32 expectedFamilyId
     ) public view returns (bool) {
-        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedImageId);
+        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedFamilyId);
     }
 }

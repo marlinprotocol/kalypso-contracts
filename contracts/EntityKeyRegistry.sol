@@ -2,14 +2,13 @@
 
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
 import "./periphery/AttestationAutherUpgradeable.sol";
@@ -22,8 +21,6 @@ contract EntityKeyRegistry is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
-    AccessControlEnumerableUpgradeable,
-    ERC1967UpgradeUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     AttestationAutherUpgradeable
@@ -32,9 +29,7 @@ contract EntityKeyRegistry is
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        IAttestationVerifier _av
-    ) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
+    constructor(IAttestationVerifier _av) AttestationAutherUpgradeable(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) initializer {}
 
     using HELPER for bytes;
     using HELPER for bytes32;
@@ -43,50 +38,34 @@ contract EntityKeyRegistry is
 
     function supportsInterface(
         bytes4 interfaceId
-    )
-        public
-        view
-        virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable, AccessControlEnumerableUpgradeable)
-        returns (bool)
-    {
+    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    function _grantRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._grantRole(role, account);
-    }
-
-    function _revokeRole(
-        bytes32 role,
-        address account
-    ) internal virtual override(AccessControlUpgradeable, AccessControlEnumerableUpgradeable) {
-        super._revokeRole(role, account);
-
-        // protect against accidentally removing all admins
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) != 0, Error.CANNOT_BE_ADMIN_LESS);
     }
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     bytes32 public constant KEY_REGISTER_ROLE = keccak256("KEY_REGISTER_ROLE");
 
+    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+
     mapping(address => mapping(uint256 => bytes)) public pub_key;
 
-    modifier isNotUsedUpKey(bytes calldata pubkey) {
-        address _address = pubkey.PUBKEY_TO_ADDRESS();
-        require(_getVerifiedKey(_address) == bytes32(0), Error.KEY_ALREADY_EXISTS);
-        _;
-    }
+    mapping(bytes32 => bool) public blackListedImages;
 
     event UpdateKey(address indexed user, uint256 indexed keyIndex);
     event RemoveKey(address indexed user, uint256 indexed keyIndex);
 
+    event ImageBlacklisted(bytes32 indexed imageId);
+
     function initialize(address _admin, EnclaveImage[] memory initWhitelistImages) public initializer {
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setRoleAdmin(MODERATOR_ROLE, DEFAULT_ADMIN_ROLE);
+
         __AttestationAuther_init_unchained(initWhitelistImages);
     }
 
@@ -102,8 +81,10 @@ contract EntityKeyRegistry is
         uint256 keyIndex,
         bytes calldata pubkey,
         bytes calldata attestation_data
-    ) external onlyRole(KEY_REGISTER_ROLE) isNotUsedUpKey(pubkey) {
-        require(pubkey.length == 64, Error.INVALID_ENCLAVE_KEY);
+    ) external onlyRole(KEY_REGISTER_ROLE) {
+        if (pubkey.length != 64) {
+            revert Error.InvalidEnclaveKey();
+        }
 
         pub_key[keyOwner][keyIndex] = pubkey;
 
@@ -122,10 +103,10 @@ contract EntityKeyRegistry is
     /**
      * @notice Whitelist a new image. Called when a market creator creates a new market
      */
-    function whitelistImageUsingPcrs(bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
+    function whitelistImageUsingPcrs(bytes32 family, bytes calldata pcrs) external onlyRole(KEY_REGISTER_ROLE) {
         (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(pcrs, (bytes, bytes, bytes));
 
-        _whitelistImageIfNot(PCR0, PCR1, PCR2);
+        _whitelistImageIfNot(family, PCR0, PCR1, PCR2);
     }
 
     function _verifyKeyInternal(bytes calldata data) internal {
@@ -135,27 +116,29 @@ contract EntityKeyRegistry is
             bytes memory PCR0,
             bytes memory PCR1,
             bytes memory PCR2,
-            uint256 enclaveCPUs,
-            uint256 enclaveMemory,
             uint256 timestamp
-        ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256, uint256, uint256));
+        ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256));
 
         // compute image id in proper way
-        _verifyKey(
-            attestation,
-            enclaveKey,
-            PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2),
-            enclaveCPUs,
-            enclaveMemory,
-            timestamp
-        );
+        _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
     }
 
-    function _whitelistImageIfNot(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
+    function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {
         bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
-        if (_getWhitelistedImage(imageId).PCR0.length == 0) {
-            _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+        if (!imageId.IS_ENCLAVE()) {
+            revert Error.MustBeAnEnclave(imageId);
         }
+
+        if (blackListedImages[imageId]) {
+            revert Error.BlacklistedImage(imageId);
+        }
+        (bytes32 inferredImageId, ) = _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+
+        // inferredImage == false && isVerified == x, invalid image, revert
+        if (inferredImageId != imageId) {
+            revert Error.InferredImageIdIsDifferent();
+        }
+        _addEnclaveImageToFamily(imageId, family);
     }
 
     /**
@@ -167,11 +150,22 @@ contract EntityKeyRegistry is
         emit RemoveKey(keyOwner, keyIndex);
     }
 
-    /**
-     * @notice Check if the given address is allowed to operate for a given enclave
-     */
-    function allowOnlyVerified(address key, bytes32 _imageId) external view returns (bool) {
-        return _allowOnlyVerified(key, _imageId);
+    function allowOnlyVerifiedFamily(bytes32 familyId, address _key) external view {
+        return _allowOnlyVerifiedFamily(_key, familyId);
+    }
+
+    // ---------- SECURITY FEATURE FUNCTIONS ----------- //
+    function blacklistImage(bytes32 imageId) external onlyRole(MODERATOR_ROLE) {
+        if (blackListedImages[imageId]) {
+            revert Error.AlreadyABlacklistedImage(imageId);
+        }
+        blackListedImages[imageId] = true;
+        emit ImageBlacklisted(imageId);
+        _revokeEnclaveImage(imageId);
+    }
+
+    function removeEnclaveImageFromFamily(bytes32 imageId, bytes32 family) external onlyRole(KEY_REGISTER_ROLE) {
+        _removeEnclaveImageFromFamily(imageId, family);
     }
 
     // for further increase
