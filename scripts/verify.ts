@@ -28,11 +28,6 @@ async function main() {
   const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
   let verificationResult;
-  verificationResult = await run("verify:verify", {
-    address: addresses.proxy.attestation_verifier,
-    constructorArguments: [],
-  });
-  console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
     address: addresses.implementation.generator_registry,
@@ -44,13 +39,17 @@ async function main() {
     address: addresses.implementation.proof_market_place,
     constructorArguments: [
       addresses.proxy.payment_token,
-      addresses.proxy.staking_token,
       config.marketCreationCost,
       await treasury.getAddress(),
       addresses.proxy.generator_registry,
       addresses.proxy.entity_registry,
-      addresses.proxy.mock_attestation_verifier,
     ],
+  });
+  console.log({ verificationResult });
+
+  verificationResult = await run("verify:verify", {
+    address: addresses.implementation.entity_registry,
+    constructorArguments: [addresses.proxy.attestation_verifier],
   });
   console.log({ verificationResult });
 
@@ -63,6 +62,7 @@ async function main() {
     address: addresses.proxy.proof_market_place,
   });
   console.log({ verificationResult });
+
   return "String";
 }
 
