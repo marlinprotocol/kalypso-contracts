@@ -16,6 +16,7 @@ import "./interfaces/IVerifier.sol";
 
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
+import "./TeeVerifier.sol";
 import "./lib/Error.sol";
 
 contract ProofMarketplace is
@@ -36,13 +37,15 @@ contract ProofMarketplace is
         uint256 _marketCreationCost,
         address _treasury,
         GeneratorRegistry _generatorRegistry,
-        EntityKeyRegistry _entityRegistry
+        EntityKeyRegistry _entityRegistry,
+        TeeVerifier _teeVerifier
     ) initializer {
         PAYMENT_TOKEN = _paymentToken;
         MARKET_CREATION_COST = _marketCreationCost;
         TREASURY = _treasury;
         GENERATOR_REGISTRY = _generatorRegistry;
         ENTITY_KEY_REGISTRY = _entityRegistry;
+        TEE_VERIFIER = _teeVerifier;
     }
 
     using HELPER for bytes;
@@ -102,6 +105,9 @@ contract ProofMarketplace is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    TeeVerifier public immutable TEE_VERIFIER;
 
     bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
 
@@ -581,6 +587,63 @@ contract ProofMarketplace is
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
         if (!_checkDisputeUsingSignature(askId, askWithState.ask.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
+            revert Error.CannotSlashUsingValidInputs(askId);
+        }
+
+        _completeProofForInvalidRequests(
+            askId,
+            askWithState,
+            minRewardForGenerator,
+            generatorRewardAddress,
+            marketId,
+            currentMarket.slashingPenalty
+        );
+    }
+
+    function submitProofForValidTeeProof(uint256 askId, bytes calldata validTeeProofSignature) external nonReentrant {
+        AskWithState memory askWithState = listOfAsk[askId];
+
+        uint256 marketId = askWithState.ask.marketId;
+
+        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
+            askWithState.generator,
+            askWithState.ask.marketId
+        );
+
+        if (generatorRewardAddress == address(0)) {
+            revert Error.CannotBeZero();
+        }
+
+        if (getAskState(askId) != AskState.ASSIGNED) {
+            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        }
+
+        // Verify input and proof against verifier
+        if (!TEE_VERIFIER.verifyProofForTeeVerifier(askId, askWithState.ask.proverData , validTeeProofSignature, marketId.GENERATOR_FAMILY_ID())) {
+            revert Error.InvalidProof(askId);
+        }
+        listOfAsk[askId].state = AskState.COMPLETE;
+
+        uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
+
+        // reward to generator
+        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        // fraction of amount back to requestor
+        _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
+
+        uint256 generatorAmountToRelease = _slashingPenalty(marketId);
+        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
+        emit ProofCreated(askId, proof);
+    }
+
+    function submitProofForInvalidTeeProof(uint256 askId, bytes calldata invalidTeeProofSignature) external nonReentrant {
+        AskWithState memory askWithState = listOfAsk[askId];
+        uint256 marketId = askWithState.ask.marketId;
+        Market memory currentMarket = marketData[marketId];
+
+        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
+
+        if (!TEE_VERIFIER.verifyProofForTeeVerifier(askId, askWithState.ask.proverData, invalidTeeProofSignature, marketId.GENERATOR_FAMILY_ID())) {
             revert Error.CannotSlashUsingValidInputs(askId);
         }
 
