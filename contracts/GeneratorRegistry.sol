@@ -220,13 +220,13 @@ contract GeneratorRegistry is
 
     /**
      * @notice Notify matching engine about compute reduction. This will stop matching engine from assigning new tasks till the compute is down
-     * @param newUtilization New Utilization is in percentage scaled up to 10e18
+     * @param computeToReduce Compute To Reduce
      */
-    function intendToReduceCompute(uint256 newUtilization) external {
+    function intendToReduceCompute(uint256 computeToReduce) external {
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
-        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0 || computeToReduce == 0) {
             revert Error.CannotBeZero();
         }
 
@@ -235,23 +235,18 @@ contract GeneratorRegistry is
             revert Error.RequestAlreadyInPlace();
         }
 
-        // new utilization should be always less than EXP
-        if (newUtilization >= EXPONENT) {
-            revert Error.ExceedsAcceptableRange();
-        }
-
         // new utilization after update
-        uint256 newTotalCompute = (newUtilization * generator.declaredCompute) / EXPONENT;
+        uint256 newTotalCompute = generator.declaredCompute - computeToReduce;
 
         // this is min compute requires for atleast 1 request from each supported market
         if (newTotalCompute <= generator.sumOfComputeAllocations) {
             revert Error.ExceedsAcceptableRange();
         }
 
-        // ensures that new utilization is not too small to release and prevent generator dead lock
-        // uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
-        if (generator.declaredCompute - newTotalCompute == 0) {
-            revert Error.CannotBeZero();
+        uint256 newUtilization = (newTotalCompute * EXPONENT) / generator.declaredCompute;
+        // new utilization should be always less than EXP
+        if (newUtilization >= EXPONENT) {
+            revert Error.ExceedsAcceptableRange();
         }
 
         // temporary value to store the new utilization
@@ -322,13 +317,13 @@ contract GeneratorRegistry is
 
     /**
      * @notice Notify matching engine about stake reduction. This will stop matching engine from assigning new tasks till the locked stake is down
-     * @param newUtilization New Utilization is in percentage scaled up to 10e18
+     * @param stakeToReduce Stake to Reduce
      */
-    function intendToReduceStake(uint256 newUtilization) external {
+    function intendToReduceStake(uint256 stakeToReduce) external {
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
-        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0 || stakeToReduce == 0) {
             revert Error.CannotBeZero();
         }
 
@@ -337,21 +332,12 @@ contract GeneratorRegistry is
             revert Error.RequestAlreadyInPlace();
         }
 
-        // new utilization should be always less than EXP
-        if (newUtilization >= EXPONENT) {
-            revert Error.ExceedsAcceptableRange();
-        }
+        // new utilization after update
+        uint256 newTotalStake = generator.totalStake - stakeToReduce;
+
+        uint256 newUtilization = (newTotalStake * EXPONENT) / generator.totalStake;
 
         generator.intendedStakeUtilization = newUtilization;
-
-        // new utilization after update
-        uint256 newTotalStake = (newUtilization * generator.totalStake) / EXPONENT;
-
-        // ensures that new utilization is not too small to release and prevent generator dead lock
-        // uint256 stakeToRelease = generator.totalStake - newTotalStake;
-        if (generator.totalStake - newTotalStake == 0) {
-            revert Error.CannotBeZero();
-        }
 
         unstakeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestStakeDecrease(_generatorAddress, newUtilization);

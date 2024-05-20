@@ -3,19 +3,19 @@
     "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
     "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
     "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
-    "attestation_verifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
-    "entity_registry": "0x2E75011Bd25Fc40A6cc88BAa4b19020B9A0C120F",
-    "generator_registry": "0xDB26Ff91F9aaD967bC406642233b69bE539f3d1F",
-    "dispute": "0x9B16D07Ed6f1df344279ea9F958FcA13dCa655E9",
-    "proof_market_place": "0x6Db494dC0EE6e43B96381B20B64Fce9e9C80985e",
-    "transfer_verifier_wrapper": "0xc7FC3b80503b50fdC212Ed6ba6683515fdb71818",
-    "zkb_verifier_wrapper": "0x8F372BcdEBF78Fdd8AC01EF0548fdcDE8aF13Bf1",
-    "priority_list": "0xfedBdc86B9BDeA11784003b10615bb5eD0fB62FD",
-    "input_and_proof_format": "0x507b6cDE55c94e353D53147892595116391f4297"
+    "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+    "entity_registry": "0xFFf22f221B9dB47a43cA5c8f48f7915c7957539c",
+    "generator_registry": "0xCf30295AfC4F12FfAC6EE96Da3607e7749881BA7",
+    "dispute": "0x48b28BC18E9d9EcDFa7A2CF8b1DDa2668bC005b2",
+    "proof_market_place": "0xBD3700b9e4292C4842e6CB87205192Fa96e8Ed05",
+    "transfer_verifier_wrapper": "0x30A5fFf0D0d54fab407a409467835e56830a7471",
+    "zkb_verifier_wrapper": "0xeE89C22838a691d03fB3b6f47C387d06917C0bBD",
+    "priority_list": "0x138e29f7804Bfe8225E431c79764663620AEac54",
+    "input_and_proof_format": "0x43F4159c011f6d05957182748C1F2b77C74fFDB5"
   },
   "implementation": {
-    "entity_registry": "0x55b5adABa95db2dc519E181c92D1b039F3498f81",
-    "generator_registry": "0xE1B8b0Bd0b3CD1084D86fbF25338448Ece812082",
-    "proof_market_place": "0xE16E2753112fFE00E068F06D47b11Dc105eBA3c7"
+    "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
+    "generator_registry": "0xF800CA64CFdf47Efbc9b4c21F273A7B2ce7AaEB7",
+    "proof_market_place": "0xceCd8A1a4f851fF96aD3Db9B789D6AE1077AA820"
   }
 }

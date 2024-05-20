@@ -382,7 +382,7 @@ describe("Proof market place", () => {
     let timeTakenForProofGeneration = 1000; // in blocks
     let maxTimeForProofGeneration = 10000; // in blocks
 
-    const computeUnitsRequired = 10; // temporary absolute number
+    const computeUnitsRequired = 100; // temporary absolute number
 
     beforeEach(async () => {
       prover = signers[5];
@@ -646,8 +646,10 @@ describe("Proof market place", () => {
 
         describe("Request to Decrease Stake", () => {
           const newUtilization = exponent.dividedBy(10);
+          const stakeToReduce = generatorStakingAmount.multipliedBy(9).div(10);
+
           beforeEach(async () => {
-            await expect(generatorRegistry.connect(generator).intendToReduceStake(newUtilization.toFixed()))
+            await expect(generatorRegistry.connect(generator).intendToReduceStake(stakeToReduce.toFixed()))
               .to.emit(generatorRegistry, "RequestStakeDecrease")
               .withArgs(await generator.getAddress(), newUtilization.toFixed(0));
           });
@@ -677,9 +679,10 @@ describe("Proof market place", () => {
         });
 
         describe("Request to reduce compute", () => {
-          const newUtilization = exponent.dividedBy(10);
+          const computeToReduce = new BigNumber(computeUnitsRequired).multipliedBy(9).div(10).toFixed(0);
+          const newUtilization = exponent.dividedBy(10); // should be 10% of if compute is reduced by 90%
           beforeEach(async () => {
-            await expect(generatorRegistry.connect(generator).intendToReduceCompute(newUtilization.toFixed()))
+            await expect(generatorRegistry.connect(generator).intendToReduceCompute(computeToReduce))
               .to.emit(generatorRegistry, "RequestComputeDecrease")
               .withArgs(await generator.getAddress(), newUtilization.toFixed(0));
           });
