@@ -27,6 +27,8 @@ contract TeeVerifier is
         ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
+    using HELPER for bytes32;
+
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 

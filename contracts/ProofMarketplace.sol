@@ -600,7 +600,7 @@ contract ProofMarketplace is
         );
     }
 
-    function submitProofForValidTeeProof(uint256 askId, bytes calldata validTeeProofSignature) external nonReentrant {
+    function submitProofForValidTeeProof(uint256 askId, bytes calldata proof, bytes calldata validTeeProofSignature) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
 
         uint256 marketId = askWithState.ask.marketId;
