@@ -615,12 +615,12 @@ describe("Proof market place", () => {
       });
 
       describe("Generator After Staking", () => {
+        const extraStash = "112987298347983";
         beforeEach(async () => {
           await generatorRegistry
             .connect(generator)
             .register(await generator.getAddress(), computeUnitsRequired, generatorStakingAmount.toFixed(0), generatorData);
 
-          const extraStash = "112987298347983";
           await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
 
           await expect(generatorRegistry.connect(tokenHolder).stake(await generator.getAddress(), extraStash))
@@ -645,11 +645,14 @@ describe("Proof market place", () => {
         });
 
         describe("Request to Decrease Stake", () => {
-          const newUtilization = exponent.dividedBy(10);
-          const stakeToReduce = generatorStakingAmount.multipliedBy(9).div(10);
+          const updatedGeneratorStakingAmount = generatorStakingAmount.plus(extraStash);
+
+          const stakeToReduce = updatedGeneratorStakingAmount.multipliedBy(9).div(10);
+          const expectedNewTotalStake = updatedGeneratorStakingAmount.minus(stakeToReduce);
+          const newUtilization = expectedNewTotalStake.multipliedBy(exponent).dividedBy(updatedGeneratorStakingAmount).minus(1); // to offset the uint256 thing in solidity
 
           beforeEach(async () => {
-            await expect(generatorRegistry.connect(generator).intendToReduceStake(stakeToReduce.toFixed()))
+            await expect(generatorRegistry.connect(generator).intendToReduceStake(stakeToReduce.toFixed(0)))
               .to.emit(generatorRegistry, "RequestStakeDecrease")
               .withArgs(await generator.getAddress(), newUtilization.toFixed(0));
           });
