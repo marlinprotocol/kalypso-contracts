@@ -16,7 +16,6 @@ import "./interfaces/IVerifier.sol";
 
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
-import "./TeeVerifier.sol";
 import "./lib/Error.sol";
 
 contract ProofMarketplace is
@@ -37,15 +36,13 @@ contract ProofMarketplace is
         uint256 _marketCreationCost,
         address _treasury,
         GeneratorRegistry _generatorRegistry,
-        EntityKeyRegistry _entityRegistry,
-        TeeVerifier _teeVerifier
+        EntityKeyRegistry _entityRegistry
     ) initializer {
         PAYMENT_TOKEN = _paymentToken;
         MARKET_CREATION_COST = _marketCreationCost;
         TREASURY = _treasury;
         GENERATOR_REGISTRY = _generatorRegistry;
         ENTITY_KEY_REGISTRY = _entityRegistry;
-        TEE_VERIFIER = _teeVerifier;
     }
 
     using HELPER for bytes;
@@ -105,9 +102,6 @@ contract ProofMarketplace is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    TeeVerifier public immutable TEE_VERIFIER;
 
     bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
 
@@ -618,8 +612,10 @@ contract ProofMarketplace is
             revert Error.OnlyAssignedAsksCanBeProved(askId);
         }
 
+        bytes memory inputAndProofVerify = abi.encode(askId, askWithState.ask.proverData , validTeeProofSignature, marketId.GENERATOR_FAMILY_ID());
+
         // Verify input and proof against verifier
-        if (!TEE_VERIFIER.verifyProofForTeeVerifier(askId, askWithState.ask.proverData , validTeeProofSignature, marketId.GENERATOR_FAMILY_ID())) {
+        if (!marketData[marketId].verifier.verify(inputAndProofVerify)) {
             revert Error.InvalidProof(askId);
         }
         listOfAsk[askId].state = AskState.COMPLETE;
@@ -643,7 +639,9 @@ contract ProofMarketplace is
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
-        if (!TEE_VERIFIER.verifyProofForTeeVerifier(askId, askWithState.ask.proverData, invalidTeeProofSignature, marketId.GENERATOR_FAMILY_ID())) {
+        bytes memory inputAndProofVerify = abi.encode(askId, askWithState.ask.proverData, invalidTeeProofSignature, marketId.GENERATOR_FAMILY_ID());
+
+        if (!marketData[marketId].verifier.verify(inputAndProofVerify)) {
             revert Error.CannotSlashUsingValidInputs(askId);
         }
 
