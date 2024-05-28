@@ -45,7 +45,7 @@ contract tee_verifier_wrapper is IVerifier {
         return verifyAgainstSampleInputs(sampleProof);
     }
 
-    function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
+    function verifyAgainstSampleInputs(bytes memory) public pure override returns (bool) {
         // bytes memory encodedData = abi.encode(sampleInput, encodedProof);
         return true;
     }
@@ -84,7 +84,7 @@ contract tee_verifier_wrapper is IVerifier {
         return true;
     }
 
-    function verifyInputs(bytes calldata inputs) public pure override returns (bool) {
+    function verifyInputs(bytes calldata) public pure override returns (bool) {
         // abi.decode(inputs, (string[]));
         return true;
     }
