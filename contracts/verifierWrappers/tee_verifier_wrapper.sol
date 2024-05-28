@@ -55,12 +55,8 @@ contract tee_verifier_wrapper is IVerifier {
         bytes memory proofSignature;
         bytes32 familyId;
 
-        (
-            bytes memory encodedAskId,
-            bytes memory encodedInputs, 
-            bytes memory encodedProofSignature,
-            bytes memory encodedFamilyId
-        ) = abi.decode(encodedData, (bytes, bytes, bytes, bytes));
+        (bytes memory encodedAskId, bytes memory encodedInputs, bytes memory encodedProofSignature, bytes memory encodedFamilyId) = abi
+            .decode(encodedData, (bytes, bytes, bytes, bytes));
 
         (askId) = abi.decode(encodedAskId, (uint256));
         (proofSignature) = abi.decode(encodedProofSignature, (bytes));

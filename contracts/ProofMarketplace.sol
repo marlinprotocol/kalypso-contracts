@@ -621,7 +621,12 @@ contract ProofMarketplace is
         uint256 marketId = askWithState.ask.marketId;
 
         // check what needs to be encoded from proof, ask and task for proof to be verified
-        bytes memory inputAndProofSignature = abi.encode(askId, askWithState.ask.proverData , validTeeProofSignature, marketId.GENERATOR_FAMILY_ID());
+        bytes memory inputAndProofSignature = abi.encode(
+            askId,
+            askWithState.ask.proverData,
+            validTeeProofSignature,
+            marketId.GENERATOR_FAMILY_ID()
+        );
         _submitProof(askId, proof, inputAndProofSignature);
     }
 
