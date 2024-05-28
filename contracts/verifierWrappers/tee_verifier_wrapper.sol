@@ -57,11 +57,18 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
         return true;
     }
 
+    error InvalidInputs();
+
     function verify(bytes memory encodedData) public view override returns (bool) {
+        (bytes memory proverData, bytes memory completeProof) = abi.decode(encodedData, (bytes, bytes));
         (bytes memory encodedInputs, bytes memory encodedProof, bytes memory proofSignature) = abi.decode(
-            encodedData,
+            completeProof,
             (bytes, bytes, bytes)
         );
+
+        if (keccak256(proverData) != keccak256(encodedInputs)) {
+            revert InvalidInputs();
+        }
 
         return verifyProofForTeeVerifier(encodedInputs, encodedProof, proofSignature);
     }
