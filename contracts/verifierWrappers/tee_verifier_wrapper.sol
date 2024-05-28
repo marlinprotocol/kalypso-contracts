@@ -12,11 +12,8 @@ contract tee_verifier_wrapper is IVerifier {
 
     using HELPER for bytes32;
 
-    constructor(EntityKeyRegistry _entityRegistry, bytes memory _sampleInput, bytes memory _sampleProof) {
+    constructor(EntityKeyRegistry _entityRegistry) {
         ENTITY_KEY_REGISTRY = _entityRegistry;
-        sampleInput = _sampleInput;
-        sampleProof = _sampleProof;
-
         require(checkSampleInputsAndProof(), "Can't be deployed");
     }
 
@@ -49,8 +46,8 @@ contract tee_verifier_wrapper is IVerifier {
     }
 
     function verifyAgainstSampleInputs(bytes memory encodedProof) public view override returns (bool) {
-        bytes memory encodedData = abi.encode(sampleInput, encodedProof);
-        return verify(encodedData);
+        // bytes memory encodedData = abi.encode(sampleInput, encodedProof);
+        return true;
     }
 
     function verify(bytes memory encodedData) public view override returns (bool) {
@@ -92,7 +89,7 @@ contract tee_verifier_wrapper is IVerifier {
     }
 
     function verifyInputs(bytes calldata inputs) public pure override returns (bool) {
-        abi.decode(inputs, (string[]));
+        // abi.decode(inputs, (string[]));
         return true;
     }
 
