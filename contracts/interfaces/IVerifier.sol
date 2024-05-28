@@ -1,26 +1,17 @@
 // SPDX-License-Identifier: MIT
 
-import "../ProofMarketplace.sol";
-
 pragma solidity ^0.8.0;
 
-abstract contract IVerifier {
-    ProofMarketplace public proofMarketplace;
+interface IVerifier {
+    function verify(bytes calldata encodedPublicInputsAndProofs) external view returns (bool);
 
-    function setProofMarketplaceContract(ProofMarketplace _proofMarketplace) external {
-        require(address(proofMarketplace) == address(0), "Already Set");
-        proofMarketplace = _proofMarketplace;
-    }
+    function verifyInputs(bytes calldata inputs) external view returns (bool);
 
-    function verify(bytes calldata encodedPublicInputsAndProofs) external view virtual returns (bool);
+    function sampleInput() external view returns (bytes memory);
 
-    function verifyInputs(bytes calldata inputs) external view virtual returns (bool);
+    function sampleProof() external view returns (bytes memory);
 
-    function sampleInput() external view virtual returns (bytes memory);
+    function verifyAgainstSampleInputs(bytes memory proof) external view returns (bool);
 
-    function sampleProof() external view virtual returns (bytes memory);
-
-    function verifyAgainstSampleInputs(bytes memory proof) external view virtual returns (bool);
-
-    function checkSampleInputsAndProof() external view virtual returns (bool);
+    function checkSampleInputsAndProof() external view returns (bool);
 }

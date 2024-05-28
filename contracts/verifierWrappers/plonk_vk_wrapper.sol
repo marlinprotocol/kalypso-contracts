@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/IVerifier.sol";
+import "../interfaces/SetPmp.sol";
 
 interface i_plonk_vk {
     function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool);
@@ -11,7 +12,7 @@ interface i_plonk_vk {
 /// Wrapper contracts are added so that calldata can be modified according to the verifier contract
 /// we can modify the verifier contract as well
 // but is not recommended as it is a generated contract
-contract plonk_verifier_wrapper is IVerifier {
+contract plonk_verifier_wrapper is SetPmp, IVerifier {
     i_plonk_vk public immutable iverifier;
 
     bytes public override sampleInput;

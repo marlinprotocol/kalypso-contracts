@@ -2,10 +2,12 @@
 
 pragma solidity ^0.8.0;
 
+import "../interfaces/SetPmp.sol";
+
 import "../interfaces/IVerifier.sol";
 import "../EntityKeyRegistry.sol";
 
-contract tee_verifier_wrapper is IVerifier {
+contract tee_verifier_wrapper is SetPmp, IVerifier {
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
     bytes public override sampleInput;
     bytes public override sampleProof;
