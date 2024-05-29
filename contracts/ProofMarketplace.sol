@@ -602,7 +602,7 @@ contract ProofMarketplace is
             revert Error.ArityMismatch();
         }
         for (uint256 index = 0; index < taskIds.length; index++) {
-            _submitZKProof(taskIds[index], proofs[index]);
+            _submitProof(taskIds[index], proofs[index]);
         }
     }
 
@@ -610,36 +610,12 @@ contract ProofMarketplace is
      * @notice Submit Single Proof
      */
     function submitProof(uint256 askId, bytes calldata proof) public nonReentrant {
-        _submitZKProof(askId, proof);
+        _submitProof(askId, proof);
     }
 
-    /**
-     * @notice Submit Single TEE Proof
-     */
-    function submitTEEProof(uint256 askId, bytes calldata proof, bytes calldata validTeeProofSignature) public nonReentrant {
-        AskWithState memory askWithState = listOfAsk[askId];
-        uint256 marketId = askWithState.ask.marketId;
-
-        // check what needs to be encoded from proof, ask and task for proof to be verified
-        bytes memory inputAndProofSignature = abi.encode(
-            askId,
-            askWithState.ask.proverData,
-            validTeeProofSignature,
-            marketId.GENERATOR_FAMILY_ID()
-        );
-        _submitProof(askId, proof, inputAndProofSignature);
-    }
-
-    function _submitZKProof(uint256 askId, bytes calldata proof) internal {
+    function _submitProof(uint256 askId, bytes calldata proof) internal {
         AskWithState memory askWithState = listOfAsk[askId];
 
-        // check what needs to be encoded from proof, ask and task for proof to be verified
-        bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
-        _submitProof(askId, proof, inputAndProof);
-    }
-
-    function _submitProof(uint256 askId, bytes calldata proof, bytes memory encodedInfo) internal {
-        AskWithState memory askWithState = listOfAsk[askId];
         uint256 marketId = askWithState.ask.marketId;
 
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
@@ -654,9 +630,12 @@ contract ProofMarketplace is
         if (getAskState(askId) != AskState.ASSIGNED) {
             revert Error.OnlyAssignedAsksCanBeProved(askId);
         }
+        // check what needs to be encoded from proof, ask and task for proof to be verified
+
+        bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
 
         // Verify input and proof against verifier
-        if (!marketData[marketId].verifier.verify(encodedInfo)) {
+        if (!marketData[marketId].verifier.verify(inputAndProof)) {
             revert Error.InvalidProof(askId);
         }
         listOfAsk[askId].state = AskState.COMPLETE;
