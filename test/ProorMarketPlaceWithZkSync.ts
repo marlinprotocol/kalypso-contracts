@@ -139,8 +139,6 @@ describe("Proof Market Place for zksync Verifier", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
-    await zksyncVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
-
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
