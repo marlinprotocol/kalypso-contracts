@@ -3,6 +3,8 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
+  AttestationVerifier,
+  AttestationVerifier__factory,
   EntityKeyRegistry,
   Error,
   GeneratorRegistry,
@@ -13,6 +15,7 @@ import {
   ProofMarketplace,
   Tee_verifier_wrapper,
   Tee_verifier_wrapper__factory,
+  Tee_verifier_wrapper_factory__factory,
 } from "../typechain-types";
 
 import {
@@ -50,6 +53,7 @@ describe("Proof Market Place for Tee Verifier", () => {
 
   let generatorData: GeneratorData;
 
+  let attestationVerifier: AttestationVerifier;
   let tee_verifier_wrapper: Tee_verifier_wrapper;
   let iverifier: IVerifier;
 
@@ -92,7 +96,7 @@ describe("Proof Market Place for Tee Verifier", () => {
     };
 
     const AttestationVerifierContract = await ethers.getContractFactory("AttestationVerifier");
-    const attestationVerifier = await upgrades.deployProxy(
+    const _attestationVerifier = await upgrades.deployProxy(
       AttestationVerifierContract,
       [[godEnclave.pcrs], [godEnclave.getUncompressedPubkey()], await admin.getAddress()],
       {
@@ -100,6 +104,7 @@ describe("Proof Market Place for Tee Verifier", () => {
         constructorArgs: [],
       },
     );
+    attestationVerifier = AttestationVerifier__factory.connect(await _attestationVerifier.getAddress(), admin);
 
     tee_verifier_wrapper = await new Tee_verifier_wrapper__factory(admin).deploy(await attestationVerifier.getAddress(), [
       generatorEnclave.getPcrRlp(),
@@ -147,6 +152,15 @@ describe("Proof Market Place for Tee Verifier", () => {
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
+
+  it("Check tee verifier deployer", async () => {
+    const tee_verifier_deployer = await new Tee_verifier_wrapper_factory__factory(admin).deploy();
+
+    // create new tee verifier by code
+    const tx = tee_verifier_deployer.create_tee_verifier_wrapper(await attestationVerifier.getAddress(), [ivsEnclave.getPcrRlp()]);
+    await expect(tx).to.emit(tee_verifier_deployer, "TeeVerifierWrapperCreated");
+  });
+
   it("Check tee verifier", async () => {
     let inputBytes = "0x1234";
     let proofBytes = "0x0987";

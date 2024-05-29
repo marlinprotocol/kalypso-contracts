@@ -7,8 +7,11 @@ import "../lib/Helper.sol";
 import "../interfaces/IVerifier.sol";
 
 contract tee_verifier_wrapper_factory {
-    function create_tee_verifier_wrapper(IAttestationVerifier _av, bytes[] calldata _proverPcrs) public returns (tee_verifier_wrapper) {
-        return new tee_verifier_wrapper(_av, _proverPcrs);
+    event TeeVerifierWrapperCreated(tee_verifier_wrapper a);
+
+    function create_tee_verifier_wrapper(IAttestationVerifier _av, bytes[] calldata _proverPcrs) public returns (tee_verifier_wrapper a) {
+        a = new tee_verifier_wrapper(_av, _proverPcrs);
+        emit TeeVerifierWrapperCreated(a);
     }
 }
 

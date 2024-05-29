@@ -1,23 +1,18 @@
 Contracts for interacting with Kalypso
 
-## ProofMarketplace
+## Note
+One of the npm package seems to have issue, hence always use 
+`npm install --include-dev --save-exact` 
+install all relevant node_modules
 
-Primary contract for create request (ASK)
+### ProofMarketplace
 
-## Generator Registry
-
-generators can register and de-register themselves here
-
-## Verifier Wrapper
-
-Every zk scheme is expected to have a wrapper contract that convert the inputs and proofs to simple bytes.
+### Generator Registry
 
 # Others
-
-To generate the typings, use `yarn compile` and copy the required files from `./typechain-types`
+To generate the typings, use `npm run compile` and copy the required files from `./typechain-types`
 
 # Test
-
 To test the contracts, copy environment variables. Replace the default values
 `cp env.example .env`
 
