@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import "../interfaces/SetPmp.sol";
 import "../interfaces/IVerifier.sol";
 
 interface i_transfer_verifier {
@@ -11,7 +12,7 @@ interface i_transfer_verifier {
 /// Wrapper contracts are added so that calldata can be modified according to the verifier contract
 /// we can modify the verifier contract as well
 // but is not recommended as it is a generated contract
-contract transfer_verifier_wrapper is IVerifier {
+contract transfer_verifier_wrapper is SetPmp, IVerifier {
     i_transfer_verifier public immutable iverifier;
 
     bytes public override sampleInput;
