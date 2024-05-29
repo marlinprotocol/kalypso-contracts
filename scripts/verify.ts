@@ -63,6 +63,10 @@ async function main() {
   });
   console.log({ verificationResult });
 
+  verificationResult = await run("verify:verify", {
+    address: addresses.proxy.tee_verifier_deployer,
+  });
+
   return "String";
 }
 
