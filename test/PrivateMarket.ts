@@ -339,6 +339,46 @@ describe("Checking Case where generator and ivs image is same", () => {
       await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
     });
 
+    it("Should fail to ecies key when the generator image is not added by market creator", async () => {
+      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      let generatorAttestationBytes = await newGeneratorImage.getVerifiedAttestation(godEnclave);
+
+      let types = ["bytes", "address"];
+
+      let values = [generatorAttestationBytes, await generator.getAddress()];
+
+      let abicode = new ethers.AbiCoder();
+      let encoded = abicode.encode(types, values);
+      let digest = ethers.keccak256(encoded);
+      let signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+
+      await expect(
+        generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
+      ).to.be.revertedWithCustomError(generatorRegistry, "IncorrectImageId");
+    });
+
+    it("Update Ecies key when the generator image is updated", async () => {
+      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      await proofMarketplace
+        .connect(marketCreator)
+        .addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]);
+
+      let generatorAttestationBytes = await newGeneratorImage.getVerifiedAttestation(godEnclave);
+
+      let types = ["bytes", "address"];
+
+      let values = [generatorAttestationBytes, await generator.getAddress()];
+
+      let abicode = new ethers.AbiCoder();
+      let encoded = abicode.encode(types, values);
+      let digest = ethers.keccak256(encoded);
+      let signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+
+      await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature))
+        .to.emit(entityKeyRegistry, "UpdateKey")
+        .withArgs(await generator.getAddress(), marketId);
+    });
+
     describe("Only New IVS added by market maker", () => {
       const newIvsImage = new MockEnclave(MockEnclave.someRandomPcrs());
       beforeEach(async () => {
