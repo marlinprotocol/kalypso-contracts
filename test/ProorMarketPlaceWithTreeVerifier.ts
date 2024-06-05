@@ -222,6 +222,75 @@ describe("Proof Market Place for Tee Verifier", () => {
     await expect(proofMarketplace.submitProof(askId, proofToSend)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofToSend);
   });
 
+  it("Check tee verifier, after adding new image to tee verifier", async () => {
+    let inputBytes = "0x1234";
+    let proofBytes = "0x0987";
+    // console.log({ inputBytes });
+    const latestBlock = await ethers.provider.getBlockNumber();
+    let assignmentExpiry = 100; // in blocks
+    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 10000; // in blocks
+
+    const askId = await setup.createAsk(
+      prover,
+      tokenHolder,
+      {
+        marketId,
+        proverData: inputBytes,
+        reward: rewardForProofGeneration.toFixed(),
+        expiry: assignmentExpiry + latestBlock,
+        timeTakenForProofGeneration,
+        deadline: latestBlock + maxTimeForProofGeneration,
+        refundAddress: await prover.getAddress(),
+      },
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      1,
+    );
+
+    await setup.createTask(
+      matchingEngineEnclave,
+      admin.provider,
+      {
+        mockToken: tokenToUse,
+        proofMarketplace,
+        generatorRegistry,
+        priorityLog,
+        errorLibrary,
+        entityKeyRegistry,
+      },
+      askId,
+      generator,
+    );
+
+    const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+    const newGeneratorAttestation = await newGeneratorImage.getVerifiedAttestation(godEnclave);
+
+    await expect(tee_verifier_wrapper.connect(admin).addEnclaveImageToFamily(newGeneratorImage.getPcrRlp())).to.emit(
+      tee_verifier_wrapper,
+      "EnclaveImageAddedToFamily",
+    );
+    await expect(tee_verifier_wrapper.connect(treasury).verifyKey(newGeneratorAttestation)).to.emit(
+      tee_verifier_wrapper,
+      "EnclaveKeyVerified",
+    );
+
+    let abiCoder = new ethers.AbiCoder();
+    const messageBytes = abiCoder.encode(["bytes", "bytes"], [inputBytes, proofBytes]);
+    let digest = ethers.keccak256(messageBytes);
+    let signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+
+    let proofToSend = abiCoder.encode(["bytes", "bytes", "bytes"], [inputBytes, proofBytes, signature]);
+
+    await expect(proofMarketplace.submitProof(askId, proofToSend)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofToSend);
+  });
+
   it("Shoulf fail: if inputs don't match when used to generate proof", async () => {
     let inputBytes = "0x1234";
     let proofBytes = "0x0987";
