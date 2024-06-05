@@ -23,6 +23,7 @@ library Error {
     error FailedWhitelistingImages(bytes32 imageId);
     error FailedAddingToFamily(bytes32 imageId, bytes32 familyId);
     error InferredImageIdIsDifferent();
+    error ImageAlreadyInFamily(bytes32 imageId, bytes32 familyId);
 
     // Generator-related Errors
     error GeneratorAlreadyExists();

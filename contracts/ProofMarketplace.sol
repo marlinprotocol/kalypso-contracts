@@ -262,12 +262,22 @@ contract ProofMarketplace is
             }
 
             for (uint256 index = 0; index < _proverPcrs.length; index++) {
-                ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs[index]);
+                bytes32 familyId = marketId.GENERATOR_FAMILY_ID();
+                bytes32 generatorImageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+                if (ENTITY_KEY_REGISTRY.isImageInFamily(generatorImageId, familyId)) {
+                    revert Error.ImageAlreadyInFamily(generatorImageId, familyId);
+                }
+                ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
             }
         }
 
         for (uint256 index = 0; index < _ivsPcrs.length; index++) {
-            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs[index]);
+            bytes32 familyId = marketId.IVS_FAMILY_ID();
+            bytes32 ivsImageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+            if (ENTITY_KEY_REGISTRY.isImageInFamily(ivsImageId, familyId)) {
+                revert Error.ImageAlreadyInFamily(ivsImageId, familyId);
+            }
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _ivsPcrs[index]);
         }
     }
 

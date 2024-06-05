@@ -2,15 +2,20 @@
 
 pragma solidity ^0.8.0;
 
-import "../periphery/AttestationAuther.sol";
-import "../lib/Helper.sol";
 import "../interfaces/IVerifier.sol";
+import "../lib/Error.sol";
+import "../lib/Helper.sol";
+import "../periphery/AttestationAuther.sol";
 
 contract tee_verifier_wrapper_factory {
     event TeeVerifierWrapperCreated(tee_verifier_wrapper a);
 
-    function create_tee_verifier_wrapper(IAttestationVerifier _av, bytes[] calldata _proverPcrs) public returns (tee_verifier_wrapper a) {
-        a = new tee_verifier_wrapper(_av, _proverPcrs);
+    function create_tee_verifier_wrapper(
+        address admin,
+        IAttestationVerifier _av,
+        bytes[] calldata _proverPcrs
+    ) public returns (tee_verifier_wrapper a) {
+        a = new tee_verifier_wrapper(admin, _av, _proverPcrs);
         emit TeeVerifierWrapperCreated(a);
     }
 }
@@ -23,8 +28,13 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
     using HELPER for bytes;
 
     bytes32 constant FAMILY_ID = keccak256("FAMILY_ID");
+    address public admin;
 
-    constructor(IAttestationVerifier _av, bytes[] memory _proverPcrs) AttestationAuther(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) {
+    constructor(
+        address _admin,
+        IAttestationVerifier _av,
+        bytes[] memory _proverPcrs
+    ) AttestationAuther(_av, HELPER.ACCEPTABLE_ATTESTATION_DELAY) {
         for (uint256 index = 0; index < _proverPcrs.length; index++) {
             (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_proverPcrs[index], (bytes, bytes, bytes));
 
@@ -40,6 +50,28 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
             }
             _addEnclaveImageToFamily(imageId, FAMILY_ID);
         }
+
+        admin = _admin;
+    }
+
+    function addEnclaveImageToFamily(bytes memory _proverPcr) external {
+        if (msg.sender != admin) {
+            revert Error.OnlyAdminCanCall();
+        }
+
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_proverPcr, (bytes, bytes, bytes));
+
+        bytes32 imageId = PCR0.GET_IMAGE_ID_FROM_PCRS(PCR1, PCR2);
+        if (!imageId.IS_ENCLAVE()) {
+            revert Error.MustBeAnEnclave(imageId);
+        }
+
+        (bytes32 inferredImageId, ) = _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
+
+        if (inferredImageId != imageId) {
+            revert Error.InferredImageIdIsDifferent();
+        }
+        _addEnclaveImageToFamily(imageId, FAMILY_ID);
     }
 
     function verifyKey(bytes calldata attestation_data) external {

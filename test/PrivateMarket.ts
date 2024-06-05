@@ -357,6 +357,28 @@ describe("Checking Case where generator and ivs image is same", () => {
       ).to.be.revertedWithCustomError(generatorRegistry, "IncorrectImageId");
     });
 
+    it("Can't add same extra image twice", async () => {
+      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      await proofMarketplace
+        .connect(marketCreator)
+        .addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]);
+
+      await expect(
+        proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]),
+      )
+        .to.be.revertedWithCustomError(proofMarketplace, "ImageAlreadyInFamily")
+        .withArgs(newGeneratorImage.getImageId(), generatorFamilyId(marketId));
+    });
+
+    it("Can't add same extra ivs image twice", async () => {
+      const newIvsImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      await proofMarketplace.connect(marketCreator).addExtraImages(marketId, [], [newIvsImage.getPcrRlp()]);
+
+      await expect(proofMarketplace.connect(marketCreator).addExtraImages(marketId, [], [newIvsImage.getPcrRlp()]))
+        .to.be.revertedWithCustomError(proofMarketplace, "ImageAlreadyInFamily")
+        .withArgs(newIvsImage.getImageId(), ivsFamilyId(marketId));
+    });
+
     it("Update Ecies key when the generator image is updated", async () => {
       const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
       await proofMarketplace

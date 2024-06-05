@@ -106,9 +106,11 @@ describe("Proof Market Place for Tee Verifier", () => {
     );
     attestationVerifier = AttestationVerifier__factory.connect(await _attestationVerifier.getAddress(), admin);
 
-    tee_verifier_wrapper = await new Tee_verifier_wrapper__factory(admin).deploy(await attestationVerifier.getAddress(), [
-      generatorEnclave.getPcrRlp(),
-    ]);
+    tee_verifier_wrapper = await new Tee_verifier_wrapper__factory(admin).deploy(
+      await admin.getAddress(),
+      await attestationVerifier.getAddress(),
+      [generatorEnclave.getPcrRlp()],
+    );
 
     let tee_verifier_key_attestation = await generatorEnclave.getVerifiedAttestation(godEnclave);
     await tee_verifier_wrapper.verifyKey(tee_verifier_key_attestation);
@@ -157,7 +159,9 @@ describe("Proof Market Place for Tee Verifier", () => {
     const tee_verifier_deployer = await new Tee_verifier_wrapper_factory__factory(admin).deploy();
 
     // create new tee verifier by code
-    const tx = tee_verifier_deployer.create_tee_verifier_wrapper(await attestationVerifier.getAddress(), [ivsEnclave.getPcrRlp()]);
+    const tx = tee_verifier_deployer.create_tee_verifier_wrapper(await admin.getAddress(), await attestationVerifier.getAddress(), [
+      ivsEnclave.getPcrRlp(),
+    ]);
     await expect(tx).to.emit(tee_verifier_deployer, "TeeVerifierWrapperCreated");
   });
 
