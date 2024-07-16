@@ -59,7 +59,17 @@ errors = [
     "InvalidProof(uint256)",
     "ShouldBeInCrossedDeadlineState(uint256)",
     "ShouldBeInAssignedState(uint256)",
-    "OnlyGeneratorCanDiscardRequest(uint256)"
+    "OnlyGeneratorCanDiscardRequest(uint256)",
+    "InvalidEnclaveSignature()",
+    "AttestationAutherKeyNotVerified()",
+    "AttestationAutherImageNotWhitelisted()",
+    "AttestationAutherImageNotInFamily()",
+    "AttestationAutherAttestationTooOld()",
+    "AttestationAutherMismatchedLengths",
+    "InferredImageIdIsDifferent()",
+    "ECDSAInvalidSignature()",
+    "ECDSAInvalidSignatureLength(uint256)",
+    "ECDSAInvalidSignatureS(bytes32)"
 ]
 
 # Calculate the hash for each error signature and get the first 4 bytes

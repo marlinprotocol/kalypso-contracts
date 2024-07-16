@@ -119,8 +119,10 @@ contract EntityKeyRegistry is
             uint256 timestamp
         ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256));
 
-        // compute image id in proper way
-        _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
+        bool isVerified = _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
+        if (!isVerified) {
+            revert Error.EnclaveKeyNotVerified();
+        }
     }
 
     function _whitelistImageIfNot(bytes32 family, bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) internal {

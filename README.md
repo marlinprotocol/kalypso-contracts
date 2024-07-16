@@ -11,11 +11,13 @@ to install all relevant node_modules
 ### To generate `Rust bindings`, use `forge bind` and copy the required files from `./out/bindings`
 
 ### Test
+
 To test the contracts, copy environment variables. Replace the default values
+
 > cp env.example .env
 
 > yarn test
-or 
+> or
 > npm run test
 
 # Note: Don't deploy any contract unless all tests have passed

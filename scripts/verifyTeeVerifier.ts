@@ -30,8 +30,8 @@ async function main() {
   let verificationResult;
 
   verificationResult = await run("verify:verify", {
-    address: "0xC7cE913445CA0037c6f112f3450AF570CB9064AD",
-    constructorArguments: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
+    address: "0xb70cfd05B57a1e9b7E1217d53493C1C4B7cacb98",
+    constructorArguments: ["0x7376026b2638829aB4F58B9a1a0801485048A328", "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b"],
   });
   console.log({ verificationResult });
 
