@@ -115,6 +115,18 @@ const config: HardhatUserConfig = {
         `${process.env.NOVA_PROOF_REQUESTOR}`,
       ],
     },
+    zksync: {
+      url: `${process.env.ZKSYNC_URL}`,
+      accounts: [
+        `${process.env.ZKSYNC_ADMIN}`,
+        `${process.env.ZKSYNC_TOKEN_HOLDER}`,
+        `${process.env.ZKSYNC_TREASURY}`,
+        `${process.env.ZKSYNC_MARKET_CREATOR}`,
+        `${process.env.ZKSYNC_GENERATOR}`,
+        `${process.env.ZKSYNC_MATCHING_ENGINE}`,
+        `${process.env.ZKSYNC_PROOF_REQUESTOR}`,
+      ],
+    },
   },
 };
 

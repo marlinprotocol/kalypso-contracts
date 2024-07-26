@@ -11,6 +11,7 @@ import {SafeERC20 as SafeERC20Upgradeable} from "@openzeppelin/contracts/token/E
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
+import "./interfaces/IL2Staking.sol";
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 import "./ProofMarketplace.sol";
@@ -21,7 +22,8 @@ contract GeneratorRegistry is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    IL2Staking
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -298,7 +300,7 @@ contract GeneratorRegistry is
     /**
      * @notice Add/Increase stake
      */
-    function stake(address generatorAddress, uint256 amount) external nonReentrant returns (uint256) {
+    function stake(address generatorAddress, uint256 amount) external override nonReentrant returns (uint256) {
         Generator storage generator = generatorRegistry[generatorAddress];
         if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
             revert Error.InvalidGenerator();
@@ -319,7 +321,7 @@ contract GeneratorRegistry is
      * @notice Notify matching engine about stake reduction. This will stop matching engine from assigning new tasks till the locked stake is down
      * @param stakeToReduce Stake to Reduce
      */
-    function intendToReduceStake(uint256 stakeToReduce) external {
+    function intendToReduceStake(uint256 stakeToReduce) external override {
         address _generatorAddress = _msgSender();
         Generator storage generator = generatorRegistry[_generatorAddress];
 
@@ -346,7 +348,7 @@ contract GeneratorRegistry is
     /**
      * @notice Free up the unused stake. intendToReduceStake must have been called before this function
      */
-    function unstake(address to) external nonReentrant {
+    function unstake(address to) external override nonReentrant {
         address generatorAddress = _msgSender();
 
         Generator storage generator = generatorRegistry[generatorAddress];

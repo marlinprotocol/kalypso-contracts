@@ -176,6 +176,10 @@ contract ProofMarketplace is
     event AskCancelled(uint256 indexed askId);
 
     event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
+    event AddExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
+    event AddExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
+    event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
+    event RemoveExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
 
     //-------------------------------- Events end --------------------------------//
 
@@ -268,6 +272,7 @@ contract ProofMarketplace is
                     revert Error.ImageAlreadyInFamily(generatorImageId, familyId);
                 }
                 ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
+                emit AddExtraProverImage(marketId, generatorImageId);
             }
         }
 
@@ -278,6 +283,7 @@ contract ProofMarketplace is
                 revert Error.ImageAlreadyInFamily(ivsImageId, familyId);
             }
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _ivsPcrs[index]);
+            emit AddExtraIVSImage(marketId, ivsImageId);
         }
     }
 
@@ -305,6 +311,7 @@ contract ProofMarketplace is
                     revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
                 }
                 ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.GENERATOR_FAMILY_ID());
+                emit RemoveExtraProverImage(marketId, imageId);
             }
         }
 
@@ -314,6 +321,7 @@ contract ProofMarketplace is
                 revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
             }
             ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.IVS_FAMILY_ID());
+            emit RemoveExtraIVSImage(marketId, imageId);
         }
     }
 

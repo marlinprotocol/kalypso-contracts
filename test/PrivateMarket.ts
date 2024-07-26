@@ -208,6 +208,23 @@ describe("Checking Case where generator and ivs image is same", () => {
     }
   });
 
+  it("Check events during adding and removing extra images", async () => {
+    const newGenerator = new MockEnclave(MockEnclave.someRandomPcrs());
+    const newIvs = new MockEnclave(MockEnclave.someRandomPcrs());
+
+    await expect(proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newGenerator.getPcrRlp()], [newIvs.getPcrRlp()]))
+      .to.emit(proofMarketplace, "AddExtraProverImage")
+      .withArgs(marketId, newGenerator.getImageId())
+      .to.emit(proofMarketplace, "AddExtraIVSImage")
+      .withArgs(marketId, newIvs.getImageId());
+
+    await expect(proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [newGenerator.getPcrRlp()], [newIvs.getPcrRlp()]))
+      .to.emit(proofMarketplace, "RemoveExtraProverImage")
+      .withArgs(marketId, newGenerator.getImageId())
+      .to.emit(proofMarketplace, "RemoveExtraIVSImage")
+      .withArgs(marketId, newIvs.getImageId());
+  });
+
   it("Cannot remove default market id", async () => {
     await expect(proofMarketplace.connect(admin).removeExtraImages(marketId, [], [])).to.revertedWithCustomError(
       proofMarketplace,
