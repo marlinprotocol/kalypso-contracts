@@ -127,6 +127,18 @@ const config: HardhatUserConfig = {
         `${process.env.ZKSYNC_PROOF_REQUESTOR}`,
       ],
     },
+    amoy: {
+      url: `${process.env.AMOY_RPC}`,
+      accounts: [
+        `${process.env.AMOY_ADMIN}`,
+        `${process.env.AMOY_TOKEN_HOLDER}`,
+        `${process.env.AMOY_TREASURY}`,
+        `${process.env.AMOY_MARKET_CREATOR}`,
+        `${process.env.AMOY_GENERATOR}`,
+        `${process.env.AMOY_MATCHING_ENGINE}`,
+        `${process.env.AMOY_PROOF_REQUESTOR}`,
+      ],
+    },
   },
 };
 

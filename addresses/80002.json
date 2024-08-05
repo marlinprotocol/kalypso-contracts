@@ -1,0 +1,20 @@
+{
+    "proxy": {
+        "payment_token": "0xD4DD5505C0036d1a6AA26b97667a8CbC011aa641",
+        "staking_token": "0x70Ee023f84851aFE6dab51a828Bcb001c147Da93",
+        "mock_attestation_verifier": "0xa0A2802F7107b89d322374927e22651393113f0b",
+        "attestation_verifier": "0x8CE4d4e8a97895E78ee80F7674Cb08ADB09ca96C",
+        "entity_registry": "0xe089900aaCB8461774bCe08fb60E1483eB1Dc252",
+        "generator_registry": "0xc78dE999D1E21554D70504c058F6cC229b6F05A3",
+        "dispute": "0xea510cfdC5ca0004E4b7F6C025AB4D4aD3Dba8b2",
+        "proof_market_place": "0x2e9F7aFBaE93C2d2f39C5F6f4303176133A2FBEa",
+        "transfer_verifier_wrapper": "0x791D51F48479f9c496ab2202D1d455a9cE6e7B2E",
+        "zkb_verifier_wrapper": "0xC4558eddD5c43fdeD5a606E0c9A72266436E59C8",
+        "priority_list": "0xFd210bE3f84776fcaa21718247aAA9eB625D7b65"
+    },
+    "implementation": {
+        "entity_registry": "0x70E86295Dd9Dc86424c90f35d6fDD154C46ff455",
+        "generator_registry": "0x99eFbc7FFB0A04D445926e3A294aF32C2b6D4aC4",
+        "proof_market_place": "0xc6951181FA982c1D2625a1859B3374C88e0cE303"
+    }
+}

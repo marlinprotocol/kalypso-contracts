@@ -1,0 +1,7 @@
+{
+  "tokenSupply": "100000000000000000000000000000",
+  "generatorStakingAmount": "1000000000000000000000",
+  "generatorSlashingPenalty": "100000000000000000",
+  "marketCreationCost": "100000000000000000000",
+  "transaction_confirmations": 5
+}
