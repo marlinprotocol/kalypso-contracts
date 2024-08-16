@@ -17,12 +17,12 @@ async function main(): Promise<string> {
 
   let admin = signers[0];
   let tokenHolder = signers[1];
-  // let treasury = signers[2];
+  let treasury = signers[2];
   // let marketCreator = signers[3];
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0x7376026b2638829aB4F58B9a1a0801485048A328";
+  const transferTo = "0x26a1b8104374096d88E34Ab48ec276F6018E444D";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -41,16 +41,16 @@ async function main(): Promise<string> {
 
   const ethBalance = await admin.provider.getBalance(transferTo);
   if (new BigNumber(ethBalance.toString()).lt("100000000000000000")) {
-    (await admin.sendTransaction({ to: transferTo, value: "100000000000000000" })).wait();
+    (await treasury.sendTransaction({ to: transferTo, value: "100000000000000000" })).wait();
   }
 
   const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
-  let tx = await payment_token.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  let tx = await payment_token.connect(tokenHolder).transfer(transferTo, "100000000000000000000000");
   let receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 
   const staking_token = MockToken__factory.connect(addresses.proxy.staking_token, tokenHolder);
-  tx = await staking_token.connect(tokenHolder).transfer(transferTo, "1000000000000000000000");
+  tx = await staking_token.connect(tokenHolder).transfer(transferTo, "100000000000000000000000");
   receipt = await tx.wait();
   console.log(`Done: ${receipt?.hash}`);
 

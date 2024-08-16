@@ -112,7 +112,10 @@ contract ProofMarketplace is
 
     AskWithState[] public listOfAsk;
 
+    // cost for inputs
     mapping(SecretType => uint256) public costPerInputBytes;
+    // min proving time (in blocks) for each secret type.
+    mapping(SecretType => uint256) public minProvingTime;
 
     mapping(address => uint256) public claimableAmount;
 
@@ -176,6 +179,7 @@ contract ProofMarketplace is
     event AskCancelled(uint256 indexed askId);
 
     event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
+    event UpdateMinProvingTime(SecretType indexed secretType, uint256 newProvingTime);
     event AddExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
     event AddExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
     event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
@@ -368,9 +372,10 @@ contract ProofMarketplace is
         if (ask.reward == 0 || ask.proverData.length == 0) {
             revert Error.CannotBeZero();
         }
-        if (ask.expiry <= block.number) {
+        if (ask.expiry <= block.number + minProvingTime[secretType]) {
             revert Error.CannotAssignExpiredTasks();
         }
+
         // ensures that the cipher used is small enough
         if (acl.length > 130) {
             revert Error.InvalidECIESACL();
@@ -436,6 +441,15 @@ contract ProofMarketplace is
         costPerInputBytes[secretType] = costPerByte;
 
         emit UpdateCostPerBytes(secretType, costPerByte);
+    }
+
+    /**
+     * @notice Update Min Proving Time
+     */
+    function updateMinProvingTime(SecretType secretType, uint256 newProvingTime) public onlyRole(UPDATER_ROLE) {
+        minProvingTime[secretType] = newProvingTime;
+
+        emit UpdateMinProvingTime(secretType, newProvingTime);
     }
 
     /**

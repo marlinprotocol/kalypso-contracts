@@ -126,7 +126,7 @@ async function main(): Promise<string> {
     });
     await _entityKeyRegistry.waitForDeployment();
     const entity_registry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
-    
+
     addresses.proxy.entity_registry = await entity_registry.getAddress();
     addresses.implementation.entity_registry = await upgrades.erc1967.getImplementationAddress(addresses.proxy.entity_registry);
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
@@ -140,7 +140,7 @@ async function main(): Promise<string> {
       constructorArgs: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
       initializer: false,
     });
-    
+
     await generatorProxy.waitForDeployment();
 
     addresses.proxy.generator_registry = await generatorProxy.getAddress();

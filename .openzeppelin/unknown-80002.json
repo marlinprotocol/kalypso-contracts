@@ -775,13 +775,7 @@
           },
           "t_enum(GeneratorState)3353": {
             "label": "enum GeneratorRegistry.GeneratorState",
-            "members": [
-              "NULL",
-              "JOINED",
-              "NO_COMPUTE_AVAILABLE",
-              "WIP",
-              "REQUESTED_FOR_EXIT"
-            ],
+            "members": ["NULL", "JOINED", "NO_COMPUTE_AVAILABLE", "WIP", "REQUESTED_FOR_EXIT"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_mapping(t_uint256,t_struct(GeneratorInfoPerMarket)3386_storage))": {
@@ -1127,23 +1121,12 @@
           },
           "t_enum(AskState)5708": {
             "label": "enum ProofMarketplace.AskState",
-            "members": [
-              "NULL",
-              "CREATE",
-              "UNASSIGNED",
-              "ASSIGNED",
-              "COMPLETE",
-              "DEADLINE_CROSSED"
-            ],
+            "members": ["NULL", "CREATE", "UNASSIGNED", "ASSIGNED", "COMPLETE", "DEADLINE_CROSSED"],
             "numberOfBytes": "1"
           },
           "t_enum(SecretType)5712": {
             "label": "enum ProofMarketplace.SecretType",
-            "members": [
-              "NULL",
-              "CALLDATA",
-              "EXTERNAL"
-            ],
+            "members": ["NULL", "CALLDATA", "EXTERNAL"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_uint256)": {
