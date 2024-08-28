@@ -6,21 +6,34 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 contract NativeStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    error UnsupportedToken();
+
     // TODO: token Set
-    EnumerableSet.AddressSet private tokenSet;
+    EnumerableSet.AddressSet private tokens;
 
     // TODO: checkpoints?
 
     mapping(address operator => mapping(address token => uint256 amount)) public stakes;
 
-    function stakeOf(address _operator, address _token) external view returns (uint256) {
+    modifier onlySupportedToken(address _token) {
+        require(tokens.contains(_token), UnsupportedToken());
+        _;
+    }
+
+    // Returns the amount of a token staked by the operator
+    function stakeOf(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
         return stakes[_operator][_token];
     }
 
-    // function stakesOf(address _operator) external view returns (uint256[] memory, uint256[] memory amounts) {
-    //     uint256 len = tokens.length;
-    // }
-    
+    //  Returns the list of tokens staked by the operator and the amounts
+    function stakesOf(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+        uint256 len = tokens.length();
+
+        for (uint256 i = 0; i < len; i++) {
+            _tokens[i] = tokens.at(i);
+            _amounts[i] = stakes[_operator][tokens.at(i)];
+        }
+    }
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
@@ -47,7 +60,7 @@ contract NativeStaking {
     function getStake(address account, address operator, address token) external view returns (uint256) {
         // TODO
     }
-    
+
     // stake of an account for all operators
     function getStakes(address account, address token) external view returns (uint256) {
         // TODO
@@ -56,7 +69,6 @@ contract NativeStaking {
     // TODO: manages the staking information and tokens provided by stakers and delegated to specific operators
 
     // TODO: functions that can provide the latest staking information for specific users and operators
-    
 
     /*======================================== Admin ========================================*/
 
