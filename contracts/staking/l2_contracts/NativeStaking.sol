@@ -1,12 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 contract NativeStaking {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     // TODO: token Set
+    EnumerableSet.AddressSet private tokenSet;
+
     // TODO: checkpoints?
 
-    // TODO: (getter) Operator => token => stakeAmount
-    mapping(address operator => mapping(address token => uint256 amount)) public stakingAmounts;
+    mapping(address operator => mapping(address token => uint256 amount)) public stakes;
+
+    function stakeOf(address _operator, address _token) external view returns (uint256) {
+        return stakes[_operator][_token];
+    }
+
+    // function stakesOf(address _operator) external view returns (uint256[] memory, uint256[] memory amounts) {
+    //     uint256 len = tokens.length;
+    // }
     
 
     // Staker should be able to choose an Operator they want to stake into
@@ -31,12 +44,12 @@ contract NativeStaking {
     /*======================================== Getters ========================================*/
 
     // stake of an account for a specific operator
-    function stakeOf(address account, address operator, address token) external view returns (uint256) {
+    function getStake(address account, address operator, address token) external view returns (uint256) {
         // TODO
     }
     
     // stake of an account for all operators
-    function stakeOf(address account, address token) external view returns (uint256) {
+    function getStakes(address account, address token) external view returns (uint256) {
         // TODO
     }
 
@@ -49,9 +62,13 @@ contract NativeStaking {
 
     function addToken(address token) external {
         // TODO: Admin only
+
+        // TODO: token should be added in StakingManager as well
     }
 
     function removeToken(address token) external {
         // TODO: admin only
+
+        // TODO: token should be added in StakingManager as well
     }
 }
