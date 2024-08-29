@@ -23,8 +23,7 @@ contract NativeStaking is
     EnumerableSet.AddressSet private tokenSet;
     EnumerableSet.AddressSet private operatorSet;
 
-    mapping(address operator => mapping(address token => uint256 amount)) public selfStakes;
-    mapping(address operator => mapping(address token => uint256 amount)) public stakes;
+    mapping(address operator => mapping(address token => StakeInfo)) public stakeInfo; // stakeAmount, selfStakeAmount
 
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
     
@@ -57,24 +56,52 @@ contract NativeStaking is
     }
 
     // Returns the amount of a token staked by the operator
-    function stakeOf(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
-        return stakes[_operator][_token];
+    function getDelegatedStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+        return stakeInfo[_operator][_token].delegatedStake;
     }
 
     //  Returns the list of tokenSet staked by the operator and the amounts
-    function stakesOf(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+    function getDelegatedStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
         uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
             _tokens[i] = tokenSet.at(i);
-            _amounts[i] = stakes[_operator][tokenSet.at(i)];
+            _amounts[i] = stakeInfo[_operator][_tokens[i]].delegatedStake;
+        }
+    }
+
+    function getSelfStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+        return stakeInfo[_operator][_token].selfStake;
+    }
+
+    function getSelfStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+        uint256 len = tokenSet.length();
+
+        for (uint256 i = 0; i < len; i++) {
+            _tokens[i] = tokenSet.at(i);
+            _amounts[i] = stakeInfo[_operator][_tokens[i]].selfStake;
+        }
+    }
+
+    function getTotalStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+        StakeInfo memory _stakeInfo = stakeInfo[_operator][_token];
+        return _stakeInfo.delegatedStake + _stakeInfo.selfStake;
+    }
+
+    function getTotalStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+        uint256 len = tokenSet.length();
+
+        for (uint256 i = 0; i < len; i++) {
+            StakeInfo memory _stakeInfo = stakeInfo[_operator][tokenSet.at(i)];
+            _tokens[i] = tokenSet.at(i);
+            _amounts[i] = _stakeInfo.delegatedStake + _stakeInfo.selfStake;
         }
     }
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
     function stake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
-        stakes[_operator][_token] += _amount;
+        stakeInfo[_operator][_token].delegatedStake += _amount;
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
@@ -82,7 +109,7 @@ contract NativeStaking is
     // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
     // This should update StakingManger's state
     function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
-        stakes[_operator][_token] += _amount;
+        stakeInfo[_operator][_token].selfStake += _amount;
 
         emit SelfStaked(_operator, _token, _amount, block.timestamp);
     }
