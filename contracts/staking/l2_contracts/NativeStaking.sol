@@ -39,6 +39,15 @@ contract NativeStaking is
 
     function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
+    function initialize(address _admin) public initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+    }
+
     // Returns the amount of a token staked by the operator
     function stakeOf(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
         return stakes[_operator][_token];
@@ -91,15 +100,11 @@ contract NativeStaking is
 
     /*======================================== Admin ========================================*/
 
-    function addToken(address token) external {
-        // TODO: Admin only
-
-        // TODO: token should be added in StakingManager as well
+    function addToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(tokens.add(token), "Token already exists");
     }
 
-    function removeToken(address token) external {
-        // TODO: admin only
-
-        // TODO: token should be added in StakingManager as well
+    function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(tokens.remove(token), "Token does not exist");
     }
 }
