@@ -8,20 +8,22 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
+import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+
 contract NativeStaking is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    INativeStaking
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private tokens;
 
-    event Staked(address indexed account, address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
-    event SelfStaked(address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
-    event Unstaked(address indexed account, address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
+    // TODO: check if timestamp is needed
+
 
     mapping(address operator => mapping(address token => uint256 amount)) public stakes;
     
@@ -71,7 +73,7 @@ contract NativeStaking is
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
-    function stake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) {
+    function stake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
         stakes[_operator][_token] += _amount;
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
@@ -79,15 +81,15 @@ contract NativeStaking is
 
     // Operators need to self stake tokens to be able to receive jobs (jobs will be restricted based on self stake amount)
     // This should update StakingManger's state
-    function operatorSelfStake(address _operator, address _token, uint256 _amount) external {
+    function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
         stakes[_operator][_token] += _amount;
 
         emit SelfStaked(_operator, _token, _amount, block.timestamp);
     }
 
     // This should update StakingManger's state
-    function unstake(address operator, address token, uint256 amount) external {
-        // TODO
+    function unstake(address operator, address token, uint256 amount) external nonReentrant {
+        
     }
 
     /*======================================== Getters ========================================*/
@@ -101,10 +103,6 @@ contract NativeStaking is
     function getStakes(address account, address token) external view returns (uint256) {
         // TODO
     }
-
-    // TODO: manages the staking information and tokens provided by stakers and delegated to specific operators
-
-    // TODO: functions that can provide the latest staking information for specific users and operators
 
     /*======================================== Admin ========================================*/
 
