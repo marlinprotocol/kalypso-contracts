@@ -88,6 +88,10 @@ contract NativeStaking is
     function withdrawStake(address operator, address token, uint256 amount) external nonReentrant {
         require(userStakeInfo[msg.sender][operator][token] >= amount, "Insufficient stake");
 
+        // TODO: check locked time
+
+        // TODO: read from staking manager and calculate withdrawable amount
+
         IERC20(token).safeTransfer(msg.sender, amount);
 
         userStakeInfo[msg.sender][operator][token] -= amount;
@@ -178,4 +182,6 @@ contract NativeStaking is
     function setSupportedSignature(bytes4 sig, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
         supportedSignatures[sig] = isSupported;
     }
+
+    // TODO: set staking manager
 }
