@@ -20,17 +20,17 @@ contract NativeStaking is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    EnumerableSet.AddressSet private tokens;
+    EnumerableSet.AddressSet private tokenSet;
+    EnumerableSet.AddressSet private operatorSet;
 
-    // TODO: check if timestamp is needed
-
-
+    mapping(address operator => mapping(address token => uint256 amount)) public selfStakes;
     mapping(address operator => mapping(address token => uint256 amount)) public stakes;
+
+    mapping(bytes4 sig => bool isSupported) private supportedSignatures;
     
-    mapping(bytes4 sig => bool isSupported) public supportedSignatures;
 
     modifier onlySupportedToken(address _token) {
-        require(tokens.contains(_token), "Token not supported");
+        require(tokenSet.contains(_token), "Token not supported");
         _;
     }
 
@@ -61,13 +61,13 @@ contract NativeStaking is
         return stakes[_operator][_token];
     }
 
-    //  Returns the list of tokens staked by the operator and the amounts
+    //  Returns the list of tokenSet staked by the operator and the amounts
     function stakesOf(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
-        uint256 len = tokens.length();
+        uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
-            _tokens[i] = tokens.at(i);
-            _amounts[i] = stakes[_operator][tokens.at(i)];
+            _tokens[i] = tokenSet.at(i);
+            _amounts[i] = stakes[_operator][tokenSet.at(i)];
         }
     }
 
@@ -79,7 +79,7 @@ contract NativeStaking is
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
 
-    // Operators need to self stake tokens to be able to receive jobs (jobs will be restricted based on self stake amount)
+    // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
     // This should update StakingManger's state
     function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
         stakes[_operator][_token] += _amount;
@@ -104,14 +104,18 @@ contract NativeStaking is
         // TODO
     }
 
+    function isSupportedSignature(bytes4 sig) external view returns (bool) {
+        return supportedSignatures[sig];
+    }
+
     /*======================================== Admin ========================================*/
 
     function addToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(tokens.add(token), "Token already exists");
+        require(tokenSet.add(token), "Token already exists");
     }
 
     function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(tokens.remove(token), "Token does not exist");
+        require(tokenSet.remove(token), "Token does not exist");
     }
     
     function setSupportedSignature(bytes4 sig, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
