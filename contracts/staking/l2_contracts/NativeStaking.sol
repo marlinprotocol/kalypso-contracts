@@ -7,8 +7,14 @@ import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intro
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+
+
 
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -19,12 +25,13 @@ contract NativeStaking is
     INativeStaking
 {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeERC20 for IERC20;
 
     EnumerableSet.AddressSet private tokenSet;
     EnumerableSet.AddressSet private operatorSet;
 
     mapping(address operator => mapping(address token => OperatorStakeInfo stakeInfo)) public operatorStakeInfo; // stakeAmount, selfStakeAmount
-    mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public userStakeInfo;
+    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public userStakeInfo;
 
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
     
@@ -56,6 +63,50 @@ contract NativeStaking is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
+    // Staker should be able to choose an Operator they want to stake into
+    // This should update StakingManger's state
+    function stake(address _account, address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
+        IERC20(_token).safeTransferFrom(_account, address(this), _amount);
+
+        userStakeInfo[_account][_operator][_token] += _amount;
+        operatorStakeInfo[_operator][_token].delegatedStake += _amount;
+
+        emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
+    }
+
+    // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
+    // This should update StakingManger's state
+    function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
+        IERC20(_token).safeTransferFrom(_operator, address(this), _amount);
+
+        operatorStakeInfo[_operator][_token].selfStake += _amount;
+
+        emit SelfStaked(_operator, _token, _amount, block.timestamp);
+    }
+
+    // This should update StakingManger's state
+    function withdrawStake(address operator, address token, uint256 amount) external nonReentrant {
+        require(userStakeInfo[msg.sender][operator][token] >= amount, "Insufficient stake");
+
+        IERC20(token).safeTransfer(msg.sender, amount);
+
+        userStakeInfo[msg.sender][operator][token] -= amount;
+        operatorStakeInfo[operator][token].delegatedStake -= amount;
+
+        emit StakeWithdrawn(msg.sender, operator, token, amount, block.timestamp);
+    }
+
+    function withdrawSelfStake(address operator, address token, uint256 amount) external nonReentrant {
+        require(operatorStakeInfo[operator][token].selfStake >= amount, "Insufficient selfstake");
+
+        IERC20(token).safeTransfer(operator, amount);
+
+        operatorStakeInfo[operator][token].selfStake -= amount;
+
+        emit SelfStakeWithdrawn(operator, token, amount, block.timestamp);
+    }
+
+    /*======================================== Getters ========================================*/
 
     function getDelegatedStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
         return operatorStakeInfo[_operator][_token].delegatedStake;
@@ -108,41 +159,6 @@ contract NativeStaking is
         }
 
         return totalStake;
-    }
-
-    // Staker should be able to choose an Operator they want to stake into
-    // This should update StakingManger's state
-    function stake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
-        operatorStakeInfo[_operator][_token].delegatedStake += _amount;
-
-        emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
-    }
-
-    // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
-    // This should update StakingManger's state
-    function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
-        operatorStakeInfo[_operator][_token].selfStake += _amount;
-
-        emit SelfStaked(_operator, _token, _amount, block.timestamp);
-    }
-
-    // This should update StakingManger's state
-    function unstake(address operator, address token, uint256 amount) external nonReentrant {
-        operatorStakeInfo[operator][token].delegatedStake -= amount;
-
-        emit Unstaked(msg.sender, operator, token, amount, block.timestamp);
-    }
-
-    /*======================================== Getters ========================================*/
-
-    // stake of an account for a specific operator
-    function getStake(address account, address operator, address token) external view returns (uint256) {
-        // TODO
-    }
-
-    // stake of an account for all operators
-    function getStakes(address account, address token) external view returns (uint256) {
-        // TODO
     }
 
     function isSupportedSignature(bytes4 sig) external view returns (bool) {
