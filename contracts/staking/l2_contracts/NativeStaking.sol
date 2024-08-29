@@ -116,7 +116,9 @@ contract NativeStaking is
 
     // This should update StakingManger's state
     function unstake(address operator, address token, uint256 amount) external nonReentrant {
-        
+        stakeInfo[operator][token].delegatedStake -= amount;
+
+        emit Unstaked(msg.sender, operator, token, amount, block.timestamp);
     }
 
     /*======================================== Getters ========================================*/
