@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {IKalypsoStaking} from "../staking/IKalypsoStaking.sol";
 
 interface INativeStaking is IKalypsoStaking {
-    struct StakeInfo {
+    struct OperatorStakeInfo {
         uint256 delegatedStake;
         uint256 selfStake;
     }
