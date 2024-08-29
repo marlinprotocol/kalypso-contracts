@@ -10,49 +10,72 @@ contract SymbioticStaking {
     // TODO: set TC
 
     // TODO: lastCapturedTimestamp
-    uint256 lastCapturedTimestamp;
+    uint256 lastCaptureTimestamp;
 
     //? How to manage Vault lists?
 
-    struct SnapshotInfo {
+    struct SnapshotTxInfo {
         uint256 count;
         uint256 length;
     }
 
-    mapping(uint256 captureTimestamp => mapping(address account => SnapshotInfo snapshot)) snapshotInfo;
+    struct OperatorSnapshot {
+        address operator;
+        uint256 stake;
+    }
+
+    struct VaultSnapshot {
+        address vault;
+        uint256 stake;
+    }
+
+    mapping(uint256 captureTimestamp => mapping(address account => SnapshotTxInfo snapshot)) submissionInfo;
+    
+    // TODO: mappings for operator and vault snapshots
     
     // Transmitter submits staking data snapshot
     // This should update StakingManger's state
     function submitSnapshot(
-        uint256 index,
-        uint256 length, // number of total transactions
-        uint256 captureTimestamp,
-        bytes memory stakeData,
-        bytes memory signature
+        uint256 _index,
+        uint256 _length, // number of total transactions
+        uint256 _captureTimestamp,
+        bytes memory _operatorSnapshotData,
+        bytes memory _VaultSnapshotData,
+        bytes memory _signature
     ) external {
-        require(block.timestamp >= lastCapturedTimestamp + SD, "Cooldown period not passed");
+        require(block.timestamp >= lastCaptureTimestamp + SD, "Cooldown period not passed");
 
-        require(length > 0, "Invalid length");
+        require(_length > 0, "Invalid length");
         
-        require(index < length, "Invalid index");
+        require(_index < _length, "Invalid index");
 
-        require(snapshotInfo[captureTimestamp][msg.sender].count > 0, "Snapshot fully submitted already");
-        snapshotInfo[captureTimestamp][msg.sender].count--;
+        require(submissionInfo[_captureTimestamp][msg.sender].count > 0, "Snapshot fully submitted already");
+        submissionInfo[_captureTimestamp][msg.sender].count--;
 
-        require(snapshotInfo[captureTimestamp][msg.sender].length == length, "Invalid length");
+        require(submissionInfo[_captureTimestamp][msg.sender].length == _length, "Invalid length");
 
         // TODO: Verify the signature
         // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
 
-        // TODO: Data transmitter should get TC% of the rewards
+        OperatorSnapshot[] memory operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
+        VaultSnapshot[] memory vaultSnapshots = abi.decode(_VaultSnapshotData, (VaultSnapshot[]));
 
-        // TODO: stakeData should be of the correct format which has key value pairs of operators and stakeDelta (?)
+        // TODO: loop through each snapshots and update the state
 
-        // TODO: "TC" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + SD)"
+        // when the last chunk of the snapshot is received
+        if(submissionInfo[_captureTimestamp][msg.sender].count == 0) {
+            // TODO: update lastCaptureTimestamp
 
-        // TODO: Should update the latest complete snapshot information once the last chunk of staking snapshot is received (Updates TC based on the delay)
+            // TODO: calculate rewards for the transmitter based on TC
+            // TODO: Data transmitter should get TC% of the rewards
+            // TODO: "TC" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + SD)"
+        }
     }
 
+    function _updateOperatorSnapshot(uint256 _captureTimestamp, OperatorSnapshot[] memory _operatorSnapshots) internal {
+        for(uint256 i = 0; i < _operatorSnapshots.length; i++) {
+        }
+    }
 
     /*======================================== Getters ========================================*/
 
