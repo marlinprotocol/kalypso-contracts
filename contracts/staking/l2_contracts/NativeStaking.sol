@@ -25,9 +25,16 @@ contract NativeStaking is
     // TODO: checkpoints?
 
     mapping(address operator => mapping(address token => uint256 amount)) public stakes;
+    
+    mapping(bytes4 sig => bool isSupported) public supportedSignatures;
 
     modifier onlySupportedToken(address _token) {
         require(tokens.contains(_token), UnsupportedToken());
+        _;
+    }
+
+    modifier onlySupportedSignature(bytes4 sig) {
+        require(supportedSignatures[sig], "Function not supported");
         _;
     }
 
@@ -65,7 +72,7 @@ contract NativeStaking is
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
-    function stake(address operator, address token, uint256 amount) external {
+    function stake(address operator, address token, uint256 amount) external onlySupportedSignature(msg.sig) {
         // TODO: should accept only POND atm, but should have flexibility to accept other tokens
 
         //?: Will the rewards be tracked off-chain? Or tracked with Checkpoints?
@@ -106,5 +113,9 @@ contract NativeStaking is
 
     function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokens.remove(token), "Token does not exist");
+    }
+    
+    function setSupportedSignature(bytes4 sig, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        supportedSignatures[sig] = isSupported;
     }
 }
