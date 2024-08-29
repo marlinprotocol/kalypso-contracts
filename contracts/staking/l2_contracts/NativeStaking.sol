@@ -17,19 +17,18 @@ contract NativeStaking is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    error UnsupportedToken();
-
-    // TODO: token Set
     EnumerableSet.AddressSet private tokens;
 
-    // TODO: checkpoints?
+    event Staked(address indexed account, address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
+    event SelfStaked(address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
+    event Unstaked(address indexed account, address indexed operator, address indexed token, uint256 amount, uint256 timestamp);
 
     mapping(address operator => mapping(address token => uint256 amount)) public stakes;
     
     mapping(bytes4 sig => bool isSupported) public supportedSignatures;
 
     modifier onlySupportedToken(address _token) {
-        require(tokens.contains(_token), UnsupportedToken());
+        require(tokens.contains(_token), "Token not supported");
         _;
     }
 
@@ -72,16 +71,18 @@ contract NativeStaking is
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
-    function stake(address operator, address token, uint256 amount) external onlySupportedSignature(msg.sig) {
-        // TODO: should accept only POND atm, but should have flexibility to accept other tokens
+    function stake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) {
+        stakes[_operator][_token] += _amount;
 
-        //?: Will the rewards be tracked off-chain? Or tracked with Checkpoints?
+        emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
 
     // Operators need to self stake tokens to be able to receive jobs (jobs will be restricted based on self stake amount)
     // This should update StakingManger's state
-    function selfStake(address _token, uint256 amount) external {
-        // TODO: only operators
+    function operatorSelfStake(address _operator, address _token, uint256 _amount) external {
+        stakes[_operator][_token] += _amount;
+
+        emit SelfStaked(_operator, _token, _amount, block.timestamp);
     }
 
     // This should update StakingManger's state
