@@ -91,18 +91,18 @@ contract SymbioticStaking is ISymbioticStaking {
         }
     }
 
-    function submitSlashResultData(
+    function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
-        bytes memory _SlashResultDataData,
+        bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT);
 
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultDataData, _signature);
+        _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
 
-        SlashResultData[] memory _SlashResultDatas = abi.decode(_SlashResultDataData, (SlashResultData[]));
+        SlashResultData[] memory _SlashResultDatas = abi.decode(_SlashResultData, (SlashResultData[]));
         _updateSlashResultDataInfo(_captureTimestamp, _SlashResultDatas);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
