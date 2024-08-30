@@ -51,7 +51,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
 
-        _updateTxCountInfo(_index, _numOfTxs, _captureTimestamp, OPERATOR_SNAPSHOT);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, OPERATOR_SNAPSHOT);
 
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.count == _snapshot.numOfTxs) {
@@ -60,7 +60,6 @@ contract SymbioticStaking is ISymbioticStaking {
 
         if (_isCompleteStatus(_captureTimestamp)) {
             _completeSubmission(_captureTimestamp);
-            // TODO: emit SubmissionCompleted
         }
     }
 
@@ -79,10 +78,9 @@ contract SymbioticStaking is ISymbioticStaking {
         VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (VaultSnapshot[]));
         _updateVaultSnapshotInfo(_captureTimestamp, _vaultSnapshots);
 
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
+
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
-
-        _updateTxCountInfo(_index, _numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
-
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.count == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
@@ -90,7 +88,6 @@ contract SymbioticStaking is ISymbioticStaking {
 
         if (_isCompleteStatus(_captureTimestamp)) {
             _completeSubmission(_captureTimestamp);
-            // TODO: emit SubmissionCompleted
         }
     }
 
@@ -105,12 +102,24 @@ contract SymbioticStaking is ISymbioticStaking {
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultDataData, _signature);
 
-        // TODO: Verify the signature
-        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
+        SlashResultData[] memory _SlashResultDatas = abi.decode(_SlashResultDataData, (SlashResultData[]));
+        _updateSlashResultDataInfo(_captureTimestamp, _SlashResultDatas);
+
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
+
+        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
+        // when all chunks of OperatorSnapshot are submitted
+        if (_snapshot.count == _snapshot.numOfTxs) {
+            submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
+        }
+
+        if (_isCompleteStatus(_captureTimestamp)) {
+            _completeSubmission(_captureTimestamp);
+        }
     }
 
     /*======================================== Helpers ========================================*/
-    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
+    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
         require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
 
         require(_numOfTxs > 0, "Invalid length");
@@ -128,7 +137,7 @@ contract SymbioticStaking is ISymbioticStaking {
         require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Snapshot fully submitted already");
     }
 
-    function _updateTxCountInfo(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
+    function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
 
         // increase count by 1
@@ -192,11 +201,9 @@ contract SymbioticStaking is ISymbioticStaking {
         // TODO: calculate rewards for the transmitter based on TC
         // TODO: Data transmitter should get TC% of the rewards
         // TODO: "TC" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + SD)"
+
+        // TODO: emit SubmissionCompleted
     }
-
-
-
-
 
     /*======================================== Getters ========================================*/
     function lastConfirmedTimestamp() public view returns (uint256) {
