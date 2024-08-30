@@ -41,16 +41,16 @@ contract SymbioticStaking is ISymbioticStaking{
         bytes memory _operatorSnapshotData,
         bytes memory _signature
     ) external {
-        require(block.timestamp >= lastCaptureTimestamp() + SD, "Cooldown period not passed");
+        require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
 
         require(_numOfTxs > 0, "Invalid length");
-
         require(_index < _numOfTxs, "Invalid index");
-
         
         SnapshotTxCountInfo storage snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
+        
         require(snapshot.count < snapshot.length, "Snapshot fully submitted already");
         require(snapshot.length == _numOfTxs, "Invalid length");
+
         require(submissionStatus[_captureTimestamp][msg.sender] & OPERATOR_SNAPSHOT_MASK == 0, "Snapshot fully submitted already");
 
         // TODO: Verify the signature
@@ -77,7 +77,51 @@ contract SymbioticStaking is ISymbioticStaking{
             _completeSubmission(_captureTimestamp);
             // TODO: emit SubmissionCompleted
         }
+    }
 
+    function submitVaultSnapshot(
+        uint256 _index,
+        uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
+        bytes memory _vaultSnapshotData,
+        bytes memory _signature
+    ) external {
+        require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
+
+        require(_numOfTxs > 0, "Invalid length");
+        require(_index < _numOfTxs, "Invalid index");
+        
+        SnapshotTxCountInfo storage snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
+        
+        require(snapshot.count < snapshot.length, "Snapshot fully submitted already");
+        require(snapshot.length == _numOfTxs, "Invalid length");
+
+        require(submissionStatus[_captureTimestamp][msg.sender] & VAULT_SNAPSHOT_MASK == 0, "Snapshot fully submitted already");
+
+        // TODO: Verify the signature
+        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
+
+        // main update logic
+        VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (VaultSnapshot[]));
+        _updateVaultSnapshotInfo(_captureTimestamp, _vaultSnapshots);
+        
+        // increase count by 1
+        snapshot.count += 1;
+
+        // update length if 0
+        if(snapshot.length == 0) {
+            snapshot.length = _numOfTxs;
+        }
+
+        // when all chunks of OperatorSnapshot are submitted
+        if(snapshot.count == snapshot.length) {
+            submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
+        }
+
+        if(_isCompleteStatus(_captureTimestamp)) {
+            _completeSubmission(_captureTimestamp);
+            // TODO: emit SubmissionCompleted
+        }
     }
 
     function submitVaultSnapshot() external {
@@ -89,8 +133,6 @@ contract SymbioticStaking is ISymbioticStaking{
     }
 
     /*======================================== Helpers ========================================*/
-    
-
     function _isCompleteStatus(uint256 _captureTimestamp) internal view returns(bool) {
         return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
     }
@@ -114,7 +156,9 @@ contract SymbioticStaking is ISymbioticStaking{
 
     function _updateVaultSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
         for(uint256 i = 0; i < _vaultSnapshots.length; i++) {
-            // TODO
+            VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
+
+            vaultSnapshots[_vaultSnapshot.vault][_vaultSnapshot.token][_captureTimestamp] = _vaultSnapshot.stake;
         }
     }
 
@@ -125,7 +169,7 @@ contract SymbioticStaking is ISymbioticStaking{
     }
 
     /*======================================== Getters ========================================*/
-    function lastCaptureTimestamp() public view returns(uint256) {
+    function lastConfirmedTimestamp() public view returns(uint256) {
         return confirmedTimestamps[confirmedTimestamps.length - 1];
     }
 

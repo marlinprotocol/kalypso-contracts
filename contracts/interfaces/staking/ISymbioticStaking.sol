@@ -17,6 +17,7 @@ interface ISymbioticStaking {
 
     struct VaultSnapshot {
         address vault;
+        address token;
         uint256 stake;
     }
 
