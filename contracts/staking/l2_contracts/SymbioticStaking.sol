@@ -28,7 +28,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
     mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake)))operatorSnapshots;
     mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake)))vaultSnapshots;
-    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult SlashResultData)) SlashResultDatas; // TODO: need to check actual slashing timestamp?
+    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult SlashResultData)) slashResultDatas; // TODO: need to check actual slashing timestamp?
 
     uint256[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
@@ -189,7 +189,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _SlashResultDatas.length; i++) {
             SlashResultData memory _slashResultData = _SlashResultDatas[i];
 
-            SlashResultDatas[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
+            slashResultDatas[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
 
             // TODO: emit event for each update?
         }
