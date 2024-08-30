@@ -10,11 +10,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-
-
-
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
-
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -31,10 +27,10 @@ contract NativeStaking is
     EnumerableSet.AddressSet private operatorSet;
 
     mapping(address operator => mapping(address token => OperatorStakeInfo stakeInfo)) public operatorStakeInfo; // stakeAmount, selfStakeAmount
-    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public userStakeInfo;
+    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public
+        userStakeInfo;
 
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
-    
 
     modifier onlySupportedToken(address _token) {
         require(tokenSet.contains(_token), "Token not supported");
@@ -46,13 +42,17 @@ contract NativeStaking is
         _;
     }
 
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 
-    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
@@ -65,7 +65,12 @@ contract NativeStaking is
 
     // Staker should be able to choose an Operator they want to stake into
     // This should update StakingManger's state
-    function stake(address _account, address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
+    function stake(address _account, address _operator, address _token, uint256 _amount)
+        external
+        onlySupportedSignature(msg.sig)
+        onlySupportedToken(_token)
+        nonReentrant
+    {
         IERC20(_token).safeTransferFrom(_account, address(this), _amount);
 
         userStakeInfo[_account][_operator][_token] += _amount;
@@ -76,7 +81,12 @@ contract NativeStaking is
 
     // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
     // This should update StakingManger's state
-    function operatorSelfStake(address _operator, address _token, uint256 _amount) external onlySupportedSignature(msg.sig) onlySupportedToken(_token) nonReentrant {
+    function operatorSelfStake(address _operator, address _token, uint256 _amount)
+        external
+        onlySupportedSignature(msg.sig)
+        onlySupportedToken(_token)
+        nonReentrant
+    {
         IERC20(_token).safeTransferFrom(_operator, address(this), _amount);
 
         operatorStakeInfo[_operator][_token].selfStake += _amount;
@@ -112,12 +122,21 @@ contract NativeStaking is
 
     /*======================================== Getters ========================================*/
 
-    function getDelegatedStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+    function getDelegatedStake(address _operator, address _token)
+        external
+        view
+        onlySupportedToken(_token)
+        returns (uint256)
+    {
         return operatorStakeInfo[_operator][_token].delegatedStake;
     }
 
     //  Returns the list of tokenSet staked by the operator and the amounts
-    function getDelegatedStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+    function getDelegatedStakes(address _operator)
+        external
+        view
+        returns (address[] memory _tokens, uint256[] memory _amounts)
+    {
         uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -126,11 +145,20 @@ contract NativeStaking is
         }
     }
 
-    function getSelfStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+    function getSelfStake(address _operator, address _token)
+        external
+        view
+        onlySupportedToken(_token)
+        returns (uint256)
+    {
         return operatorStakeInfo[_operator][_token].selfStake;
     }
 
-    function getSelfStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+    function getSelfStakes(address _operator)
+        external
+        view
+        returns (address[] memory _tokens, uint256[] memory _amounts)
+    {
         uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -139,12 +167,21 @@ contract NativeStaking is
         }
     }
 
-    function getOperatorTotalStake(address _operator, address _token) external view onlySupportedToken(_token) returns (uint256) {
+    function getOperatorTotalStake(address _operator, address _token)
+        external
+        view
+        onlySupportedToken(_token)
+        returns (uint256)
+    {
         OperatorStakeInfo memory _stakeInfo = operatorStakeInfo[_operator][_token];
         return _stakeInfo.delegatedStake + _stakeInfo.selfStake;
     }
 
-    function getOperatorTotalStakes(address _operator) external view returns (address[] memory _tokens, uint256[] memory _amounts) {
+    function getOperatorTotalStakes(address _operator)
+        external
+        view
+        returns (address[] memory _tokens, uint256[] memory _amounts)
+    {
         uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -159,7 +196,8 @@ contract NativeStaking is
         uint256 totalStake;
 
         for (uint256 i = 0; i < len; i++) {
-            totalStake += operatorStakeInfo[operatorSet.at(i)][_token].delegatedStake + operatorStakeInfo[operatorSet.at(i)][_token].selfStake;
+            totalStake += operatorStakeInfo[operatorSet.at(i)][_token].delegatedStake
+                + operatorStakeInfo[operatorSet.at(i)][_token].selfStake;
         }
 
         return totalStake;
@@ -178,7 +216,7 @@ contract NativeStaking is
     function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokenSet.remove(token), "Token does not exist");
     }
-    
+
     function setSupportedSignature(bytes4 sig, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
         supportedSignatures[sig] = isSupported;
     }
