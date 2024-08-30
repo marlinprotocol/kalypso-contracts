@@ -10,6 +10,7 @@ contract SymbioticStaking is ISymbioticStaking{
     uint256 SD;
 
     // TODO: set TC
+    uint256 TC;
 
     //? How to manage Vault lists?
 
@@ -28,7 +29,7 @@ contract SymbioticStaking is ISymbioticStaking{
     
     mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshots;
     mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshots;
-    mapping(uint256 captureTimestamp => mapping(uint256 jobId => SlashResult slashResult)) slashResults; // TODO: need to check actual slashing timestamp?
+    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult SlashResultData)) SlashResultDatas; // TODO: need to check actual slashing timestamp?
 
     uint256[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
     
@@ -124,12 +125,27 @@ contract SymbioticStaking is ISymbioticStaking{
         }
     }
 
-    function submitVaultSnapshot() external {
-        // TODO
-    }
+    function submitSlashResultData(
+        uint256 _index,
+        uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
+        bytes memory _SlashResultDataData,
+        bytes memory _signature
+    ) external {
+        require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
 
-    function submitSlashResult() external {
-        // TODO
+        require(_numOfTxs > 0, "Invalid length");
+        require(_index < _numOfTxs, "Invalid index");
+        
+        SnapshotTxCountInfo storage snapshot = txCountInfo[_captureTimestamp][msg.sender][SLASH_RESULT];
+        
+        require(snapshot.count < snapshot.length, "Snapshot fully submitted already");
+        require(snapshot.length == _numOfTxs, "Invalid length");
+
+        require(submissionStatus[_captureTimestamp][msg.sender] & SLASH_RESULT_MASK == 0, "Snapshot fully submitted already");
+
+        // TODO: Verify the signature
+        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
     }
 
     /*======================================== Helpers ========================================*/
@@ -151,6 +167,8 @@ contract SymbioticStaking is ISymbioticStaking{
             OperatorSnapshot memory _operatorSnapshot = _operatorSnapshots[i];
 
             operatorSnapshots[_operatorSnapshot.operator][_operatorSnapshot.token][_captureTimestamp] = _operatorSnapshot.stake;
+
+            // TODO: emit event for each update?
         }
     }
 
@@ -159,13 +177,24 @@ contract SymbioticStaking is ISymbioticStaking{
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
             vaultSnapshots[_vaultSnapshot.vault][_vaultSnapshot.token][_captureTimestamp] = _vaultSnapshot.stake;
+
+            // TODO: emit event for each update?
         }
     }
 
-    function _updateSlashResultInfo(uint256 _captureTimestamp, address[] memory _operators, uint256[] memory _slashAmounts) internal {
-        for(uint256 i = 0; i < _operators.length; i++) {
-            // TODO
+    function _updateSlashResultDataInfo(uint256 _captureTimestamp, SlashResultData[] memory _SlashResultDatas) internal {
+        for(uint256 i = 0; i < _SlashResultDatas.length; i++) {
+            SlashResultData memory _slashResultData = _SlashResultDatas[i];
+
+            SlashResultDatas[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
+            
+            // TODO: emit event for each update?
         }
+
+    }
+
+    function _verifySignature(bytes memory _data, bytes memory _signature) internal {
+        // TODO
     }
 
     /*======================================== Getters ========================================*/

@@ -21,8 +21,12 @@ interface ISymbioticStaking {
         uint256 stake;
     }
 
-    struct SlashResult {
+    struct SlashResultData {
         uint256 jobId;
+        SlashResult slashResult;
+    }
+    
+    struct SlashResult {
         uint256 slashAmount;
         address rewardAddress;
     }
