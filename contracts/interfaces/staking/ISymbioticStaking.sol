@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 interface ISymbioticStaking {
     // function stakeOf(address _operator, address _token) external view returns (uint256);
 
-    struct SnapshotTxInfo {
+    struct SnapshotTxCountInfo {
         uint256 count;
         uint256 length;
     }
@@ -24,4 +24,12 @@ interface ISymbioticStaking {
         uint256 slashAmount;
         address rewardAddress;
     }
+
+    // event OperatorSnapshotSubmitted
+
+    // event VaultSnapshotSubmitted
+
+    // event SlashResultSubmitted
+
+    // event SubmissionCompleted
 }
