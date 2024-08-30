@@ -11,6 +11,7 @@ interface ISymbioticStaking {
 
     struct OperatorSnapshot {
         address operator;
+        address token;
         uint256 stake;
     }
 

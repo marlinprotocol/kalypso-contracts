@@ -26,8 +26,8 @@ contract SymbioticStaking is ISymbioticStaking{
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes4 status)) submissionStatus; // to check if all partial txs are received
     
-    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshot;
-    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshot;
+    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshots;
+    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshots;
     mapping(uint256 captureTimestamp => mapping(uint256 jobId => SlashResult slashResult)) slashResults; // TODO: need to check actual slashing timestamp?
 
     uint256[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
@@ -57,8 +57,8 @@ contract SymbioticStaking is ISymbioticStaking{
         // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
 
         // main update logic
-        OperatorSnapshot[] memory operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
-        _updateOperatorSnapshotInfo(_captureTimestamp, operatorSnapshots);
+        OperatorSnapshot[] memory _operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
+        _updateOperatorSnapshotInfo(_captureTimestamp, _operatorSnapshots);
         
         // increase count by 1
         snapshot.count += 1;
@@ -75,6 +75,7 @@ contract SymbioticStaking is ISymbioticStaking{
 
         if(_isCompleteStatus(_captureTimestamp)) {
             _completeSubmission(_captureTimestamp);
+            // TODO: emit SubmissionCompleted
         }
 
     }
@@ -100,11 +101,14 @@ contract SymbioticStaking is ISymbioticStaking{
         // TODO: calculate rewards for the transmitter based on TC
         // TODO: Data transmitter should get TC% of the rewards
         // TODO: "TC" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + SD)"
+
     }
 
     function _updateOperatorSnapshotInfo(uint256 _captureTimestamp, OperatorSnapshot[] memory _operatorSnapshots) internal {
         for(uint256 i = 0; i < _operatorSnapshots.length; i++) {
-            // TODO
+            OperatorSnapshot memory _operatorSnapshot = _operatorSnapshots[i];
+
+            operatorSnapshots[_operatorSnapshot.operator][_operatorSnapshot.token][_captureTimestamp] = _operatorSnapshot.stake;
         }
     }
 
