@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-contract SymbioticStaking {
+import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+
+contract SymbioticStaking is ISymbioticStaking{
     // TODO: address Operator => address token => CheckPoints.Trace256 stakeAmount (Question: operators' stake amount is consolidated within same vault?)
 
     // TODO: set SD
@@ -9,29 +11,16 @@ contract SymbioticStaking {
 
     // TODO: set TC
 
-    // TODO: lastCapturedTimestamp
-    uint256 lastCaptureTimestamp;
-
     //? How to manage Vault lists?
 
-    struct SnapshotTxInfo {
-        uint256 count;
-        uint256 length;
-    }
 
-    struct OperatorSnapshot {
-        address operator;
-        uint256 stake;
-    }
-
-    struct VaultSnapshot {
-        address vault;
-        uint256 stake;
-    }
-
-    mapping(uint256 captureTimestamp => mapping(address account => SnapshotTxInfo snapshot)) submissionInfo;
+    mapping(uint256 captureTimestamp => mapping(address account => SnapshotTxInfo snapshot)) submissionInfo; // to check if all partial txs are received
     
-    // TODO: mappings for operator and vault snapshots
+    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshot;
+    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshot;
+    mapping(uint256 captureTimestamp => mapping(uint256 jobId => SlashResult slashREsult)) slashResults; // TODO: need to check slash timestamp?
+
+    uint256[] public confirmedTimestamps;
     
     // Transmitter submits staking data snapshot
     // This should update StakingManger's state
@@ -43,7 +32,7 @@ contract SymbioticStaking {
         bytes memory _VaultSnapshotData,
         bytes memory _signature
     ) external {
-        require(block.timestamp >= lastCaptureTimestamp + SD, "Cooldown period not passed");
+        require(block.timestamp >= lastCaptureTimestamp() + SD, "Cooldown period not passed");
 
         require(_length > 0, "Invalid length");
         
@@ -58,13 +47,15 @@ contract SymbioticStaking {
         // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
 
         OperatorSnapshot[] memory operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
+        _updateOperatorSnapshotInfo(_captureTimestamp, operatorSnapshots);
+        
         VaultSnapshot[] memory vaultSnapshots = abi.decode(_VaultSnapshotData, (VaultSnapshot[]));
-
-        // TODO: loop through each snapshots and update the state
+        _updateVaultSnapshotInfo(_captureTimestamp, vaultSnapshots);
 
         // when the last chunk of the snapshot is received
         if(submissionInfo[_captureTimestamp][msg.sender].count == 0) {
             // TODO: update lastCaptureTimestamp
+
 
             // TODO: calculate rewards for the transmitter based on TC
             // TODO: Data transmitter should get TC% of the rewards
@@ -72,12 +63,27 @@ contract SymbioticStaking {
         }
     }
 
-    function _updateOperatorSnapshot(uint256 _captureTimestamp, OperatorSnapshot[] memory _operatorSnapshots) internal {
+    function _updateOperatorSnapshotInfo(uint256 _captureTimestamp, OperatorSnapshot[] memory _operatorSnapshots) internal {
         for(uint256 i = 0; i < _operatorSnapshots.length; i++) {
+            // TODO
+        }
+    }
+
+    function _updateVaultSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
+        for(uint256 i = 0; i < _vaultSnapshots.length; i++) {
+            // TODO
+        }
+    }
+
+    function _updateSlashResultInfo(uint256 _captureTimestamp, address[] memory _operators, uint256[] memory _slashAmounts) internal {
+        for(uint256 i = 0; i < _operators.length; i++) {
+            // TODO
         }
     }
 
     /*======================================== Getters ========================================*/
-
+    function lastCaptureTimestamp() public view returns(uint256) {
+        return confirmedTimestamps[confirmedTimestamps.length - 1];
+    }
 
 }
