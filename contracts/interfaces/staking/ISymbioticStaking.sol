@@ -6,7 +6,7 @@ interface ISymbioticStaking {
 
     struct SnapshotTxCountInfo {
         uint256 count;
-        uint256 length;
+        uint256 numOfTxs;
     }
 
     struct OperatorSnapshot {
@@ -25,7 +25,7 @@ interface ISymbioticStaking {
         uint256 jobId;
         SlashResult slashResult;
     }
-    
+
     struct SlashResult {
         uint256 slashAmount;
         address rewardAddress;
