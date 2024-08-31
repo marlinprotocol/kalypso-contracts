@@ -1,12 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract StakingManager {
+import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+
+contract StakingManager is
+    ContextUpgradeable,
+    ERC165Upgradeable,
+    AccessControlUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    INativeStaking {
     // TODO: Staking Pool Set
     // TODO: Staking Pool flag   
 
     // TODO: integration with Slasher
 
+    function initialize(address _admin) public initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+    }
 
     // TODO: Self stake is given to the slasher while the rest of the stakers is burnt when slashed
     // TODO: check necessary params
@@ -92,4 +116,18 @@ contract StakingManager {
     function setPriceOracle(address _priceOracle) external {
         // TODO
     }
+
+    /*======================================== Override ========================================*/
+    
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
