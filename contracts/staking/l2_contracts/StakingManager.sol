@@ -77,7 +77,7 @@ contract StakingManager is
     function onJobCreation(address _jobId, address _operator, address token, uint256 _lockAmount) external {
         // TODO: only jobManager
 
-        // TODO: lock operator selfstake
+        // TODO: lock operator selfstake (check how much)
 
         address[] memory enabledPoolList = getEnabledPoolList();
 
@@ -95,11 +95,14 @@ contract StakingManager is
             if(poolStake >= minStake) {
                 // lock the stake
                 uint256 lockAmount = _calcLockAmount(poolStake, poolConfig[pool].weight); // TODO: need to check formula for calculation
+                // TODO: move fund from the pool (implement lockStake in each pool)
+                // TODO: SymbioticStaking will just have empty code in it
                 _lockStake(pool, lockAmount);
             }
         }
     }
-
+    
+    // TODO: make sure nothing happens when storing value only
     function _lockStake(address _jobId, uint256 amount) internal {
         lockInfo[_jobId].lockAmount += amount;
         lockInfo[_jobId].unlockTimestamp = block.timestamp + unlockEpoch;
@@ -115,11 +118,22 @@ contract StakingManager is
         // TODO: only jobManager
 
         // TODO: unlock the locked stakes
+        _unlockStake(_jobId);
     }
 
     // when certain period has passed after the lock and no slash result is submitted, this can be unlocked
+    // unlocking the locked stake does not check if token is enabled
     function unlockStake(address _jobId) external {
-        
+        // TODO: query if deadline has passed + no proof submission + not slashed
+
+        uint256 len = stakingPoolSet.length;
+
+        for(uint256 i = 0; i < len; i++) {
+            pool = stakingPoolSet.at(i);
+
+            // unlock the stake
+            _unlockStake(pool, _jobId);
+        }
     }
 
     /*======================================== Getters ========================================*/
@@ -129,7 +143,7 @@ contract StakingManager is
     // so even when this function returns true and transaction submitted to L1 can be reverted
     // when someone already has submitted the proof
     function isSlashable(address _jobId) external view returns (bool) {
-        // TODO: check if the proof was submitted before the deadline
+        // TODO: check if the proof was submitted before the deadline, so need to query jobmanager
     }
 
     /*======================================== Getter for Staking ========================================*/
