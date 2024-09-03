@@ -61,17 +61,6 @@ contract StakingManager is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
-    // TODO: Self stake is given to the slasher while the rest of the stakers is burnt when slashed
-    // TODO: check necessary params
-    function slashJob(
-        address _jobId,
-        address _vault,
-        uint256 _captureTimestamp,
-        uint256 _amount,
-        address _rewardAddress
-    ) external {
-        // TODO: only slashingManager
-    }
 
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
     // locked stake will be unlocked after an epoch if no slas result is submitted
@@ -81,7 +70,6 @@ contract StakingManager is
         // TODO: only jobManager
 
         // TODO: lock operator selfstake (check how much)
-
 
         uint256 len = stakingPoolSet.length();
         for(uint256 i = 0; i < len; i++) {
