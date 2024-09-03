@@ -228,4 +228,12 @@ contract NativeStaking is
     }
 
     // TODO: set staking manager
+
+    /*======================================== StakingManager ========================================*/
+    function lockStake(address _operator, address _token, uint256 _amount) external {
+        // TODO: StakingManager only
+        
+        // TODO: decide whether to move or to just store in the mapping
+    }
+
 }

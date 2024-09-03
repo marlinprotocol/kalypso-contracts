@@ -61,7 +61,6 @@ contract StakingManager is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
-
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
     // locked stake will be unlocked after an epoch if no slas result is submitted
 
@@ -74,22 +73,20 @@ contract StakingManager is
         uint256 len = stakingPoolSet.length();
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            if(!isEnabledPool(pool)) continue;
-
-            // skip if the token is not supported by the pool
-            if(!IKalypsoStaking(pool).isSupportedToken(token)) continue;
+            
+            if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
+            if(!IKalypsoStaking(pool).isSupportedToken(token)) continue; // skip if the token is not supported by the pool
             
             uint256 poolStake = getPoolStake(pool, _operator, token); 
             uint256 minStake = poolConfig[pool].minStake;
 
             // skip if the pool stake is less than the minStake
-            // TODO: let _lockStake calculate this check
-            if(poolStake >= minStake) {
-                // lock the stake
+            //? case when lockAmount > minStake?
+            if(poolStake >= minStake) { 
                 uint256 lockAmount = _calcLockAmount(poolStake, poolConfig[pool].weight); // TODO: need to check formula for calculation
                 // TODO: move fund from the pool (implement lockStake in each pool)
                 // TODO: SymbioticStaking will just have empty code in it
-                _lockPoolStake(_jobId, pool, _lockAmount);
+                _lockPoolStake(_jobId, pool, _operator, _lockAmount);
             }
         }
     }
@@ -98,9 +95,10 @@ contract StakingManager is
         return IKalypsoStaking(_pool).getStakeAmount(_operator, _token);
     }
     
-    // TODO: make sure nothing happens when storing value only
-    function _lockPoolStake(uint256 _jobId, address pool, uint256 amount) internal {
-        lockInfo[_jobId].totalLockAmount += amount;
+    function _lockPoolStake(uint256 _jobId, address _pool, address _operator, uint256 _amount) internal {
+        // TODO: skip if the pool has less than minimum stake
+
+        lockInfo[_jobId].totalLockAmount += _amount;
         lockInfo[_jobId].unlockTimestamp = block.timestamp + unlockEpoch;
     }
 
