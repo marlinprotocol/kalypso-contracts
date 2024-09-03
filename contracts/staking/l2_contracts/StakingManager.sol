@@ -11,14 +11,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+import {IKalypsoStaking} from "../../interfaces/staking/IKalypsoStaking.sol";
 
 contract StakingManager is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    INativeStaking
+    ReentrancyGuardUpgradeable
+    // INativeStaking
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
@@ -31,19 +32,21 @@ contract StakingManager is
     // mapping(address pool => uint256 weight) private stakingPoolWeight;
 
     mapping(address pool => PoolConfig config) private poolConfig;
-    mapping(uint256 jobId => mapping(address pool => LockInfo lockInfo)) private lockInfo;
+
+    mapping(uint256 jobId => mapping(address pool => uint256 poolLockAmounts)) private poolLockAmounts; // lock amount for each pool
+    mapping(uint256 jobId => LockInfo lockInfo) private lockInfo; // total lock amount and unlock timestamp
 
     uint256 unlockEpoch;
 
     struct PoolConfig {
         uint256 weight;
         uint256 minStake;
-        bool isEnabled;
+        bool enabled;
     }
 
     // operator, lockToken, lockAmount should be stored in JobManager
     struct LockInfo {
-        uint256 lockAmount; // locked amount for the pool
+        uint256 totalLockAmount; 
         uint256 unlockTimestamp;
     }
 
@@ -74,47 +77,54 @@ contract StakingManager is
     // locked stake will be unlocked after an epoch if no slas result is submitted
 
     // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
-    function onJobCreation(address _jobId, address _operator, address token, uint256 _lockAmount) external {
+    function onJobCreation(uint256 _jobId, address _operator, address token, uint256 _lockAmount) external {
         // TODO: only jobManager
 
         // TODO: lock operator selfstake (check how much)
 
-        address[] memory enabledPoolList = getEnabledPoolList();
 
-        uint256 len = enabledPoolList.length;
+        uint256 len = stakingPoolSet.length();
         for(uint256 i = 0; i < len; i++) {
-            pool = enabledPoolList[i];
+            address pool = stakingPoolSet.at(i);
+            if(!isEnabledPool(pool)) continue;
 
             // skip if the token is not supported by the pool
-            if(!IKalypsoStakingPool(pool).isSupportedToken(token)) continue;
+            if(!IKalypsoStaking(pool).isSupportedToken(token)) continue;
             
-            uint256 poolStake = getPoolStake(pool, _operator, token);
+            uint256 poolStake = getPoolStake(pool, _operator, token); 
             uint256 minStake = poolConfig[pool].minStake;
 
             // skip if the pool stake is less than the minStake
+            // TODO: let _lockStake calculate this check
             if(poolStake >= minStake) {
                 // lock the stake
                 uint256 lockAmount = _calcLockAmount(poolStake, poolConfig[pool].weight); // TODO: need to check formula for calculation
                 // TODO: move fund from the pool (implement lockStake in each pool)
                 // TODO: SymbioticStaking will just have empty code in it
-                _lockStake(pool, lockAmount);
+                _lockPoolStake(_jobId, pool, _lockAmount);
             }
         }
     }
+
+    function getPoolStake(address _pool, address _operator, address _token) internal view returns (uint256) {
+        return IKalypsoStaking(_pool).getStakeAmount(_operator, _token);
+    }
     
     // TODO: make sure nothing happens when storing value only
-    function _lockStake(address _jobId, uint256 amount) internal {
-        lockInfo[_jobId].lockAmount += amount;
+    function _lockPoolStake(uint256 _jobId, address pool, uint256 amount) internal {
+        lockInfo[_jobId].totalLockAmount += amount;
         lockInfo[_jobId].unlockTimestamp = block.timestamp + unlockEpoch;
     }
 
-    function _unlockStake(address _jobId) internal {
-        lockInfo[_jobId].lockAmount = 0;
+    function _unlockStake(uint256 _jobId) internal {
+        lockInfo[_jobId].totalLockAmount = 0;
         lockInfo[_jobId].unlockTimestamp = 0;
+
+        // TODO: send back fund
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(address _jobId) external {
+    function onJobCompletion(uint256 _jobId) external {
         // TODO: only jobManager
 
         // TODO: unlock the locked stakes
@@ -123,16 +133,15 @@ contract StakingManager is
 
     // when certain period has passed after the lock and no slash result is submitted, this can be unlocked
     // unlocking the locked stake does not check if token is enabled
-    function unlockStake(address _jobId) external {
-        // TODO: query if deadline has passed + no proof submission + not slashed
-
-        uint256 len = stakingPoolSet.length;
+    function unlockStake(uint256 _jobId) external {
+        uint256 len = stakingPoolSet.length();
+        address pool;
 
         for(uint256 i = 0; i < len; i++) {
             pool = stakingPoolSet.at(i);
 
             // unlock the stake
-            _unlockStake(pool, _jobId);
+            _unlockStake(_jobId);
         }
     }
 
@@ -146,24 +155,15 @@ contract StakingManager is
         // TODO: check if the proof was submitted before the deadline, so need to query jobmanager
     }
 
+    function isEnabledPool(address _pool) public view returns (bool) {
+        return poolConfig[_pool].enabled;
+    }
+
     /*======================================== Getter for Staking ========================================*/
 
     function _calcLockAmount(uint256 amount, uint256 weight) internal pure returns (uint256) {
         return (amount * weight) / 10000; // TODO: need to check formula for calculation (probably be the share)
     }
-
-
-    function getEnabledPoolList() public view returns (address[] memory enabledPoolList) {
-        uint256 len = stakingPoolSet.length;
-        for(uint256 i = 0; i < len; i++) {
-            pool = stakingPoolSet.at(i);
-            
-            if(poolConfig[pool].isEnabled) {
-                enabledPoolList.push(pool);
-            }
-        }
-    }
-
 
     /*======================================== Admin ========================================*/
 

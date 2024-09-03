@@ -122,6 +122,12 @@ contract NativeStaking is
 
     /*======================================== Getters ========================================*/
 
+    function getStakeAmount(address _operator, address _token) external view returns (uint256) {}
+
+    function getStakeAmountList(address _operator) external view returns (address[] memory _operators, uint256[] memory _amounts) {}
+
+    function isSupportedToken(address _token) external view returns (bool) {}
+
     function getDelegatedStake(address _operator, address _token)
         external
         view
