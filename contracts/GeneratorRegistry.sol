@@ -135,6 +135,8 @@ contract GeneratorRegistry is
     event StakeLockReleased(address indexed generator, uint256 stake);
     event ComputeLockReleased(address indexed generator, uint256 stake);
 
+    event StakeSlashed(address indexed generator, uint256 stake);
+
     //-------------------------------- Events end --------------------------------//
 
     function initialize(address _admin, address _proofMarketplace) public initializer {
@@ -675,8 +677,11 @@ contract GeneratorRegistry is
         generator.totalStake -= slashingAmount;
         generator.stakeLocked -= slashingAmount;
 
-        generator.computeConsumed -= info.computePerRequestRequired;
+        uint256 computeReleased = info.computePerRequestRequired;
+        generator.computeConsumed -= computeReleased;
 
+        emit StakeSlashed(generatorAddress, slashingAmount);
+        emit ComputeLockReleased(generatorAddress, computeReleased);
         STAKING_TOKEN.safeTransfer(rewardAddress, slashingAmount);
 
         return generator.totalStake;

@@ -164,12 +164,31 @@ export function hexToUtf8(hex: string): string {
 }
 
 export async function skipBlocks(ethersVar: typeof ethers, n: number) {
-  await Promise.all([...Array(n)].map(async (x) => await ethersVar.provider.send("evm_mine", [])));
+  const chainId = (await ethersVar.provider.getNetwork()).chainId;
+  const currentBlock = await ethersVar.provider.getBlockNumber();
+  if (parseInt(chainId.toString()) === 31337) {
+    // Local network (Hardhat/EthereumJS) - instantly mine n blocks
+    await Promise.all([...Array(n)].map(async (x) => await ethersVar.provider.send("evm_mine", [])));
+  } else {
+    // Mainnet/testnet - wait for the required number of blocks to be mined naturally
+    const targetBlock = currentBlock + n;
+    while ((await ethersVar.provider.getBlockNumber()) < targetBlock) {
+      // Polling the network to check if the required number of blocks has been mined
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // wait 1 second before checking again
+    }
+  }
 }
 
 export async function skipTime(ethersVar: typeof ethers, t: number) {
-  await ethersVar.provider.send("evm_increaseTime", [t]);
-  await skipBlocks(ethersVar, 1);
+  const chainId = (await ethersVar.provider.getNetwork()).chainId;
+  if (parseInt(chainId.toString()) === 31337) {
+    // Local network - increase the EVM time by t seconds
+    await ethersVar.provider.send("evm_increaseTime", [t]);
+  } else {
+    // Mainnet/testnet - wait for t+1 seconds to ensure time has passed naturally
+    await new Promise((resolve) => setTimeout(resolve, (t + 1) * 1000)); // wait for t+1 seconds
+  }
+  await skipBlocks(ethersVar, 1); // mine a block to apply the time change on local networks
 }
 
 export interface PubkeyAndAddress {

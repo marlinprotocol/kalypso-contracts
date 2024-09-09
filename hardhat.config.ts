@@ -74,6 +74,9 @@ const config: HardhatUserConfig = {
       },
     ],
   },
+  mocha: {
+    timeout: 120000,
+  },
   networks: {
     hardhat: {
       blockGasLimit: 500000000000,
@@ -115,28 +118,16 @@ const config: HardhatUserConfig = {
         `${process.env.NOVA_PROOF_REQUESTOR}`,
       ],
     },
-    zksync: {
-      url: `${process.env.ZKSYNC_URL}`,
+    kalypso: {
+      url: `${process.env.KALYPSO_RPC_URL}`,
       accounts: [
-        `${process.env.ZKSYNC_ADMIN}`,
-        `${process.env.ZKSYNC_TOKEN_HOLDER}`,
-        `${process.env.ZKSYNC_TREASURY}`,
-        `${process.env.ZKSYNC_MARKET_CREATOR}`,
-        `${process.env.ZKSYNC_GENERATOR}`,
-        `${process.env.ZKSYNC_MATCHING_ENGINE}`,
-        `${process.env.ZKSYNC_PROOF_REQUESTOR}`,
-      ],
-    },
-    amoy: {
-      url: `${process.env.AMOY_RPC}`,
-      accounts: [
-        `${process.env.AMOY_ADMIN}`,
-        `${process.env.AMOY_TOKEN_HOLDER}`,
-        `${process.env.AMOY_TREASURY}`,
-        `${process.env.AMOY_MARKET_CREATOR}`,
-        `${process.env.AMOY_GENERATOR}`,
-        `${process.env.AMOY_MATCHING_ENGINE}`,
-        `${process.env.AMOY_PROOF_REQUESTOR}`,
+        `${process.env.SEPOLIA_ADMIN}`,
+        `${process.env.SEPOLIA_TOKEN_HOLDER}`,
+        `${process.env.SEPOLIA_TREASURY}`,
+        `${process.env.SEPOLIA_MARKET_CREATOR}`,
+        `${process.env.SEPOLIA_GENERATOR}`,
+        `${process.env.SEPOLIA_MATCHING_ENGINE}`,
+        `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
       ],
     },
   },
