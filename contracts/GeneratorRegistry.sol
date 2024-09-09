@@ -130,10 +130,10 @@ contract GeneratorRegistry is
     event DecreaseCompute(address indexed generator, uint256 compute);
 
     event StakeLockImposed(address indexed generator, uint256 stake);
-    event ComputeLockImposed(address indexed generator, uint256 stake);
+    event ComputeLockImposed(address indexed generator, uint256 compute);
 
     event StakeLockReleased(address indexed generator, uint256 stake);
-    event ComputeLockReleased(address indexed generator, uint256 stake);
+    event ComputeLockReleased(address indexed generator, uint256 compute);
 
     event StakeSlashed(address indexed generator, uint256 stake);
 
