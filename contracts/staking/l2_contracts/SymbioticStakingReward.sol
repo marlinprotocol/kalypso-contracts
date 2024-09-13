@@ -70,10 +70,7 @@ contract SymbioticStakingReward is
     address public jobManager;
 
 
-    // TODO: claim
-
     // TODO: vault => claimAddress
-
     modifier onlySymbioticStaking() {
         require(_msgSender() == symbioticStaking, "Caller is not the staking manager");
         _;
@@ -93,7 +90,7 @@ contract SymbioticStakingReward is
     //-------------------------------- Init start --------------------------------//
 
     // TODO: initialize contract addresses
-    function initialize(address _admin, address _stakingManager) public initializer {
+    function initialize(address _admin, address _stakingManager, address _jobManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -103,7 +100,8 @@ contract SymbioticStakingReward is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        symbioticStaking = _stakingManager;
+        _setStakingManager(_stakingManager);
+        _setJobManager(_jobManager);
     }
 
     //-------------------------------- Init end --------------------------------//
@@ -116,7 +114,10 @@ contract SymbioticStakingReward is
     function updateVaultStakeAmount(uint256 _captureTimestamp, address _stakeToken, address _vault, uint256 _amount)
         external
         onlySymbioticStaking
-    {
+    {   
+        require(_captureTimestamp > 0, "zero timestamp");
+        require(_stakeToken != address(0) || _vault != address(0), "zero address");
+
         // update reward for each rewardToken
         uint256 len = _rewardTokenSet.length();
         for (uint256 i = 0; i < len; i++) {
@@ -130,23 +131,55 @@ contract SymbioticStakingReward is
         // TODO: emit event
     }
 
-    function getLatestConfirmedTimestamp() external view returns (uint256) {
-        return _latestConfirmedTimestamp();
+    function claimReward(address _vault) external {
+        uint256 rewardAmount = claimableRewards[_vault];
+        require(rewardAmount > 0, "no reward to claim");
+
+        claimableRewards[_vault] = 0;
+
+        // TODO
+        IERC20(_getRewardToken(_vault)).safeTransfer(_vault, rewardAmount);
+    }
+
+    // TODO: decide where to store vault => rewardToken
+    function _getRewardToken(address vault) internal view returns (address) {
+        // ISymbioticStaking(symbioticStaking).rewardToken(vault);
+    }
+
+
+    function addReward(address _stakeToken, address _rewardToken, uint256 _amount) external onlySymbioticStaking {
+        require(_stakeToken != address(0) || _rewardToken != address(0), "zero address");
+        require(_amount > 0, "zero amount");
+
+        IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
+
+        // update rewardPerToken
+        uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
+        rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
+
+        // TODO: emit event
     }
 
 
     function lockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
+        require(amount <= totalStakeAmountsActive(_stakeToken), "insufficient stake amount");
+
         lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] += amount;
 
         _updateRewardPerTokens(_stakeToken);
+
+        // TODO: emit event
     }
 
-
-
     function unlockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
-        lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] -= amount;
+        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
+        require(amount <= lockedStakeAmounts[latestConfirmedTimestamp][_stakeToken], "insufficient locked stake amount");
+
+        lockedStakeAmounts[latestConfirmedTimestamp][_stakeToken] -= amount;
 
         _updateRewardPerTokens(_stakeToken);
+
+        // TODO: emit event
     }
 
     /// @notice rewardToken amount per stakeToken
@@ -165,27 +198,11 @@ contract SymbioticStakingReward is
 
     //-------------------------------- StakingManager end --------------------------------//
 
-    //-------------------------------- JobManager start --------------------------------//
-
-    /// @notice JobManager adds reward to the pool
-    function addReward(address _stakeToken, address _rewardToken, uint256 _amount) external {
-        // TODO: Only JobManager
-
-        require(_stakeToken != address(0) || _rewardToken != address(0), "zero address");
-        require(_amount > 0, "zero amount");
-
-        IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
-
-        // update rewardPerToken
-        uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
-        rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
-    }
-
-    //-------------------------------- JobManager end --------------------------------//
-
     //-------------------------------- Update start --------------------------------//
 
     function _update(uint256 _captureTimestamp, address _vault, address _stakeToken, address _rewardToken) internal {
+        require(isSupportedRewardToken(_rewardToken), "unsupported reward token");
+
         // update rewardPerToken
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
         rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
@@ -217,29 +234,21 @@ contract SymbioticStakingReward is
 
     //-------------------------------- Update end --------------------------------//
 
-    //-------------------------------- Overrides start --------------------------------//
-
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
-
-    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
-
-    //-------------------------------- Overrides end --------------------------------//
-
     //-------------------------------- Admin start --------------------------------//
     function setStakingManager(address _stakingManager) public onlyAdmin {
+        _setStakingManager(_stakingManager);
+    }
+
+    function _setStakingManager(address _stakingManager) internal {
         symbioticStaking = _stakingManager;
         // TODO: emit event
     }
 
     function setJobManager(address _jobManager) public onlyAdmin {
+        _setJobManager(_jobManager);
+    }
+
+    function _setJobManager(address _jobManager) public onlyAdmin {
         jobManager = _jobManager;
         // TODO: emit event
     }
@@ -255,6 +264,11 @@ contract SymbioticStakingReward is
     //-------------------------------- Admin end --------------------------------//
 
     //-------------------------------- Getter start --------------------------------//
+
+    // TODO: needed?
+    function getLatestConfirmedTimestamp() external view returns (uint256) {
+        return _latestConfirmedTimestamp();
+    }
 
     function getRewardTokens() external view returns (address[] memory) {
         address[] memory _rewardTokens = new address[](_rewardTokenSet.length());
@@ -277,5 +291,19 @@ contract SymbioticStakingReward is
 
     //-------------------------------- Getter end --------------------------------//
 
+    //-------------------------------- Overrides start --------------------------------//
 
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    //-------------------------------- Overrides end --------------------------------//
 }
