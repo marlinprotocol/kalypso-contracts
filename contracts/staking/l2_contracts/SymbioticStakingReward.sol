@@ -50,6 +50,9 @@ contract SymbioticStakingReward is
     // notice: the total amount can be reduced when a job is created and the stake is locked
     mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
         totalStakeAmounts;
+    // locked amount for each stakeToken upon job creation
+    mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
+        lockedStakeAmounts;
     // reward remaining for each stakeToken
     mapping(address rewardToken => mapping(address stakeToken => uint256 amount)) public rewards;
     // rewardTokens per stakeToken
@@ -107,16 +110,21 @@ contract SymbioticStakingReward is
         external
         onlySymbioticStaking
     {
-        // TODO: update both of rewardTokens
-        // _update(_captureTimestamp, _vault, _token, _amount);
+        // update reward for each rewardToken
+        uint256 len = _rewardTokenSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address rewardToken = _rewardTokenSet.at(i);
+            _update(_captureTimestamp, _vault, _token, rewardToken);
+        }
 
         vaultStakeAmounts[_captureTimestamp][_vault] = _amount;
+        totalStakeAmounts[_captureTimestamp][_token] += _amount;
 
-        // TODO: emit events?
+        // TODO: emit event
     }
 
     function getLatestConfirmedTimestamp() external view returns (uint256) {
-        return _getLatestConfirmedTimestamp();
+        return _latestConfirmedTimestamp();
     }
 
     /// @notice returns stakeToken address of a given vault
@@ -125,22 +133,38 @@ contract SymbioticStakingReward is
     }
 
     function lockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
-        // TODO: set function for locking stake
+        lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] += amount;
+
+        // TODO: update rewardPerToken for each rewardToken
+        _updateRewardPerTokens(_stakeToken);
+    }
+
+    function _updateRewardPerTokens(address _stakeToken) internal {
+        uint256 len = _rewardTokenSet.length();
+        for(uint256 i = 0; i < len; i++) {
+            address rewardToken = _rewardTokenSet.at(i);
+            rewardPerTokens[_stakeToken][rewardToken] = _rewardPerToken(_stakeToken, rewardToken);
+        }
+    }
+
+    function unlockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
+        lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] -= amount;
+
+        _updateRewardPerTokens(_stakeToken);
     }
 
     /// @notice rewardToken amount per stakeToken
     function _rewardPerToken(address _stakeToken, address _rewardToken) internal view returns (uint256) {
-        uint256 _latestConfirmedTimestamp = _getLatestConfirmedTimestamp();
-        uint256 _totalStakeAmount = totalStakeAmounts[_latestConfirmedTimestamp][_stakeToken];
-        uint256 _rewardAmount = rewards[_rewardToken][_stakeToken];
+        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
+        uint256 totalStakeAmount = totalStakeAmountsActive(_stakeToken);
+        uint256 rewardAmount = rewards[_rewardToken][_stakeToken];
 
-        // TODO: muldiv
-        return _totalStakeAmount == 0
+        return totalStakeAmount == 0
             ? rewardPerTokens[_stakeToken][_rewardToken]
-            : rewardPerTokens[_stakeToken][_rewardToken] + _rewardAmount.mulDiv(1e18, _totalStakeAmount);
+            : rewardPerTokens[_stakeToken][_rewardToken] + rewardAmount.mulDiv(1e18, totalStakeAmount);
     }
 
-    function _getLatestConfirmedTimestamp() internal view returns (uint256) {
+    function _latestConfirmedTimestamp() internal view returns (uint256) {
         return ISymbioticStaking(symbioticStaking).lastConfirmedTimestamp();
     }
 
@@ -148,12 +172,8 @@ contract SymbioticStakingReward is
 
     //-------------------------------- Update start --------------------------------//
 
-    function _update(
-        uint256 _captureTimestamp,
-        address _vault,
-        address _stakeToken,
-        address _rewardToken
-    ) internal {
+    function _update(uint256 _captureTimestamp, address _vault, address _stakeToken, address _rewardToken) internal {
+        // update rewardPerToken
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
         rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
 
@@ -167,7 +187,7 @@ contract SymbioticStakingReward is
         view
         returns (uint256)
     {
-        uint256 latestConfirmedTimestamp = _getLatestConfirmedTimestamp();
+        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
         uint256 rewardPerTokenPaid = vaultRewardPerTokenPaid[latestConfirmedTimestamp][_vault];
         uint256 rewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
 
@@ -218,7 +238,8 @@ contract SymbioticStakingReward is
 
     function getRewardTokens() external view returns (address[] memory) {
         address[] memory _rewardTokens = new address[](_rewardTokenSet.length());
-        for (uint256 i = 0; i < _rewardTokenSet.length(); i++) {
+        uint256 len = _rewardTokenSet.length();
+        for (uint256 i = 0; i < len; i++) {
             _rewardTokens[i] = _rewardTokenSet.at(i);
         }
         return _rewardTokens;
@@ -226,6 +247,12 @@ contract SymbioticStakingReward is
 
     function isSupportedRewardToken(address _rewardToken) public view returns (bool) {
         return _rewardTokenSet.contains(_rewardToken);
+    }
+
+    function totalStakeAmountsActive(address _stakeToken) public view returns (uint256) {
+        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
+        return totalStakeAmounts[latestConfirmedTimestamp][_stakeToken]
+            - lockedStakeAmounts[latestConfirmedTimestamp][_stakeToken];
     }
 
     //-------------------------------- Getter end --------------------------------//
@@ -241,6 +268,7 @@ contract SymbioticStakingReward is
 
         IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
 
+        // update rewardPerToken
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
         rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
     }
