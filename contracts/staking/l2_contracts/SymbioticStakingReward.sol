@@ -85,6 +85,7 @@ contract SymbioticStakingReward is
 
     //-------------------------------- Init start --------------------------------//
 
+    // TODO: initialize contract addresses
     function initialize(address _admin, address _stakingManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -105,8 +106,7 @@ contract SymbioticStakingReward is
     /// @notice updates stake amount of a given vault
     /// @notice valid only if the captureTimestamp is pushed into confirmedTimestamp in SymbioticStaking contract when submission is completed
     /// @dev only can be called by SymbioticStaking contract
-    // TODO: check how to get _token address (probably gets pulled from SymbioticStkaing contract)
-    function updateVaultStakeAmount(uint256 _captureTimestamp, address _token, address _vault, uint256 _amount)
+    function updateVaultStakeAmount(uint256 _captureTimestamp, address _stakeToken, address _vault, uint256 _amount)
         external
         onlySymbioticStaking
     {
@@ -114,11 +114,11 @@ contract SymbioticStakingReward is
         uint256 len = _rewardTokenSet.length();
         for (uint256 i = 0; i < len; i++) {
             address rewardToken = _rewardTokenSet.at(i);
-            _update(_captureTimestamp, _vault, _token, rewardToken);
+            _update(_captureTimestamp, _vault, _stakeToken, rewardToken);
         }
 
         vaultStakeAmounts[_captureTimestamp][_vault] = _amount;
-        totalStakeAmounts[_captureTimestamp][_token] += _amount;
+        totalStakeAmounts[_captureTimestamp][_stakeToken] += _amount;
 
         // TODO: emit event
     }
@@ -127,15 +127,10 @@ contract SymbioticStakingReward is
         return _latestConfirmedTimestamp();
     }
 
-    /// @notice returns stakeToken address of a given vault
-    function getVaultStakeToken(address _vault) external view returns (address) {
-        // TODO: pull from Symbioticstaking contract
-    }
 
     function lockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
         lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] += amount;
 
-        // TODO: update rewardPerToken for each rewardToken
         _updateRewardPerTokens(_stakeToken);
     }
 
@@ -155,7 +150,6 @@ contract SymbioticStakingReward is
 
     /// @notice rewardToken amount per stakeToken
     function _rewardPerToken(address _stakeToken, address _rewardToken) internal view returns (uint256) {
-        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
         uint256 totalStakeAmount = totalStakeAmountsActive(_stakeToken);
         uint256 rewardAmount = rewards[_rewardToken][_stakeToken];
 
