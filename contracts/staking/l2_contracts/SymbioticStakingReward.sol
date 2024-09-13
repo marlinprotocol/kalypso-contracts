@@ -8,6 +8,8 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 /* 
@@ -23,6 +25,7 @@ contract SymbioticStakingReward is
     PausableUpgradeable,
     UUPSUpgradeable
 {
+    using SafeERC20 for IERC20;
     // TODO: staking token enability should be pulled from SymbioticStaking contract
     
     // TODO: fee token
@@ -32,14 +35,25 @@ contract SymbioticStakingReward is
     // -> just update totalStakeAmount and rewardPerToken?
     // -> does this even affect anything?
 
-    mapping(address token => uint256 amount) public poolReward;
-    mapping(address token => uint256 rewardPerToken) public rewardPerTokens;
-    mapping(uint256 captureTimestamp => mapping(address token => uint256 totalStakeAmount)) public totalStakeAmount;
+    /* 
+        rewardToken: Fee Reward, Inflation Reward
+        stakeToken: staking token
+    */
 
-    // token supported by the vault can be queried in SymbioticStaking contract
-    mapping(uint256 captureTimestamp => mapping(address vault => uint256 amount)) public vaultStakeAmount;
+    // total amount staked for each stakeToken
+    // notice: the total amount can be reduced when a job is created and the stake is locked
+    mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public totalStakeAmounts;
+    // reward remaining for each stakeToken
+    mapping(address rewardToken => mapping(address stakeToken => uint256 amount)) public rewards;
+    // rewardTokens per stakeToken
+    mapping(address stakeToken => mapping(address rewardToken => uint256 amount)) public rewardPerTokens; 
+
+    // stakeToken supported by each vault should be queried in SymbioticStaking contract
+    mapping(uint256 captureTimestamp => mapping(address vault => uint256 amount)) public vaultStakeAmounts;
+    // rewardPerToken to store when update
     mapping(uint256 captureTimestamp => mapping(address vault => uint256 rewardPerTokenPaid)) public vaultRewardPerTokenPaid;
-    mapping(address vault => uint256 reward) public vaultReward;
+    // reward accrued that the vault can claim
+    mapping(address vault => uint256 rewardAmount) public claimableRewards;
 
     address public symbioticStaking;
 
@@ -80,13 +94,15 @@ contract SymbioticStakingReward is
     //-------------------------------- StakingManager start --------------------------------//
 
     /// @notice updates stake amount of a given vault
-    /// @notice valid only if captureTimestamp is pushed into confirmedTimestamp in SymbioticStaking when submission is completed
+    /// @notice valid only if the captureTimestamp is pushed into confirmedTimestamp in SymbioticStaking contract when submission is completed
     /// @dev only can be called by SymbioticStaking contract
     // TODO: check how to get _token address (probably gets pulled from SymbioticStkaing contract)
     function updateVaultStakeAmount(uint256 _captureTimestamp, address _token, address _vault, uint256 _amount) external onlySymbioticStaking {
-        _update(_captureTimestamp, _vault, _token, _amount);
+        // TODO: update both of rewardTokens
+        // _update(_captureTimestamp, _vault, _token, _amount);
 
-        vaultStakeAmount[_captureTimestamp][_vault] = _amount;
+        vaultStakeAmounts[_captureTimestamp][_vault] = _amount;
+        
         // TODO: emit events?
     }
 
@@ -94,14 +110,25 @@ contract SymbioticStakingReward is
         return _getLatestConfirmedTimestamp();
     }
 
-    function _rewardPerToken(address _token) internal view returns (uint256) {
-        uint256 _latestConfirmedTimestamp = _getLatestConfirmedTimestamp();
-        uint256 _totalStakeAmount = totalStakeAmount[_latestConfirmedTimestamp][_token];
-        uint256 _rewardAmount = poolReward[_token];
-
-        // TODO: check
-        return _totalStakeAmount == 0 ? rewardPerTokens[_token] : rewardPerTokens[_token] + (_rewardAmount * 1e18) / _totalStakeAmount;
+    /// @notice returns stakeToken address of a given vault
+    function getVaultStakeToken(address _vault) external view returns (address) {
+        // TODO: pull from Symbioticstaking contract
     }
+
+    function lockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
+        // TODO: set function for locking stake
+    }
+
+
+    function _rewardPerToken(address _stakeToken, address _rewardToken) internal view returns (uint256) {
+        uint256 _latestConfirmedTimestamp = _getLatestConfirmedTimestamp();
+        uint256 _totalStakeAmount = totalStakeAmounts[_latestConfirmedTimestamp][_stakeToken];
+        uint256 _rewardAmount = rewards[_rewardToken][_stakeToken];
+
+        // TODO: muldiv
+        return _totalStakeAmount == 0 ? rewardPerTokens[_stakeToken][_rewardToken] : rewardPerTokens[_stakeToken][_rewardToken] + (_rewardAmount * 1e18) / _totalStakeAmount;
+    }
+
 
     function _getLatestConfirmedTimestamp() internal view returns (uint256) {
         return ISymbioticStaking(symbioticStaking).lastConfirmedTimestamp();
@@ -112,23 +139,25 @@ contract SymbioticStakingReward is
     //-------------------------------- Update start --------------------------------//
 
     // called 1) when updated by StakingManager 2) 
-    function _update(uint256 _captureTimestamp, address _vault, address _token, uint256 _totalStakeAmount) internal {
+    function _update(uint256 _captureTimestamp, address _vault, address _stakeToken, address _rewardToken, uint256 _totalStakeAmount) internal {
         // TODO: update logic for add reward
 
-        uint256 currentRewardPerToken = _rewardPerToken(_token);
-        rewardPerTokens[_token] = currentRewardPerToken;
+        uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
+        rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
 
-        // update reward for each vault
-        vaultReward[_vault] += _pendingReward(_vault, _token);
-        vaultRewardPerTokenPaid[_captureTimestamp][_vault] = currentRewardPerToken;
+        if(_vault != address(0)) {
+            // update reward for each vault
+            claimableRewards[_vault] += _pendingReward(_vault, _stakeToken, _rewardToken);
+            vaultRewardPerTokenPaid[_captureTimestamp][_vault] = currentRewardPerToken;
+        }
     }
 
-    function _pendingReward(address _vault, address _token) internal view returns (uint256) {
+    function _pendingReward(address _vault, address _stakeToken, address _rewardToken) internal view returns (uint256) {
         uint256 _latestConfirmedTimestamp = _getLatestConfirmedTimestamp();
         uint256 _rewardPerTokenPaid = vaultRewardPerTokenPaid[_latestConfirmedTimestamp][_vault];
-        uint256 _rewardPerToken = _rewardPerToken(_token);
+        uint256 _rewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
 
-        return (vaultStakeAmount[_latestConfirmedTimestamp][_vault] * (_rewardPerToken - _rewardPerTokenPaid)) / 1e18; // TODO muldiv
+        return (vaultStakeAmounts[_latestConfirmedTimestamp][_vault] * (_rewardPerToken - _rewardPerTokenPaid)) / 1e18; // TODO muldiv
     }
 
     //-------------------------------- Update end --------------------------------//
@@ -156,5 +185,20 @@ contract SymbioticStakingReward is
 
     //-------------------------------- Admin end --------------------------------//
 
+
+    //-------------------------------- JobManager start --------------------------------//
+
+    /// @notice JobManager add reward to the pool
+    function addReward(address _stakeToken, address _rewardToken, uint256 _amount) external {
+        // TODO: Only JobManager
+        require(_stakeToken != address(0) || _rewardToken != address(0) , "zero address");
+        require(_amount > 0, "zero amount");
+
+        IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
+
+
+    }
+
+    //-------------------------------- JobManager end --------------------------------//
 
 }
