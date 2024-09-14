@@ -24,10 +24,28 @@ contract NativeStakingReward is
     PausableUpgradeable,
     UUPSUpgradeable
 {
+    address public nativeStaking;
+
+    // TODO: (state) rewardPerToken
+    mapping(address token => mapping(address operator => uint256 amount)) operatorRewardAmounts;
+    mapping(address token => mapping(address operator => uint256 amount)) rewardPerTokens;
+    mapping(address account => mapping(address token => mapping(address operator => uint256 amount))) rewardPerTokenStored;
+
+    // TODO: (state) rewardPerTokenStored
+
+    // TODO: (function) stake
+
+    // TODO: (function) unstake
+
+    // TODO: (function) claim reward
+
+    // TODO: (function) update
+
+    // TODO: (function) addReward
 
     //-------------------------------- Init start --------------------------------//
 
-    function initialize(address _admin, address _stakingManager) public initializer {
+    function initialize(address _admin, address _nativeStaking) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -36,8 +54,66 @@ contract NativeStakingReward is
         __ReentrancyGuard_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _setNativeStaking(_nativeStaking);
     }
     //-------------------------------- Init end --------------------------------//
+
+    //-------------------------------- NativeStaking start --------------------------------//
+
+    function stake(address token, uint256 amount) public {
+        // INativeStaking(nativeStaking).stake(token, amount);
+    }
+
+    function lockStake(address token, uint256 amount, uint256 lockDuration) public {
+        // INativeStaking(nativeStaking).lockStake(token, amount, lockDuration);
+    }
+
+    function unlockStake(address token, uint256 amount) public {
+        // INativeStaking(nativeStaking).unlockStake(token, amount);
+    }
+
+    function unstake(address token, uint256 amount) public {
+        // INativeStaking(nativeStaking).unstake(token, amount);
+    }
+
+    function claimStake(address token) public {
+        // INativeStaking(nativeStaking).claimStake(token);
+    }
+
+    function _update(address account, address token, address operator) internal {
+        uint256 currentRewardPerToken = _rewardPerToken(token, operator);
+    }
+
+    function _rewardPerToken(address _token, address _operator) internal view returns (uint256) {
+        uint256 totalStakeAmount = _getTotalStakeAmountActive(_token, _operator);
+        uint256 totalRewardAmount = operatorRewardAmounts[_token][_operator];
+
+        // TODO: muldiv
+        return totalStakeAmount == 0 ? rewardPerTokens[_token][_operator] : rewardPerTokens[_token][_operator] + totalRewardAmount / totalStakeAmount;
+    }
+
+    function _getTotalStakeAmountActive(address token, address operator) internal view returns (uint256) {
+        // return INativeStaking(nativeStaking).getTotalStakeAmountActive(token, operator);
+    }
+
+    function _getDelegatedStakeActive(address account, address token, address operator) internal view returns (uint256) {
+        // return INativeStaking(nativeStaking).getDelegatedStakeActive(account, token, operator);
+    }
+
+    //-------------------------------- NativeStaking end --------------------------------//
+
+
+    //-------------------------------- Overrides start --------------------------------//
+    function setNativeStaking(address _nativeStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setNativeStaking(_nativeStaking);
+    }
+
+    function _setNativeStaking(address _nativeStaking) internal {
+        nativeStaking = _nativeStaking;
+        // TODO: emit event
+    }
+
+    //-------------------------------- Overrides end --------------------------------//
 
 
     //-------------------------------- Overrides start --------------------------------//
