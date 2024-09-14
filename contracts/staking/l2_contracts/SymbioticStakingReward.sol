@@ -67,7 +67,6 @@ contract SymbioticStakingReward is
     mapping(address vault => uint256 rewardAmount) public claimableRewards;
 
     address public symbioticStaking;
-    address public jobManager;
 
 
     // TODO: vault => claimAddress
@@ -76,10 +75,6 @@ contract SymbioticStakingReward is
         _;
     }
 
-    modifier onlyJobManager() {
-        require(_msgSender() == jobManager, "Caller is not the job manager");
-        _;
-    }
 
     modifier onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Caller is not an admin");
@@ -88,9 +83,8 @@ contract SymbioticStakingReward is
     
 
     //-------------------------------- Init start --------------------------------//
-
     // TODO: initialize contract addresses
-    function initialize(address _admin, address _stakingManager, address _jobManager) public initializer {
+    function initialize(address _admin, address _stakingManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -101,13 +95,10 @@ contract SymbioticStakingReward is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
         _setStakingManager(_stakingManager);
-        _setJobManager(_jobManager);
     }
-
     //-------------------------------- Init end --------------------------------//
 
     //-------------------------------- StakingManager start --------------------------------//
-
     /// @notice updates stake amount of a given vault
     /// @notice valid only if the captureTimestamp is pushed into confirmedTimestamp in SymbioticStaking contract when submission is completed
     /// @dev only can be called by SymbioticStaking contract
@@ -139,13 +130,14 @@ contract SymbioticStakingReward is
 
         // TODO
         IERC20(_getRewardToken(_vault)).safeTransfer(_vault, rewardAmount);
+
+        // TODO: emit event
     }
 
     // TODO: decide where to store vault => rewardToken
     function _getRewardToken(address vault) internal view returns (address) {
         // ISymbioticStaking(symbioticStaking).rewardToken(vault);
     }
-
 
     function addReward(address _stakeToken, address _rewardToken, uint256 _amount) external onlySymbioticStaking {
         require(_stakeToken != address(0) || _rewardToken != address(0), "zero address");
@@ -241,15 +233,6 @@ contract SymbioticStakingReward is
 
     function _setStakingManager(address _stakingManager) internal {
         symbioticStaking = _stakingManager;
-        // TODO: emit event
-    }
-
-    function setJobManager(address _jobManager) public onlyAdmin {
-        _setJobManager(_jobManager);
-    }
-
-    function _setJobManager(address _jobManager) public onlyAdmin {
-        jobManager = _jobManager;
         // TODO: emit event
     }
 
