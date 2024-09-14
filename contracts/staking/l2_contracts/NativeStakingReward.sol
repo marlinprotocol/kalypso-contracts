@@ -24,6 +24,22 @@ contract NativeStakingReward is
     PausableUpgradeable,
     UUPSUpgradeable
 {
+
+    //-------------------------------- Init start --------------------------------//
+
+    function initialize(address _admin, address _stakingManager) public initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+        __ReentrancyGuard_init_unchained();
+        __ReentrancyGuard_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+    }
+    //-------------------------------- Init end --------------------------------//
+
+
     //-------------------------------- Overrides start --------------------------------//
 
     function supportsInterface(bytes4 interfaceId)
