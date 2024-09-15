@@ -24,14 +24,17 @@ contract NativeStakingReward is
     PausableUpgradeable,
     UUPSUpgradeable
 {
+    using Math for uint256;
+    using SafeERC20 for IERC20;
+
     address public nativeStaking;
 
-    // TODO: (state) rewardPerToken
-    mapping(address token => mapping(address operator => uint256 amount)) operatorRewardAmounts;
-    mapping(address token => mapping(address operator => uint256 amount)) rewardPerTokens;
-    mapping(address account => mapping(address token => mapping(address operator => uint256 amount))) rewardPerTokenStored;
+    // reward is accrued per operator
+    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardAmount))) rewards;
+    // rewardTokens amount per stakeToken
+    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken))) rewardPerTokens;
 
-    // TODO: (state) rewardPerTokenStored
+    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid)))) rewardPerTokenPaid;
 
     // TODO: (function) stake
 
@@ -82,26 +85,33 @@ contract NativeStakingReward is
 
     function _update(address account, address token, address operator) internal {
         uint256 currentRewardPerToken = _rewardPerToken(token, operator);
+        
+
     }
 
     function _rewardPerToken(address _token, address _operator) internal view returns (uint256) {
         uint256 totalStakeAmount = _getTotalStakeAmountActive(_token, _operator);
         uint256 totalRewardAmount = operatorRewardAmounts[_token][_operator];
 
-        // TODO: muldiv
-        return totalStakeAmount == 0 ? rewardPerTokens[_token][_operator] : rewardPerTokens[_token][_operator] + totalRewardAmount / totalStakeAmount;
+        // TODO: make sure decimal is 18
+        return totalStakeAmount == 0
+            ? rewardPerTokens[_token][_operator]
+            : rewardPerTokens[_token][_operator] + totalRewardAmount.mulDiv(1e18, totalStakeAmount);
     }
 
     function _getTotalStakeAmountActive(address token, address operator) internal view returns (uint256) {
         // return INativeStaking(nativeStaking).getTotalStakeAmountActive(token, operator);
     }
 
-    function _getDelegatedStakeActive(address account, address token, address operator) internal view returns (uint256) {
+    function _getDelegatedStakeActive(address account, address token, address operator)
+        internal
+        view
+        returns (uint256)
+    {
         // return INativeStaking(nativeStaking).getDelegatedStakeActive(account, token, operator);
     }
 
     //-------------------------------- NativeStaking end --------------------------------//
-
 
     //-------------------------------- Overrides start --------------------------------//
     function setNativeStaking(address _nativeStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -114,7 +124,6 @@ contract NativeStakingReward is
     }
 
     //-------------------------------- Overrides end --------------------------------//
-
 
     //-------------------------------- Overrides start --------------------------------//
 
