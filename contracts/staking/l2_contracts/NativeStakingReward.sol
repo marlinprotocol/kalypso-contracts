@@ -34,7 +34,8 @@ contract NativeStakingReward is
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken))) rewardPerTokens;
 
-    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid)))) rewardPerTokenPaid;
+    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid)))) userRewardPerTokenPaid;
+    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount)))) claimableRewards;
 
     // TODO: (function) stake
 
@@ -83,24 +84,39 @@ contract NativeStakingReward is
         // INativeStaking(nativeStaking).claimStake(token);
     }
 
-    function _update(address account, address token, address operator) internal {
-        uint256 currentRewardPerToken = _rewardPerToken(token, operator);
-        
+    function _update(address account, address _stakeToken, address _operator, address _rewardToken) internal {
+        uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _operator, _rewardToken);
+        rewardPerTokens[_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
+
+        claimableRewards[account][_stakeToken][_operator][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
+        userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
 
     }
 
-    function _rewardPerToken(address _token, address _operator) internal view returns (uint256) {
-        uint256 totalStakeAmount = _getTotalStakeAmountActive(_token, _operator);
-        uint256 totalRewardAmount = operatorRewardAmounts[_token][_operator];
+    function _pendingReward(address account, address _stakeToken, address operator, address _rewardToken) internal view returns (uint256) {
+        uint256 rewardPerTokenPaid = userRewardPerTokenPaid[account][_stakeToken][operator][_rewardToken];
+        uint256 rewardPerToken = _rewardPerToken(_stakeToken, operator, _rewardToken);
+        uint256 userStakeAmount = _getUserStakeAmount(account, _stakeToken, operator);
+
+        return userStakeAmount.mulDiv(rewardPerToken - rewardPerTokenPaid, 1e18);
+    }
+
+    function _rewardPerToken(address _stakeToken, address _operator, address _rewardToken) internal view returns (uint256) {
+        uint256 totalStakeAmount = _getTotalStakeAmountActive(_stakeToken, _operator);
+        uint256 totalRewardAmount = rewards[_stakeToken][_operator][_rewardToken];
 
         // TODO: make sure decimal is 18
         return totalStakeAmount == 0
-            ? rewardPerTokens[_token][_operator]
-            : rewardPerTokens[_token][_operator] + totalRewardAmount.mulDiv(1e18, totalStakeAmount);
+            ? rewardPerTokens[_stakeToken][_operator][_rewardToken]
+            : rewardPerTokens[_stakeToken][_operator][_rewardToken] + totalRewardAmount.mulDiv(1e18, totalStakeAmount);
     }
 
     function _getTotalStakeAmountActive(address token, address operator) internal view returns (uint256) {
         // return INativeStaking(nativeStaking).getTotalStakeAmountActive(token, operator);
+    }
+
+    function _getUserStakeAmount(address account, address token, address operator) internal view returns (uint256) {
+        // return INativeStaking(nativeStaking).getUserStakeAmount(account, token, operator);
     }
 
     function _getDelegatedStakeActive(address account, address token, address operator)
