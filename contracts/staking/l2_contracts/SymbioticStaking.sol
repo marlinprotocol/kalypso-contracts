@@ -2,17 +2,15 @@
 pragma solidity ^0.8.26;
 
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+// TODO: vault => token info should be updated by the admin
 
 contract SymbioticStaking is ISymbioticStaking {
-    // TODO: address Operator => address token => CheckPoints.Trace256 stakeAmount (Question: operators' stake amount is consolidated within same vault?)
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    // TODO: set SD
     uint256 SD;
-
-    // TODO: set TC
     uint256 TC;
-
-    //? How to manage Vault lists?
 
     bytes4 public constant OPERATOR_SNAPSHOT_MASK = 0x00000001;
     bytes4 public constant VAULT_SNAPSHOT_MASK = 0x00000010;
@@ -23,17 +21,37 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
+    // TODO: redundant to L1 Data
+    EnumerableSet.AddressSet vaultSet;
+    EnumerableSet.AddressSet tokenSet;
+    mapping(address vault => address token) public vaultToToken;
+    mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
+
+    /* Symbiotic Data Transmission */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes4 status)) submissionStatus; // to check if all partial txs are received
 
-    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake)))operatorSnapshots;
-    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake)))vaultSnapshots;
+    // TODO: discuss this later (problem of who submitted the partial txs)
+    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshots;
+    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshots;
     mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult SlashResultData)) slashResultDatas; // TODO: need to check actual slashing timestamp?
 
-    uint256[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
+    ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
+    struct SymbioticStakingLock {
+        address token;
+        uint256 amount;
+        address transmitter;
+    }
+
+    /* Staking */
+    mapping(uint256 jobId => SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
+
+    /*======================================== L1 to L2 Transmission ========================================*/
     // Transmitter submits staking data snapshot
     // This should update StakingManger's state
+
+    // TODO
     function submitOperatorSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
@@ -118,6 +136,28 @@ contract SymbioticStaking is ISymbioticStaking {
         }
     }
 
+    /*======================================== Job Creation ========================================*/
+    // TODO: check if delegatedStake also gets locked
+    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _amount) external {
+        require(isSupportedToken(_token), "Token not supported");
+
+        // Store transmitter address to reward when job is closed
+        address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
+        lockInfo[_jobId] = SymbioticStakingLock(_token, _amount, transmitter);
+    }
+
+    // TODO: check if delegatedStake also gets unlocked
+    function unlockStake(uint256 _jobId, address _operator, address _token, uint256 _amount) external {
+        require(isSupportedToken(_token), "Token not supported");  
+        
+        // TODO: only staking manager
+        lockInfo[_jobId].amount -= _amount;
+    }
+
+    function getPoolStake(address _operator, address _token) external view returns (uint256) {
+        return operatorSnapshots[_operator][_token][lastConfirmedTimestamp()];
+    }
+
     /*======================================== Helpers ========================================*/
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
         require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
@@ -172,7 +212,6 @@ contract SymbioticStaking is ISymbioticStaking {
         }
     }
 
-
     function _updateVaultSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
@@ -196,7 +235,9 @@ contract SymbioticStaking is ISymbioticStaking {
     }
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
-        confirmedTimestamps.push(_captureTimestamp);
+        // TODO: calc `TC` based on last submission
+        ConfirmedTimestamp memory confirmedTimestamp = ConfirmedTimestamp(_captureTimestamp, block.timestamp, msg.sender);
+        confirmedTimestamps.push(confirmedTimestamp);
 
         // TODO: calculate rewards for the transmitter based on TC
         // TODO: Data transmitter should get TC% of the rewards
@@ -206,7 +247,26 @@ contract SymbioticStaking is ISymbioticStaking {
     }
 
     /*======================================== Getters ========================================*/
+    
+    // TODO: remove
+    function getVaultToken(address _vault) public view returns (address) {
+        return vaultToToken[_vault];
+    }
+
     function lastConfirmedTimestamp() public view returns (uint256) {
-        return confirmedTimestamps[confirmedTimestamps.length - 1];
+        return confirmedTimestamps[confirmedTimestamps.length - 1].capturedTimestamp;
+    }
+
+    function isSupportedToken(address _token) public view returns (bool) {
+        // TODO
+    }
+
+    function isSupportedVault(address _vault) public view returns (bool) {
+        // TODO
+    }
+
+    /*======================================== Admin ========================================*/ 
+    function setSupportedToken(address _token, bool _isSupported) external {
+        // TODO
     }
 }

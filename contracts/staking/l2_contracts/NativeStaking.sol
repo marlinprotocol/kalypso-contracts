@@ -26,11 +26,18 @@ contract NativeStaking is
     EnumerableSet.AddressSet private tokenSet;
     EnumerableSet.AddressSet private operatorSet;
 
-    mapping(address operator => mapping(address token => OperatorStakeInfo stakeInfo)) public operatorStakeInfo; // stakeAmount, selfStakeAmount
-    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public
-        userStakeInfo;
+    address public nativeStakingReward;
+
+    mapping(address operator => mapping(address token => OperatorStake stakeInfo)) public operatorStakeInfo; // stakeAmount, selfStakeAmount
+    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public userStakeInfo;
+    mapping(uint256 jobId => NativeStakingLock) public lockInfo;
 
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
+
+    struct NativeStakingLock {
+        address token;
+        uint256 amount;
+    }
 
     modifier onlySupportedToken(address _token) {
         require(tokenSet.contains(_token), "Token not supported");
@@ -64,7 +71,6 @@ contract NativeStaking is
     }
 
     // Staker should be able to choose an Operator they want to stake into
-    // This should update StakingManger's state
     function stake(address _account, address _operator, address _token, uint256 _amount)
         external
         onlySupportedSignature(msg.sig)
@@ -75,6 +81,8 @@ contract NativeStaking is
 
         userStakeInfo[_account][_operator][_token] += _amount;
         operatorStakeInfo[_operator][_token].delegatedStake += _amount;
+
+        // TODO: NativeStakingReward
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
@@ -122,13 +130,25 @@ contract NativeStaking is
 
     /*======================================== Getters ========================================*/
 
-    function getStakeAmount(address _operator, address _token) external view returns (uint256) {}
+    function getPoolStake(address _operator, address _token) external view returns (uint256) {
+        return operatorStakeInfo[_operator][_token].delegatedStake;
+    }
 
     function getStakeAmountList(address _operator) external view returns (address[] memory _operators, uint256[] memory _amounts) {}
 
     function isSupportedToken(address _token) external view returns (bool) {}
 
     function getDelegatedStake(address _operator, address _token)
+        external
+        view
+        onlySupportedToken(_token)
+        returns (uint256)
+    {
+        return operatorStakeInfo[_operator][_token].delegatedStake;
+    }
+
+    // TODO: deduct locked amount
+    function getDelegateStakeActive(address _operator, address _token)
         external
         view
         onlySupportedToken(_token)
@@ -179,7 +199,7 @@ contract NativeStaking is
         onlySupportedToken(_token)
         returns (uint256)
     {
-        OperatorStakeInfo memory _stakeInfo = operatorStakeInfo[_operator][_token];
+        OperatorStake memory _stakeInfo = operatorStakeInfo[_operator][_token];
         return _stakeInfo.delegatedStake + _stakeInfo.selfStake;
     }
 
@@ -191,7 +211,7 @@ contract NativeStaking is
         uint256 len = tokenSet.length();
 
         for (uint256 i = 0; i < len; i++) {
-            OperatorStakeInfo memory _stakeInfo = operatorStakeInfo[_operator][tokenSet.at(i)];
+            OperatorStake memory _stakeInfo = operatorStakeInfo[_operator][tokenSet.at(i)];
             _tokens[i] = tokenSet.at(i);
             _amounts[i] = _stakeInfo.delegatedStake + _stakeInfo.selfStake;
         }
@@ -227,13 +247,21 @@ contract NativeStaking is
         supportedSignatures[sig] = isSupported;
     }
 
-    // TODO: set staking manager
-
     /*======================================== StakingManager ========================================*/
-    function lockStake(address _operator, address _token, uint256 _amount) external {
-        // TODO: StakingManager only
+    function lockStake(uint256 jobId, address operator, address _token, uint256 _amount) external {
+        // TODO: only staking manager
         
-        // TODO: decide whether to move or to just store in the mapping
+        lockInfo[jobId] = NativeStakingLock(_token, _amount);
+        operatorStakeInfo[operator][_token].delegatedStake -= _amount;
+
+        // INativeStakingReward(nativeStakingReward).update(address(0), _token, operator);
     }
 
+    function unlockStake(uint256 jobId, address operator, address _token, uint256 _amount) external {
+        // TODO: only staking manager
+        lockInfo[jobId].amount -= _amount;
+        operatorStakeInfo[operator][_token].delegatedStake += _amount;
+
+        // TODO: NativeStakingReward update
+    }
 }

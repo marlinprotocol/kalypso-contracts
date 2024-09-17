@@ -33,10 +33,11 @@ contract StakingManager is
 
     mapping(address pool => PoolConfig config) private poolConfig;
 
-    mapping(uint256 jobId => mapping(address pool => uint256 poolLockAmounts)) private poolLockAmounts; // lock amount for each pool
-    mapping(uint256 jobId => LockInfo lockInfo) private lockInfo; // total lock amount and unlock timestamp
+    // TODO: getter for retreiving the each pool's lock amount
+    mapping(uint256 jobId => uint256 lockAmount) private lockInfo; // total lock amount and unlock timestamp
 
     uint256 unlockEpoch;
+    uint256 stakeDataTransmitterShare;
 
     struct PoolConfig {
         uint256 weight;
@@ -45,12 +46,10 @@ contract StakingManager is
     }
 
     // operator, lockToken, lockAmount should be stored in JobManager
-    struct LockInfo {
+    struct StakeLockInfo {
         uint256 totalLockAmount; 
         uint256 unlockTimestamp;
     }
-
-    // TODO: integration with Slasher
 
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
@@ -68,67 +67,48 @@ contract StakingManager is
     function onJobCreation(uint256 _jobId, address _operator, address token, uint256 _lockAmount) external {
         // TODO: only jobManager
 
-        // TODO: lock operator selfstake (check how much)
+        // TODO: lock selfstake, Native Staking delegated stake, Symbiotic Stake
 
         uint256 len = stakingPoolSet.length();
+
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
             if(!IKalypsoStaking(pool).isSupportedToken(token)) continue; // skip if the token is not supported by the pool
             
-            uint256 poolStake = getPoolStake(pool, _operator, token); 
+            uint256 poolStake = IKalypsoStaking(pool).getPoolStake(pool, token); 
             uint256 minStake = poolConfig[pool].minStake;
 
             // skip if the pool stake is less than the minStake
             //? case when lockAmount > minStake?
+            uint256 lockAmount = 0;
             if(poolStake >= minStake) { 
-                uint256 lockAmount = _calcLockAmount(poolStake, poolConfig[pool].weight); // TODO: need to check formula for calculation
-                // TODO: move fund from the pool (implement lockStake in each pool)
-                // TODO: SymbioticStaking will just have empty code in it
-                _lockPoolStake(_jobId, pool, _operator, _lockAmount);
+                uint256 poolLockAmount = _calcLockAmount(poolStake, pool); // TODO: lock amount will be fixed
+                lockAmount += poolLockAmount;
+                IKalypsoStaking(pool).lockStake(_jobId, _operator, token, poolLockAmount);
             }
         }
     }
 
-    function getPoolStake(address _pool, address _operator, address _token) internal view returns (uint256) {
-        return IKalypsoStaking(_pool).getStakeAmount(_operator, _token);
-    }
-    
-    function _lockPoolStake(uint256 _jobId, address _pool, address _operator, uint256 _amount) internal {
-        // TODO: skip if the pool has less than minimum stake
+    // TODO: fix this
+    function _calcLockAmount(uint256 amount, address pool) internal view returns (uint256) {
+        uint256 weight = poolConfig[pool].weight;
 
-        lockInfo[_jobId].totalLockAmount += _amount;
-        lockInfo[_jobId].unlockTimestamp = block.timestamp + unlockEpoch;
+        return (amount * weight) / 10000;
     }
 
-    function _unlockStake(uint256 _jobId) internal {
-        lockInfo[_jobId].totalLockAmount = 0;
-        lockInfo[_jobId].unlockTimestamp = 0;
-
-        // TODO: send back fund
-    }
+    // TODO
+    // function getPoolStake(address _pool, address _operator, address _token) internal view returns (uint256) {
+    //     return IKalypsoStaking(_pool).getStakeAmount(_operator, _token);
+    // }
 
     // called when job is completed to unlock the locked stakes
     function onJobCompletion(uint256 _jobId) external {
         // TODO: only jobManager
 
         // TODO: unlock the locked stakes
-        _unlockStake(_jobId);
-    }
-
-    // when certain period has passed after the lock and no slash result is submitted, this can be unlocked
-    // unlocking the locked stake does not check if token is enabled
-    function unlockStake(uint256 _jobId) external {
-        uint256 len = stakingPoolSet.length();
-        address pool;
-
-        for(uint256 i = 0; i < len; i++) {
-            pool = stakingPoolSet.at(i);
-
-            // unlock the stake
-            _unlockStake(_jobId);
-        }
+        // _unlockStake(_jobId);
     }
 
     /*======================================== Getters ========================================*/
@@ -147,9 +127,7 @@ contract StakingManager is
 
     /*======================================== Getter for Staking ========================================*/
 
-    function _calcLockAmount(uint256 amount, uint256 weight) internal pure returns (uint256) {
-        return (amount * weight) / 10000; // TODO: need to check formula for calculation (probably be the share)
-    }
+
 
     /*======================================== Admin ========================================*/
 
@@ -166,9 +144,6 @@ contract StakingManager is
         // TODO: onlyAdmin
     }
 
-    function setSlashingManager(address _slashingManager) external {
-        // TODO: only admin
-    }
 
     // TODO: integration with JobManager
     function setJobManager(address _jobManager) external {
@@ -182,6 +157,27 @@ contract StakingManager is
 
     function setUnlockEpoch(uint256 _unlockEpoch) external {
         // TODO: check if the unlockEpoch is longer than the proofDeadline
+    }
+
+    // when job is closed, the reward will be distributed based on the share
+    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external  {
+        // TODO: only admin
+        require(_pools.length == _shares.length, "Invalid Length");
+
+        uint256 sum = 0;
+        for(uint256 i = 0; i < _shares.length; i++) {
+            sum += _shares[i];
+        }
+        sum += _transmitterShare;
+
+        // as the weight is in percentage, the sum of the shares should be 10000
+        // TODO: sum of enabled pools should be 10000
+        require(sum == 10000, "Invalid Shares");
+
+        for(uint256 i = 0; i < _pools.length; i++) {
+            poolConfig[_pools[i]].weight = _shares[i];
+        }
+        stakeDataTransmitterShare = _transmitterShare;
     }
 
     /*======================================== Override ========================================*/

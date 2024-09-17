@@ -50,6 +50,8 @@ contract SymbioticStakingReward is
     // notice: the total amount can be reduced when a job is created and the stake is locked
     mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
         totalStakeAmounts;
+
+    // TODO: this should be pulled from SymbioticStaking contract
     // locked amount for each stakeToken upon job creation
     mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
         lockedStakeAmounts;
@@ -98,7 +100,7 @@ contract SymbioticStakingReward is
     }
     //-------------------------------- Init end --------------------------------//
 
-    //-------------------------------- StakingManager start --------------------------------//
+    //-------------------------------- SymbioticStaking start --------------------------------//
     /// @notice updates stake amount of a given vault
     /// @notice valid only if the captureTimestamp is pushed into confirmedTimestamp in SymbioticStaking contract when submission is completed
     /// @dev only can be called by SymbioticStaking contract
@@ -188,7 +190,7 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).lastConfirmedTimestamp();
     }
 
-    //-------------------------------- StakingManager end --------------------------------//
+    //-------------------------------- SymbioticStaking end --------------------------------//
 
     //-------------------------------- Update start --------------------------------//
 

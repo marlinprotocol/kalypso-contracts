@@ -28,6 +28,8 @@ contract NativeStakingReward is
     using SafeERC20 for IERC20;
 
     address public nativeStaking;
+    address public feeRewardToken;
+    address public inflationRewardToken;
 
     // reward is accrued per operator
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardAmount))) rewards;
@@ -80,8 +82,21 @@ contract NativeStakingReward is
         // INativeStaking(nativeStaking).unstake(token, amount);
     }
 
-    function claimStake(address token) public {
-        // INativeStaking(nativeStaking).claimStake(token);
+    function claimReward(address token) public {
+        
+    }
+
+    function addReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) public {
+        // TODO: only native staking
+
+        rewards[_stakeToken][_operator][_rewardToken] += _amount;
+        _update(address(0), _stakeToken, _operator, _rewardToken);
+    }
+
+    function update(address account, address _stakeToken, address _operator) public {
+        // TODO: only native staking
+        _update(account, _stakeToken, _operator, feeRewardToken);
+        _update(account, _stakeToken, _operator, inflationRewardToken);
     }
 
     function _update(address account, address _stakeToken, address _operator, address _rewardToken) internal {
@@ -90,7 +105,6 @@ contract NativeStakingReward is
 
         claimableRewards[account][_stakeToken][_operator][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
         userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
-
     }
 
     function _pendingReward(address account, address _stakeToken, address operator, address _rewardToken) internal view returns (uint256) {

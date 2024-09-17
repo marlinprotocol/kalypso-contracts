@@ -15,10 +15,10 @@ contract JobManager {
 
     struct JobInfo {
         address operator;
-        address token;
-        uint256 lockedAmount;
+        address lockToken;
+        uint256 lockedAmount; // this will go to slasher if the proof is not submitted before deadline
         uint256 deadline;
-        // address transmitter; // this should be stored in StakingManager
+        address dataTransmitter; //
     }
 
     mapping(uint256 => JobInfo) public jobs;
@@ -27,7 +27,7 @@ contract JobManager {
         // TODO: called only from Kalypso Protocol
         
         // TODO: create a job and record StakeData Transmitter who submitted capture timestamp
-        jobs[jobId] = JobInfo(operator, token, amountToLock, block.timestamp + JOB_DURATION);
+    
 
         // TODO: call creation function in StakingManager
         stakingManager.onJobCreation(jobId, operator, token, amountToLock);

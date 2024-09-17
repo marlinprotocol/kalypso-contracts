@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface ISymbioticStaking {
+import {IKalypsoStaking} from "./IKalypsoStaking.sol";
+
+interface ISymbioticStaking is IKalypsoStaking {
     // function stakeOf(address _operator, address _token) external view returns (uint256);
 
     struct SnapshotTxCountInfo {
@@ -31,6 +33,12 @@ interface ISymbioticStaking {
         address rewardAddress;
     }
 
+    struct ConfirmedTimestamp {
+        uint256 capturedTimestamp;
+        uint256 rewardShare; // TODO
+        address transmitter;
+    }
+
     // event OperatorSnapshotSubmitted
 
     // event VaultSnapshotSubmitted
@@ -38,4 +46,7 @@ interface ISymbioticStaking {
     // event SlashResultSubmitted
 
     // event SubmissionCompleted
+
+    /// @notice Returns the captureTimestamp of latest completed snapshot submission
+    function lastConfirmedTimestamp() external view returns (uint256);
 }
