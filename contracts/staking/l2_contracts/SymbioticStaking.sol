@@ -138,7 +138,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
-    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _delegatedStakeLock, uint256 /* selfStakeLock */) external {
+    function lockStake(uint256 _jobId, address _token, uint256 _delegatedStakeLock, uint256 /* selfStakeLock */) external {
         require(isSupportedToken(_token), "Token not supported");
 
         // Store transmitter address to reward when job is closed

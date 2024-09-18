@@ -36,7 +36,8 @@ contract NativeStaking is
 
     struct NativeStakingLock {
         address token;
-        uint256 amount;
+        uint256 delegatedStake;
+        uint256 selfStake;
     }
 
     modifier onlySupportedToken(address _token) {
@@ -158,18 +159,18 @@ contract NativeStaking is
     }
 
     //  Returns the list of tokenSet staked by the operator and the amounts
-    function getDelegatedStakes(address _operator)
-        external
-        view
-        returns (address[] memory _tokens, uint256[] memory _amounts)
-    {
-        uint256 len = tokenSet.length();
+    // function getDelegatedStakes(address _operator)
+    //     external
+    //     view
+    //     returns (address[] memory _tokens, uint256[] memory _amounts)
+    // {
+    //     uint256 len = tokenSet.length();
 
-        for (uint256 i = 0; i < len; i++) {
-            _tokens[i] = tokenSet.at(i);
-            _amounts[i] = operatorStakeInfo[_operator][_tokens[i]].delegatedStake;
-        }
-    }
+    //     for (uint256 i = 0; i < len; i++) {
+    //         _tokens[i] = tokenSet.at(i);
+    //         _amounts[i] = operatorStakeInfo[_operator][_tokens[i]].delegatedStake;
+    //     }
+    // }
 
     function getSelfStake(address _operator, address _token)
         external
@@ -180,18 +181,6 @@ contract NativeStaking is
         return operatorStakeInfo[_operator][_token].selfStake;
     }
 
-    function getSelfStakes(address _operator)
-        external
-        view
-        returns (address[] memory _tokens, uint256[] memory _amounts)
-    {
-        uint256 len = tokenSet.length();
-
-        for (uint256 i = 0; i < len; i++) {
-            _tokens[i] = tokenSet.at(i);
-            _amounts[i] = operatorStakeInfo[_operator][_tokens[i]].selfStake;
-        }
-    }
 
     function getOperatorTotalStake(address _operator, address _token)
         external
@@ -248,20 +237,18 @@ contract NativeStaking is
     }
 
     /*======================================== StakingManager ========================================*/
-    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _selfStakeLock, uint256 _delegatedStakeLock) external {
+    function lockStake(uint256 _jobId, address _token, uint256 _delegatedStakeLock, uint256 _selfStakeLock) external {
         // TODO: only staking manager
         
-        lockInfo[_jobId] = NativeStakingLock(_token, _delegatedStakeLock);
-        operatorStakeInfo[_operator][_token].delegatedStake -= _delegatedStakeLock;
-
-        // INativeStakingReward(nativeStakingReward).update(address(0), _token, operator);
+        lockInfo[_jobId] = NativeStakingLock(_token, _delegatedStakeLock, _selfStakeLock);
+        // TODO: emit event
     }
 
-    function unlockStake(uint256 jobId, address operator, address _token, uint256 _amount) external {
+    function unlockStake(uint256 _jobId) external {
         // TODO: only staking manager
-        lockInfo[jobId].amount -= _amount;
-        operatorStakeInfo[operator][_token].delegatedStake += _amount;
 
-        // TODO: NativeStakingReward update
+        lockInfo[_jobId] = NativeStakingLock(address(0), 0, 0);
+
+        // TODO: emit event
     }
 }
