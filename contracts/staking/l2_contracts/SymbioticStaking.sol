@@ -144,14 +144,16 @@ contract SymbioticStaking is ISymbioticStaking {
         // Store transmitter address to reward when job is closed
         address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
         lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
+
+        // TODO: emit event
     }
 
     // TODO: check if delegatedStake also gets unlocked
-    function unlockStake(uint256 _jobId, address _operator, address _token, uint256 _amount) external {
-        require(isSupportedToken(_token), "Token not supported");  
-        
+    function unlockStake(uint256 _jobId) external {
         // TODO: only staking manager
-        lockInfo[_jobId].amount -= _amount;
+        lockInfo[_jobId].amount = 0;
+
+        // TODO: emit event
     }
 
     function getPoolStake(address _operator, address _token) external view returns (uint256) {
