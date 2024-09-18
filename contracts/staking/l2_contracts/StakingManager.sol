@@ -64,7 +64,7 @@ contract StakingManager is
     // locked stake will be unlocked after an epoch if no slas result is submitted
 
     // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
-    function onJobCreation(uint256 _jobId, address _operator, address token, uint256 _lockAmount) external {
+    function onJobCreation(uint256 _jobId, address _operator, address _token, uint256 _selfStakeLock, uint256 _delegatedStakeLock) external {
         // TODO: only jobManager
 
         // TODO: lock selfstake, Native Staking delegated stake, Symbiotic Stake
@@ -75,9 +75,9 @@ contract StakingManager is
             address pool = stakingPoolSet.at(i);
             
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
-            if(!IKalypsoStaking(pool).isSupportedToken(token)) continue; // skip if the token is not supported by the pool
+            if(!IKalypsoStaking(pool).isSupportedToken(_token)) continue; // skip if the token is not supported by the pool
             
-            uint256 poolStake = IKalypsoStaking(pool).getPoolStake(pool, token); 
+            uint256 poolStake = IKalypsoStaking(pool).getPoolStake(pool, _token); 
             uint256 minStake = poolConfig[pool].minStake;
 
             // skip if the pool stake is less than the minStake
@@ -86,7 +86,7 @@ contract StakingManager is
             if(poolStake >= minStake) { 
                 uint256 poolLockAmount = _calcLockAmount(poolStake, pool); // TODO: lock amount will be fixed
                 lockAmount += poolLockAmount;
-                IKalypsoStaking(pool).lockStake(_jobId, _operator, token, poolLockAmount);
+                IKalypsoStaking(pool).lockStake(_jobId, _operator, _token, _selfStakeLock, _delegatedStakeLock);
             }
         }
     }

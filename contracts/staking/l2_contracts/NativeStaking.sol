@@ -248,11 +248,11 @@ contract NativeStaking is
     }
 
     /*======================================== StakingManager ========================================*/
-    function lockStake(uint256 jobId, address operator, address _token, uint256 _amount) external {
+    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _selfStakeLock, uint256 _delegatedStakeLock) external {
         // TODO: only staking manager
         
-        lockInfo[jobId] = NativeStakingLock(_token, _amount);
-        operatorStakeInfo[operator][_token].delegatedStake -= _amount;
+        lockInfo[_jobId] = NativeStakingLock(_token, _delegatedStakeLock);
+        operatorStakeInfo[_operator][_token].delegatedStake -= _delegatedStakeLock;
 
         // INativeStakingReward(nativeStakingReward).update(address(0), _token, operator);
     }

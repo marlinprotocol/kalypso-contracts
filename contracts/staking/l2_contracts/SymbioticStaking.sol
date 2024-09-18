@@ -32,9 +32,9 @@ contract SymbioticStaking is ISymbioticStaking {
     mapping(uint256 captureTimestamp => mapping(address account => bytes4 status)) submissionStatus; // to check if all partial txs are received
 
     // TODO: discuss this later (problem of who submitted the partial txs)
-    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorSnapshots;
-    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultSnapshots;
-    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult SlashResultData)) slashResultDatas; // TODO: need to check actual slashing timestamp?
+    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorStakes;
+    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultStakes;
+    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult slashResult)) slashResults; // TODO: need to check actual slashing timestamp?
 
     ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
@@ -138,12 +138,12 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
-    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _amount) external {
+    function lockStake(uint256 _jobId, address _operator, address _token, uint256 _delegatedStakeLock, uint256 /* selfStakeLock */) external {
         require(isSupportedToken(_token), "Token not supported");
 
         // Store transmitter address to reward when job is closed
         address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
-        lockInfo[_jobId] = SymbioticStakingLock(_token, _amount, transmitter);
+        lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
     }
 
     // TODO: check if delegatedStake also gets unlocked
@@ -155,8 +155,8 @@ contract SymbioticStaking is ISymbioticStaking {
     }
 
     function getPoolStake(address _operator, address _token) external view returns (uint256) {
-        return operatorSnapshots[_operator][_token][lastConfirmedTimestamp()];
-    }
+        return operatorStakes[_operator][_token][lastConfirmedTimestamp()];
+   }
 
     /*======================================== Helpers ========================================*/
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
@@ -205,7 +205,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _operatorSnapshots.length; i++) {
             OperatorSnapshot memory _operatorSnapshot = _operatorSnapshots[i];
 
-            operatorSnapshots[_operatorSnapshot.operator][_operatorSnapshot.token][_captureTimestamp] =
+            operatorStakes[_operatorSnapshot.operator][_operatorSnapshot.token][_captureTimestamp] =
                 _operatorSnapshot.stake;
 
             // TODO: emit event for each update?
@@ -216,7 +216,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
-            vaultSnapshots[_vaultSnapshot.vault][_vaultSnapshot.token][_captureTimestamp] = _vaultSnapshot.stake;
+            vaultStakes[_vaultSnapshot.vault][_vaultSnapshot.token][_captureTimestamp] = _vaultSnapshot.stake;
 
             // TODO: emit event for each update?
         }
@@ -228,7 +228,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _SlashResultDatas.length; i++) {
             SlashResultData memory _slashResultData = _SlashResultDatas[i];
 
-            slashResultDatas[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
+            slashResults[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
 
             // TODO: emit event for each update?
         }
