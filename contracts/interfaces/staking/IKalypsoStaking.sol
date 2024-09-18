@@ -8,6 +8,8 @@ interface IKalypsoStaking {
 
     function lockStake(uint256 _jobId, address _token, uint256 _selfStakeLock, uint256 _delegatedStakeLock) external; // Staking Manager only
 
+    function unlockStake(uint256 _jobId) external; // Staking Manager only
+
     struct PoolLockInfo {
         address token;
         uint256 amount;

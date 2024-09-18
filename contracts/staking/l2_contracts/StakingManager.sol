@@ -104,11 +104,18 @@ contract StakingManager is
     // }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId) external {
+    function onJobCompletion(uint256 _jobId, address _token) external {
         // TODO: only jobManager
 
         // TODO: unlock the locked stakes
-        // _unlockStake(_jobId);
+        uint256 len = stakingPoolSet.length();
+        for(uint256 i = 0; i < len; i++) {
+            address pool = stakingPoolSet.at(i);
+            
+            IKalypsoStaking(pool).unlockStake(_jobId);
+        }
+
+
     }
 
     /*======================================== Getters ========================================*/

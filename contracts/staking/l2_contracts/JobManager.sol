@@ -36,7 +36,7 @@ contract JobManager {
     /**
      * @notice Submit Multiple proofs in single transaction
      */
-    function submitProofs(uint256[] memory jobIds, bytes[] calldata proofs) external {
+    function submitProofs(uint256[] calldata jobIds, bytes[] calldata proofs) external {
         require(jobIds.length == proofs.length, "Invalid Length");
 
         for (uint256 index = 0; index < jobIds.length; index++) {
@@ -44,6 +44,12 @@ contract JobManager {
         }
 
         // TODO: close job and distribute rewards
+        uint256 len = jobIds.length;
+        for (uint256 i = 0; i < len; i++) {
+            uint256 jobId;
+            stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken);
+        }
+
     }
 
     /**
