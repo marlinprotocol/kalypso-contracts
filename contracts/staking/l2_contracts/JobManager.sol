@@ -30,7 +30,7 @@ contract JobManager {
     
 
         // TODO: call creation function in StakingManager
-        stakingManager.onJobCreation(jobId, operator, token, amountToLock);
+        stakingManager.onJobCreation(jobId, operator, token, amountToLock); // lock stake
     }
 
     /**
@@ -47,7 +47,7 @@ contract JobManager {
         uint256 len = jobIds.length;
         for (uint256 i = 0; i < len; i++) {
             uint256 jobId;
-            stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken);
+            stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
         }
 
     }

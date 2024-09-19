@@ -11,6 +11,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+import {INativeStakingReward} from "../../interfaces/staking/INativeStakingReward.sol";
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -83,7 +84,9 @@ contract NativeStaking is
         userStakeInfo[_account][_operator][_token] += _amount;
         operatorStakeInfo[_operator][_token].delegatedStake += _amount;
 
-        // TODO: NativeStakingReward
+        // NativeStakingReward contract will read staking amount info from this contract
+        // and update reward related states
+        INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }

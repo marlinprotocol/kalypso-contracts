@@ -66,21 +66,7 @@ contract NativeStakingReward is
 
     //-------------------------------- NativeStaking start --------------------------------//
 
-    function stake(address token, uint256 amount) public {
-        // INativeStaking(nativeStaking).stake(token, amount);
-    }
 
-    function lockStake(address token, uint256 amount, uint256 lockDuration) public {
-        // INativeStaking(nativeStaking).lockStake(token, amount, lockDuration);
-    }
-
-    function unlockStake(address token, uint256 amount) public {
-        // INativeStaking(nativeStaking).unlockStake(token, amount);
-    }
-
-    function unstake(address token, uint256 amount) public {
-        // INativeStaking(nativeStaking).unstake(token, amount);
-    }
 
     function claimReward(address token) public {
         
@@ -92,7 +78,9 @@ contract NativeStakingReward is
         rewards[_stakeToken][_operator][_rewardToken] += _amount;
         _update(address(0), _stakeToken, _operator, _rewardToken);
     }
-
+    
+    /// @notice pulls stake amount info from NativeStaking and updates
+    /// @notice stake amount will be tracked in NativeStaking
     function update(address account, address _stakeToken, address _operator) public {
         // TODO: only native staking
         _update(account, _stakeToken, _operator, feeRewardToken);
