@@ -107,19 +107,21 @@ contract NativeStaking is
     }
 
     // This should update StakingManger's state
-    function withdrawStake(address operator, address token, uint256 amount) external nonReentrant {
-        require(userStakeInfo[msg.sender][operator][token] >= amount, "Insufficient stake");
+    function withdrawStake(address _account, address _operator, address _token, uint256 _amount) external nonReentrant {
+        require(userStakeInfo[msg.sender][_operator][_token] >= _amount, "Insufficient stake");
 
         // TODO: check locked time
 
         // TODO: read from staking manager and calculate withdrawable amount
 
-        IERC20(token).safeTransfer(msg.sender, amount);
+        IERC20(_token).safeTransfer(msg.sender, _amount);
 
-        userStakeInfo[msg.sender][operator][token] -= amount;
-        operatorStakeInfo[operator][token].delegatedStake -= amount;
+        userStakeInfo[msg.sender][_operator][_token] -= _amount;
+        operatorStakeInfo[_operator][_token].delegatedStake -= _amount;
 
-        emit StakeWithdrawn(msg.sender, operator, token, amount, block.timestamp);
+        INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
+
+        emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
     }
 
     function withdrawSelfStake(address operator, address token, uint256 amount) external nonReentrant {
