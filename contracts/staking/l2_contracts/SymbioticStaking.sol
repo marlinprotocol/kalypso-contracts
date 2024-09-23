@@ -13,26 +13,23 @@ contract SymbioticStaking is ISymbioticStaking {
     uint256 SD;
     uint256 TC;
 
-    //! TODO: bytes32
-    bytes4 public constant OPERATOR_SNAPSHOT_MASK = 0x00000001;
-    bytes4 public constant VAULT_SNAPSHOT_MASK = 0x00000010;
-    bytes4 public constant SLASH_RESULT_MASK = 0x00000100;
-    bytes4 public constant COMPLETE_MASK = 0x00000111;
+    bytes32 public constant OPERATOR_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
+    bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000100;
+    bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000111;
 
     bytes32 public constant OPERATOR_SNAPSHOT = keccak256("OPERATOR_SNAPSHOT");
     bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     // TODO: redundant to L1 Data
-    //! TODO: check if needed
-    EnumerableSet.AddressSet vaultSet; 
     EnumerableSet.AddressSet tokenSet;
     mapping(address vault => address token) public vaultToToken;
     mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
 
     /* Symbiotic Data Transmission */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes4 status)) submissionStatus; // to check if all partial txs are received
+    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
 
     // TODO: discuss this later (problem of who submitted the partial txs)
     mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorStakes;
@@ -176,7 +173,7 @@ contract SymbioticStaking is ISymbioticStaking {
         require(snapshot.count < snapshot.numOfTxs, "Snapshot fully submitted already");
         require(snapshot.numOfTxs == _numOfTxs, "Invalid length");
 
-        bytes4 mask;
+        bytes32 mask;
         if (_type == OPERATOR_SNAPSHOT) mask = OPERATOR_SNAPSHOT_MASK;
         else if (_type == VAULT_SNAPSHOT) mask = VAULT_SNAPSHOT_MASK;
         else if (_type == SLASH_RESULT) mask = SLASH_RESULT_MASK;
