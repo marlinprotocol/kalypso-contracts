@@ -74,6 +74,7 @@ contract StakingManager is
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             
+            //! TODO: check github comments
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
             if(!IKalypsoStaking(pool).isSupportedToken(_token)) continue; // skip if the token is not supported by the pool
             
@@ -91,6 +92,7 @@ contract StakingManager is
         }
     }
 
+    //! TODO: remove this and read from mapping
     // TODO: fix this
     function _calcLockAmount(uint256 amount, address pool) internal view returns (uint256) {
         uint256 weight = poolConfig[pool].weight;
@@ -155,11 +157,6 @@ contract StakingManager is
     // TODO: integration with JobManager
     function setJobManager(address _jobManager) external {
         // TODO: only admin
-    }
-
-    // TODO: interaction with Price Oracle
-    function setPriceOracle(address _priceOracle) external {
-        // TODO
     }
 
     function setUnlockEpoch(uint256 _unlockEpoch) external {

@@ -23,6 +23,7 @@ contract JobManager {
 
     mapping(uint256 => JobInfo) public jobs;
 
+    // TODO: token => lockAmount logic
     function createJob(uint256 jobId, address operator, address token, uint256 amountToLock) external {
         // TODO: called only from Kalypso Protocol
         
@@ -39,13 +40,13 @@ contract JobManager {
     function submitProofs(uint256[] calldata jobIds, bytes[] calldata proofs) external {
         require(jobIds.length == proofs.length, "Invalid Length");
 
-        for (uint256 index = 0; index < jobIds.length; index++) {
-            _verifyProof(jobIds[index], proofs[index]);
-        }
 
         // TODO: close job and distribute rewards
         uint256 len = jobIds.length;
-        for (uint256 i = 0; i < len; i++) {
+
+        for (uint256 idx = 0; idx < len; idx++) {
+            _verifyProof(jobIds[idx], proofs[idx]);
+
             uint256 jobId;
             stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
         }

@@ -16,7 +16,8 @@ interface ISymbioticStaking is IKalypsoStaking {
         address token;
         uint256 stake;
     }
-
+    
+    //! TODO: add operator
     struct VaultSnapshot {
         address vault;
         address token;

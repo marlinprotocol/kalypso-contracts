@@ -9,9 +9,11 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 contract SymbioticStaking is ISymbioticStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    //! TODO: make variable more descriptive
     uint256 SD;
     uint256 TC;
 
+    //! TODO: bytes32
     bytes4 public constant OPERATOR_SNAPSHOT_MASK = 0x00000001;
     bytes4 public constant VAULT_SNAPSHOT_MASK = 0x00000010;
     bytes4 public constant SLASH_RESULT_MASK = 0x00000100;
@@ -22,7 +24,8 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     // TODO: redundant to L1 Data
-    EnumerableSet.AddressSet vaultSet;
+    //! TODO: check if needed
+    EnumerableSet.AddressSet vaultSet; 
     EnumerableSet.AddressSet tokenSet;
     mapping(address vault => address token) public vaultToToken;
     mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
@@ -134,6 +137,8 @@ contract SymbioticStaking is ISymbioticStaking {
         if (_isCompleteStatus(_captureTimestamp)) {
             _completeSubmission(_captureTimestamp);
         }
+
+        // TODO: unlock the selfStake and reward it to the transmitter 
     }
 
     /*======================================== Job Creation ========================================*/
