@@ -196,13 +196,14 @@ contract NativeStaking is
     }
 
     function _selectLockToken() internal returns(address) {
-        if (tokenSet.length() == 1) {
-            return tokenSet.at(0);
-        } else {
+        require(tokenSet.length() > 0, "No supported token");
+        
+        uint256 idx;
+        if (tokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            uint256 tokenIdx = randomNumber % tokenSet.length();
-            return tokenSet.at(tokenIdx);
+            uint256 idx = randomNumber % tokenSet.length();
         }
+        return tokenSet.at(idx);
     }
 
     function unlockStake(uint256 _jobId) external {

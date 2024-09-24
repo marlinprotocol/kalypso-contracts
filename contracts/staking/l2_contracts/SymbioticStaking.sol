@@ -145,13 +145,26 @@ contract SymbioticStaking is ISymbioticStaking {
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
     function lockStake(uint256 _jobId, address /* operator */) external {
-        // require(isSupportedToken(_token), "Token not supported");
+        uint256 _token = _selectLockToken();
+        require()
 
-        // // Store transmitter address to reward when job is closed
-        // address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
-        // lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
+
+        // Store transmitter address to reward when job is closed
+        address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
+        lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
 
         // TODO: emit event
+    }
+
+    function _selectLockToken() internal returns(address) {
+        require(tokenSet.length() > 0, "No supported token");
+        
+        uint256 idx;
+        if (tokenSet.length() > 1) {
+            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
+            uint256 idx = randomNumber % tokenSet.length();
+        }
+        return tokenSet.at(idx);
     }
 
     // TODO: check if delegatedStake also gets unlocked
