@@ -4,9 +4,9 @@ pragma solidity ^0.8.26;
 interface IKalypsoStaking {
     function isSupportedToken(address _token) external view returns (bool);
 
-    function getPoolStake(address _operator, address _token) external view returns (uint256);
+    // function getPoolStake(address _operator, address _token) external view returns (uint256);
 
-    function lockStake(uint256 _jobId, address _token, uint256 _selfStakeLock, uint256 _delegatedStakeLock) external; // Staking Manager only
+    function lockStake(uint256 _jobId, address _operator) external; // Staking Manager only
 
     function unlockStake(uint256 _jobId) external; // Staking Manager only
 

@@ -27,21 +27,20 @@ contract StakingManager is
     // TODO: Staking Pool Set
     EnumerableSet.AddressSet private stakingPoolSet;
 
-    // TODO: Staking Pool flag
-    // mapping(address pool => bool isEnabled) private stakingPoolStatus;
-    // mapping(address pool => uint256 weight) private stakingPoolWeight;
+    mapping(address pool => bool isEnabled) private stakingPoolStatus;
+    mapping(address pool => uint256 weight) private stakingPoolWeight;
 
     mapping(address pool => PoolConfig config) private poolConfig;
 
     // TODO: getter for retreiving the each pool's lock amount
     mapping(uint256 jobId => uint256 lockAmount) private lockInfo; // total lock amount and unlock timestamp
-
+    
     uint256 unlockEpoch;
     uint256 stakeDataTransmitterShare;
 
     struct PoolConfig {
         uint256 weight;
-        uint256 minStake;
+        uint256 minStake; // min stake for 
         bool enabled;
     }
 
@@ -64,7 +63,7 @@ contract StakingManager is
     // locked stake will be unlocked after an epoch if no slas result is submitted
 
     // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
-    function onJobCreation(uint256 _jobId, address _token, uint256 _delegatedStakeLock, uint256 _selfStakeLock) external {
+    function onJobCreation(uint256 _jobId, address _operator) external {
         // TODO: only jobManager
 
         // TODO: lock selfstake, Native Staking delegated stake, Symbiotic Stake
@@ -74,30 +73,10 @@ contract StakingManager is
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             
-            //! TODO: check github comments
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
-            if(!IKalypsoStaking(pool).isSupportedToken(_token)) continue; // skip if the token is not supported by the pool
-            
-            uint256 poolStake = IKalypsoStaking(pool).getPoolStake(pool, _token); 
-            uint256 minStake = poolConfig[pool].minStake;
 
-            // skip if the pool stake is less than the minStake
-            //? case when lockAmount > minStake?
-            uint256 lockAmount = 0;
-            if(poolStake >= minStake) { 
-                uint256 poolLockAmount = _calcLockAmount(poolStake, pool); // TODO: lock amount will be fixed
-                lockAmount += poolLockAmount;
-                IKalypsoStaking(pool).lockStake(_jobId, _token, _selfStakeLock, _delegatedStakeLock);
-            }
+            IKalypsoStaking(pool).lockStake(_jobId, _operator);
         }
-    }
-
-    //! TODO: remove this and read from mapping
-    // TODO: fix this
-    function _calcLockAmount(uint256 amount, address pool) internal view returns (uint256) {
-        uint256 weight = poolConfig[pool].weight;
-
-        return (amount * weight) / 10000;
     }
 
     // TODO
@@ -159,9 +138,11 @@ contract StakingManager is
         // TODO: only admin
     }
 
+    // TODO: check if needed
     function setUnlockEpoch(uint256 _unlockEpoch) external {
         // TODO: check if the unlockEpoch is longer than the proofDeadline
     }
+
 
     // when job is closed, the reward will be distributed based on the share
     function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external  {

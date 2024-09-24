@@ -25,20 +25,34 @@ contract NativeStaking is
     using SafeERC20 for IERC20;
 
     EnumerableSet.AddressSet private tokenSet;
-    EnumerableSet.AddressSet private operatorSet;
+    EnumerableSet.AddressSet private operatorSet; // TODO: check if needed
 
     address public nativeStakingReward;
 
-    mapping(address operator => mapping(address token => OperatorStake stakeInfo)) public operatorStakeInfo; // stakeAmount, selfStakeAmount
-    mapping(address account => mapping(address operator => mapping(address token => uint256 stake))) public userStakeInfo;
-    mapping(uint256 jobId => NativeStakingLock) public lockInfo;
-
+    /*======================================== Config ========================================*/
+    // config
+    mapping(address token => uint256 minStakeamount) public minStakeAmount;
+    mapping(address token => uint256 lockAmount) public amountToLock;
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
+
+    // stake
+
+    // total staked amounts for each operator, includes selfStake and delegatedStake amount
+    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
+    // selfstake if account == operator
+    mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
+    // total staked amount for each token
+    mapping(address token => uint256 amount) public totalStakedAmounts;
+
+    // lock
+    // TODO: check if mappings below are needed
+    mapping(uint256 jobId => NativeStakingLock) public jobLockedAmounts;
+    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts; // includes selfStake and delegatedStake amount
+    mapping(address token => uint256 amount) public totalLockedAmounts;
 
     struct NativeStakingLock {
         address token;
-        uint256 delegatedStake;
-        uint256 selfStake;
+        uint256 amount;
     }
 
     modifier onlySupportedToken(address _token) {
@@ -81,8 +95,8 @@ contract NativeStaking is
     {
         IERC20(_token).safeTransferFrom(_account, address(this), _amount);
 
-        userStakeInfo[_account][_operator][_token] += _amount;
-        operatorStakeInfo[_operator][_token].delegatedStake += _amount;
+        stakedAmounts[_account][_operator][_token] += _amount;
+        operatorStakedAmounts[_operator][_token] += _amount;
 
         // NativeStakingReward contract will read staking amount info from this contract
         // and update reward related states
@@ -101,14 +115,14 @@ contract NativeStaking is
     {
         IERC20(_token).safeTransferFrom(_operator, address(this), _amount);
 
-        operatorStakeInfo[_operator][_token].selfStake += _amount;
+        operatorStakedAmounts[_operator][_token] += _amount;
 
         emit SelfStaked(_operator, _token, _amount, block.timestamp);
     }
 
     // This should update StakingManger's state
     function withdrawStake(address _account, address _operator, address _token, uint256 _amount) external nonReentrant {
-        require(userStakeInfo[msg.sender][_operator][_token] >= _amount, "Insufficient stake");
+        require(stakedAmounts[msg.sender][_operator][_token] >= _amount, "Insufficient stake");
 
         // TODO: check locked time
 
@@ -116,8 +130,8 @@ contract NativeStaking is
 
         IERC20(_token).safeTransfer(msg.sender, _amount);
 
-        userStakeInfo[msg.sender][_operator][_token] -= _amount;
-        operatorStakeInfo[_operator][_token].delegatedStake -= _amount;
+        stakedAmounts[msg.sender][_operator][_token] -= _amount;
+        operatorStakedAmounts[_operator][_token] -= _amount;
 
         INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
 
@@ -125,102 +139,27 @@ contract NativeStaking is
     }
 
     function withdrawSelfStake(address operator, address token, uint256 amount) external nonReentrant {
-        require(operatorStakeInfo[operator][token].selfStake >= amount, "Insufficient selfstake");
+        require(operatorStakedAmounts[operator][token] >= amount, "Insufficient selfstake");
 
         IERC20(token).safeTransfer(operator, amount);
 
-        operatorStakeInfo[operator][token].selfStake -= amount;
+        operatorStakedAmounts[operator][token] -= amount;
 
         emit SelfStakeWithdrawn(operator, token, amount, block.timestamp);
     }
 
     /*======================================== Getters ========================================*/
 
-    function getPoolStake(address _operator, address _token) external view returns (uint256) {
-        return operatorStakeInfo[_operator][_token].delegatedStake;
+    function getStakeAmount(address _token) external view returns (uint256) {
+        return totalStakedAmounts[_token];
     }
 
-    function getStakeAmountList(address _operator) external view returns (address[] memory _operators, uint256[] memory _amounts) {}
-
-    function isSupportedToken(address _token) external view returns (bool) {}
-
-    function getDelegatedStake(address _operator, address _token)
-        external
-        view
-        onlySupportedToken(_token)
-        returns (uint256)
-    {
-        return operatorStakeInfo[_operator][_token].delegatedStake;
+    function getActiveStakeAmount(address _token) external view returns (uint256) {
+        return totalStakedAmounts[_token] - totalLockedAmounts[_token];
     }
 
-    // TODO: deduct locked amount
-    function getDelegateStakeActive(address _operator, address _token)
-        external
-        view
-        onlySupportedToken(_token)
-        returns (uint256)
-    {
-        return operatorStakeInfo[_operator][_token].delegatedStake;
-    }
-
-    //  Returns the list of tokenSet staked by the operator and the amounts
-    // function getDelegatedStakes(address _operator)
-    //     external
-    //     view
-    //     returns (address[] memory _tokens, uint256[] memory _amounts)
-    // {
-    //     uint256 len = tokenSet.length();
-
-    //     for (uint256 i = 0; i < len; i++) {
-    //         _tokens[i] = tokenSet.at(i);
-    //         _amounts[i] = operatorStakeInfo[_operator][_tokens[i]].delegatedStake;
-    //     }
-    // }
-
-    function getSelfStake(address _operator, address _token)
-        external
-        view
-        onlySupportedToken(_token)
-        returns (uint256)
-    {
-        return operatorStakeInfo[_operator][_token].selfStake;
-    }
-
-
-    function getOperatorTotalStake(address _operator, address _token)
-        external
-        view
-        onlySupportedToken(_token)
-        returns (uint256)
-    {
-        OperatorStake memory _stakeInfo = operatorStakeInfo[_operator][_token];
-        return _stakeInfo.delegatedStake + _stakeInfo.selfStake;
-    }
-
-    function getOperatorTotalStakes(address _operator)
-        external
-        view
-        returns (address[] memory _tokens, uint256[] memory _amounts)
-    {
-        uint256 len = tokenSet.length();
-
-        for (uint256 i = 0; i < len; i++) {
-            OperatorStake memory _stakeInfo = operatorStakeInfo[_operator][tokenSet.at(i)];
-            _tokens[i] = tokenSet.at(i);
-            _amounts[i] = _stakeInfo.delegatedStake + _stakeInfo.selfStake;
-        }
-    }
-
-    function getTokenTotalStake(address _token) external view onlySupportedToken(_token) returns (uint256) {
-        uint256 len = operatorSet.length();
-        uint256 totalStake;
-
-        for (uint256 i = 0; i < len; i++) {
-            totalStake += operatorStakeInfo[operatorSet.at(i)][_token].delegatedStake
-                + operatorStakeInfo[operatorSet.at(i)][_token].selfStake;
-        }
-
-        return totalStake;
+    function isSupportedToken(address _token) external view returns (bool) {
+        return tokenSet.contains(_token);
     }
 
     function isSupportedSignature(bytes4 sig) external view returns (bool) {
@@ -242,17 +181,35 @@ contract NativeStaking is
     }
 
     /*======================================== StakingManager ========================================*/
-    function lockStake(uint256 _jobId, address _token, uint256 _delegatedStakeLock, uint256 _selfStakeLock) external {
+    function lockStake(uint256 _jobId, address _operator) external {
         // TODO: only staking manager
-        
-        lockInfo[_jobId] = NativeStakingLock(_token, _delegatedStakeLock, _selfStakeLock);
+        address _token = _selectLockToken();
+        uint256 _amountToLock = amountToLock[_token];
+        require(operatorStakedAmounts[_operator][_token] >= _amountToLock, "Insufficient stake to lock");
+
+        // lock stake
+        jobLockedAmounts[_jobId] = NativeStakingLock(_token, _amountToLock);
+        operatorLockedAmounts[_operator][_token] += _amountToLock;
+        totalLockedAmounts[_token] += _amountToLock;
+
         // TODO: emit event
+    }
+
+    function _selectLockToken() internal returns(address) {
+        if (tokenSet.length() == 1) {
+            return tokenSet.at(0);
+        } else {
+            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
+            uint256 tokenIdx = randomNumber % tokenSet.length();
+            return tokenSet.at(tokenIdx);
+        }
     }
 
     function unlockStake(uint256 _jobId) external {
         // TODO: only staking manager
 
-        lockInfo[_jobId] = NativeStakingLock(address(0), 0, 0);
+        // TODO: need to mark something that indicates that job is completed?
+        jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
 
         // TODO: emit event
     }

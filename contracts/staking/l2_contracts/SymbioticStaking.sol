@@ -22,6 +22,10 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
+    /*======================================== Config ========================================*/
+    mapping(address pool => mapping(address token => uint256 amount)) public stakeLockAmounts;
+    mapping(address operator => uint256 amount) public selfStakeLockAmounts;
+
     // TODO: redundant to L1 Data
     EnumerableSet.AddressSet tokenSet;
     mapping(address vault => address token) public vaultToToken;
@@ -140,12 +144,12 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
-    function lockStake(uint256 _jobId, address _token, uint256 _delegatedStakeLock, uint256 /* selfStakeLock */) external {
-        require(isSupportedToken(_token), "Token not supported");
+    function lockStake(uint256 _jobId, address /* operator */) external {
+        // require(isSupportedToken(_token), "Token not supported");
 
-        // Store transmitter address to reward when job is closed
-        address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
-        lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
+        // // Store transmitter address to reward when job is closed
+        // address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
+        // lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
 
         // TODO: emit event
     }
