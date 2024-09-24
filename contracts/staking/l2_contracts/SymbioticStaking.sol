@@ -23,8 +23,8 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     /*======================================== Config ========================================*/
-    mapping(address pool => mapping(address token => uint256 amount)) public stakeLockAmounts;
-    mapping(address operator => uint256 amount) public selfStakeLockAmounts;
+    mapping(address token => uint256 amount) public minStakeAmount;
+    mapping(address token => uint256 amount) public amountToLock;
 
     // TODO: redundant to L1 Data
     EnumerableSet.AddressSet tokenSet;
@@ -35,10 +35,12 @@ contract SymbioticStaking is ISymbioticStaking {
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
 
-    // TODO: discuss this later (problem of who submitted the partial txs)
-    mapping(address operator => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) operatorStakes;
-    mapping(address vault => mapping(address token => mapping(uint256 captureTimestamp => uint256 stake))) vaultStakes;
-    mapping(uint256 jobId => mapping(uint256 captureTimestamp => SlashResult slashResult)) slashResults; // TODO: need to check actual slashing timestamp?
+    // staked amount for each operator
+    mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
+    // staked amount for each vault
+    mapping(uint256 captureTimestamp => mapping(address vault => mapping(address token => uint256 stakeAmount))) vaultStakedAmounts;
+    // slash result for each job
+    mapping(uint256 captureTimestamp  => mapping(uint256 jobId => SlashResult slashResult)) slashResults;
 
     ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
@@ -144,25 +146,25 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
-    function lockStake(uint256 _jobId, address /* operator */) external {
-        uint256 _token = _selectLockToken();
-        require()
-
+    function lockStake(uint256 _jobId, address _operator) external {
+        address _token = _selectLockToken();
+        uint256 stakedAmount = getOperatorStake(_operator, _token);
+        require(stakedAmount >= minStakeAmount[_token], "Insufficient stake amount");
 
         // Store transmitter address to reward when job is closed
         address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
-        lockInfo[_jobId] = SymbioticStakingLock(_token, _delegatedStakeLock, transmitter);
+        lockInfo[_jobId] = SymbioticStakingLock(_token, amountToLock[_token], transmitter);
 
         // TODO: emit event
     }
 
-    function _selectLockToken() internal returns(address) {
+    function _selectLockToken() internal view returns(address) {
         require(tokenSet.length() > 0, "No supported token");
-        
+
         uint256 idx;
         if (tokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            uint256 idx = randomNumber % tokenSet.length();
+            idx = randomNumber % tokenSet.length();
         }
         return tokenSet.at(idx);
     }
@@ -175,8 +177,8 @@ contract SymbioticStaking is ISymbioticStaking {
         // TODO: emit event
     }
 
-    function getPoolStake(address _operator, address _token) external view returns (uint256) {
-        return operatorStakes[_operator][_token][lastConfirmedTimestamp()];
+    function getOperatorStake(address _operator, address _token) public view returns (uint256) {
+        return operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token];
    }
 
     /*======================================== Helpers ========================================*/
@@ -226,7 +228,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _operatorSnapshots.length; i++) {
             OperatorSnapshot memory _operatorSnapshot = _operatorSnapshots[i];
 
-            operatorStakes[_operatorSnapshot.operator][_operatorSnapshot.token][_captureTimestamp] =
+            operatorStakedAmounts[_captureTimestamp][_operatorSnapshot.operator][_operatorSnapshot.token] =
                 _operatorSnapshot.stake;
 
             // TODO: emit event for each update?
@@ -237,7 +239,7 @@ contract SymbioticStaking is ISymbioticStaking {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
-            vaultStakes[_vaultSnapshot.vault][_vaultSnapshot.token][_captureTimestamp] = _vaultSnapshot.stake;
+            vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.token] = _vaultSnapshot.stake;
 
             // TODO: emit event for each update?
         }

@@ -31,7 +31,7 @@ interface ISymbioticStaking is IKalypsoStaking {
 
     struct SlashResult {
         uint256 slashAmount;
-        address rewardAddress;
+        address rewardAddress; // address that transmitted slash reqeust to L1 Vault
     }
 
     struct ConfirmedTimestamp {

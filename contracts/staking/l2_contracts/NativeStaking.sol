@@ -195,13 +195,13 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    function _selectLockToken() internal returns(address) {
+    function _selectLockToken() internal view returns(address) {
         require(tokenSet.length() > 0, "No supported token");
         
         uint256 idx;
         if (tokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            uint256 idx = randomNumber % tokenSet.length();
+            idx = randomNumber % tokenSet.length();
         }
         return tokenSet.at(idx);
     }
