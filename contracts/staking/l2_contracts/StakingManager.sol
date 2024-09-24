@@ -24,20 +24,16 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    // TODO: Staking Pool Set
+    address public jobManager;
+
     EnumerableSet.AddressSet private stakingPoolSet;
 
     mapping(address pool => bool isEnabled) private stakingPoolStatus;
     mapping(address pool => uint256 weight) private stakingPoolWeight;
-
     mapping(address pool => PoolConfig config) private poolConfig;
-
-    // TODO: getter for retreiving the each pool's lock amount
-    mapping(uint256 jobId => uint256 lockAmount) private lockInfo; // total lock amount and unlock timestamp
     
     uint256 unlockEpoch;
     uint256 stakeDataTransmitterShare;
-
     struct PoolConfig {
         uint256 weight;
         uint256 minStake; // min stake for 
@@ -50,6 +46,11 @@ contract StakingManager is
         uint256 unlockTimestamp;
     }
 
+    modifier onlyJobManager() {
+        require(msg.sender == jobManager, "StakingManager: Only JobManager");
+        _;
+    }
+
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -57,22 +58,19 @@ contract StakingManager is
         __UUPSUpgradeable_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        // TODO: set jobmanager
     }
 
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
     // locked stake will be unlocked after an epoch if no slas result is submitted
 
     // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
-    function onJobCreation(uint256 _jobId, address _operator) external {
-        // TODO: only jobManager
-
-        // TODO: lock selfstake, Native Staking delegated stake, Symbiotic Stake
-
+    function onJobCreation(uint256 _jobId, address _operator) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
-
+        
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
 
             IKalypsoStaking(pool).lockStake(_jobId, _operator);
@@ -85,9 +83,7 @@ contract StakingManager is
     // }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId) external {
-        // TODO: only jobManager
-
+    function onJobCompletion(uint256 _jobId) external onlyJobManager {
         // TODO: unlock the locked stakes
         uint256 len = stakingPoolSet.length();
         for(uint256 i = 0; i < len; i++) {
@@ -157,7 +153,7 @@ contract StakingManager is
 
         // as the weight is in percentage, the sum of the shares should be 10000
         // TODO: sum of enabled pools should be 10000
-        require(sum == 10000, "Invalid Shares");
+        require(sum == 1e18, "Invalid Shares");
 
         for(uint256 i = 0; i < _pools.length; i++) {
             poolConfig[_pools[i]].weight = _shares[i];

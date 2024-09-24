@@ -8,7 +8,6 @@ import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
     Staking Manager contract is responsible for locking/unlocking tokens and distributing rewards.
  */
 contract JobManager {
-
     uint256 constant JOB_DURATION = 1 days;
 
     IStakingManager stakingManager;
@@ -23,15 +22,21 @@ contract JobManager {
 
     mapping(uint256 => JobInfo) public jobs;
 
-    // TODO: token => lockAmount logic
-    function createJob(uint256 jobId, address operator, address token, uint256 amountToLock) external {
+    function createJob(uint256 jobId, address operator) external {
         // TODO: called only from Kalypso Protocol
         
         // TODO: create a job and record StakeData Transmitter who submitted capture timestamp
     
 
         // TODO: call creation function in StakingManager
-        stakingManager.onJobCreation(jobId, operator, token, amountToLock); // lock stake
+        stakingManager.onJobCreation(jobId, operator); // lock stake
+    }
+
+    /**
+     * @notice Submit Single Proof
+     */
+    function submitProof(uint256 jobId, bytes calldata proof) public {
+        _verifyProof(jobId, proof);
     }
 
     /**
@@ -43,7 +48,6 @@ contract JobManager {
 
         // TODO: close job and distribute rewards
         uint256 len = jobIds.length;
-
         for (uint256 idx = 0; idx < len; idx++) {
             _verifyProof(jobIds[idx], proofs[idx]);
 
@@ -51,13 +55,6 @@ contract JobManager {
             stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
         }
 
-    }
-
-    /**
-     * @notice Submit Single Proof
-     */
-    function submitProof(uint256 jobId, bytes calldata proof) public {
-        _verifyProof(jobId, proof);
     }
 
     function _verifyProof(uint256 jobId, bytes calldata proof) internal {

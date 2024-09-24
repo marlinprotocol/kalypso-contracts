@@ -30,13 +30,13 @@ contract NativeStaking is
     address public nativeStakingReward;
 
     /*======================================== Config ========================================*/
-    // config
+    
+    /* Config */
     mapping(address token => uint256 minStakeamount) public minStakeAmount;
     mapping(address token => uint256 lockAmount) public amountToLock;
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
 
-    // stake
-
+    /* Stake */
     // total staked amounts for each operator, includes selfStake and delegatedStake amount
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
     // selfstake if account == operator
@@ -44,7 +44,7 @@ contract NativeStaking is
     // total staked amount for each token
     mapping(address token => uint256 amount) public totalStakedAmounts;
 
-    // lock
+    /* Locked Stakes */
     // TODO: check if mappings below are needed
     mapping(uint256 jobId => NativeStakingLock) public jobLockedAmounts;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts; // includes selfStake and delegatedStake amount
@@ -65,17 +65,7 @@ contract NativeStaking is
         _;
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
 
-    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
@@ -214,4 +204,18 @@ contract NativeStaking is
 
         // TODO: emit event
     }
+
+    /*======================================== Overrides ========================================*/
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
