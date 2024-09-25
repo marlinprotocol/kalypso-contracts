@@ -10,7 +10,7 @@ contract SymbioticStaking is ISymbioticStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 submissionCooldown; // 18 decimal (in seconds)
-    uint256 transmitterComission; // 18 decimal (in percentage)
+    uint256 baseTransmitterComission; // 18 decimal (in percentage)
 
     /* Job Status */
     bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
