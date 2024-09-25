@@ -36,7 +36,6 @@ contract StakingManager is
     uint256 stakeDataTransmitterShare;
     struct PoolConfig {
         uint256 weight;
-        uint256 minStake; // min stake for 
         bool enabled;
     }
 
