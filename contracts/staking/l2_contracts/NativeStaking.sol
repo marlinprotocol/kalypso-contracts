@@ -200,6 +200,8 @@ contract NativeStaking is
     }
 
     function unlockStake(uint256 _jobId) external onlyStakingManager {
+        // TODO: consider the case when new pool is added during job
+
         // TODO: need to mark something that indicates that job is completed?
         jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
 

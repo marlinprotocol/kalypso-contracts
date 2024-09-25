@@ -12,25 +12,21 @@ contract SymbioticStaking is ISymbioticStaking {
     uint256 submissionCooldown; // 18 decimal (in seconds)
     uint256 transmitterComission; // 18 decimal (in percentage)
 
-    bytes32 public constant OPERATOR_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
-    bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
-    bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000100;
-    bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000111;
+    /* Job Status */
+    bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
+    bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
-    bytes32 public constant OPERATOR_SNAPSHOT = keccak256("OPERATOR_SNAPSHOT");
     bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
-    /*======================================== Config ========================================*/
+    /* Config */
     mapping(address token => uint256 amount) public minStakeAmount;
     mapping(address token => uint256 amount) public amountToLock;
 
-    // TODO: redundant to L1 Data
     EnumerableSet.AddressSet tokenSet;
-    // mapping(address vault => address token) public vaultToToken;
-    // mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
 
-    /* Symbiotic Data Transmission */
+    /* Symbiotic Snapshot */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
 
@@ -52,40 +48,11 @@ contract SymbioticStaking is ISymbioticStaking {
     /* Staking */
     mapping(uint256 jobId => SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
 
+    mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters;
+
     /*======================================== L1 to L2 Transmission ========================================*/
     // Transmitter submits staking data snapshot
     // This should update StakingManger's state
-
-    // TODO: consolidate with submitVaultSnapshot
-    function submitOperatorSnapshot(
-        uint256 _index,
-        uint256 _numOfTxs, // number of total transactions
-        uint256 _captureTimestamp,
-        bytes memory _operatorSnapshotData,
-        bytes memory _signature
-    ) external {
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, OPERATOR_SNAPSHOT);
-
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _operatorSnapshotData, _signature);
-
-        // main update logic
-        // TODO: consolidate this into VaultSnapshot[]
-        OperatorSnapshot[] memory _operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
-        _updateOperatorSnapshotInfo(_captureTimestamp, _operatorSnapshots);
-
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
-
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, OPERATOR_SNAPSHOT);
-
-        // when all chunks of OperatorSnapshot are submitted
-        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
-        }
-
-        if (_isCompleteStatus(_captureTimestamp)) {
-            _completeSubmission(_captureTimestamp);
-        }
-    }
 
     function submitVaultSnapshot(
         uint256 _index,
@@ -94,20 +61,23 @@ contract SymbioticStaking is ISymbioticStaking {
         bytes memory _vaultSnapshotData,
         bytes memory _signature
     ) external {
+
+        _checkTransmitterRegistration(_captureTimestamp);
+
         _checkValidity(_index, _numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
 
         // main update logic
         VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (VaultSnapshot[]));
-        _updateVaultSnapshotInfo(_captureTimestamp, _vaultSnapshots);
+        _updateSnapshotInfo(_captureTimestamp, _vaultSnapshots);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
 
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
+        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
+            submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT_MASK;
         }
 
         if (_isCompleteStatus(_captureTimestamp)) {
@@ -131,10 +101,10 @@ contract SymbioticStaking is ISymbioticStaking {
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
 
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
+        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
+            submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT;
         }
 
         if (_isCompleteStatus(_captureTimestamp)) {
@@ -171,6 +141,8 @@ contract SymbioticStaking is ISymbioticStaking {
 
     // TODO: check if delegatedStake also gets unlocked
     function unlockStake(uint256 _jobId) external {
+        // TODO: consider the case when new pool is added during job
+
         // TODO: only staking manager
         lockInfo[_jobId].amount = 0;
 
@@ -195,11 +167,19 @@ contract SymbioticStaking is ISymbioticStaking {
         require(snapshot.numOfTxs == _numOfTxs, "Invalid length");
 
         bytes32 mask;
-        if (_type == OPERATOR_SNAPSHOT) mask = OPERATOR_SNAPSHOT_MASK;
-        else if (_type == VAULT_SNAPSHOT) mask = VAULT_SNAPSHOT_MASK;
+        if (_type == VAULT_SNAPSHOT) mask = VAULT_SNAPSHOT_MASK;
         else if (_type == SLASH_RESULT) mask = SLASH_RESULT_MASK;
 
         require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Snapshot fully submitted already");
+    }
+
+    function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
+        if(registeredTransmitters[_captureTimestamp] == address(0)) {
+            // once transmitter is registered, another transmitter cannot submit the snapshot for the same capturetimestamp
+            registeredTransmitters[_captureTimestamp] = msg.sender;
+        } else {
+            require(registeredTransmitters[_captureTimestamp] == msg.sender, "Not registered transmitter");
+        }
     }
 
     function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
@@ -223,23 +203,16 @@ contract SymbioticStaking is ISymbioticStaking {
         return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
     }
 
-    function _updateOperatorSnapshotInfo(uint256 _captureTimestamp, OperatorSnapshot[] memory _operatorSnapshots)
-        internal
-    {
-        for (uint256 i = 0; i < _operatorSnapshots.length; i++) {
-            OperatorSnapshot memory _operatorSnapshot = _operatorSnapshots[i];
 
-            operatorStakedAmounts[_captureTimestamp][_operatorSnapshot.operator][_operatorSnapshot.token] =
-                _operatorSnapshot.stake;
-
-            // TODO: emit event for each update?
-        }
-    }
-    function _updateVaultSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
+    function _updateSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
+            // update vault staked amount
             vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.token] = _vaultSnapshot.stake;
+
+            // update operator staked amount
+            operatorStakedAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.token] += _vaultSnapshot.stake;
 
             // TODO: emit event for each update?
         }

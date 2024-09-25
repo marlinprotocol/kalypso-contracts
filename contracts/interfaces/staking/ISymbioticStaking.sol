@@ -11,14 +11,8 @@ interface ISymbioticStaking is IKalypsoStaking {
         uint256 numOfTxs; // total number of txs for the snapshot
     }
 
-    struct OperatorSnapshot {
-        address operator;
-        address token;
-        uint256 stake;
-    }
-    
-    //! TODO: add operator
     struct VaultSnapshot {
+        address operator;
         address vault;
         address token;
         uint256 stake;
