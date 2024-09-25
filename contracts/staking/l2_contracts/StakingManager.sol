@@ -40,12 +40,6 @@ contract StakingManager is
         bool enabled;
     }
 
-    // operator, lockToken, lockAmount should be stored in JobManager
-    struct StakeLockInfo {
-        uint256 totalLockAmount; 
-        uint256 unlockTimestamp;
-    }
-
     modifier onlyJobManager() {
         require(msg.sender == jobManager, "StakingManager: Only JobManager");
         _;
