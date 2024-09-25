@@ -10,8 +10,8 @@ contract SymbioticStaking is ISymbioticStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     //! TODO: make variable more descriptive
-    uint256 SD;
-    uint256 TC;
+    uint256 submissionCooldown;
+    uint256 transmitterComission;
 
     bytes32 public constant OPERATOR_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
     bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
@@ -183,7 +183,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Helpers ========================================*/
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
-        require(block.timestamp >= lastConfirmedTimestamp() + SD, "Cooldown period not passed");
+        require(block.timestamp >= lastConfirmedTimestamp() + submissionCooldown, "Cooldown period not passed");
 
         require(_numOfTxs > 0, "Invalid length");
         require(_index < _numOfTxs, "Invalid index");
@@ -234,7 +234,6 @@ contract SymbioticStaking is ISymbioticStaking {
             // TODO: emit event for each update?
         }
     }
-
     function _updateVaultSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
@@ -258,13 +257,13 @@ contract SymbioticStaking is ISymbioticStaking {
     }
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
-        // TODO: calc `TC` based on last submission
+        // TODO: calc `transmitterComission` based on last submission
         ConfirmedTimestamp memory confirmedTimestamp = ConfirmedTimestamp(_captureTimestamp, block.timestamp, msg.sender);
         confirmedTimestamps.push(confirmedTimestamp);
 
-        // TODO: calculate rewards for the transmitter based on TC
-        // TODO: Data transmitter should get TC% of the rewards
-        // TODO: "TC" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + SD)"
+        // TODO: calculate rewards for the transmitter based on transmitterComission
+        // TODO: Data transmitter should get transmitterComission% of the rewards
+        // TODO: "transmitterComission" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + submissionCooldown)"
 
         // TODO: emit SubmissionCompleted
     }
