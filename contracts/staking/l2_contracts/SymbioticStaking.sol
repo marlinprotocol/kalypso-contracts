@@ -51,8 +51,6 @@ contract SymbioticStaking is ISymbioticStaking {
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters;
 
     /*======================================== L1 to L2 Transmission ========================================*/
-    // Transmitter submits staking data snapshot
-    // This should update StakingManger's state
 
     function submitVaultSnapshot(
         uint256 _index,
