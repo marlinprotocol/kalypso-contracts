@@ -10,7 +10,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 
 contract StakingManager is
@@ -19,7 +19,7 @@ contract StakingManager is
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
-    // INativeStaking
+    // IStakingManager // TODO
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
@@ -31,7 +31,6 @@ contract StakingManager is
     mapping(address pool => uint256 weight) private stakingPoolWeight;
     mapping(address pool => PoolConfig config) private poolConfig;
     
-    uint256 unlockEpoch;
     uint256 stakeDataTransmitterShare;
     struct PoolConfig {
         uint256 weight;
@@ -120,12 +119,6 @@ contract StakingManager is
     function setJobManager(address _jobManager) external {
         // TODO: only admin
     }
-
-    // TODO: check if needed
-    function setUnlockEpoch(uint256 _unlockEpoch) external {
-        // TODO: check if the unlockEpoch is longer than the proofDeadline
-    }
-
 
     // when job is closed, the reward will be distributed based on the share
     function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external  {
