@@ -51,7 +51,7 @@ contract StakingManager is
         _;
     }
 
-    function initialize(address _admin) public initializer {
+    function initialize(address _admin, address _jobManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -59,7 +59,7 @@ contract StakingManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        // TODO: set jobmanager
+        jobManager = _jobManager;
     }
 
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
