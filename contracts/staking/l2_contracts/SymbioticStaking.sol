@@ -27,8 +27,8 @@ contract SymbioticStaking is ISymbioticStaking {
 
     // TODO: redundant to L1 Data
     EnumerableSet.AddressSet tokenSet;
-    mapping(address vault => address token) public vaultToToken;
-    mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
+    // mapping(address vault => address token) public vaultToToken;
+    // mapping(address token => uint256 numVaults) public tokenToNumVaults; // number of vaults that support the token
 
     /* Symbiotic Data Transmission */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
@@ -270,9 +270,9 @@ contract SymbioticStaking is ISymbioticStaking {
     /*======================================== Getters ========================================*/
     
     // TODO: remove
-    function getVaultToken(address _vault) public view returns (address) {
-        return vaultToToken[_vault];
-    }
+    // function getVaultToken(address _vault) public view returns (address) {
+    //     return vaultToToken[_vault];
+    // }
 
     function lastConfirmedTimestamp() public view returns (uint256) {
         return confirmedTimestamps[confirmedTimestamps.length - 1].capturedTimestamp;
