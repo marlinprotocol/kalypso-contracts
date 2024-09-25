@@ -9,9 +9,8 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 contract SymbioticStaking is ISymbioticStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    //! TODO: make variable more descriptive
-    uint256 submissionCooldown;
-    uint256 transmitterComission;
+    uint256 submissionCooldown; // 18 decimal (in seconds)
+    uint256 transmitterComission; // 18 decimal (in percentage)
 
     bytes32 public constant OPERATOR_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
     bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
