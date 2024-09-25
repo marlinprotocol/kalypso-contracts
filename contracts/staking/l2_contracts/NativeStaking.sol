@@ -25,7 +25,6 @@ contract NativeStaking is
     using SafeERC20 for IERC20;
 
     EnumerableSet.AddressSet private tokenSet;
-    EnumerableSet.AddressSet private operatorSet; // TODO: check if needed
 
     address public nativeStakingReward;
     address public stakingManager;
