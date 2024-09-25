@@ -28,7 +28,6 @@ contract StakingManager is
 
     EnumerableSet.AddressSet private stakingPoolSet;
 
-    mapping(address pool => bool isEnabled) private stakingPoolStatus;
     mapping(address pool => uint256 weight) private stakingPoolWeight;
     mapping(address pool => PoolConfig config) private poolConfig;
     
@@ -117,11 +116,6 @@ contract StakingManager is
         // TODO: onlyAdmin
     }
 
-    function setStakingPoolStatus(address _stakingPool, bool _status) external {
-        // TODO: onlyAdmin
-    }
-
-
     // TODO: integration with JobManager
     function setJobManager(address _jobManager) external {
         // TODO: only admin
@@ -144,8 +138,7 @@ contract StakingManager is
         }
         sum += _transmitterShare;
 
-        // as the weight is in percentage, the sum of the shares should be 10000
-        // TODO: sum of enabled pools should be 10000
+        // as the weight is in percentage, the sum of the shares should be 1e18
         require(sum == 1e18, "Invalid Shares");
 
         for(uint256 i = 0; i < _pools.length; i++) {
