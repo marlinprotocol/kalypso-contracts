@@ -11,7 +11,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
-import {IKalypsoStaking} from "../../interfaces/staking/IKalypsoStaking.sol";
+import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 
 contract StakingManager is
     ContextUpgradeable,
@@ -73,13 +73,13 @@ contract StakingManager is
             address pool = stakingPoolSet.at(i);
             if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
 
-            IKalypsoStaking(pool).lockStake(_jobId, _operator);
+            IStakingPool(pool).lockStake(_jobId, _operator);
         }
     }
 
     // TODO
     // function getPoolStake(address _pool, address _operator, address _token) internal view returns (uint256) {
-    //     return IKalypsoStaking(_pool).getStakeAmount(_operator, _token);
+    //     return IStakingPool(_pool).getStakeAmount(_operator, _token);
     // }
 
     // called when job is completed to unlock the locked stakes
@@ -89,7 +89,7 @@ contract StakingManager is
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             
-            IKalypsoStaking(pool).unlockStake(_jobId);
+            IStakingPool(pool).unlockStake(_jobId);
         }
 
         // TODO: emit event

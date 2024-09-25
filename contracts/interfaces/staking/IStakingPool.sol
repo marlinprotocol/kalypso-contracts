@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IKalypsoStaking {
+interface IStakingPool {
     function isSupportedToken(address _token) external view returns (bool);
 
     // function getPoolStake(address _operator, address _token) external view returns (uint256);

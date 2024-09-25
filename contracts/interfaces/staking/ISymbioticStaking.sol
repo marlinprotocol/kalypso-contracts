@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {IKalypsoStaking} from "./IKalypsoStaking.sol";
+import {IStakingPool} from "./IStakingPool.sol";
 
-interface ISymbioticStaking is IKalypsoStaking {
+interface ISymbioticStaking is IStakingPool {
     // function stakeOf(address _operator, address _token) external view returns (uint256);
 
     struct SnapshotTxCountInfo {
