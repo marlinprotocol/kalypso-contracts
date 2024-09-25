@@ -59,7 +59,6 @@ contract SymbioticStaking is ISymbioticStaking {
         bytes memory _vaultSnapshotData,
         bytes memory _signature
     ) external {
-
         _checkTransmitterRegistration(_captureTimestamp);
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
@@ -173,7 +172,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
         if(registeredTransmitters[_captureTimestamp] == address(0)) {
-            // once transmitter is registered, another transmitter cannot submit the snapshot for the same capturetimestamp
+            // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
             registeredTransmitters[_captureTimestamp] = msg.sender;
         } else {
             require(registeredTransmitters[_captureTimestamp] == msg.sender, "Not registered transmitter");
