@@ -130,8 +130,7 @@ contract SymbioticStakingReward is
 
         claimableRewards[_vault] = 0;
 
-        // TODO
-        IERC20(_getRewardToken(_vault)).safeTransfer(_vault, rewardAmount);
+        // TODO: let the user claim reward of all rewardTokens
 
         // TODO: emit event
     }

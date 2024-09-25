@@ -56,7 +56,7 @@ contract SymbioticStaking is ISymbioticStaking {
     // Transmitter submits staking data snapshot
     // This should update StakingManger's state
 
-    // TODO
+    // TODO: consolidate with submitVaultSnapshot
     function submitOperatorSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
@@ -69,6 +69,7 @@ contract SymbioticStaking is ISymbioticStaking {
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _operatorSnapshotData, _signature);
 
         // main update logic
+        // TODO: consolidate this into VaultSnapshot[]
         OperatorSnapshot[] memory _operatorSnapshots = abi.decode(_operatorSnapshotData, (OperatorSnapshot[]));
         _updateOperatorSnapshotInfo(_captureTimestamp, _operatorSnapshots);
 
@@ -77,7 +78,7 @@ contract SymbioticStaking is ISymbioticStaking {
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, OPERATOR_SNAPSHOT);
 
         // when all chunks of OperatorSnapshot are submitted
-        if (_snapshot.count == _snapshot.numOfTxs) {
+        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
         }
 
@@ -105,7 +106,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
-        if (_snapshot.count == _snapshot.numOfTxs) {
+        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
         }
 
@@ -132,7 +133,7 @@ contract SymbioticStaking is ISymbioticStaking {
 
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][OPERATOR_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
-        if (_snapshot.count == _snapshot.numOfTxs) {
+        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= OPERATOR_SNAPSHOT_MASK;
         }
 
@@ -182,13 +183,15 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Helpers ========================================*/
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
-        require(block.timestamp >= lastConfirmedTimestamp() + submissionCooldown, "Cooldown period not passed");
-
         require(_numOfTxs > 0, "Invalid length");
-        require(_index < _numOfTxs, "Invalid index");
 
+        // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
+        require(block.timestamp >= (lastConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
+
+        
         SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
-        require(snapshot.count < snapshot.numOfTxs, "Snapshot fully submitted already");
+        require(_index == snapshot.idxToSubmit, "Invalid index");
+        require(snapshot.idxToSubmit < snapshot.numOfTxs, "Snapshot fully submitted already");
         require(snapshot.numOfTxs == _numOfTxs, "Invalid length");
 
         bytes32 mask;
@@ -203,13 +206,12 @@ contract SymbioticStaking is ISymbioticStaking {
         SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
 
         // increase count by 1
-        txCountInfo[_captureTimestamp][msg.sender][_type].count += 1;
+        txCountInfo[_captureTimestamp][msg.sender][_type].idxToSubmit += 1;
 
         // update length if 0
         if (_snapshot.numOfTxs == 0) {
             txCountInfo[_captureTimestamp][msg.sender][_type].numOfTxs = _numOfTxs;
         }
-        
     }
 
     function _verifySignature(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes memory _data, bytes memory _signature) internal {
@@ -269,11 +271,6 @@ contract SymbioticStaking is ISymbioticStaking {
 
     /*======================================== Getters ========================================*/
     
-    // TODO: remove
-    // function getVaultToken(address _vault) public view returns (address) {
-    //     return vaultToToken[_vault];
-    // }
-
     function lastConfirmedTimestamp() public view returns (uint256) {
         return confirmedTimestamps[confirmedTimestamps.length - 1].capturedTimestamp;
     }

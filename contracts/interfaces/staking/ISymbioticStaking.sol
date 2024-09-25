@@ -7,8 +7,8 @@ interface ISymbioticStaking is IKalypsoStaking {
     // function stakeOf(address _operator, address _token) external view returns (uint256);
 
     struct SnapshotTxCountInfo {
-        uint256 count;
-        uint256 numOfTxs;
+        uint256 idxToSubmit; // idx of pratial snapshot tx to submit
+        uint256 numOfTxs; // total number of txs for the snapshot
     }
 
     struct OperatorSnapshot {
