@@ -66,8 +66,6 @@ contract NativeStakingReward is
 
     //-------------------------------- NativeStaking start --------------------------------//
 
-
-
     function claimReward(address token) public {
         
     }

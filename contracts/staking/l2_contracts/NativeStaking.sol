@@ -28,6 +28,7 @@ contract NativeStaking is
     EnumerableSet.AddressSet private operatorSet; // TODO: check if needed
 
     address public nativeStakingReward;
+    address public stakingManager;
 
     /*======================================== Config ========================================*/
     
@@ -65,7 +66,10 @@ contract NativeStaking is
         _;
     }
 
-
+    modifier onlyStakingManager() {
+        require(msg.sender == stakingManager, "Only StakingManager");
+        _;
+    }
 
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
@@ -171,8 +175,7 @@ contract NativeStaking is
     }
 
     /*======================================== StakingManager ========================================*/
-    function lockStake(uint256 _jobId, address _operator) external {
-        // TODO: only staking manager
+    function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
         uint256 _amountToLock = amountToLock[_token];
         require(operatorStakedAmounts[_operator][_token] >= _amountToLock, "Insufficient stake to lock");
@@ -196,11 +199,12 @@ contract NativeStaking is
         return tokenSet.at(idx);
     }
 
-    function unlockStake(uint256 _jobId) external {
-        // TODO: only staking manager
-
+    function unlockStake(uint256 _jobId) external onlyStakingManager {
         // TODO: need to mark something that indicates that job is completed?
         jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
+
+        // TODO: distribute reward
+                
 
         // TODO: emit event
     }
