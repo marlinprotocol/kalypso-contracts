@@ -38,6 +38,8 @@ contract JobManager {
      */
     function submitProof(uint256 jobId, bytes calldata proof) public {
         _verifyProof(jobId, proof);
+
+        stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
     }
 
     /**
@@ -50,9 +52,11 @@ contract JobManager {
 
         uint256 len = jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
-            _verifyProof(jobIds[idx], proofs[idx]);
+            uint256 jobId = jobIds[idx];
+            
+            _verifyProof(jobId, proofs[idx]);
 
-            uint256 jobId;
+            // TODO: let onJobCompletion also accept array of jobIds
             stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
         }
 
