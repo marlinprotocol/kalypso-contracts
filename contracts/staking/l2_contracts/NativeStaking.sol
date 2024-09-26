@@ -79,20 +79,20 @@ contract NativeStaking is
     }
 
     // Staker should be able to choose an Operator they want to stake into
-    function stake(address _account, address _operator, address _token, uint256 _amount)
+    function stake(address _operator, address _token, uint256 _amount)
         external
         onlySupportedSignature(msg.sig)
         onlySupportedToken(_token)
         nonReentrant
     {
-        IERC20(_token).safeTransferFrom(_account, address(this), _amount);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
 
-        stakedAmounts[_account][_operator][_token] += _amount;
+        stakedAmounts[msg.sender][_operator][_token] += _amount;
         operatorStakedAmounts[_operator][_token] += _amount;
 
         // NativeStakingReward contract will read staking amount info from this contract
         // and update reward related states
-        INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
+        INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
@@ -179,7 +179,7 @@ contract NativeStaking is
 
     /*======================================== StakingManager ========================================*/
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _token = _selectLockToken();
+        address _token = _selectTokenToLock();
         uint256 _amountToLock = amountToLock[_token];
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
@@ -191,7 +191,7 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    function _selectLockToken() internal view returns(address) {
+    function _selectTokenToLock() internal view returns(address) {
         require(tokenSet.length() > 0, "No supported token");
         
         uint256 idx;
