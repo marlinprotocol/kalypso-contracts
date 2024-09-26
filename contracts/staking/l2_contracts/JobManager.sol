@@ -23,21 +23,22 @@ contract JobManager {
     function createJob(uint256 jobId, address operator) external {
         // TODO: called only from Kalypso Protocol
         
-        // TODO: create a job and record StakeData Transmitter who submitted capture timestamp
-
+        // stakeToken and lockAmount will be decided in each pool
         jobs[jobId] = JobInfo({
             operator: operator,
             deadline: block.timestamp + JOB_DURATION
         });
     
         // TODO: call creation function in StakingManager
-        stakingManager.onJobCreation(jobId, operator); // lock stake
+        stakingManager.onJobCreation(jobId, operator);
     }
 
     /**
      * @notice Submit Single Proof
      */
     function submitProof(uint256 jobId, bytes calldata proof) public {
+        require(block.timestamp <= jobs[jobId].deadline, "Job Expired");
+
         _verifyProof(jobId, proof);
 
         stakingManager.onJobCompletion(jobId); // unlock stake
@@ -54,14 +55,25 @@ contract JobManager {
         uint256 len = jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
             uint256 jobId = jobIds[idx];
+            require(block.timestamp <= jobs[jobId].deadline, "Job Expired");
             
             _verifyProof(jobId, proofs[idx]);
 
             // TODO: let onJobCompletion also accept array of jobIds
-            stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
+            stakingManager.onJobCompletion(jobId); // unlock stake
         }
 
     }
+
+    function refundFee(uint256 jobId) external {
+        require(block.timestamp > jobs[jobId].deadline, "Job not Expired");
+
+        // TODO: refund fee
+
+        // TODO: emit event
+    }
+
+    // TODO: implement manual slash
 
     function _verifyProof(uint256 jobId, bytes calldata proof) internal {
         // TODO: verify proof
