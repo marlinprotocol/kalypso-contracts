@@ -103,7 +103,7 @@ contract NativeStaking is
 
     // This should update StakingManger's state
     function withdrawStake(address _operator, address _token, uint256 _amount) external nonReentrant {
-        require(stakedAmounts[msg.sender][_operator][_token] >= _amount, "Insufficient stake");
+        require(getOperatorActiveStakeAmount(_operator, _token) >= _amount, "Insufficient stake");
 
         // TODO: check locked time
 
