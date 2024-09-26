@@ -39,7 +39,7 @@ contract NativeStaking is
     /* Stake */
     // total staked amounts for each operator, includes selfStake and delegatedStake amount
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
-    // selfstake if account == operator
+    // staked amount for each account
     mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
     // total staked amount for each token
     mapping(address token => uint256 amount) public totalStakedAmounts;
@@ -102,7 +102,7 @@ contract NativeStaking is
     }
 
     // This should update StakingManger's state
-    function withdrawStake(address _account, address _operator, address _token, uint256 _amount) external nonReentrant {
+    function withdrawStake(address _operator, address _token, uint256 _amount) external nonReentrant {
         require(stakedAmounts[msg.sender][_operator][_token] >= _amount, "Insufficient stake");
 
         // TODO: check locked time
@@ -114,7 +114,7 @@ contract NativeStaking is
         stakedAmounts[msg.sender][_operator][_token] -= _amount;
         operatorStakedAmounts[_operator][_token] -= _amount;
 
-        INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
+        INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
     }
