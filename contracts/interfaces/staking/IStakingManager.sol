@@ -6,10 +6,4 @@ interface IStakingManager {
     function onJobCreation(uint256 jobId, address operator) external;
 
     function onJobCompletion(uint256 jobId) external;
-
-    function submitProofs(uint256[] memory jobIds, bytes[] calldata proofs) external;
-
-    function submitProof(uint256 jobId, bytes calldata proof) external;
-
-    function setStakingManager(address _stakingManager) external;
 }
