@@ -2,35 +2,47 @@
 pragma solidity ^0.8.26;
 
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 
 /* 
     JobManager contract is responsible for creating and managing jobs.
     Staking Manager contract is responsible for locking/unlocking tokens and distributing rewards.
  */
 contract JobManager {
-    uint256 constant JOB_DURATION = 1 days;
+    using SafeERC20 for IERC20;
 
-    IStakingManager stakingManager;
+    address public stakingManager;
+    address public feeToken;
+    uint256 public jobDuration = 1 days;
 
     struct JobInfo {
+        address requester;
         address operator;
+        uint256 feePaid;
         uint256 deadline;
     }
 
-    mapping(uint256 => JobInfo) public jobs;
+    mapping(uint256 jobId => JobInfo jobInfo) public jobs;
+    uint256 feePaid;
 
     // TODO: check paramter for job details
-    function createJob(uint256 jobId, address operator) external {
+    function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external {
         // TODO: called only from Kalypso Protocol
+
+        IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
         
         // stakeToken and lockAmount will be decided in each pool
-        jobs[jobId] = JobInfo({
-            operator: operator,
-            deadline: block.timestamp + JOB_DURATION
+        jobs[_jobId] = JobInfo({
+            requester: _requester,
+            operator: _operator,
+            feePaid: _feeAmount,
+            deadline: block.timestamp + jobDuration
         });
     
         // TODO: call creation function in StakingManager
-        stakingManager.onJobCreation(jobId, operator);
+        IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
     }
 
     /**
@@ -41,7 +53,7 @@ contract JobManager {
 
         _verifyProof(jobId, proof);
 
-        stakingManager.onJobCompletion(jobId); // unlock stake
+        IStakingManager(stakingManager).onJobCompletion(jobId); // unlock stake
     }
 
     /**
@@ -60,26 +72,27 @@ contract JobManager {
             _verifyProof(jobId, proofs[idx]);
 
             // TODO: let onJobCompletion also accept array of jobIds
-            stakingManager.onJobCompletion(jobId); // unlock stake
+            IStakingManager(stakingManager).onJobCompletion(jobId); // unlock stake
         }
 
     }
 
     function refundFee(uint256 jobId) external {
         require(block.timestamp > jobs[jobId].deadline, "Job not Expired");
+        require(jobs[jobId].requester == msg.sender, "Not Requester");
 
         // TODO: refund fee
+        jobs[jobId].feePaid = 0;
 
+        IERC20(feeToken).safeTransfer(jobs[jobId].requester, jobs[jobId].feePaid);
         // TODO: emit event
     }
-
-    // TODO: implement manual slash
 
     function _verifyProof(uint256 jobId, bytes calldata proof) internal {
         // TODO: verify proof
     }
 
     function setStakingManager(address _stakingManager) external {
-        stakingManager = IStakingManager(_stakingManager);
+        stakingManager = _stakingManager;
     }
 }
