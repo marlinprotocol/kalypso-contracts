@@ -11,7 +11,8 @@
         "priority_list": "0xfd94a9Aed9d5f8f00b70A1908378fcc1C4a04B4E",
         "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
         "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
-        "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23"
+        "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
+        "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91"
     },
     "implementation": {
         "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",

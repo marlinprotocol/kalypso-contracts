@@ -71,4 +71,7 @@ library Error {
     error ShouldBeInCrossedDeadlineState(uint256 askId);
     error ShouldBeInAssignedState(uint256 askId);
     error OnlyGeneratorCanDiscardRequest(uint256 askId);
+
+    // Tee Verifier Errors
+    error TeeVerifierEnclaveKeyNotVerified(bytes PCR0, bytes PCR1, bytes PCR2);
 }
