@@ -127,15 +127,15 @@ contract JobManager is
 
     /*======================================== Admin ========================================*/
 
-    function setStakingManager(address _stakingManager) external {
+    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
     }
 
-    function setFeeToken(address _feeToken) external {
+    function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeToken = _feeToken;
     }
 
-    function setJobDuration(uint256 _jobDuration) external {
+    function setJobDuration(uint256 _jobDuration) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobDuration = _jobDuration;
     }
 
