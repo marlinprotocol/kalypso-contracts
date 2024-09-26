@@ -26,6 +26,7 @@ contract NativeStaking is
     using SafeERC20 for IERC20;
 
     struct NativeStakingLock {
+        address operator;
         address token;
         uint256 amount;
     }
@@ -73,7 +74,6 @@ contract NativeStaking is
         onlySupportedToken(_token)
         nonReentrant
     {
-        // TODO: check if _operator is an actual _operator address?
         // this check can be removed in the future to allow delegatedStake
         require(msg.sender == _operator, "Only operator can stake");
 
@@ -158,9 +158,19 @@ contract NativeStaking is
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
-        jobLockedAmounts[_jobId] = NativeStakingLock(_token, _amountToLock);
+        jobLockedAmounts[_jobId] = NativeStakingLock(_operator, _token, _amountToLock);
         operatorLockedAmounts[_operator][_token] += _amountToLock;
 
+        // TODO: emit event
+    }
+
+    function unlockStake(uint256 _jobId) external onlyStakingManager {
+        NativeStakingLock memory lock = jobLockedAmounts[_jobId];
+        operatorLockedAmounts[lock.operator][lock.token] -= lock.amount;
+        delete jobLockedAmounts[_jobId];
+
+        // TODO: distribute reward
+                
         // TODO: emit event
     }
 
@@ -173,20 +183,6 @@ contract NativeStaking is
             idx = randomNumber % tokenSet.length();
         }
         return tokenSet.at(idx);
-    }
-
-    function unlockStake(uint256 _jobId) external onlyStakingManager {
-        // TODO: consider the case when new pool is added during job
-
-        jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
-        // TODO: should "jobId => operator" data be pulled from JobManager to update operatorLockedAmounts?
-
-        // TODO: totalLockedAmounts
-
-        // TODO: distribute reward
-                
-
-        // TODO: emit event
     }
 
     /*======================================== Overrides ========================================*/
