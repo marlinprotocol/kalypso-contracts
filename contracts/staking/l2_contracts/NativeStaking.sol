@@ -24,13 +24,17 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    struct NativeStakingLock {
+        address token;
+        uint256 amount;
+    }
+
+
     EnumerableSet.AddressSet private tokenSet;
 
     address public nativeStakingReward;
     address public stakingManager;
 
-    /*======================================== Config ========================================*/
-    
     /* Config */
     mapping(address token => uint256 lockAmount) public amountToLock;
 
@@ -39,18 +43,10 @@ contract NativeStaking is
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
     // staked amount for each account
     mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
-    // total staked amount for each token
-    mapping(address token => uint256 amount) public totalStakedAmounts;
 
     /* Locked Stakes */
     mapping(uint256 jobId => NativeStakingLock) public jobLockedAmounts;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
-    // mapping(address token => uint256 amount) public totalLockedAmounts; // TODO: delete
-
-    struct NativeStakingLock {
-        address token;
-        uint256 amount;
-    }
 
     modifier onlySupportedToken(address _token) {
         require(tokenSet.contains(_token), "Token not supported");
@@ -77,8 +73,8 @@ contract NativeStaking is
         onlySupportedToken(_token)
         nonReentrant
     {
-        // this check can be removed in the future to allow delegatedStake
         // TODO: check if _operator is an actual _operator address?
+        // this check can be removed in the future to allow delegatedStake
         require(msg.sender == _operator, "Only operator can stake");
 
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
@@ -94,33 +90,25 @@ contract NativeStaking is
     }
 
     // This should update StakingManger's state
-    function withdrawStake(address _operator, address _token, uint256 _amount) external nonReentrant {
+    function requestStakeWithdrawal(address _operator, address _token, uint256 _amount) external nonReentrant {
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amount, "Insufficient stake");
-
-        // TODO: check locked time
-
-        // TODO: read from staking manager and calculate withdrawable amount
-
-        IERC20(_token).safeTransfer(msg.sender, _amount);
 
         stakedAmounts[msg.sender][_operator][_token] -= _amount;
         operatorStakedAmounts[_operator][_token] -= _amount;
+
+        IERC20(_token).safeTransfer(msg.sender, _amount);
 
         INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
     }
 
-    /*======================================== Getters ========================================*/
-
-    function getStakeAmount(address _token) external view returns (uint256) {
-        return totalStakedAmounts[_token];
+    function withdrawStake(address _operator, address _token) external nonReentrant {
+        uint256 _amount = stakedAmounts[msg.sender][_operator][_token];
+        require(_amount > 0, "No stake to withdraw");
     }
 
-    // TODO: check if needed
-    // function getActiveStakeAmount(address _token) public view returns (uint256) {
-    //     return totalStakedAmounts[_token] - totalLockedAmounts[_token];
-    // }
+    /*======================================== Getters ========================================*/
 
     function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
         return operatorStakedAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
@@ -135,10 +123,32 @@ contract NativeStaking is
 
     function addToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokenSet.add(token), "Token already exists");
+
+        // TODO: emit event
     }
 
     function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokenSet.remove(token), "Token does not exist");
+
+        // TODO: emit event
+    }
+
+    function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        nativeStakingReward = _nativeStakingReward;
+
+        // TODO: emit event
+    }
+
+    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakingManager = _stakingManager;
+
+        // TODO: emit event
+    }
+
+    function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        amountToLock[_token] = _amount;
+
+        // TODO: emit event
     }
 
     /*======================================== StakingManager ========================================*/
@@ -150,7 +160,6 @@ contract NativeStaking is
         // lock stake
         jobLockedAmounts[_jobId] = NativeStakingLock(_token, _amountToLock);
         operatorLockedAmounts[_operator][_token] += _amountToLock;
-        // totalLockedAmounts[_token] += _amountToLock; // TODO: delete
 
         // TODO: emit event
     }
@@ -171,6 +180,7 @@ contract NativeStaking is
 
         jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
         // TODO: should "jobId => operator" data be pulled from JobManager to update operatorLockedAmounts?
+
         // TODO: totalLockedAmounts
 
         // TODO: distribute reward
