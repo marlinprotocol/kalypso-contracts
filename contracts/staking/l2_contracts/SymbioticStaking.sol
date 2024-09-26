@@ -1,13 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 
 // TODO: vault => token info should be updated by the admin
 
-contract SymbioticStaking is ISymbioticStaking {
+contract SymbioticStaking is 
+    ContextUpgradeable,
+    ERC165Upgradeable,
+    AccessControlUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    ISymbioticStaking 
+    {
     using EnumerableSet for EnumerableSet.AddressSet;
+    struct SymbioticStakingLock {
+        address token;
+        uint256 amount;
+        // transmitter who submitted with confirmedTimestamp used when job is created
+        address transmitter; 
+    }
 
     uint256 submissionCooldown; // 18 decimal (in seconds)
     uint256 baseTransmitterComission; // 18 decimal (in percentage)
@@ -20,15 +40,14 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
+    EnumerableSet.AddressSet tokenSet;
+    
     /* Config */
     mapping(address token => uint256 amount) public amountToLock;
-
-    EnumerableSet.AddressSet tokenSet;
 
     /* Symbiotic Snapshot */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
-
     // staked amount for each operator
     mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
     // staked amount for each vault
@@ -38,12 +57,6 @@ contract SymbioticStaking is ISymbioticStaking {
 
     ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
-    struct SymbioticStakingLock {
-        address token;
-        uint256 amount;
-        // transmitter who submitted with confirmedTimestamp used when job is created
-        address transmitter; 
-    }
 
     /* Staking */
     mapping(uint256 jobId => SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
@@ -258,7 +271,29 @@ contract SymbioticStaking is ISymbioticStaking {
     }
 
     /*======================================== Admin ========================================*/ 
-    function setSupportedToken(address _token, bool _isSupported) external {
+    function setSupportedToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // TODO
     }
+
+    function setSubmissionCooldown(uint256 _submissionCooldown) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        submissionCooldown = _submissionCooldown;
+    }
+
+    function setBaseTransmitterComission(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        baseTransmitterComission = _baseTransmitterComission;
+    }
+
+    /*======================================== Overrides ========================================*/
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
