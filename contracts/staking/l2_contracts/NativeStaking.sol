@@ -45,10 +45,9 @@ contract NativeStaking is
     mapping(address token => uint256 amount) public totalStakedAmounts;
 
     /* Locked Stakes */
-    // TODO: check if mappings below are needed
     mapping(uint256 jobId => NativeStakingLock) public jobLockedAmounts;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts; // includes selfStake and delegatedStake amount
-    mapping(address token => uint256 amount) public totalLockedAmounts;
+    // mapping(address token => uint256 amount) public totalLockedAmounts; // TODO: delete
 
     struct NativeStakingLock {
         address token;
@@ -147,8 +146,13 @@ contract NativeStaking is
         return totalStakedAmounts[_token];
     }
 
-    function getActiveStakeAmount(address _token) external view returns (uint256) {
-        return totalStakedAmounts[_token] - totalLockedAmounts[_token];
+    // TODO: check if needed
+    // function getActiveStakeAmount(address _token) public view returns (uint256) {
+    //     return totalStakedAmounts[_token] - totalLockedAmounts[_token];
+    // }
+
+    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorStakedAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
     }
 
     function isSupportedToken(address _token) external view returns (bool) {
@@ -177,12 +181,12 @@ contract NativeStaking is
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
         uint256 _amountToLock = amountToLock[_token];
-        require(operatorStakedAmounts[_operator][_token] >= _amountToLock, "Insufficient stake to lock");
+        require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
         jobLockedAmounts[_jobId] = NativeStakingLock(_token, _amountToLock);
         operatorLockedAmounts[_operator][_token] += _amountToLock;
-        totalLockedAmounts[_token] += _amountToLock;
+        // totalLockedAmounts[_token] += _amountToLock; // TODO: delete
 
         // TODO: emit event
     }
@@ -201,8 +205,8 @@ contract NativeStaking is
     function unlockStake(uint256 _jobId) external onlyStakingManager {
         // TODO: consider the case when new pool is added during job
 
-        // TODO: need to mark something that indicates that job is completed?
         jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
+        // TODO: should "jobId => operator" data be pulled from JobManager to update operatorLockedAmounts?
 
         // TODO: distribute reward
                 
