@@ -14,10 +14,7 @@ contract JobManager {
 
     struct JobInfo {
         address operator;
-        address lockToken;
-        uint256 lockedAmount; // this will go to slasher if the proof is not submitted before deadline
         uint256 deadline;
-        address dataTransmitter; 
     }
 
     mapping(uint256 => JobInfo) public jobs;
@@ -27,8 +24,12 @@ contract JobManager {
         // TODO: called only from Kalypso Protocol
         
         // TODO: create a job and record StakeData Transmitter who submitted capture timestamp
-    
 
+        jobs[jobId] = JobInfo({
+            operator: operator,
+            deadline: block.timestamp + JOB_DURATION
+        });
+    
         // TODO: call creation function in StakingManager
         stakingManager.onJobCreation(jobId, operator); // lock stake
     }
@@ -39,7 +40,7 @@ contract JobManager {
     function submitProof(uint256 jobId, bytes calldata proof) public {
         _verifyProof(jobId, proof);
 
-        stakingManager.onJobCompletion(jobId, jobs[jobId].lockToken); // unlock stake
+        stakingManager.onJobCompletion(jobId); // unlock stake
     }
 
     /**

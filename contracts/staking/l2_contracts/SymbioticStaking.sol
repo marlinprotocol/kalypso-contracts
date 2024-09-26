@@ -41,7 +41,8 @@ contract SymbioticStaking is ISymbioticStaking {
     struct SymbioticStakingLock {
         address token;
         uint256 amount;
-        address transmitter;
+        // transmitter who submitted with confirmedTimestamp used when job is created
+        address transmitter; 
     }
 
     /* Staking */
