@@ -85,6 +85,10 @@ contract NativeStaking is
         onlySupportedToken(_token)
         nonReentrant
     {
+        // this check can be removed in the future to allow delegatedStake
+        // TODO: check if _operator is an actual _operator address?
+        require(msg.sender == _operator, "Only operator can stake");
+
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
 
         stakedAmounts[msg.sender][_operator][_token] += _amount;
@@ -95,21 +99,6 @@ contract NativeStaking is
         INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
-    }
-
-    // Operators need to self stake tokenSet to be able to receive jobs (jobs will be restricted based on self stake amount)
-    // This should update StakingManger's state
-    function operatorSelfStake(address _operator, address _token, uint256 _amount)
-        external
-        onlySupportedSignature(msg.sig)
-        onlySupportedToken(_token)
-        nonReentrant
-    {
-        IERC20(_token).safeTransferFrom(_operator, address(this), _amount);
-
-        operatorStakedAmounts[_operator][_token] += _amount;
-
-        emit SelfStaked(_operator, _token, _amount, block.timestamp);
     }
 
     // This should update StakingManger's state
@@ -128,16 +117,6 @@ contract NativeStaking is
         INativeStakingReward(nativeStakingReward).update(_account, _token, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
-    }
-
-    function withdrawSelfStake(address operator, address token, uint256 amount) external nonReentrant {
-        require(operatorStakedAmounts[operator][token] >= amount, "Insufficient selfstake");
-
-        IERC20(token).safeTransfer(operator, amount);
-
-        operatorStakedAmounts[operator][token] -= amount;
-
-        emit SelfStakeWithdrawn(operator, token, amount, block.timestamp);
     }
 
     /*======================================== Getters ========================================*/
