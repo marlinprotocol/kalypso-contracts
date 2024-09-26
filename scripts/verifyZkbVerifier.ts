@@ -64,7 +64,6 @@ async function main() {
   });
   console.log({ verificationResult });
 
-
   return "String";
 }
 

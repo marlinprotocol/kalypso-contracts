@@ -10,8 +10,8 @@
         "proof_market_place": "0x0b6340a893B944BDc3B4F012e934b724c83abF97",
         "priority_list": "0xfd94a9Aed9d5f8f00b70A1908378fcc1C4a04B4E",
         "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
-        "transfer_verifier_wrapper": "0x1521CDB2DB0bD2de92EE184836B1011742f4100E",
-        "TransferVerifier": "0xdc15f05805f32863c51Ad918659f2f52d2DE092E"
+        "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
+        "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23"
     },
     "implementation": {
         "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
