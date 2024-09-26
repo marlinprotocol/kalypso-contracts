@@ -70,19 +70,11 @@ contract SymbioticStakingReward is
 
     address public symbioticStaking;
 
-
     // TODO: vault => claimAddress
     modifier onlySymbioticStaking() {
         require(_msgSender() == symbioticStaking, "Caller is not the staking manager");
         _;
     }
-
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Caller is not an admin");
-        _;
-    }
-    
 
     //-------------------------------- Init start --------------------------------//
     // TODO: initialize contract addresses
@@ -228,7 +220,7 @@ contract SymbioticStakingReward is
     //-------------------------------- Update end --------------------------------//
 
     //-------------------------------- Admin start --------------------------------//
-    function setStakingManager(address _stakingManager) public onlyAdmin {
+    function setStakingManager(address _stakingManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setStakingManager(_stakingManager);
     }
 
@@ -237,11 +229,11 @@ contract SymbioticStakingReward is
         // TODO: emit event
     }
 
-    function addRewardToken(address _rewardToken) external onlyAdmin {
+    function addRewardToken(address _rewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _rewardTokenSet.add(_rewardToken);
     }
 
-    function removeRewardToken(address _rewardToken) external onlyAdmin {
+    function removeRewardToken(address _rewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _rewardTokenSet.remove(_rewardToken);
     }
 
