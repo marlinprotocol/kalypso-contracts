@@ -166,6 +166,9 @@ contract NativeStaking is
 
     function unlockStake(uint256 _jobId) external onlyStakingManager {
         NativeStakingLock memory lock = jobLockedAmounts[_jobId];
+
+        if(lock.amount == 0) return;
+
         operatorLockedAmounts[lock.operator][lock.token] -= lock.amount;
         delete jobLockedAmounts[_jobId];
 

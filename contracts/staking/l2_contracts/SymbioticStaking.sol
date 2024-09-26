@@ -143,7 +143,7 @@ contract SymbioticStaking is
 
     /*======================================== Job Creation ========================================*/
     // TODO: check if delegatedStake also gets locked
-    function lockStake(uint256 _jobId, address _operator) external {
+    function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
         uint256 stakedAmount = getOperatorStake(_operator, _token);
         require(stakedAmount >= amountToLock[_token], "Insufficient stake amount");
@@ -156,11 +156,8 @@ contract SymbioticStaking is
     }
 
     // TODO: check if delegatedStake also gets unlocked
-    function unlockStake(uint256 _jobId) external {
-        // TODO: consider the case when new pool is added during job
-
-        // TODO: only staking manager
-        lockInfo[_jobId].amount = 0;
+    function unlockStake(uint256 _jobId) external onlyStakingManager {
+        delete lockInfo[_jobId];
 
         // TODO: emit event
     }
