@@ -27,10 +27,6 @@ contract JobManager is
 {
     using SafeERC20 for IERC20;
 
-    address public stakingManager;
-    address public feeToken;
-    uint256 public jobDuration = 1 days;
-
     struct JobInfo {
         address requester;
         address operator;
@@ -39,22 +35,29 @@ contract JobManager is
     }
 
     mapping(uint256 jobId => JobInfo jobInfo) public jobs;
-    uint256 feePaid;
 
-    function initialize(address _admin) public initializer {
+    address public stakingManager;
+    address public feeToken;
+
+    uint256 public jobDuration;
+    uint256 public totalFeeStored; // TODO: check if needed
+
+    function initialize(address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        stakingManager = _stakingManager;
+        feeToken = _feeToken;
+        jobDuration = _jobDuration;
     }
 
 
     // TODO: check paramter for job details
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external nonReentrant {
-        // TODO: called only from Kalypso Protocol
-
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
         
         // stakeToken and lockAmount will be decided in each pool
@@ -65,35 +68,38 @@ contract JobManager is
             deadline: block.timestamp + jobDuration
         });
     
-        // TODO: call creation function in StakingManager
         IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
+
+        totalFeeStored += _feeAmount;
+
+        // TODO: emit event
     }
 
     /**
      * @notice Submit Single Proof
      */
-    function submitProof(uint256 jobId, bytes calldata proof) public nonReentrant {
-        require(block.timestamp <= jobs[jobId].deadline, "Job Expired");
+    function submitProof(uint256 _jobId, bytes calldata _proof) public nonReentrant {
+        require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
 
-        _verifyProof(jobId, proof);
+        _verifyProof(_jobId, _proof);
 
-        IStakingManager(stakingManager).onJobCompletion(jobId); // unlock stake
+        IStakingManager(stakingManager).onJobCompletion(_jobId); // unlock stake
     }
 
     /**
      * @notice Submit Multiple proofs in single transaction
      */
-    function submitProofs(uint256[] calldata jobIds, bytes[] calldata proofs) external nonReentrant {
-        require(jobIds.length == proofs.length, "Invalid Length");
+    function submitProofs(uint256[] calldata _jobIds, bytes[] calldata _proofs) external nonReentrant {
+        require(_jobIds.length == _proofs.length, "Invalid Length");
 
         // TODO: close job and distribute rewards
 
-        uint256 len = jobIds.length;
+        uint256 len = _jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
-            uint256 jobId = jobIds[idx];
+            uint256 jobId = _jobIds[idx];
             require(block.timestamp <= jobs[jobId].deadline, "Job Expired");
             
-            _verifyProof(jobId, proofs[idx]);
+            _verifyProof(jobId, _proofs[idx]);
 
             // TODO: let onJobCompletion also accept array of jobIds
             IStakingManager(stakingManager).onJobCompletion(jobId); // unlock stake
@@ -101,19 +107,23 @@ contract JobManager is
 
     }
 
-    function refundFee(uint256 jobId) external nonReentrant {
-        require(block.timestamp > jobs[jobId].deadline, "Job not Expired");
-        require(jobs[jobId].requester == msg.sender, "Not Requester");
+    function refundFee(uint256 _jobId) external nonReentrant {
+        require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
+        require(jobs[_jobId].requester == msg.sender, "Not Requester");
 
         // TODO: refund fee
-        jobs[jobId].feePaid = 0;
+        jobs[_jobId].feePaid = 0;
+        totalFeeStored -= jobs[_jobId].feePaid;
 
-        IERC20(feeToken).safeTransfer(jobs[jobId].requester, jobs[jobId].feePaid);
+        IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
+        
         // TODO: emit event
     }
 
-    function _verifyProof(uint256 jobId, bytes calldata proof) internal {
+    function _verifyProof(uint256 _jobId, bytes calldata _proof) internal {
         // TODO: verify proof
+
+        // TODO: emit event
     }
 
     function setStakingManager(address _stakingManager) external {
