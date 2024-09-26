@@ -55,7 +55,6 @@ contract JobManager is
         jobDuration = _jobDuration;
     }
 
-
     // TODO: check paramter for job details
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external nonReentrant {
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
@@ -126,10 +125,19 @@ contract JobManager is
         // TODO: emit event
     }
 
+    /*======================================== Admin ========================================*/
+
     function setStakingManager(address _stakingManager) external {
         stakingManager = _stakingManager;
     }
 
+    function setFeeToken(address _feeToken) external {
+        feeToken = _feeToken;
+    }
+
+    function setJobDuration(uint256 _jobDuration) external {
+        jobDuration = _jobDuration;
+    }
 
     /*======================================== Overrides ========================================*/
 
