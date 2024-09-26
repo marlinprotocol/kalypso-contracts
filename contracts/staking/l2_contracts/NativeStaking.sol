@@ -33,7 +33,6 @@ contract NativeStaking is
     
     /* Config */
     mapping(address token => uint256 lockAmount) public amountToLock;
-    mapping(bytes4 sig => bool isSupported) private supportedSignatures;
 
     /* Stake */
     // total staked amounts for each operator
@@ -58,11 +57,6 @@ contract NativeStaking is
         _;
     }
 
-    modifier onlySupportedSignature(bytes4 sig) {
-        require(supportedSignatures[sig], "Function not supported");
-        _;
-    }
-
     modifier onlyStakingManager() {
         require(msg.sender == stakingManager, "Only StakingManager");
         _;
@@ -80,7 +74,6 @@ contract NativeStaking is
     // Staker should be able to choose an Operator they want to stake into
     function stake(address _operator, address _token, uint256 _amount)
         external
-        onlySupportedSignature(msg.sig)
         onlySupportedToken(_token)
         nonReentrant
     {
@@ -137,9 +130,6 @@ contract NativeStaking is
         return tokenSet.contains(_token);
     }
 
-    function isSupportedSignature(bytes4 sig) external view returns (bool) {
-        return supportedSignatures[sig];
-    }
 
     /*======================================== Admin ========================================*/
 
@@ -149,10 +139,6 @@ contract NativeStaking is
 
     function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokenSet.remove(token), "Token does not exist");
-    }
-
-    function setSupportedSignature(bytes4 sig, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        supportedSignatures[sig] = isSupported;
     }
 
     /*======================================== StakingManager ========================================*/
