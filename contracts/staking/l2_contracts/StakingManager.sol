@@ -114,15 +114,13 @@ contract StakingManager is
 
         uint256 sum = 0;
         for (uint256 i = 0; i < _shares.length; i++) {
+            poolConfig[_pools[i]].weight = _shares[i];
+
             sum += _shares[i];
         }
 
-        // as the weight is in percentage, the sum of the shares should be 1e18
+        // as the weight is in percentage, the sum of the shares should be 1e18 (100%)
         require(sum == 1e18, "Invalid Shares");
-
-        for (uint256 i = 0; i < _pools.length; i++) {
-            poolConfig[_pools[i]].weight = _shares[i];
-        }
     }
 
     /*======================================== Override ========================================*/
