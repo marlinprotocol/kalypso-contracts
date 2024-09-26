@@ -18,8 +18,8 @@ contract StakingManager is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-    // IStakingManager // TODO
+    ReentrancyGuardUpgradeable,
+    IStakingManager
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
@@ -35,6 +35,11 @@ contract StakingManager is
     struct PoolConfig {
         uint256 weight;
         bool enabled;
+    }
+
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Caller is not an admin");
+        _;
     }
 
     modifier onlyJobManager() {
@@ -68,14 +73,8 @@ contract StakingManager is
         }
     }
 
-    // TODO
-    // function getPoolStake(address _pool, address _operator, address _token) internal view returns (uint256) {
-    //     return IStakingPool(_pool).getStakeAmount(_operator, _token);
-    // }
-
     // called when job is completed to unlock the locked stakes
     function onJobCompletion(uint256 _jobId) external onlyJobManager {
-        // TODO: unlock the locked stakes
         uint256 len = stakingPoolSet.length();
         for(uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
@@ -87,43 +86,35 @@ contract StakingManager is
     }
 
     /*======================================== Getters ========================================*/
-
-    // check if the job is slashable and can be sent to the slashing manager
-    // this only tells if the deadline for proof submission has passed
-    // so even when this function returns true and transaction submitted to L1 can be reverted
-    // when someone already has submitted the proof
-    function isSlashable(address _jobId) external view returns (bool) {
-        // TODO: check if the proof was submitted before the deadline, so need to query jobmanager
-    }
-
     function isEnabledPool(address _pool) public view returns (bool) {
         return poolConfig[_pool].enabled;
     }
 
-    /*======================================== Getter for Staking ========================================*/
-
-
-
     /*======================================== Admin ========================================*/
 
     // add new staking pool
-    function addStakingPool(address _stakingPool) external {
-        // TODO: onlyAdmin
+    function addStakingPool(address _stakingPool) external onlyAdmin {
+        stakingPoolSet.add(_stakingPool);
+
+        // TODO: emit event
     }
 
-    function removeStakingPool(address _stakingPool) external {
-        // TODO: onlyAdmin
+    function removeStakingPool(address _stakingPool) external onlyAdmin {
+        stakingPoolSet.remove(_stakingPool);
+
+        // TODO: emit event
     }
 
     // TODO: integration with JobManager
-    function setJobManager(address _jobManager) external {
-        // TODO: only admin
+    function setJobManager(address _jobManager) external onlyAdmin {
+        jobManager = _jobManager;
+
+        // TODO: emit event
     }
 
     // when job is closed, the reward will be distributed based on the share
-    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external  {
-        // TODO: only admin
-        require(_pools.length == _shares.length, "Invalid Length");
+    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external onlyAdmin  {
+        require(_pools.length == _shares.length || _pools.length == stakingPoolSet.length(), "Invalid Length");
 
         uint256 sum = 0;
         for(uint256 i = 0; i < _shares.length; i++) {
