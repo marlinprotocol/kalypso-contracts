@@ -21,7 +21,6 @@ contract SymbioticStaking is ISymbioticStaking {
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     /* Config */
-    mapping(address token => uint256 amount) public minStakeAmount;
     mapping(address token => uint256 amount) public amountToLock;
 
     EnumerableSet.AddressSet tokenSet;
@@ -116,7 +115,7 @@ contract SymbioticStaking is ISymbioticStaking {
     function lockStake(uint256 _jobId, address _operator) external {
         address _token = _selectLockToken();
         uint256 stakedAmount = getOperatorStake(_operator, _token);
-        require(stakedAmount >= minStakeAmount[_token], "Insufficient stake amount");
+        require(stakedAmount >= amountToLock[_token], "Insufficient stake amount");
 
         // Store transmitter address to reward when job is closed
         address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
@@ -233,7 +232,11 @@ contract SymbioticStaking is ISymbioticStaking {
         confirmedTimestamps.push(confirmedTimestamp);
 
         // TODO: calculate rewards for the transmitter based on transmitterComission
+        
         // TODO: Data transmitter should get transmitterComission% of the rewards
+
+        
+
         // TODO: "transmitterComission" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + submissionCooldown)"
 
         // TODO: emit SubmissionCompleted
@@ -242,7 +245,7 @@ contract SymbioticStaking is ISymbioticStaking {
     /*======================================== Getters ========================================*/
     
     function lastConfirmedTimestamp() public view returns (uint256) {
-        return confirmedTimestamps[confirmedTimestamps.length - 1].capturedTimestamp;
+        return confirmedTimestamps[confirmedTimestamps.length - 1].captureTimestamp;
     }
 
     function isSupportedToken(address _token) public view returns (bool) {

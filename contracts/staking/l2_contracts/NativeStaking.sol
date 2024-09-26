@@ -32,12 +32,11 @@ contract NativeStaking is
     /*======================================== Config ========================================*/
     
     /* Config */
-    mapping(address token => uint256 minStakeamount) public minStakeAmount;
     mapping(address token => uint256 lockAmount) public amountToLock;
     mapping(bytes4 sig => bool isSupported) private supportedSignatures;
 
     /* Stake */
-    // total staked amounts for each operator, includes selfStake and delegatedStake amount
+    // total staked amounts for each operator
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
     // staked amount for each account
     mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
@@ -46,7 +45,7 @@ contract NativeStaking is
 
     /* Locked Stakes */
     mapping(uint256 jobId => NativeStakingLock) public jobLockedAmounts;
-    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts; // includes selfStake and delegatedStake amount
+    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
     // mapping(address token => uint256 amount) public totalLockedAmounts; // TODO: delete
 
     struct NativeStakingLock {

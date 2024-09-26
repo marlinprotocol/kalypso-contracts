@@ -17,7 +17,7 @@ contract JobManager {
         address lockToken;
         uint256 lockedAmount; // this will go to slasher if the proof is not submitted before deadline
         uint256 deadline;
-        address dataTransmitter; //
+        address dataTransmitter; 
     }
 
     mapping(uint256 => JobInfo) public jobs;
