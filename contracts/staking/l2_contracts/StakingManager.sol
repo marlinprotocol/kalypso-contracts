@@ -24,14 +24,12 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    address public jobManager;
-
     EnumerableSet.AddressSet private stakingPoolSet;
 
-    mapping(address pool => uint256 weight) private stakingPoolWeight;
-    mapping(address pool => PoolConfig config) private poolConfig;
+    address public jobManager;
 
-    uint256 stakeDataTransmitterShare;
+    mapping(address pool => PoolConfig config) private poolConfig;
+    mapping(address pool => uint256 weight) private stakingPoolWeight;
 
     struct PoolConfig {
         uint256 weight;

@@ -11,8 +11,6 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 
-// TODO: vault => token info should be updated by the admin
-
 contract SymbioticStaking is 
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -30,7 +28,7 @@ contract SymbioticStaking is
     }
 
     uint256 submissionCooldown; // 18 decimal (in seconds)
-    uint256 baseTransmitterComission; // 18 decimal (in percentage)
+    uint256 baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     /* Job Status */
     bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -41,6 +39,8 @@ contract SymbioticStaking is
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     EnumerableSet.AddressSet tokenSet;
+
+    address public stakingManager;
     
     /* Config */
     mapping(address token => uint256 amount) public amountToLock;
@@ -62,6 +62,23 @@ contract SymbioticStaking is
     mapping(uint256 jobId => SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
 
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters;
+
+    modifier onlyStakingManager() {
+        require(msg.sender == stakingManager, "Only StakingManager");
+        _;
+    }
+
+    function initialize(address _admin, address _stakingManager) public initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+        __ReentrancyGuard_init_unchained();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        stakingManager = _stakingManager;
+    }
 
     /*======================================== L1 to L2 Transmission ========================================*/
 
@@ -138,6 +155,16 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
+    // TODO: check if delegatedStake also gets unlocked
+    function unlockStake(uint256 _jobId) external {
+        // TODO: consider the case when new pool is added during job
+
+        // TODO: only staking manager
+        lockInfo[_jobId].amount = 0;
+
+        // TODO: emit event
+    }
+
     function _selectLockToken() internal view returns(address) {
         require(tokenSet.length() > 0, "No supported token");
 
@@ -147,16 +174,6 @@ contract SymbioticStaking is
             idx = randomNumber % tokenSet.length();
         }
         return tokenSet.at(idx);
-    }
-
-    // TODO: check if delegatedStake also gets unlocked
-    function unlockStake(uint256 _jobId) external {
-        // TODO: consider the case when new pool is added during job
-
-        // TODO: only staking manager
-        lockInfo[_jobId].amount = 0;
-
-        // TODO: emit event
     }
 
     function getOperatorStake(address _operator, address _token) public view returns (uint256) {
@@ -241,19 +258,16 @@ contract SymbioticStaking is
     }
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
-        // TODO: calc `transmitterComission` based on last submission
-        ConfirmedTimestamp memory confirmedTimestamp = ConfirmedTimestamp(_captureTimestamp, block.timestamp, msg.sender);
+        uint256 transmitterComission = _calcTransmitterComissionRate(lastConfirmedTimestamp());
+
+        ConfirmedTimestamp memory confirmedTimestamp = ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
-        // TODO: calculate rewards for the transmitter based on transmitterComission
-        
-        // TODO: Data transmitter should get transmitterComission% of the rewards
+        // TODO: emit event
+    }
 
-        
-
-        // TODO: "transmitterComission" should reflect incentivization mechanism based on "captureTimestamp - (lastCaptureTimestamp + submissionCooldown)"
-
-        // TODO: emit SubmissionCompleted
+    function _calcTransmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
+        // TODO: implement logic
     }
 
     /*======================================== Getters ========================================*/
@@ -263,24 +277,34 @@ contract SymbioticStaking is
     }
 
     function isSupportedToken(address _token) public view returns (bool) {
-        // TODO
-    }
-
-    function isSupportedVault(address _vault) public view returns (bool) {
-        // TODO
+        return tokenSet.contains(_token);
     }
 
     /*======================================== Admin ========================================*/ 
+    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakingManager = _stakingManager;
+
+        // TODO: emit event
+    }
+
     function setSupportedToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        // TODO
+        if (_isSupported) {
+            require(tokenSet.add(_token), "Token already exists");
+        } else {
+            require(tokenSet.remove(_token), "Token does not exist");
+        }
     }
 
     function setSubmissionCooldown(uint256 _submissionCooldown) external onlyRole(DEFAULT_ADMIN_ROLE) {
         submissionCooldown = _submissionCooldown;
+
+        // TODO: emit event
     }
 
     function setBaseTransmitterComission(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        baseTransmitterComission = _baseTransmitterComission;
+        baseTransmitterComissionRate = _baseTransmitterComission;
+
+        // TODO: emit event
     }
 
     /*======================================== Overrides ========================================*/

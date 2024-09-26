@@ -30,8 +30,8 @@ interface ISymbioticStaking is IStakingPool {
 
     struct ConfirmedTimestamp {
         uint256 captureTimestamp;
-        uint256 rewardShare; // TODO
         address transmitter;
+        uint256 transmitterComissionRate;
     }
 
     // event OperatorSnapshotSubmitted
