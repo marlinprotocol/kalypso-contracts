@@ -186,6 +186,7 @@ contract NativeStaking is
 
         jobLockedAmounts[_jobId] = NativeStakingLock(address(0), 0);
         // TODO: should "jobId => operator" data be pulled from JobManager to update operatorLockedAmounts?
+        // TODO: totalLockedAmounts
 
         // TODO: distribute reward
                 
