@@ -101,7 +101,6 @@ contract StakingManager is
         // TODO: emit event
     }
 
-    // TODO: integration with JobManager
     function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobManager = _jobManager;
 
@@ -109,7 +108,7 @@ contract StakingManager is
     }
 
     // when job is closed, the reward will be distributed based on the share
-    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare)
+    function setShare(address[] calldata _pools, uint256[] calldata _shares)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
@@ -119,7 +118,6 @@ contract StakingManager is
         for (uint256 i = 0; i < _shares.length; i++) {
             sum += _shares[i];
         }
-        sum += _transmitterShare;
 
         // as the weight is in percentage, the sum of the shares should be 1e18
         require(sum == 1e18, "Invalid Shares");
@@ -127,7 +125,6 @@ contract StakingManager is
         for (uint256 i = 0; i < _pools.length; i++) {
             poolConfig[_pools[i]].weight = _shares[i];
         }
-        stakeDataTransmitterShare = _transmitterShare;
     }
 
     /*======================================== Override ========================================*/
