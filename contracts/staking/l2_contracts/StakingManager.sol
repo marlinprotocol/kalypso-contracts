@@ -30,16 +30,12 @@ contract StakingManager is
 
     mapping(address pool => uint256 weight) private stakingPoolWeight;
     mapping(address pool => PoolConfig config) private poolConfig;
-    
+
     uint256 stakeDataTransmitterShare;
+
     struct PoolConfig {
         uint256 weight;
         bool enabled;
-    }
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Caller is not an admin");
-        _;
     }
 
     modifier onlyJobManager() {
@@ -64,10 +60,10 @@ contract StakingManager is
     // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
     function onJobCreation(uint256 _jobId, address _operator) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
-        
-        for(uint256 i = 0; i < len; i++) {
+
+        for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            if(!isEnabledPool(pool)) continue; // skip if the pool is not enabled
+            if (!isEnabledPool(pool)) continue; // skip if the pool is not enabled
 
             IStakingPool(pool).lockStake(_jobId, _operator);
         }
@@ -76,9 +72,9 @@ contract StakingManager is
     // called when job is completed to unlock the locked stakes
     function onJobCompletion(uint256 _jobId) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
-        for(uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            
+
             IStakingPool(pool).unlockStake(_jobId);
         }
 
@@ -93,31 +89,34 @@ contract StakingManager is
     /*======================================== Admin ========================================*/
 
     // add new staking pool
-    function addStakingPool(address _stakingPool) external onlyAdmin {
+    function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.add(_stakingPool);
 
         // TODO: emit event
     }
 
-    function removeStakingPool(address _stakingPool) external onlyAdmin {
+    function removeStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.remove(_stakingPool);
 
         // TODO: emit event
     }
 
     // TODO: integration with JobManager
-    function setJobManager(address _jobManager) external onlyAdmin {
+    function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobManager = _jobManager;
 
         // TODO: emit event
     }
 
     // when job is closed, the reward will be distributed based on the share
-    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare) external onlyAdmin  {
+    function setShare(address[] calldata _pools, uint256[] calldata _shares, uint256 _transmitterShare)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(_pools.length == _shares.length || _pools.length == stakingPoolSet.length(), "Invalid Length");
 
         uint256 sum = 0;
-        for(uint256 i = 0; i < _shares.length; i++) {
+        for (uint256 i = 0; i < _shares.length; i++) {
             sum += _shares[i];
         }
         sum += _transmitterShare;
@@ -125,7 +124,7 @@ contract StakingManager is
         // as the weight is in percentage, the sum of the shares should be 1e18
         require(sum == 1e18, "Invalid Shares");
 
-        for(uint256 i = 0; i < _pools.length; i++) {
+        for (uint256 i = 0; i < _pools.length; i++) {
             poolConfig[_pools[i]].weight = _shares[i];
         }
         stakeDataTransmitterShare = _transmitterShare;
