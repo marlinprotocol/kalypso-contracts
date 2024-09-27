@@ -13,15 +13,4 @@ interface IStakingPool {
     function unlockStake(uint256 _jobId, address _operator) external; // Staking Manager only
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external; // Staking Manager only  
-    struct PoolLockInfo {
-        address token;
-        uint256 amount;
-        address transmitter;
-    }
-
-
-    // struct NativeStakingLock {
-    //     address token;
-    //     uint256 amount;
-    // }
 }

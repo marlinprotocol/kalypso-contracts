@@ -49,14 +49,14 @@ contract SymbioticStaking is
     mapping(address token => uint256 amount) public amountToLock;
 
     /* Symbiotic Snapshot */
-    mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
+    mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
     // staked amount for each operator
     mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
     // staked amount for each vault
     mapping(uint256 captureTimestamp => mapping(address vault => mapping(address token => uint256 stakeAmount))) vaultStakedAmounts;
 
-    ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
+    Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
 
     /* Staking */
@@ -98,12 +98,12 @@ contract SymbioticStaking is
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
 
         // main update logic
-        VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (VaultSnapshot[]));
+        Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
         _updateSnapshotInfo(_captureTimestamp, _vaultSnapshots);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
 
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT_MASK;
@@ -132,7 +132,7 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
 
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT;
@@ -206,7 +206,7 @@ contract SymbioticStaking is
         require(block.timestamp >= (lastConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
 
         
-        SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
+        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
         require(_index == snapshot.idxToSubmit, "Invalid index");
         require(snapshot.idxToSubmit < snapshot.numOfTxs, "Snapshot fully submitted already");
         require(snapshot.numOfTxs == _numOfTxs, "Invalid length");
@@ -228,7 +228,7 @@ contract SymbioticStaking is
     }
 
     function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
-        SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
 
         // increase count by 1
         txCountInfo[_captureTimestamp][msg.sender][_type].idxToSubmit += 1;
@@ -249,9 +249,9 @@ contract SymbioticStaking is
     }
 
 
-    function _updateSnapshotInfo(uint256 _captureTimestamp, VaultSnapshot[] memory _vaultSnapshots) internal {
+    function _updateSnapshotInfo(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
-            VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
+            Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
             // update vault staked amount
             vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.token] = _vaultSnapshot.stake;
@@ -266,7 +266,7 @@ contract SymbioticStaking is
     function _completeSubmission(uint256 _captureTimestamp) internal {
         uint256 transmitterComission = _calcTransmitterComissionRate(lastConfirmedTimestamp());
 
-        ConfirmedTimestamp memory confirmedTimestamp = ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
+        Struct.ConfirmedTimestamp memory confirmedTimestamp = Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
         // TODO: emit event
