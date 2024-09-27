@@ -17,7 +17,7 @@ import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
     JobManager contract is responsible for creating and managing jobs.
     Staking Manager contract is responsible for locking/unlocking tokens and distributing rewards.
  */
-contract JobManager is 
+contract JobManager is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
@@ -42,7 +42,10 @@ contract JobManager is
     uint256 public jobDuration;
     uint256 public totalFeeStored; // TODO: check if needed
 
-    function initialize(address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration) public initializer {
+    function initialize(address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration)
+        public
+        initializer
+    {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -56,9 +59,12 @@ contract JobManager is
     }
 
     // TODO: check paramter for job details
-    function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external nonReentrant {
+    function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount)
+        external
+        nonReentrant
+    {
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
-        
+
         // stakeToken and lockAmount will be decided in each pool
         jobs[_jobId] = JobInfo({
             requester: _requester,
@@ -66,7 +72,7 @@ contract JobManager is
             feePaid: _feeAmount,
             deadline: block.timestamp + jobDuration
         });
-    
+
         IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
 
         totalFeeStored += _feeAmount;
@@ -82,7 +88,7 @@ contract JobManager is
 
         _verifyProof(_jobId, _proof);
 
-        IStakingManager(stakingManager).onJobCompletion(_jobId); // unlock stake
+        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator); // unlock stake
     }
 
     /**
@@ -95,28 +101,27 @@ contract JobManager is
 
         uint256 len = _jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
-            uint256 jobId = _jobIds[idx];
-            require(block.timestamp <= jobs[jobId].deadline, "Job Expired");
-            
-            _verifyProof(jobId, _proofs[idx]);
+            uint256 _jobId = _jobIds[idx];
+            require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
+
+            _verifyProof(_jobId, _proofs[idx]);
 
             // TODO: let onJobCompletion also accept array of jobIds
-            IStakingManager(stakingManager).onJobCompletion(jobId); // unlock stake
+            IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator); // unlock stake
         }
-
     }
 
     function refundFee(uint256 _jobId) external nonReentrant {
         require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
-        require(jobs[_jobId].requester == msg.sender, "Not Requester");
 
-        // TODO: refund fee
-        jobs[_jobId].feePaid = 0;
-        totalFeeStored -= jobs[_jobId].feePaid;
+        if (jobs[_jobId].feePaid > 0) {
+            jobs[_jobId].feePaid = 0;
+            totalFeeStored -= jobs[_jobId].feePaid;
 
-        IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
-        
-        // TODO: emit event
+            IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
+
+            // TODO: emit event
+        }
     }
 
     function _verifyProof(uint256 _jobId, bytes calldata _proof) internal {

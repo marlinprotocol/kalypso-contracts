@@ -18,16 +18,6 @@ interface ISymbioticStaking is IStakingPool {
         uint256 stake;
     }
 
-    struct SlashResultData {
-        uint256 jobId;
-        SlashResult slashResult;
-    }
-
-    struct SlashResult {
-        uint256 slashAmount;
-        address rewardAddress; // address that transmitted slash reqeust to L1 Vault
-    }
-
     struct ConfirmedTimestamp {
         uint256 captureTimestamp;
         address transmitter;

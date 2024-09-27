@@ -12,6 +12,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
+import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
+
+import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
 contract StakingManager is
     ContextUpgradeable,
@@ -68,15 +71,31 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId) external onlyJobManager {
+    function onJobCompletion(uint256 _jobId, address _operator) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
-            IStakingPool(pool).unlockStake(_jobId);
+            IStakingPool(pool).unlockStake(_jobId, _operator);
+        }
+        // TODO: emit event
+    }
+
+    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {
+        // msg.sender will most likely be SymbioticStaking contract
+        require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
+
+        for(uint256 i = 0; i < _jobsSlashed.length; i++) {
+            IJobManager(jobManager).refundFee(_jobsSlashed[i].jobId);
         }
 
-        // TODO: emit event
+        uint256 len = stakingPoolSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address pool = stakingPoolSet.at(i);
+            if(pool == msg.sender) continue;
+
+            IStakingPool(pool).slash(_jobsSlashed);
+        }
     }
 
     /*======================================== Getters ========================================*/

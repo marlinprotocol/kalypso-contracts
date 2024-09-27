@@ -9,7 +9,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+
+import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
 contract SymbioticStaking is 
     ContextUpgradeable,
@@ -52,14 +55,13 @@ contract SymbioticStaking is
     mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
     // staked amount for each vault
     mapping(uint256 captureTimestamp => mapping(address vault => mapping(address token => uint256 stakeAmount))) vaultStakedAmounts;
-    // slash result for each job
-    mapping(uint256 captureTimestamp  => mapping(uint256 jobId => SlashResult slashResult)) slashResults;
 
     ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
 
     /* Staking */
     mapping(uint256 jobId => SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
+    mapping(address operator => mapping(address token => uint256 locked)) public operatorLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters;
 
@@ -123,8 +125,10 @@ contract SymbioticStaking is
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
 
-        SlashResultData[] memory _SlashResultDatas = abi.decode(_SlashResultData, (SlashResultData[]));
-        _updateSlashResultDataInfo(_captureTimestamp, _SlashResultDatas);
+        //? is there any need to store the slash result data?
+        //? is there any need to even lock stake here? - anyway it'll just be slashed in L1
+        Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
+        // _updateSlashResultDataInfo(_captureTimestamp, _jobSlashed);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
 
@@ -137,29 +141,46 @@ contract SymbioticStaking is
         if (_isCompleteStatus(_captureTimestamp)) {
             _completeSubmission(_captureTimestamp);
         }
+        
+        IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter 
     }
 
-    /*======================================== Job Creation ========================================*/
-    // TODO: check if delegatedStake also gets locked
+    /*======================================== Job ========================================*/
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
-        uint256 stakedAmount = getOperatorStake(_operator, _token);
-        require(stakedAmount >= amountToLock[_token], "Insufficient stake amount");
+        require(getOperatorActiveStake(_operator, _token) >= amountToLock[_token], "Insufficient stake amount");
 
         // Store transmitter address to reward when job is closed
         address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
         lockInfo[_jobId] = SymbioticStakingLock(_token, amountToLock[_token], transmitter);
+        operatorLockedAmounts[_operator][_token] += amountToLock[_token];
 
         // TODO: emit event
     }
 
-    // TODO: check if delegatedStake also gets unlocked
-    function unlockStake(uint256 _jobId) external onlyStakingManager {
+    function unlockStake(uint256 _jobId, address _operatorId) external onlyStakingManager {
+        // TODO: reward the transmitter
+
         delete lockInfo[_jobId];
 
         // TODO: emit event
+    }
+
+    function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
+        uint256 len = _slashedJobs.length;
+        for (uint256 i = 0; i < len; i++) {
+            SymbioticStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
+
+            uint256 lockedAmount = lock.amount;
+            if(lockedAmount == 0) continue;
+
+            operatorLockedAmounts[_slashedJobs[i].operator][lock.token] -= lockedAmount;
+            delete lockInfo[_slashedJobs[i].jobId];
+
+            // TODO: emit events?
+        }
     }
 
     function _selectLockToken() internal view returns(address) {
@@ -173,8 +194,8 @@ contract SymbioticStaking is
         return tokenSet.at(idx);
     }
 
-    function getOperatorStake(address _operator, address _token) public view returns (uint256) {
-        return operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token];
+    function getOperatorActiveStake(address _operator, address _token) public view returns (uint256) {
+        return operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token] - operatorLockedAmounts[_operator][_token];
    }
 
     /*======================================== Helpers ========================================*/
@@ -237,18 +258,6 @@ contract SymbioticStaking is
 
             // update operator staked amount
             operatorStakedAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.token] += _vaultSnapshot.stake;
-
-            // TODO: emit event for each update?
-        }
-    }
-
-    function _updateSlashResultDataInfo(uint256 _captureTimestamp, SlashResultData[] memory _SlashResultDatas)
-        internal
-    {
-        for (uint256 i = 0; i < _SlashResultDatas.length; i++) {
-            SlashResultData memory _slashResultData = _SlashResultDatas[i];
-
-            slashResults[_slashResultData.jobId][_captureTimestamp] = _slashResultData.slashResult;
 
             // TODO: emit event for each update?
         }
