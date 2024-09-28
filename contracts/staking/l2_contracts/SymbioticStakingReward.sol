@@ -146,27 +146,6 @@ contract SymbioticStakingReward is
     }
 
 
-    function lockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
-        require(amount <= totalStakeAmountsActive(_stakeToken), "insufficient stake amount");
-
-        lockedStakeAmounts[_latestConfirmedTimestamp()][_stakeToken] += amount;
-
-        _updateRewardPerTokens(_stakeToken);
-
-        // TODO: emit event
-    }
-
-    function unlockStake(address _stakeToken, uint256 amount) external onlySymbioticStaking {
-        uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
-        require(amount <= lockedStakeAmounts[latestConfirmedTimestamp][_stakeToken], "insufficient locked stake amount");
-
-        lockedStakeAmounts[latestConfirmedTimestamp][_stakeToken] -= amount;
-
-        _updateRewardPerTokens(_stakeToken);
-
-        // TODO: emit event
-    }
-
     /// @notice rewardToken amount per stakeToken
     function _rewardPerToken(address _stakeToken, address _rewardToken) internal view returns (uint256) {
         uint256 totalStakeAmount = totalStakeAmountsActive(_stakeToken);
