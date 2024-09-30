@@ -297,7 +297,9 @@ contract SymbioticStaking is
     }
 
     function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token] - operatorLockedAmounts[_operator][_token];
+        uint256 operatorStakeAmount = operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token];
+        uint256 operatorLockedAmount = operatorLockedAmounts[_operator][_token];
+        return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
     }
 
     function isSupportedToken(address _token) public view returns (bool) {
