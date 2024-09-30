@@ -33,11 +33,11 @@ contract SymbioticStaking is
     uint256 baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     /* Job Status */
-    bytes32 public constant VAULT_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    bytes32 public constant STAKE_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
     bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
-    bytes32 public constant VAULT_SNAPSHOT = keccak256("VAULT_SNAPSHOT");
+    bytes32 public constant STAKE_SNAPSHOT = keccak256("STAKE_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
     EnumerableSet.AddressSet tokenSet;
@@ -95,7 +95,7 @@ contract SymbioticStaking is
     ) external {
         _checkTransmitterRegistration(_captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
+        _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
 
@@ -103,12 +103,12 @@ contract SymbioticStaking is
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
         _updateSnapshotInfo(_captureTimestamp, _vaultSnapshots);
 
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, VAULT_SNAPSHOT);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT_MASK;
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
 
         if (_isCompleteStatus(_captureTimestamp)) {
@@ -123,21 +123,21 @@ contract SymbioticStaking is
         bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
+        _checkTransmitterRegistration(_captureTimestamp);
+
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
 
-        //? is there any need to store the slash result data?
-        //? is there any need to even lock stake here? - anyway it'll just be slashed in L1
         Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
         // _updateSlashResultDataInfo(_captureTimestamp, _jobSlashed);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][VAULT_SNAPSHOT];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= VAULT_SNAPSHOT;
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT;
         }
 
         if (_isCompleteStatus(_captureTimestamp)) {
@@ -218,14 +218,14 @@ contract SymbioticStaking is
         
         Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
         require(_index == snapshot.idxToSubmit, "Invalid index");
-        require(snapshot.idxToSubmit < snapshot.numOfTxs, "Snapshot fully submitted already");
-        require(snapshot.numOfTxs == _numOfTxs, "Invalid length");
+        require(_index < snapshot.numOfTxs, "Invalid index");
+        require(snapshot.numOfTxs == _numOfTxs, "Invalid numOfTxs");
 
         bytes32 mask;
-        if (_type == VAULT_SNAPSHOT) mask = VAULT_SNAPSHOT_MASK;
+        if (_type == STAKE_SNAPSHOT) mask = STAKE_SNAPSHOT_MASK;
         else if (_type == SLASH_RESULT) mask = SLASH_RESULT_MASK;
 
-        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Snapshot fully submitted already");
+        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
     }
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
