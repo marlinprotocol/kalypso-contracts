@@ -14,6 +14,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
 import {INativeStakingReward} from "../../interfaces/staking/INativeStakingReward.sol";
+import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
 import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
@@ -28,15 +29,13 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    struct NativeStakingLock {
-        address token;
-        uint256 amount;
-    }
+
 
     EnumerableSet.AddressSet private tokenSet;
 
-    address public nativeStakingReward;
+    address public rewardDistributor;
     address public stakingManager;
+    address public feeRewardToken;
 
     /* Config */
     mapping(address token => uint256 lockAmount) public amountToLock;
@@ -48,7 +47,7 @@ contract NativeStaking is
     mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
 
     /* Locked Stakes */
-    mapping(uint256 jobId => NativeStakingLock lock) public jobLockedAmounts;
+    mapping(uint256 jobId => Struct.NativeStakingLock lock) public jobLockedAmounts;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
 
     modifier onlySupportedToken(address _token) {
@@ -86,7 +85,7 @@ contract NativeStaking is
 
         // NativeStakingReward contract will read staking amount info from this contract
         // and update reward related states
-        INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
+        INativeStakingReward(rewardDistributor).update(msg.sender, _token, _operator);
 
         emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
     }
@@ -100,7 +99,7 @@ contract NativeStaking is
 
         IERC20(_token).safeTransfer(msg.sender, _amount);
 
-        INativeStakingReward(nativeStakingReward).update(msg.sender, _token, _operator);
+        INativeStakingReward(rewardDistributor).update(msg.sender, _token, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
     }
@@ -111,6 +110,10 @@ contract NativeStaking is
     }
 
     /*======================================== Getters ========================================*/
+
+    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorStakedAmounts[_operator][_token];
+    }
 
     function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
         return operatorStakedAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
@@ -136,7 +139,7 @@ contract NativeStaking is
     }
 
     function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        nativeStakingReward = _nativeStakingReward;
+        rewardDistributor = _nativeStakingReward;
 
         // TODO: emit event
     }
@@ -160,19 +163,21 @@ contract NativeStaking is
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
-        jobLockedAmounts[_jobId] = NativeStakingLock(_token, _amountToLock);
+        jobLockedAmounts[_jobId] = Struct.NativeStakingLock(_token, _amountToLock);
         operatorLockedAmounts[_operator][_token] += _amountToLock;
 
         // TODO: emit event
     }
 
-    function unlockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        NativeStakingLock memory lock = jobLockedAmounts[_jobId];
+    /// @notice unlock stake and distribute reward 
+    /// @dev called by StakingManager when job is completed
+    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
+        Struct.NativeStakingLock memory lock = jobLockedAmounts[_jobId];
 
         if(lock.amount == 0) return;
 
-        operatorLockedAmounts[_operator][lock.token] -= lock.amount;
-        delete jobLockedAmounts[_jobId];
+        _unlockStake(_jobId, _operator, lock.token, lock.amount);
+        _distributeReward(lock.token, _operator, feeRewardToken, _feeRewardAmount);
 
         // TODO: distribute reward
                 
@@ -182,19 +187,28 @@ contract NativeStaking is
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
         for (uint256 i = 0; i < len; i++) {
-            NativeStakingLock memory lock = jobLockedAmounts[_slashedJobs[i].jobId];
+            Struct.NativeStakingLock memory lock = jobLockedAmounts[_slashedJobs[i].jobId];
 
             uint256 lockedAmount = lock.amount;
             if(lockedAmount == 0) continue; // if already slashed
 
-            operatorLockedAmounts[_slashedJobs[i].operator][lock.token] -= lockedAmount;
-            delete jobLockedAmounts[_slashedJobs[i].jobId];
-
+            _unlockStake(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
             IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
 
             // TODO: emit event
         }
     }
+
+    function _unlockStake(uint256 _jobId, address _operator, address _stakeToken, uint256 _amount) internal {
+        operatorLockedAmounts[_operator][_stakeToken] -= _amount;
+        delete jobLockedAmounts[_jobId];
+    }
+
+    function _distributeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
+        IERC20(_rewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addReward(_stakeToken, _operator, _rewardToken, _amount);
+    }
+
 
     function _selectTokenToLock() internal view returns(address) {
         require(tokenSet.length() > 0, "No supported token");

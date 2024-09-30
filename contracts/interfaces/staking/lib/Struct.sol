@@ -2,12 +2,23 @@
 pragma solidity ^0.8.26;
 
 library Struct {
+
+    /* Job Manager */
+    struct JobInfo {
+        address requester;
+        address operator;
+        uint256 feePaid;
+        uint256 deadline;
+    }
+
+    /* Staking Pool */
     struct PoolLockInfo {
         address token;
         uint256 amount;
         address transmitter;
     }
 
+    /* NativeStaking */
     struct NativeStakingLock {
         address token;
         uint256 amount;
@@ -36,4 +47,16 @@ library Struct {
         address transmitter;
         uint256 transmitterComissionRate;
     }
+
+    struct SymbioticStakingLock {
+        address stakeToken;
+        uint256 amount;
+        // transmitter who submitted with confirmedTimestamp used when job is created
+        address transmitter; 
+    }
+    struct PoolConfig {
+        uint256 weight;
+        bool enabled;
+    }
+
 }

@@ -12,6 +12,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
+import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
 /* 
     JobManager contract is responsible for creating and managing jobs.
@@ -27,14 +28,7 @@ contract JobManager is
 {
     using SafeERC20 for IERC20;
 
-    struct JobInfo {
-        address requester;
-        address operator;
-        uint256 feePaid;
-        uint256 deadline;
-    }
-
-    mapping(uint256 jobId => JobInfo jobInfo) public jobs;
+    mapping(uint256 jobId => Struct.JobInfo jobInfo) public jobs;
 
     address public stakingManager;
     address public feeToken;
@@ -66,7 +60,7 @@ contract JobManager is
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
 
         // stakeToken and lockAmount will be decided in each pool
-        jobs[_jobId] = JobInfo({
+        jobs[_jobId] = Struct.JobInfo({
             requester: _requester,
             operator: _operator,
             feePaid: _feeAmount,
@@ -88,7 +82,9 @@ contract JobManager is
 
         _verifyProof(_jobId, _proof);
 
-        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator); // unlock stake
+        // send fee and unlock stake
+        IERC20(feeToken).safeTransfer(stakingManager, jobs[_jobId].feePaid); // TODO: make RewardDistributor pull fee from JobManager
+        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, jobs[_jobId].feePaid);
     }
 
     /**
@@ -107,14 +103,14 @@ contract JobManager is
             _verifyProof(_jobId, _proofs[idx]);
 
             // TODO: let onJobCompletion also accept array of jobIds
-            IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator); // unlock stake
+            IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, jobs[_jobId].feePaid); // unlock stake
         }
     }
 
     function refundFee(uint256 _jobId) external nonReentrant {
-        require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
-
         if (jobs[_jobId].feePaid > 0) {
+            require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
+
             jobs[_jobId].feePaid = 0;
             totalFeeStored -= jobs[_jobId].feePaid;
 

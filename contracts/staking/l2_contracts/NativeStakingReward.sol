@@ -37,17 +37,12 @@ contract NativeStakingReward is
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken))) rewardPerTokens;
 
     mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid)))) userRewardPerTokenPaid;
-    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount)))) claimableRewards;
+    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount)))) rewardAccrued;
 
-    // TODO: (function) stake
-
-    // TODO: (function) unstake
-
-    // TODO: (function) claim reward
-
-    // TODO: (function) update
-
-    // TODO: (function) addReward
+    modifier onlyNativeStaking() {
+        require(msg.sender == nativeStaking, "Only NativeStaking");
+        _;
+    }
 
     //-------------------------------- Init start --------------------------------//
 
@@ -60,7 +55,8 @@ contract NativeStakingReward is
         __ReentrancyGuard_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _setNativeStaking(_nativeStaking);
+        
+        nativeStaking = _nativeStaking;
     }
     //-------------------------------- Init end --------------------------------//
 
@@ -70,18 +66,16 @@ contract NativeStakingReward is
         
     }
 
-    function addReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) public {
-        // TODO: only native staking
-
+    function addReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) public onlyNativeStaking {
         rewards[_stakeToken][_operator][_rewardToken] += _amount;
         _update(address(0), _stakeToken, _operator, _rewardToken);
     }
     
-    /// @notice pulls stake amount info from NativeStaking and updates
-    /// @notice stake amount will be tracked in NativeStaking
-    function update(address account, address _stakeToken, address _operator) public {
-        // TODO: only native staking
+    function updateFeeReward(address account, address _stakeToken, address _operator) public onlyNativeStaking {
         _update(account, _stakeToken, _operator, feeRewardToken);
+    }
+
+    function updateInflationReward(address account, address _stakeToken, address _operator) public onlyNativeStaking {
         _update(account, _stakeToken, _operator, inflationRewardToken);
     }
 
@@ -89,8 +83,10 @@ contract NativeStakingReward is
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _operator, _rewardToken);
         rewardPerTokens[_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
 
-        claimableRewards[account][_stakeToken][_operator][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
-        userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
+        if(account != address(0)) {
+            rewardAccrued[account][_stakeToken][_operator][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
+            userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
+        }
     }
 
     function _pendingReward(address account, address _stakeToken, address operator, address _rewardToken) internal view returns (uint256) {
@@ -102,17 +98,17 @@ contract NativeStakingReward is
     }
 
     function _rewardPerToken(address _stakeToken, address _operator, address _rewardToken) internal view returns (uint256) {
-        uint256 totalStakeAmount = _getTotalStakeAmountActive(_stakeToken, _operator);
+        uint256 operatorStakeAmount = _getOperatorStakeAmount(_stakeToken, _operator);
         uint256 totalRewardAmount = rewards[_stakeToken][_operator][_rewardToken];
 
         // TODO: make sure decimal is 18
-        return totalStakeAmount == 0
+        return operatorStakeAmount == 0
             ? rewardPerTokens[_stakeToken][_operator][_rewardToken]
-            : rewardPerTokens[_stakeToken][_operator][_rewardToken] + totalRewardAmount.mulDiv(1e18, totalStakeAmount);
+            : rewardPerTokens[_stakeToken][_operator][_rewardToken] + totalRewardAmount.mulDiv(1e18, operatorStakeAmount);
     }
 
-    function _getTotalStakeAmountActive(address token, address operator) internal view returns (uint256) {
-        // return INativeStaking(nativeStaking).getTotalStakeAmountActive(token, operator);
+    function _getOperatorStakeAmount(address _operator, address _stakeToken) internal view returns (uint256) {
+        return INativeStaking(nativeStaking).getOperatorStakeAmount(_operator, _stakeToken);
     }
 
     function _getUserStakeAmount(address account, address token, address operator) internal view returns (uint256) {
@@ -131,11 +127,8 @@ contract NativeStakingReward is
 
     //-------------------------------- Overrides start --------------------------------//
     function setNativeStaking(address _nativeStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setNativeStaking(_nativeStaking);
-    }
-
-    function _setNativeStaking(address _nativeStaking) internal {
         nativeStaking = _nativeStaking;
+
         // TODO: emit event
     }
 

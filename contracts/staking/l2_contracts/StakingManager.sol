@@ -13,8 +13,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
+import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
 import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract StakingManager is
     ContextUpgradeable,
@@ -30,14 +32,11 @@ contract StakingManager is
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public jobManager;
+    address public feeToken;
+    address public inflationRewardToken;
 
-    mapping(address pool => PoolConfig config) private poolConfig;
+    mapping(address pool => Struct.PoolConfig config) private poolConfig;
     mapping(address pool => uint256 weight) private stakingPoolWeight;
-
-    struct PoolConfig {
-        uint256 weight;
-        bool enabled;
-    }
 
     modifier onlyJobManager() {
         require(msg.sender == jobManager, "StakingManager: Only JobManager");
@@ -71,14 +70,20 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator) external onlyJobManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feePaid) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
-            IStakingPool(pool).unlockStake(_jobId, _operator);
+            uint256 feeRewardAmount = _calcFeeRewardAmount(pool, _feePaid);
+            IERC20(feeToken).safeTransfer(pool, feeRewardAmount);
+            IStakingPool(pool).unlockStake(_jobId, _operator, feeRewardAmount);
         }
         // TODO: emit event
+    }
+
+    function _calcFeeRewardAmount(address _pool, uint256 _feePaid) internal view returns (uint256) {
+        return Math.mulDiv(_feePaid, poolConfig[_pool].weight, 1e18);
     }
 
     function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {

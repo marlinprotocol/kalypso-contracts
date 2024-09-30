@@ -134,9 +134,9 @@ contract SymbioticStakingReward is
 
     function addReward(address _stakeToken, address _rewardToken, uint256 _amount) external onlySymbioticStaking {
         require(_stakeToken != address(0) || _rewardToken != address(0), "zero address");
-        require(_amount > 0, "zero amount");
+        // require(_amount > 0, "zero amount");
 
-        IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
+        // IERC20(_rewardToken).safeTransferFrom(_msgSender(), address(this), _amount);
 
         // update rewardPerToken
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
