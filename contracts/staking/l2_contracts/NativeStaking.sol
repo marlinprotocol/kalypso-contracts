@@ -179,8 +179,6 @@ contract NativeStaking is
         _unlockStake(_jobId, _operator, lock.token, lock.amount);
         _distributeReward(lock.token, _operator, feeRewardToken, _feeRewardAmount);
 
-        // TODO: distribute reward
-                
         // TODO: emit event
     }
 

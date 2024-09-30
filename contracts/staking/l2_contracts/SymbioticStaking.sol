@@ -168,17 +168,18 @@ contract SymbioticStaking is
         uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, transmitterComissionRate, 1e18);
         uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
-        // reward transmitter
-        IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission); 
-
-        // distribute reward
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, feeRewardRemaining); 
-        IRewardDistributor(rewardDistributor).addReward(lock.stakeToken, _operator, feeRewardToken, feeRewardRemaining);
+        IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission); // reward transmitter
+        _distributeReward(lock.stakeToken, _operator, feeRewardToken, feeRewardRemaining);
 
         delete lockInfo[_jobId];
         operatorLockedAmounts[_operator][lock.stakeToken] -= amountToLock[lock.stakeToken];
 
         // TODO: emit event
+    }
+
+    function _distributeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
+        IERC20(_rewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addReward(_stakeToken, _operator, _rewardToken, _amount);
     }
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {

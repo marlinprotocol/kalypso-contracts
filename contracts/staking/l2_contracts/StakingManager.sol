@@ -86,18 +86,22 @@ contract StakingManager is
         return Math.mulDiv(_feePaid, poolConfig[_pool].weight, 1e18);
     }
 
+    /// @notice called by SymbioticStaking contract when slash result is submitted
     function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
 
+        // refund fee to the requester
         for(uint256 i = 0; i < _jobsSlashed.length; i++) {
+            // this can be done manually in the JobManager contract
+            // refunds nothing if already refunded
             IJobManager(jobManager).refundFee(_jobsSlashed[i].jobId);
         }
 
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            if(pool == msg.sender) continue;
+            if(pool == msg.sender) continue; // skip if called by SymbioticStaking
 
             IStakingPool(pool).slash(_jobsSlashed);
         }
