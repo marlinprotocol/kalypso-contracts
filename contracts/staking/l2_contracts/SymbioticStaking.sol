@@ -40,14 +40,17 @@ contract SymbioticStaking is
     bytes32 public constant STAKE_SNAPSHOT = keccak256("STAKE_SNAPSHOT");
     bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
 
-    EnumerableSet.AddressSet tokenSet;
+    EnumerableSet.AddressSet stakeTokenSet;
 
     address public feeRewardToken;
+    address public inflationRewardToken;
     address public stakingManager;
     address public rewardDistributor;
     
     /* Config */
     mapping(address token => uint256 amount) public amountToLock;
+    mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
+
 
     /* Symbiotic Snapshot */
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
@@ -162,14 +165,19 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
+    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
         uint256 transmitterComissionRate = confirmedTimestamps[confirmedTimestamps.length - 1].transmitterComissionRate;
         uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, transmitterComissionRate, 1e18);
         uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
-        IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission); // reward transmitter
-        _distributeReward(lock.stakeToken, _operator, feeRewardToken, feeRewardRemaining);
+        if(feeRewardRemaining > 0) {
+            _distributeFeeReward(lock.stakeToken, _operator, feeRewardToken, feeRewardRemaining);
+        }
+
+        if(_inflationRewardAmount > 0) {
+            _distributeInflationReward(_operator, _inflationRewardAmount);
+        }
 
         delete lockInfo[_jobId];
         operatorLockedAmounts[_operator][lock.stakeToken] -= amountToLock[lock.stakeToken];
@@ -177,9 +185,27 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function _distributeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
-        IERC20(_rewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addReward(_stakeToken, _operator, _rewardToken, _amount);
+    function _distributeFeeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
+    }
+
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+        if(_rewardAmount == 0) return;
+
+        uint256 len = stakeTokenSet.length();
+        for(uint256 i = 0; i < len; i++) {
+            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
+        }
+    }
+
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    }
+
+    function _distributeInflationReward(address _operator, uint256 _amount) internal {
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount);
     }
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
@@ -198,14 +224,14 @@ contract SymbioticStaking is
     }
 
     function _selectLockToken() internal view returns(address) {
-        require(tokenSet.length() > 0, "No supported token");
+        require(stakeTokenSet.length() > 0, "No supported token");
 
         uint256 idx;
-        if (tokenSet.length() > 1) {
+        if (stakeTokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            idx = randomNumber % tokenSet.length();
+            idx = randomNumber % stakeTokenSet.length();
         }
-        return tokenSet.at(idx);
+        return stakeTokenSet.at(idx);
     }
 
     /*======================================== Helpers ========================================*/
@@ -303,7 +329,7 @@ contract SymbioticStaking is
     }
 
     function isSupportedToken(address _token) public view returns (bool) {
-        return tokenSet.contains(_token);
+        return stakeTokenSet.contains(_token);
     }
 
     /*======================================== Admin ========================================*/ 
@@ -313,11 +339,11 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function setSupportedToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_isSupported) {
-            require(tokenSet.add(_token), "Token already exists");
+            require(stakeTokenSet.add(_token), "Token already exists");
         } else {
-            require(tokenSet.remove(_token), "Token does not exist");
+            require(stakeTokenSet.remove(_token), "Token does not exist");
         }
     }
 

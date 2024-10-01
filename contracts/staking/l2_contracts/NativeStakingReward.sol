@@ -31,6 +31,8 @@ contract NativeStakingReward is
     address public feeRewardToken;
     address public inflationRewardToken;
 
+    mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
+
     // reward is accrued per operator
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardAmount))) rewards;
     // rewardTokens amount per stakeToken
@@ -66,19 +68,22 @@ contract NativeStakingReward is
         
     }
 
-    function addReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) public onlyNativeStaking {
-        rewards[_stakeToken][_operator][_rewardToken] += _amount;
-        _update(address(0), _stakeToken, _operator, _rewardToken);
+    function addFeeReward(address _stakeToken, address _operator, uint256 _amount) public onlyNativeStaking {
+        rewards[_stakeToken][_operator][feeRewardToken] += _amount;
+        _update(address(0), _stakeToken, _operator, feeRewardToken);
+    }
+
+    function addInflationReward(address _operator, uint256 _amount) public onlyNativeStaking {
+        address[] memory stakeTokens = INativeStaking(nativeStaking).getStakeTokenList();
+
+        for(uint256 i = 0; i < stakeTokens.length; i++) {
+            rewards[stakeTokens[i]][_operator][inflationRewardToken] += _amount.mulDiv(inflationRewardShare[stakeTokens[i]], 1e18);
+            _update(address(0), stakeTokens[i], _operator, inflationRewardToken);
+        }
+
+        // TODO: emit event
     }
     
-    function updateFeeReward(address account, address _stakeToken, address _operator) public onlyNativeStaking {
-        _update(account, _stakeToken, _operator, feeRewardToken);
-    }
-
-    function updateInflationReward(address account, address _stakeToken, address _operator) public onlyNativeStaking {
-        _update(account, _stakeToken, _operator, inflationRewardToken);
-    }
-
     function _update(address account, address _stakeToken, address _operator, address _rewardToken) internal {
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _operator, _rewardToken);
         rewardPerTokens[_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
@@ -124,6 +129,26 @@ contract NativeStakingReward is
     }
 
     //-------------------------------- NativeStaking end --------------------------------//
+
+    //-------------------------------- Admin start --------------------------------//
+
+    function setInflationRewardShare(address[] calldata stakeTokens, uint256[] calldata shares) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokens.length == shares.length, "Invalid Length");
+
+        uint256 sum = 0;
+        for (uint256 i = 0; i < shares.length; i++) {
+            require(INativeStaking(nativeStaking).isSupportedToken(stakeTokens[i]), "Invalid Token");   
+
+            inflationRewardShare[stakeTokens[i]] = shares[i];
+            sum += shares[i];
+        }
+
+        require(sum == 1e18, "Invalid Shares");
+
+        // TODO: emit event
+    }
+
+    //-------------------------------- Admin nd --------------------------------//
 
     //-------------------------------- Overrides start --------------------------------//
     function setNativeStaking(address _nativeStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -70,20 +70,42 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feePaid) external onlyJobManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feePaid, uint256 _inflationRewardAmount) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
-            uint256 feeRewardAmount = _calcFeeRewardAmount(pool, _feePaid);
-            IERC20(feeToken).safeTransfer(pool, feeRewardAmount);
-            IStakingPool(pool).unlockStake(_jobId, _operator, feeRewardAmount);
+            (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feePaid, _inflationRewardAmount);
+
+            IERC20(feeToken).safeTransfer(pool, poolFeeRewardAmount);
+            IERC20(inflationRewardToken).safeTransfer(pool, poolInflationRewardAmount);
+            IStakingPool(pool).unlockStake(_jobId, _operator, poolFeeRewardAmount, _inflationRewardAmount);
         }
         // TODO: emit event
     }
 
-    function _calcFeeRewardAmount(address _pool, uint256 _feePaid) internal view returns (uint256) {
-        return Math.mulDiv(_feePaid, poolConfig[_pool].weight, 1e18);
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyJobManager {
+        if(_rewardAmount == 0) return;
+
+        uint256 len = stakingPoolSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address pool = stakingPoolSet.at(i);
+
+            (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
+            IERC20(inflationRewardToken).safeTransfer(pool, poolRewardAmount);
+
+            // TODO
+            IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount);
+        }
+    }
+
+    function _calcRewardAmount(address _pool, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) internal view returns (uint256, uint256) {
+        uint256 poolWeight = poolConfig[_pool].weight;
+        
+        uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolWeight, 1e18) : 0;
+        uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolWeight, 1e18) : 0;
+
+        return (poolFeeRewardAmount, poolInflationRewardAmount);
     }
 
     /// @notice called by SymbioticStaking contract when slash result is submitted

@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {IStakingPool} from "../staking/IStakingPool.sol";
 
 interface INativeStaking is IStakingPool {
+    function getStakeTokenList() external view returns (address[] memory);
 
     // TODO: check if timestamp is needed
     event Staked(address indexed account, address indexed operator, address indexed token, uint256 amount, uint256 timestamp);

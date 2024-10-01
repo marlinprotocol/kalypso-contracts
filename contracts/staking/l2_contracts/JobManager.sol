@@ -14,6 +14,8 @@ import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /* 
     JobManager contract is responsible for creating and managing jobs.
     Staking Manager contract is responsible for locking/unlocking tokens and distributing rewards.
@@ -32,9 +34,25 @@ contract JobManager is
 
     address public stakingManager;
     address public feeToken;
+    address public inflationRewardToken;
 
     uint256 public jobDuration;
     uint256 public totalFeeStored; // TODO: check if needed
+
+    uint256 inflationRewardEpochSize;
+    uint256 inflationRewardPerEpoch;
+
+    // epochs in which operator has done jobs
+    mapping(address operator => uint256[] epochs) operatorJobCompletionEpochs; 
+    // idx of operatorJobCompletionEpochs, inflationReward distribution should be reflected from this idx
+    mapping(address operator => uint256 idx) inflationRewardEpochBeginIdx;
+
+    // count of jobs done by operator in an epoch
+    mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCount; 
+    // total count of jobs done in an epoch
+    mapping(uint256 epoch => uint256 totalCount) totalJobCount; 
+
+    /*======================================== Init ========================================*/
 
     function initialize(address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration)
         public
@@ -51,6 +69,8 @@ contract JobManager is
         feeToken = _feeToken;
         jobDuration = _jobDuration;
     }
+
+    /*======================================== Job ========================================*/
 
     // TODO: check paramter for job details
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount)
@@ -82,9 +102,13 @@ contract JobManager is
 
         _verifyProof(_jobId, _proof);
 
+        uint256 feePaid = jobs[_jobId].feePaid;
+        uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator);
+
         // send fee and unlock stake
-        IERC20(feeToken).safeTransfer(stakingManager, jobs[_jobId].feePaid); // TODO: make RewardDistributor pull fee from JobManager
-        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, jobs[_jobId].feePaid);
+        IERC20(feeToken).safeTransfer(stakingManager, feePaid); // TODO: make RewardDistributor pull fee from JobManager
+        IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
+        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
     }
 
     /**
@@ -93,20 +117,17 @@ contract JobManager is
     function submitProofs(uint256[] calldata _jobIds, bytes[] calldata _proofs) external nonReentrant {
         require(_jobIds.length == _proofs.length, "Invalid Length");
 
-        // TODO: close job and distribute rewards
-
         uint256 len = _jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
-            uint256 _jobId = _jobIds[idx];
-            require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
-
-            _verifyProof(_jobId, _proofs[idx]);
-
-            // TODO: let onJobCompletion also accept array of jobIds
-            IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, jobs[_jobId].feePaid); // unlock stake
+            submitProof(_jobIds[idx], _proofs[idx]); // TODO: optimize
         }
     }
 
+    /*======================================== Fee ========================================*/
+
+    /// @notice refund fee to the job requester
+    /// @dev most likely called by the requester when job is not completed
+    /// @dev or when the job is slashed and the slash result is submitted in SymbioticStaking contract
     function refundFee(uint256 _jobId) external nonReentrant {
         if (jobs[_jobId].feePaid > 0) {
             require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
@@ -120,10 +141,67 @@ contract JobManager is
         }
     }
 
+    /*======================================== Inflation Reward ========================================*/
+
+    /// @notice update inflation reward for operator
+    /// @dev can be called by anyone, but most likely when proof is submitted(when job is completed) by operator
+    /// @dev or inflation reward is claimed in a RewardDistributor
+    function updateInflationReward(address _operator) external {
+        uint256 pendingInflationReward = _updateInflationReward(_operator);
+
+        if(pendingInflationReward > 0) {
+            // send reward to StakingManager
+            IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
+            // and distribute
+            IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
+        }
+    }
+
+    /*======================================== Internal functions ========================================*/
+
     function _verifyProof(uint256 _jobId, bytes calldata _proof) internal {
         // TODO: verify proof
 
         // TODO: emit event
+    }
+
+    /// @notice update pending inflation reward for operator
+    function _updateInflationReward(address _operator) internal returns(uint256 pendingInflationReward) {
+        // check if operator has completed any job
+        if (operatorJobCompletionEpochs[_operator].length == 0) return 0;
+        
+        // list of epochs in which operator has completed jobs
+        uint256[] storage completedEpochs = operatorJobCompletionEpochs[_operator];
+
+        // first epoch which the reward has not been distributed
+        uint256 _beginIdx = inflationRewardEpochBeginIdx[_operator];
+
+        // no job completed since last update
+        if(_beginIdx > completedEpochs.length) return 0;
+
+        uint256 beginEpoch = completedEpochs[_beginIdx];
+        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
+
+        // no pending reward if operator has already claimed reward until latest epoch
+        if(beginEpoch == currentEpoch) return 0;
+
+        // update pending reward
+        uint256 rewardPerEpoch = inflationRewardPerEpoch; // cache
+        uint256 len = completedEpochs.length;
+
+        for(uint256 idx = _beginIdx; idx < len; idx++) {
+            uint256 epoch = completedEpochs[idx];
+
+            // for last epoch in epoch array
+            if(idx == len - 1) {
+                // idx can be greater than actual length of epoch array by 1
+                inflationRewardEpochBeginIdx[_operator] = epoch == currentEpoch ? idx : idx + 1;
+            }
+
+            pendingInflationReward += Math.mulDiv(rewardPerEpoch, operatorJobCount[epoch][_operator], totalJobCount[epoch]);
+        }
+
+        return pendingInflationReward;
     }
 
     /*======================================== Admin ========================================*/

@@ -35,11 +35,7 @@ contract SymbioticStakingReward is
 
     // TODO: staking token enability should be pulled from SymbioticStaking contract
 
-    EnumerableSet.AddressSet private _rewardTokenSet;
-
-    //? what should be done when stake is locked?
-    // -> just update totalStakeAmount and rewardPerToken?
-    // -> does this even affect anything?
+    EnumerableSet.AddressSet private _rewardTokenSet; // TODO: remove this, only feeRewardToken and inflationRewardToken will be used
 
     /* 
         rewardToken: Fee Reward, Inflation Reward
@@ -51,7 +47,6 @@ contract SymbioticStakingReward is
     mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
         totalStakeAmounts;
 
-    // TODO: this should be pulled from SymbioticStaking contract
     // locked amount for each stakeToken upon job creation
     mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 totalStakeAmount)) public
         lockedStakeAmounts;
@@ -165,8 +160,6 @@ contract SymbioticStakingReward is
     //-------------------------------- Update start --------------------------------//
 
     function _update(uint256 _captureTimestamp, address _vault, address _stakeToken, address _rewardToken) internal {
-        require(isSupportedRewardToken(_rewardToken), "unsupported reward token");
-
         // update rewardPerToken
         uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
         rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
@@ -216,6 +209,8 @@ contract SymbioticStakingReward is
         _rewardTokenSet.remove(_rewardToken);
     }
 
+
+
     //-------------------------------- Admin end --------------------------------//
 
     //-------------------------------- Getter start --------------------------------//
@@ -232,10 +227,6 @@ contract SymbioticStakingReward is
             _rewardTokens[i] = _rewardTokenSet.at(i);
         }
         return _rewardTokens;
-    }
-
-    function isSupportedRewardToken(address _rewardToken) public view returns (bool) {
-        return _rewardTokenSet.contains(_rewardToken);
     }
 
     function totalStakeAmountsActive(address _stakeToken) public view returns (uint256) {

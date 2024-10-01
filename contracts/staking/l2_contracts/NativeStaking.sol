@@ -16,6 +16,8 @@ import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
 import {INativeStakingReward} from "../../interfaces/staking/INativeStakingReward.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
 contract NativeStaking is
@@ -29,16 +31,16 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-
-
-    EnumerableSet.AddressSet private tokenSet;
+    EnumerableSet.AddressSet private stakeTokenSet;
 
     address public rewardDistributor;
     address public stakingManager;
     address public feeRewardToken;
+    address public inflationRewardToken;
 
     /* Config */
-    mapping(address token => uint256 lockAmount) public amountToLock;
+    mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
+    mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
     /* Stake */
     // total staked amounts for each operator
@@ -50,8 +52,8 @@ contract NativeStaking is
     mapping(uint256 jobId => Struct.NativeStakingLock lock) public jobLockedAmounts;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
 
-    modifier onlySupportedToken(address _token) {
-        require(tokenSet.contains(_token), "Token not supported");
+    modifier onlySupportedToken(address _stakeToken) {
+        require(stakeTokenSet.contains(_stakeToken), "Token not supported");
         _;
     }
 
@@ -70,43 +72,47 @@ contract NativeStaking is
     }
 
     // Staker should be able to choose an Operator they want to stake into
-    function stake(address _operator, address _token, uint256 _amount)
+    function stake(address _operator, address _stakeToken, uint256 _amount)
         external
-        onlySupportedToken(_token)
+        onlySupportedToken(_stakeToken)
         nonReentrant
     {
         // this check can be removed in the future to allow delegatedStake
         require(msg.sender == _operator, "Only operator can stake");
 
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), _amount);
 
-        stakedAmounts[msg.sender][_operator][_token] += _amount;
-        operatorStakedAmounts[_operator][_token] += _amount;
+        stakedAmounts[msg.sender][_operator][_stakeToken] += _amount;
+        operatorStakedAmounts[_operator][_stakeToken] += _amount;
 
         // NativeStakingReward contract will read staking amount info from this contract
         // and update reward related states
-        INativeStakingReward(rewardDistributor).update(msg.sender, _token, _operator);
+        INativeStakingReward(rewardDistributor).update(msg.sender, _stakeToken, _operator);
 
-        emit Staked(msg.sender, _operator, _token, _amount, block.timestamp);
+        emit Staked(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
 
     // This should update StakingManger's state
-    function requestStakeWithdrawal(address _operator, address _token, uint256 _amount) external nonReentrant {
-        require(getOperatorActiveStakeAmount(_operator, _token) >= _amount, "Insufficient stake");
+    // TODO
+    function requestStakeWithdrawal(address _operator, address _stakeToken, uint256 _amount) external nonReentrant {
+        require(getOperatorActiveStakeAmount(_operator, _stakeToken) >= _amount, "Insufficient stake");
 
-        stakedAmounts[msg.sender][_operator][_token] -= _amount;
-        operatorStakedAmounts[_operator][_token] -= _amount;
+        stakedAmounts[msg.sender][_operator][_stakeToken] -= _amount;
+        operatorStakedAmounts[_operator][_stakeToken] -= _amount;
 
-        IERC20(_token).safeTransfer(msg.sender, _amount);
+        IERC20(_stakeToken).safeTransfer(msg.sender, _amount);
 
-        INativeStakingReward(rewardDistributor).update(msg.sender, _token, _operator);
+        INativeStakingReward(rewardDistributor).update(msg.sender, _stakeToken, _operator);
 
-        emit StakeWithdrawn(msg.sender, _operator, _token, _amount, block.timestamp);
+        emit StakeWithdrawn(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
 
-    function withdrawStake(address _operator, address _token) external nonReentrant {
-        uint256 _amount = stakedAmounts[msg.sender][_operator][_token];
+    function withdrawStake(address _operator, address _stakeToken) external nonReentrant {
+        require(msg.sender == _operator, "Only operator can withdraw stake");
+        uint256 _amount = stakedAmounts[msg.sender][_operator][_stakeToken];
         require(_amount > 0, "No stake to withdraw");
+
+        // TODO
     }
 
     /*======================================== Getters ========================================*/
@@ -120,20 +126,17 @@ contract NativeStaking is
     }
 
     function isSupportedToken(address _token) external view returns (bool) {
-        return tokenSet.contains(_token);
+        return stakeTokenSet.contains(_token);
     }
-
 
     /*======================================== Admin ========================================*/
 
-    function addToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(tokenSet.add(token), "Token already exists");
-
-        // TODO: emit event
-    }
-
-    function removeToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(tokenSet.remove(token), "Token does not exist");
+    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_isSupported) {
+            stakeTokenSet.add(_token);
+        } else {
+            stakeTokenSet.remove(_token);
+        }
 
         // TODO: emit event
     }
@@ -171,15 +174,46 @@ contract NativeStaking is
 
     /// @notice unlock stake and distribute reward 
     /// @dev called by StakingManager when job is completed
-    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
+    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = jobLockedAmounts[_jobId];
 
         if(lock.amount == 0) return;
 
         _unlockStake(_jobId, _operator, lock.token, lock.amount);
-        _distributeReward(lock.token, _operator, feeRewardToken, _feeRewardAmount);
+
+        // distribute fee reward
+        if(_feeRewardAmount > 0){
+            _distributeFeeReward(lock.token, _operator, _feeRewardAmount);
+        }
+
+        if(_inflationRewardAmount > 0) {
+            _distributeInflationReward(_operator, _inflationRewardAmount);
+        }
 
         // TODO: emit event
+    }
+
+    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount); // TODO: consolidate with inflation reward
+    }
+
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+        if(_rewardAmount == 0) return;
+
+        uint256 len = stakeTokenSet.length();
+        for(uint256 i = 0; i < len; i++) {
+            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
+        }
+    }
+
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    }
+
+    function _distributeInflationReward(address _operator, uint256 _amount) internal {
+        IERC20(inflationRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount); // TODO: consolidate with fee reward
     }
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
@@ -197,26 +231,24 @@ contract NativeStaking is
         }
     }
 
+    function getStakeTokenList() external view returns(address[] memory) {
+        return stakeTokenSet.values();
+    }
+
     function _unlockStake(uint256 _jobId, address _operator, address _stakeToken, uint256 _amount) internal {
         operatorLockedAmounts[_operator][_stakeToken] -= _amount;
         delete jobLockedAmounts[_jobId];
     }
 
-    function _distributeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
-        IERC20(_rewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addReward(_stakeToken, _operator, _rewardToken, _amount);
-    }
-
-
     function _selectTokenToLock() internal view returns(address) {
-        require(tokenSet.length() > 0, "No supported token");
+        require(stakeTokenSet.length() > 0, "No supported token");
         
         uint256 idx;
-        if (tokenSet.length() > 1) {
+        if (stakeTokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            idx = randomNumber % tokenSet.length();
+            idx = randomNumber % stakeTokenSet.length();
         }
-        return tokenSet.at(idx);
+        return stakeTokenSet.at(idx);
     }
 
     /*======================================== Overrides ========================================*/

@@ -6,8 +6,6 @@ import {IStakingPool} from "./IStakingPool.sol";
 interface ISymbioticStaking is IStakingPool {
     // function stakeOf(address _operator, address _token) external view returns (uint256);
 
-
-
     // event OperatorSnapshotSubmitted
 
     // event VaultSnapshotSubmitted

@@ -3,5 +3,7 @@
 pragma solidity ^0.8.26;
 
 interface IRewardDistributor {
-    function addReward(address _stakeToken, address operator, address _rewardToken, uint256 _amount) external;
+    function addFeeReward(address _stakeToken, address _operator, uint256 _amount) external;
+
+    function addInflationReward(address _operator, uint256 _amount) external; 
 }
