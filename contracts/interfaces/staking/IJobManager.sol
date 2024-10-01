@@ -7,4 +7,6 @@ interface IJobManager {
     function submitProof(uint256 jobId, bytes calldata proof) external;
 
     function refundFee(uint256 jobId) external;
+
+    function updateInflationReward(address _operator) external;
 }

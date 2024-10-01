@@ -60,6 +60,6 @@ library Struct {
     }
     struct RewardPerToken {
         uint256 rewardPerToken;
-        uint256 lastUpdatedTimestamp;
+        uint256 lastUpdatedTimestamp; //? not sure if this actually saves gas
     }
 }

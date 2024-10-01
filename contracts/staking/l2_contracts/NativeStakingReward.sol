@@ -14,8 +14,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
 import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+
 
 contract NativeStakingReward is
     ContextUpgradeable,
@@ -28,6 +30,7 @@ contract NativeStakingReward is
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    address public jobManager;
     address public nativeStaking;
     address public feeRewardToken;
     address public inflationRewardToken;
@@ -82,19 +85,31 @@ contract NativeStakingReward is
     }
 
     function claimReward(address operator) external {
+        IJobManager(jobManager).updateInflationReward(operator);
+
         address[] memory stakeTokens = INativeStaking(nativeStaking).getStakeTokenList();
 
+        address _feeRewardToken = feeRewardToken; // cache
+        address _inflationRewardToken = inflationRewardToken; // cache
+
         for(uint256 i = 0; i < stakeTokens.length; i++) {
-            _update(msg.sender, stakeTokens[i], operator, feeRewardToken);
-            _update(msg.sender, stakeTokens[i], operator, inflationRewardToken);
+            // inflation reward is already updated
+            _update(msg.sender, stakeTokens[i], operator, _feeRewardToken);
         }
 
         IERC20(feeRewardToken).safeTransfer(msg.sender, rewardAccrued[msg.sender][feeRewardToken]);
         IERC20(inflationRewardToken).safeTransfer(msg.sender, rewardAccrued[msg.sender][inflationRewardToken]);
+
+        rewardAccrued[msg.sender][_feeRewardToken] = 0;
+        rewardAccrued[msg.sender][_inflationRewardToken] = 0;
+
+        // TODO: emit event
     }
     
     function _update(address account, address _stakeToken, address _operator, address _rewardToken) internal {
-        rewardPerTokens[_stakeToken][_operator][_rewardToken] = Struct.RewardPerToken(_rewardPerToken(_stakeToken, _operator, _rewardToken), block.timestamp);
+        if(rewardPerTokens[_stakeToken][_operator][_rewardToken].lastUpdatedTimestamp < block.timestamp) {
+            rewardPerTokens[_stakeToken][_operator][_rewardToken] = Struct.RewardPerToken(_rewardPerToken(_stakeToken, _operator, _rewardToken), block.timestamp);
+        }
 
         if(account != address(0)) {
             _updateUser(account, _stakeToken, _operator, _rewardToken);
@@ -115,6 +130,7 @@ contract NativeStakingReward is
     }
 
     function _rewardPerToken(address _stakeToken, address _operator, address _rewardToken) internal view returns (uint256) {
+        // gas savings
         if(rewardPerTokens[_stakeToken][_operator][_rewardToken].lastUpdatedTimestamp == block.timestamp) {
             return rewardPerTokens[_stakeToken][_operator][_rewardToken].rewardPerToken;
         }
