@@ -15,6 +15,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
+import {Struct} from "../../interfaces/staking/lib/Struct.sol";
 
 contract NativeStakingReward is
     ContextUpgradeable,
@@ -36,10 +37,10 @@ contract NativeStakingReward is
     // reward is accrued per operator
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardAmount))) rewards;
     // rewardTokens amount per stakeToken
-    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken))) rewardPerTokens;
+    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => Struct.RewardPerToken rewardPerToken))) rewardPerTokens;
 
     mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid)))) userRewardPerTokenPaid;
-    mapping(address account => mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount)))) rewardAccrued;
+    mapping(address account => mapping(address rewardToken => uint256 amount)) rewardAccrued;
 
     modifier onlyNativeStaking() {
         require(msg.sender == nativeStaking, "Only NativeStaking");
@@ -62,36 +63,47 @@ contract NativeStakingReward is
     }
     //-------------------------------- Init end --------------------------------//
 
-    //-------------------------------- NativeStaking start --------------------------------//
-
-    function claimReward(address token) public {
-        
-    }
-
-    function addFeeReward(address _stakeToken, address _operator, uint256 _amount) public onlyNativeStaking {
+    //-------------------------------- Staking start --------------------------------//
+    function addFeeReward(address _stakeToken, address _operator, uint256 _amount) external onlyNativeStaking {
         rewards[_stakeToken][_operator][feeRewardToken] += _amount;
         _update(address(0), _stakeToken, _operator, feeRewardToken);
     }
 
-    function addInflationReward(address _operator, uint256 _amount) public onlyNativeStaking {
+    function addInflationReward(address _operator, uint256 _amount) external onlyNativeStaking {
         address[] memory stakeTokens = INativeStaking(nativeStaking).getStakeTokenList();
 
+        address _inflationRewardToken = inflationRewardToken; // cache
         for(uint256 i = 0; i < stakeTokens.length; i++) {
-            rewards[stakeTokens[i]][_operator][inflationRewardToken] += _amount.mulDiv(inflationRewardShare[stakeTokens[i]], 1e18);
-            _update(address(0), stakeTokens[i], _operator, inflationRewardToken);
+            rewards[stakeTokens[i]][_operator][_inflationRewardToken] += _amount.mulDiv(inflationRewardShare[stakeTokens[i]], 1e18);
+            _update(address(0), stakeTokens[i], _operator, _inflationRewardToken);
         }
 
         // TODO: emit event
     }
+
+    function claimReward(address operator) external {
+        address[] memory stakeTokens = INativeStaking(nativeStaking).getStakeTokenList();
+
+        for(uint256 i = 0; i < stakeTokens.length; i++) {
+            _update(msg.sender, stakeTokens[i], operator, feeRewardToken);
+            _update(msg.sender, stakeTokens[i], operator, inflationRewardToken);
+        }
+
+        IERC20(feeRewardToken).safeTransfer(msg.sender, rewardAccrued[msg.sender][feeRewardToken]);
+        IERC20(inflationRewardToken).safeTransfer(msg.sender, rewardAccrued[msg.sender][inflationRewardToken]);
+    }
     
     function _update(address account, address _stakeToken, address _operator, address _rewardToken) internal {
-        uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _operator, _rewardToken);
-        rewardPerTokens[_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
+        rewardPerTokens[_stakeToken][_operator][_rewardToken] = Struct.RewardPerToken(_rewardPerToken(_stakeToken, _operator, _rewardToken), block.timestamp);
 
         if(account != address(0)) {
-            rewardAccrued[account][_stakeToken][_operator][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
-            userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = currentRewardPerToken;
+            _updateUser(account, _stakeToken, _operator, _rewardToken);
         }
+    }
+
+    function _updateUser(address account, address _stakeToken, address _operator, address _rewardToken) internal {
+        rewardAccrued[account][_rewardToken] += _pendingReward(account, _stakeToken, _operator, _rewardToken);
+        userRewardPerTokenPaid[account][_stakeToken][_operator][_rewardToken] = _rewardPerToken(_stakeToken, _operator, _rewardToken);
     }
 
     function _pendingReward(address account, address _stakeToken, address operator, address _rewardToken) internal view returns (uint256) {
@@ -103,13 +115,17 @@ contract NativeStakingReward is
     }
 
     function _rewardPerToken(address _stakeToken, address _operator, address _rewardToken) internal view returns (uint256) {
+        if(rewardPerTokens[_stakeToken][_operator][_rewardToken].lastUpdatedTimestamp == block.timestamp) {
+            return rewardPerTokens[_stakeToken][_operator][_rewardToken].rewardPerToken;
+        }
+
         uint256 operatorStakeAmount = _getOperatorStakeAmount(_stakeToken, _operator);
         uint256 totalRewardAmount = rewards[_stakeToken][_operator][_rewardToken];
 
         // TODO: make sure decimal is 18
         return operatorStakeAmount == 0
-            ? rewardPerTokens[_stakeToken][_operator][_rewardToken]
-            : rewardPerTokens[_stakeToken][_operator][_rewardToken] + totalRewardAmount.mulDiv(1e18, operatorStakeAmount);
+            ? rewardPerTokens[_stakeToken][_operator][_rewardToken].rewardPerToken
+            : rewardPerTokens[_stakeToken][_operator][_rewardToken].rewardPerToken + totalRewardAmount.mulDiv(1e18, operatorStakeAmount);
     }
 
     function _getOperatorStakeAmount(address _operator, address _stakeToken) internal view returns (uint256) {
@@ -120,15 +136,8 @@ contract NativeStakingReward is
         // return INativeStaking(nativeStaking).getUserStakeAmount(account, token, operator);
     }
 
-    function _getDelegatedStakeActive(address account, address token, address operator)
-        internal
-        view
-        returns (uint256)
-    {
-        // return INativeStaking(nativeStaking).getDelegatedStakeActive(account, token, operator);
-    }
 
-    //-------------------------------- NativeStaking end --------------------------------//
+    //-------------------------------- Staking end --------------------------------//
 
     //-------------------------------- Admin start --------------------------------//
 

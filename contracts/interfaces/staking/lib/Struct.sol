@@ -58,5 +58,8 @@ library Struct {
         uint256 weight;
         bool enabled;
     }
-
+    struct RewardPerToken {
+        uint256 rewardPerToken;
+        uint256 lastUpdatedTimestamp;
+    }
 }
