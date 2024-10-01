@@ -172,7 +172,7 @@ contract SymbioticStaking is
         uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
         if(feeRewardRemaining > 0) {
-            _distributeFeeReward(lock.stakeToken, _operator, feeRewardToken, feeRewardRemaining);
+            _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
         if(_inflationRewardAmount > 0) {
@@ -185,7 +185,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function _distributeFeeReward(address _stakeToken, address _operator, address _rewardToken, uint256 _amount) internal {
+    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
         IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
     }

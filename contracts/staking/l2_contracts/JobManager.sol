@@ -109,6 +109,8 @@ contract JobManager is
         IERC20(feeToken).safeTransfer(stakingManager, feePaid); // TODO: make RewardDistributor pull fee from JobManager
         IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
         IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
+
+        _updateJobCompletionEpoch(_jobId);
     }
 
     /**
@@ -119,7 +121,19 @@ contract JobManager is
 
         uint256 len = _jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
-            submitProof(_jobIds[idx], _proofs[idx]); // TODO: optimize
+            uint256 jobId = _jobIds[idx];
+            submitProof(jobId, _proofs[idx]); // TODO: optimize
+
+            _updateJobCompletionEpoch(jobId);
+        }
+    }
+
+    function _updateJobCompletionEpoch(uint256 _jobId) internal {
+        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
+        uint256 len = operatorJobCompletionEpochs[jobs[_jobId].operator].length;
+        
+        if(len > 0 && operatorJobCompletionEpochs[jobs[_jobId].operator][len - 1] != currentEpoch) {
+            operatorJobCompletionEpochs[jobs[_jobId].operator].push(currentEpoch);
         }
     }
 
