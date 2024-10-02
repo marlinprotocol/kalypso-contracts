@@ -15,7 +15,7 @@ import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
-import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+import {Struct} from "../../lib/staking/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract StakingManager is
@@ -79,7 +79,7 @@ contract StakingManager is
 
             IERC20(feeToken).safeTransfer(pool, poolFeeRewardAmount);
             IERC20(inflationRewardToken).safeTransfer(pool, poolInflationRewardAmount);
-            IStakingPool(pool).unlockStake(_jobId, _operator, poolFeeRewardAmount, _inflationRewardAmount);
+            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, _inflationRewardAmount);
         }
         // TODO: emit event
     }

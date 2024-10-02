@@ -12,7 +12,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
-import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+import {Struct} from "../../lib/staking/Struct.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 

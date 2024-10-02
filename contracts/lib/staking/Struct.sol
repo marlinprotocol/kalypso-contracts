@@ -59,7 +59,7 @@ library Struct {
         bool enabled;
     }
     struct RewardPerToken {
-        uint256 rewardPerToken;
+        uint256 value;
         uint256 lastUpdatedTimestamp; //? not sure if this actually saves gas
     }
 }

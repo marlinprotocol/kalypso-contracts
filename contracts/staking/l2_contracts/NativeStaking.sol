@@ -18,7 +18,7 @@ import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.so
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+import {Struct} from "../../lib/staking/Struct.sol";
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -44,9 +44,9 @@ contract NativeStaking is
 
     /* Stake */
     // total staked amounts for each operator
-    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorStakedAmounts; 
+    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorstakeAmounts; 
     // staked amount for each account
-    mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakedAmounts;
+    mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakeAmounts;
 
     /* Locked Stakes */
     mapping(uint256 jobId => Struct.NativeStakingLock lock) public jobLockedAmounts;
@@ -82,12 +82,10 @@ contract NativeStaking is
 
         IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), _amount);
 
-        stakedAmounts[msg.sender][_operator][_stakeToken] += _amount;
-        operatorStakedAmounts[_operator][_stakeToken] += _amount;
+        stakeAmounts[msg.sender][_operator][_stakeToken] += _amount;
+        operatorstakeAmounts[_operator][_stakeToken] += _amount;
 
-        // NativeStakingReward contract will read staking amount info from this contract
-        // and update reward related states
-        INativeStakingReward(rewardDistributor).update(msg.sender, _stakeToken, _operator);
+        INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
 
         emit Staked(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
@@ -95,21 +93,21 @@ contract NativeStaking is
     // This should update StakingManger's state
     // TODO
     function requestStakeWithdrawal(address _operator, address _stakeToken, uint256 _amount) external nonReentrant {
-        require(getOperatorActiveStakeAmount(_operator, _stakeToken) >= _amount, "Insufficient stake");
+        require(_getOperatorActiveStakeAmount(_operator, _stakeToken) >= _amount, "Insufficient stake");
 
-        stakedAmounts[msg.sender][_operator][_stakeToken] -= _amount;
-        operatorStakedAmounts[_operator][_stakeToken] -= _amount;
+        stakeAmounts[msg.sender][_operator][_stakeToken] -= _amount;
+        operatorstakeAmounts[_operator][_stakeToken] -= _amount;
 
         IERC20(_stakeToken).safeTransfer(msg.sender, _amount);
 
-        INativeStakingReward(rewardDistributor).update(msg.sender, _stakeToken, _operator);
+        INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
 
     function withdrawStake(address _operator, address _stakeToken) external nonReentrant {
         require(msg.sender == _operator, "Only operator can withdraw stake");
-        uint256 _amount = stakedAmounts[msg.sender][_operator][_stakeToken];
+        uint256 _amount = stakeAmounts[msg.sender][_operator][_stakeToken];
         require(_amount > 0, "No stake to withdraw");
 
         // TODO
@@ -117,12 +115,28 @@ contract NativeStaking is
 
     /*======================================== Getters ========================================*/
 
-    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakedAmounts[_operator][_token];
+    function getStakeTokenList() external view returns (address[] memory) {
+        return stakeTokenSet.values();
     }
 
-    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakedAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
+    function getStakeAmount(address _account, address _operator, address _stakeToken) external view returns (uint256) {
+        return stakeAmounts[_account][_operator][_stakeToken];
+    }
+
+    function getOperatorStakeAmount(address _operator, address _token) external view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token];
+    }
+
+    function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256) {
+        return _getOperatorActiveStakeAmount(_operator, _token);
+    }
+
+    function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token];
+    }
+    
+    function _getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
     }
 
     function isSupportedToken(address _token) external view returns (bool) {
@@ -163,7 +177,7 @@ contract NativeStaking is
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectTokenToLock();
         uint256 _amountToLock = amountToLock[_token];
-        require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
+        require(_getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
         jobLockedAmounts[_jobId] = Struct.NativeStakingLock(_token, _amountToLock);
@@ -174,7 +188,7 @@ contract NativeStaking is
 
     /// @notice unlock stake and distribute reward 
     /// @dev called by StakingManager when job is completed
-    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = jobLockedAmounts[_jobId];
 
         if(lock.amount == 0) return;
@@ -193,29 +207,6 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount); // TODO: consolidate with inflation reward
-    }
-
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
-        if(_rewardAmount == 0) return;
-
-        uint256 len = stakeTokenSet.length();
-        for(uint256 i = 0; i < len; i++) {
-            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
-        }
-    }
-
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
-        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    }
-
-    function _distributeInflationReward(address _operator, uint256 _amount) internal {
-        IERC20(inflationRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount); // TODO: consolidate with fee reward
-    }
-
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
         for (uint256 i = 0; i < len; i++) {
@@ -227,12 +218,38 @@ contract NativeStaking is
             _unlockStake(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
             IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
 
-            // TODO: emit event
+            INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, lock.token, _slashedJobs[i].operator);
         }
+        // TODO: emit event
     }
 
-    function getStakeTokenList() external view returns(address[] memory) {
-        return stakeTokenSet.values();
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+        if(_rewardAmount == 0) return;
+
+        _distributeInflationReward(_operator, _rewardAmount);
+    }
+
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    }
+
+    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount); 
+    }
+
+    function _distributeInflationReward(address _operator, uint256 _rewardAmount) internal {
+        uint256 len = stakeTokenSet.length();
+        address[] memory stakeTokens = stakeTokenSet.values();
+        uint256[] memory rewardAmounts = new uint256[](len);
+        uint256 inflationRewardAmount;
+        for(uint256 i = 0; i < len; i++) {
+            rewardAmounts[i] = _calcInflationRewardAmount(stakeTokens[i], _rewardAmount);
+            inflationRewardAmount += rewardAmounts[i];
+        }
+
+        IERC20(inflationRewardToken).safeTransfer(rewardDistributor, inflationRewardAmount);
+        IRewardDistributor(rewardDistributor).addInflationReward(_operator, stakeTokens, rewardAmounts);
     }
 
     function _unlockStake(uint256 _jobId, address _operator, address _stakeToken, uint256 _amount) internal {
