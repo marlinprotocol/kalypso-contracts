@@ -163,8 +163,10 @@ contract SymbioticStaking is
         require(getOperatorActiveStakeAmount(_operator, _token) >= amountToLock[_token], "Insufficient stake amount");
 
         // Store transmitter address to reward when job is closed
-        address transmitter = confirmedTimestamps[confirmedTimestamps.length - 1].transmitter;
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], transmitter);
+        uint256 timestampIdx = confirmedTimestamps.length - 1;
+        address transmitter = confirmedTimestamps[timestampIdx].transmitter;
+
+        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], transmitter, confirmedTimestamps[timestampIdx].transmitterComissionRate);
         operatorLockedAmounts[_operator][_token] += amountToLock[_token];
 
         // TODO: emit event
@@ -172,17 +174,24 @@ contract SymbioticStaking is
 
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
-        uint256 transmitterComissionRate = confirmedTimestamps[confirmedTimestamps.length - 1].transmitterComissionRate;
+
+        uint256 transmitterComissionRate = lock.transmitterComissionRate;
         uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, transmitterComissionRate, 1e18);
+
         uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
+        // distribute fee reward
         if(feeRewardRemaining > 0) {
             _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
+        // distribute inflation reward
         if(_inflationRewardAmount > 0) {
             _distributeInflationReward(_operator, _inflationRewardAmount);
         }
+
+        // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+        IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission);
 
         delete lockInfo[_jobId];
         operatorLockedAmounts[_operator][lock.stakeToken] -= amountToLock[lock.stakeToken];
@@ -251,14 +260,14 @@ contract SymbioticStaking is
             // update operator staked amount
             operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] += _vaultSnapshot.stakeAmount;
 
-            // TODO: update rewardPerToken in RewardDistributor
-
             // TODO: emit event for each update?
         }
+        
+        ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(_vaultSnapshots);
     }
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
-        uint256 transmitterComission = _transmitterComissionRate(lastConfirmedTimestamp());
+        uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
 
         Struct.ConfirmedTimestamp memory confirmedTimestamp = Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
@@ -337,6 +346,10 @@ contract SymbioticStaking is
 
     function _isCompleteStatus(uint256 _captureTimestamp) internal view returns (bool) {
         return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
+    }
+
+    function _calcTransmitterComissionRate(uint256 _confirmedTimestamp) internal view returns(uint256) {
+        // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
     }
 
     /*--------------- Job ---------------*/

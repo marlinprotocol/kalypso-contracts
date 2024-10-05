@@ -51,18 +51,13 @@ library Struct {
         uint256 transmitterComissionRate;
     }
 
-    // struct OperatorSnapshot {
-    //     address operator;
-    //     address[] stakeTokens;
-    //     uint256[] stakeAmounts;
-    // }
-
     /* Job Lock */
     struct SymbioticStakingLock {
         address stakeToken;
         uint256 amount;
         // transmitter who submitted with confirmedTimestamp used when job is created
         address transmitter; 
+        uint256 transmitterComissionRate;
     }
 
     struct PoolConfig {
