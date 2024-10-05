@@ -123,8 +123,6 @@ contract StakingManager is
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            if(pool == msg.sender) continue; // skip if called by SymbioticStaking
-
             IStakingPool(pool).slash(_jobsSlashed);
         }
     }
