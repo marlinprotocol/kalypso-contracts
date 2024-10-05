@@ -109,6 +109,7 @@ contract SymbioticStakingReward is
     }
 
     /// @notice called when inflation reward is generated
+    /// @dev this function is not called if there is no pending inflation reward in JobManager
     function updateInflationReward(address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
         address[] memory stakeTokenLost = _getStakeTokenList();
         for (uint256 i = 0; i < stakeTokenLost.length; i++) {
@@ -122,7 +123,7 @@ contract SymbioticStakingReward is
     /// @notice update rewardPerToken and rewardAccrued for each vault
     /// @dev called when snapshot is submitted
     function onSnapshotSubmission(Struct.VaultSnapshot[] calldata _vaultSnapshots) external onlySymbioticStaking {
-        // TODO: this can be called redundantly as each snapshots can have same operator address
+        // TODO: this can be called redundantly as each snapshots can include same operator and vault address
         // update inlfationReward info of each vault
         address[] memory stakeTokenList = _getStakeTokenList();
 

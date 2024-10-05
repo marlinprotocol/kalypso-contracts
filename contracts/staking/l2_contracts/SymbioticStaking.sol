@@ -148,14 +148,14 @@ contract SymbioticStaking is
 
         Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
         
+        IStakingManager(stakingManager).onSlashResult(_jobSlashed);
+        
         // when all chunks of Snapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
             _completeSubmission(_captureTimestamp);
         }
 
-        // 
-        IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter 
     }
