@@ -49,7 +49,7 @@ contract NativeStaking is
     mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakeAmounts;
 
     /* Locked Stakes */
-    mapping(uint256 jobId => Struct.NativeStakingLock lock) public jobLockedAmounts;
+    mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
 
     modifier onlySupportedToken(address _stakeToken) {
@@ -180,7 +180,7 @@ contract NativeStaking is
         require(_getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
-        jobLockedAmounts[_jobId] = Struct.NativeStakingLock(_token, _amountToLock);
+        lockInfo[_jobId] = Struct.NativeStakingLock(_token, _amountToLock);
         operatorLockedAmounts[_operator][_token] += _amountToLock;
 
         // TODO: emit event
@@ -189,7 +189,7 @@ contract NativeStaking is
     /// @notice unlock stake and distribute reward 
     /// @dev called by StakingManager when job is completed
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
-        Struct.NativeStakingLock memory lock = jobLockedAmounts[_jobId];
+        Struct.NativeStakingLock memory lock = lockInfo[_jobId];
 
         if(lock.amount == 0) return;
 
@@ -210,7 +210,7 @@ contract NativeStaking is
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
         for (uint256 i = 0; i < len; i++) {
-            Struct.NativeStakingLock memory lock = jobLockedAmounts[_slashedJobs[i].jobId];
+            Struct.NativeStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
 
             uint256 lockedAmount = lock.amount;
             if(lockedAmount == 0) continue; // if already slashed
@@ -254,7 +254,7 @@ contract NativeStaking is
 
     function _unlockStake(uint256 _jobId, address _operator, address _stakeToken, uint256 _amount) internal {
         operatorLockedAmounts[_operator][_stakeToken] -= _amount;
-        delete jobLockedAmounts[_jobId];
+        delete lockInfo[_jobId];
     }
 
     function _selectTokenToLock() internal view returns(address) {
