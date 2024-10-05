@@ -11,6 +11,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
 
 import {Struct} from "../../lib/staking/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -23,8 +24,8 @@ contract SymbioticStaking is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-    // ISymbioticStaking 
+    ReentrancyGuardUpgradeable,
+    ISymbioticStaking 
     {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
@@ -59,16 +60,16 @@ contract SymbioticStaking is
     // to track if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; 
     // staked amount for each operator
-    mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
+    mapping(uint256 captureTimestamp => mapping(address operator => mapping(address stakeToken => uint256 stakeAmount))) operatorStakeAmounts;
     // staked amount for each vault
-    mapping(uint256 captureTimestamp => mapping(address vault => mapping(address token => uint256 stakeAmount))) vaultStakedAmounts;
+    mapping(uint256 captureTimestamp => mapping(address vault => mapping(address operator => mapping(address stakeToken => uint256 stakeAmount)))) vaultStakeAmounts;
 
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
 
     /* Staking */
     mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
-    mapping(address operator => mapping(address token => uint256 locked)) public operatorLockedAmounts;
+    mapping(address operator => mapping(address stakeToken => uint256 locked)) public operatorLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
@@ -90,7 +91,9 @@ contract SymbioticStaking is
         rewardDistributor = _rewardDistributor;
     }
 
-    /*======================================== L1 to L2 Transmission ========================================*/
+    /*============================================= external functions =============================================*/
+
+    /* ------------------------- L1 to L2 submission ------------------------- */
 
     function submitVaultSnapshot(
         uint256 _index,
@@ -153,7 +156,8 @@ contract SymbioticStaking is
         // TODO: unlock the selfStake and reward it to the transmitter 
     }
 
-    /*======================================== Job ========================================*/
+    /* ------------------------- stake lock/unlock for job ------------------------- */
+
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
         require(getOperatorActiveStakeAmount(_operator, _token) >= amountToLock[_token], "Insufficient stake amount");
@@ -166,7 +170,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function unlockStake(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
         uint256 transmitterComissionRate = confirmedTimestamps[confirmedTimestamps.length - 1].transmitterComissionRate;
         uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, transmitterComissionRate, 1e18);
@@ -185,6 +189,8 @@ contract SymbioticStaking is
 
         // TODO: emit event
     }
+
+    /* ------------------------- slash ------------------------- */
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
@@ -240,10 +246,10 @@ contract SymbioticStaking is
             Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
             // update vault staked amount
-            vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.stakeToken] = _vaultSnapshot.stakeAmount;
+            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] = _vaultSnapshot.stakeAmount;
 
             // update operator staked amount
-            operatorStakedAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] += _vaultSnapshot.stakeAmount;
+            operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] += _vaultSnapshot.stakeAmount;
 
             // TODO: update rewardPerToken in RewardDistributor
 
@@ -264,15 +270,42 @@ contract SymbioticStaking is
 
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
+        ISymbioticStakingReward(rewardDistributor).updateFeeReward(_stakeToken, _operator, _amount);
     }
 
 
     function _distributeInflationReward(address _operator, uint256 _amount) internal {
-        // IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        // IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount);
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, _amount);
     }
 
+    /*======================================== external view functions ========================================*/
+    
+    function lastConfirmedTimestamp() public view returns (uint256) {
+        return confirmedTimestamps[confirmedTimestamps.length - 1].captureTimestamp;
+    }
+
+    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorStakeAmounts[lastConfirmedTimestamp()][_operator][_token];
+    }
+
+    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
+        uint256 operatorStakeAmount = operatorStakeAmounts[lastConfirmedTimestamp()][_operator][_token];
+        uint256 operatorLockedAmount = operatorLockedAmounts[_operator][_token];
+        return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
+    }
+
+    function getStakeAmount(address _vault, address _stakeToken, address _operator) external view returns (uint256) {
+        return vaultStakeAmounts[lastConfirmedTimestamp()][_vault][_stakeToken][_operator];
+    }
+
+    function getStakeTokenList() external view returns(address[] memory) {
+        return stakeTokenSet.values();
+    }
+
+    function isSupportedToken(address _token) public view returns (bool) {
+        return stakeTokenSet.contains(_token);
+    }
 
     /*======================================== internal view functions ========================================*/
 
@@ -326,26 +359,6 @@ contract SymbioticStaking is
 
     function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
         // TODO: implement logic
-    }
-
-    /*======================================== Getters ========================================*/
-    
-    function lastConfirmedTimestamp() public view returns (uint256) {
-        return confirmedTimestamps[confirmedTimestamps.length - 1].captureTimestamp;
-    }
-
-    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token];
-    }
-
-    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        uint256 operatorStakeAmount = operatorStakedAmounts[lastConfirmedTimestamp()][_operator][_token];
-        uint256 operatorLockedAmount = operatorLockedAmounts[_operator][_token];
-        return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
-    }
-
-    function isSupportedToken(address _token) public view returns (bool) {
-        return stakeTokenSet.contains(_token);
     }
 
     /*======================================== Admin ========================================*/ 

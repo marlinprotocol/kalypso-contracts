@@ -26,7 +26,7 @@ library Struct {
 
     struct JobSlashed {
         uint256 jobId;
-        address operator;
+        address operator; // TODO: check if cheaper than pulling from JobManager
         address rewardAddress;
     }
 
@@ -35,11 +35,14 @@ library Struct {
         uint256 numOfTxs; // total number of txs for the snapshot
     }
 
+    /*==================== Symbiotic Staking ==================== */
+
+    /* Snapshot Submission */
     struct VaultSnapshot {
         address operator;
         address vault;
-        address token;
-        uint256 stake;
+        address stakeToken;
+        uint256 stakeAmount;
     }
 
     struct ConfirmedTimestamp {
@@ -48,12 +51,20 @@ library Struct {
         uint256 transmitterComissionRate;
     }
 
+    // struct OperatorSnapshot {
+    //     address operator;
+    //     address[] stakeTokens;
+    //     uint256[] stakeAmounts;
+    // }
+
+    /* Job Lock */
     struct SymbioticStakingLock {
         address stakeToken;
         uint256 amount;
         // transmitter who submitted with confirmedTimestamp used when job is created
         address transmitter; 
     }
+
     struct PoolConfig {
         uint256 weight;
         bool enabled;

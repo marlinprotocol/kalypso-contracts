@@ -172,7 +172,7 @@ contract SymbioticStakingReward is
             uint256 operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][_operator][inflationRewardToken];
             uint256 vaultRewardPerTokenPaid = rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken];
 
-            rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(_vault, stakeToken).mulDiv(
+            rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(_vault, stakeToken, _operator).mulDiv(
                 operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
             );
             rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken] = operatorRewardPerTokenStored;
@@ -189,8 +189,8 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(_operator, _stakeToken);
     }
 
-    function _getVaultStakeAmount(address _vault, address _stakeToken) internal view returns (uint256) {
-        return ISymbioticStaking(symbioticStaking).getVaultStakeAmount(_vault, _stakeToken);
+    function _getVaultStakeAmount(address _vault, address _stakeToken, address _operator) internal view returns (uint256) {
+        return ISymbioticStaking(symbioticStaking).getStakeAmount(_vault, _stakeToken, _operator);
     }
 
     /*============================================= internal pure functions =============================================*/
