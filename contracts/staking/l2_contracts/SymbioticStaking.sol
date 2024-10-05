@@ -12,7 +12,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 
-import {Struct} from "../../interfaces/staking/lib/Struct.sol";
+import {Struct} from "../../lib/staking/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -23,8 +23,8 @@ contract SymbioticStaking is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    ISymbioticStaking 
+    ReentrancyGuardUpgradeable
+    // ISymbioticStaking 
     {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
@@ -37,8 +37,8 @@ contract SymbioticStaking is
     bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
-    bytes32 public constant STAKE_SNAPSHOT = keccak256("STAKE_SNAPSHOT");
-    bytes32 public constant SLASH_RESULT = keccak256("SLASH_RESULT");
+    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT");
+    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT");
 
     EnumerableSet.AddressSet stakeTokenSet;
 
@@ -53,8 +53,11 @@ contract SymbioticStaking is
 
 
     /* Symbiotic Snapshot */
-    mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; // to check if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; // to check if all partial txs are received
+
+    // to track if all partial txs are received
+    mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; 
+    // to track if all partial txs are received
+    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; 
     // staked amount for each operator
     mapping(uint256 captureTimestamp => mapping(address operator => mapping(address token => uint256 stakeAmount))) operatorStakedAmounts;
     // staked amount for each vault
@@ -98,27 +101,24 @@ contract SymbioticStaking is
     ) external {
         _checkTransmitterRegistration(_captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT);
+        _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
 
         // main update logic
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
-        _updateSnapshotInfo(_captureTimestamp, _vaultSnapshots);
+        _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
 
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
         // when all chunks of OperatorSnapshot are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
-
-        if (_isCompleteStatus(_captureTimestamp)) {
-            _completeSubmission(_captureTimestamp);
-        }
     }
 
+    // TODO
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
@@ -126,27 +126,28 @@ contract SymbioticStaking is
         bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
+        // Vault Snapshot should be submitted before Slash Result
+        require(submissionStatus[_captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK, "Vault Snapshot not submitted");
+
         _checkTransmitterRegistration(_captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT);
+        _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
 
         Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
         // _updateSlashResultDataInfo(_captureTimestamp, _jobSlashed);
 
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT];
-        // when all chunks of OperatorSnapshot are submitted
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
+        
+        // when all chunks of Snapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT;
-        }
-
-        if (_isCompleteStatus(_captureTimestamp)) {
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
             _completeSubmission(_captureTimestamp);
         }
-        
+
         IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter 
@@ -185,29 +186,6 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
-    }
-
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
-        if(_rewardAmount == 0) return;
-
-        uint256 len = stakeTokenSet.length();
-        for(uint256 i = 0; i < len; i++) {
-            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
-        }
-    }
-
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
-        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    }
-
-    function _distributeInflationReward(address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount);
-    }
-
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
         for (uint256 i = 0; i < len; i++) {
@@ -223,36 +201,18 @@ contract SymbioticStaking is
         }
     }
 
-    function _selectLockToken() internal view returns(address) {
-        require(stakeTokenSet.length() > 0, "No supported token");
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+        if(_rewardAmount == 0) return;
 
-        uint256 idx;
-        if (stakeTokenSet.length() > 1) {
-            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            idx = randomNumber % stakeTokenSet.length();
+        uint256 len = stakeTokenSet.length();
+        for(uint256 i = 0; i < len; i++) {
+            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
         }
-        return stakeTokenSet.at(idx);
     }
 
-    /*======================================== Helpers ========================================*/
-    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
-        require(_numOfTxs > 0, "Invalid length");
+    /*======================================== internal functions ========================================*/
 
-        // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
-        require(block.timestamp >= (lastConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
-
-        
-        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
-        require(_index == snapshot.idxToSubmit, "Invalid index");
-        require(_index < snapshot.numOfTxs, "Invalid index");
-        require(snapshot.numOfTxs == _numOfTxs, "Invalid numOfTxs");
-
-        bytes32 mask;
-        if (_type == STAKE_SNAPSHOT) mask = STAKE_SNAPSHOT_MASK;
-        else if (_type == SLASH_RESULT) mask = SLASH_RESULT_MASK;
-
-        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
-    }
+    /*--------------- Snapshot Submission ---------------*/
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
         if(registeredTransmitters[_captureTimestamp] == address(0)) {
@@ -266,34 +226,26 @@ contract SymbioticStaking is
     function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
         Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
 
-        // increase count by 1
-        txCountInfo[_captureTimestamp][msg.sender][_type].idxToSubmit += 1;
-
         // update length if 0
         if (_snapshot.numOfTxs == 0) {
             txCountInfo[_captureTimestamp][msg.sender][_type].numOfTxs = _numOfTxs;
         }
+
+        // increase count by 1
+        txCountInfo[_captureTimestamp][msg.sender][_type].idxToSubmit += 1;
     }
 
-    function _verifySignature(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes memory _data, bytes memory _signature) internal {
-        // TODO: Verify the signature
-        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
-    }
-    
-    function _isCompleteStatus(uint256 _captureTimestamp) internal view returns (bool) {
-        return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
-    }
-
-
-    function _updateSnapshotInfo(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
+    function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
             Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
             // update vault staked amount
-            vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.token] = _vaultSnapshot.stake;
+            vaultStakedAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.stakeToken] = _vaultSnapshot.stakeAmount;
 
             // update operator staked amount
-            operatorStakedAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.token] += _vaultSnapshot.stake;
+            operatorStakedAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] += _vaultSnapshot.stakeAmount;
+
+            // TODO: update rewardPerToken in RewardDistributor
 
             // TODO: emit event for each update?
         }
@@ -306,6 +258,70 @@ contract SymbioticStaking is
         confirmedTimestamps.push(confirmedTimestamp);
 
         // TODO: emit event
+    }
+
+    /*--------------- Reward Distribution ---------------*/
+
+    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
+        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
+    }
+
+
+    function _distributeInflationReward(address _operator, uint256 _amount) internal {
+        // IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+        // IRewardDistributor(rewardDistributor).addInflationReward(_operator, _amount);
+    }
+
+
+    /*======================================== internal view functions ========================================*/
+
+    /*--------------- Snapshot Submission ---------------*/
+
+    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
+        require(_numOfTxs > 0, "Invalid length");
+
+        // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
+        require(block.timestamp >= (lastConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
+
+        
+        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
+        require(_index == snapshot.idxToSubmit, "Invalid index");
+        require(_index < snapshot.numOfTxs, "Invalid index");
+        require(snapshot.numOfTxs == _numOfTxs, "Invalid numOfTxs");
+
+        bytes32 mask;
+        if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
+        else if (_type == SLASH_RESULT_TYPE) mask = SLASH_RESULT_MASK;
+
+        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
+    }
+
+    function _verifySignature(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes memory _data, bytes memory _signature) internal {
+        // TODO: Verify the signature
+        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
+    }
+
+    function _isCompleteStatus(uint256 _captureTimestamp) internal view returns (bool) {
+        return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
+    }
+
+    /*--------------- Job ---------------*/
+
+    function _selectLockToken() internal view returns(address) {
+        require(stakeTokenSet.length() > 0, "No supported token");
+
+        uint256 idx;
+        if (stakeTokenSet.length() > 1) {
+            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
+            idx = randomNumber % stakeTokenSet.length();
+        }
+        return stakeTokenSet.at(idx);
+    }
+
+
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
     }
 
     function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
