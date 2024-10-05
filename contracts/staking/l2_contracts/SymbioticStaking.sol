@@ -93,7 +93,7 @@ contract SymbioticStaking is
 
     /*============================================= external functions =============================================*/
 
-    /* ------------------------- L1 to L2 submission ------------------------- */
+    /*------------------------- L1 to L2 submission ------------------------- */
 
     function submitVaultSnapshot(
         uint256 _index,
@@ -107,15 +107,18 @@ contract SymbioticStaking is
         _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
         _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
-
-        // main update logic
+        
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
+
+        // update Vault and Operator stake amount
+        // update rewardPerToken for each vault and operator in SymbioticStakingReward
         _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
         Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
-        // when all chunks of OperatorSnapshot are submitted
+        
+        // when all chunks of VaultSnapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
@@ -151,12 +154,13 @@ contract SymbioticStaking is
             _completeSubmission(_captureTimestamp);
         }
 
+        // 
         IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter 
     }
 
-    /* ------------------------- stake lock/unlock for job ------------------------- */
+    /*------------------------- stake lock/unlock for job -------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
@@ -193,13 +197,14 @@ contract SymbioticStaking is
         // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
         IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission);
 
+        // unlock the stake locked during job creation
         delete lockInfo[_jobId];
         operatorLockedAmounts[_operator][lock.stakeToken] -= amountToLock[lock.stakeToken];
 
         // TODO: emit event
     }
 
-    /* ------------------------- slash ------------------------- */
+    /*------------------------- slash -------------------------*/
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
@@ -207,8 +212,8 @@ contract SymbioticStaking is
             Struct.SymbioticStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
 
             uint256 lockedAmount = lock.amount;
-            if(lockedAmount == 0) continue;
 
+            // unlock the stake locked during job creation
             operatorLockedAmounts[_slashedJobs[i].operator][lock.stakeToken] -= lockedAmount;
             delete lockInfo[_slashedJobs[i].jobId];
 
@@ -227,7 +232,7 @@ contract SymbioticStaking is
 
     /*======================================== internal functions ========================================*/
 
-    /*--------------- Snapshot Submission ---------------*/
+    /*------------------------- Snapshot Submission -------------------------*/
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
         if(registeredTransmitters[_captureTimestamp] == address(0)) {
@@ -275,7 +280,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    /*--------------- Reward Distribution ---------------*/
+    /*------------------------- Reward Distribution -------------------------*/
 
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
@@ -352,7 +357,7 @@ contract SymbioticStaking is
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
     }
 
-    /*--------------- Job ---------------*/
+    /*------------------------- Job -------------------------*/
 
     function _selectLockToken() internal view returns(address) {
         require(stakeTokenSet.length() > 0, "No supported token");
@@ -365,13 +370,14 @@ contract SymbioticStaking is
         return stakeTokenSet.at(idx);
     }
 
+    function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
+        // TODO: implement logic
+    }
+
+    /*------------------------- Reward -------------------------*/
 
     function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
         return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    }
-
-    function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
-        // TODO: implement logic
     }
 
     /*======================================== Admin ========================================*/ 

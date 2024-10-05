@@ -126,9 +126,13 @@ contract SymbioticStakingReward is
         // update inlfationReward info of each vault
         address[] memory stakeTokenList = _getStakeTokenList();
 
+        // update pending inflation reward and update rewardPerToken for each operator and vault
+        // feeReward is updated on job completion so no need to update here
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
+            // update pending inflation reward of the operator and update rewardPerTokenStored
             _updatePendingInflationReward(_vaultSnapshots[i].operator);
 
+            // update rewardPerTokenPaid and rewardAccrued for each vault
             _updateVaultInflationReward(stakeTokenList, _vaultSnapshots[i].vault, _vaultSnapshots[i].operator);
         }
     }
@@ -137,14 +141,18 @@ contract SymbioticStakingReward is
 
     /// @notice vault can claim reward calling this function
     function claimReward(address _operator) external nonReentrant {
+        // update pending inflation reward of the operator and update rewardPerTokenStored
         _updatePendingInflationReward(_operator);
 
+        // update rewardPerTokenPaid and rewardAccrued for each vault
         _updateVaultInflationReward(_getStakeTokenList(), _msgSender(), _operator);
 
         // TODO: check transfer logic
+        // transfer fee reward to the vault
         IERC20(feeRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][feeRewardToken]);
         rewardAccrued[_msgSender()][feeRewardToken] = 0;
 
+        // transfer inflation reward to the vault
         IERC20(inflationRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][inflationRewardToken]);
         rewardAccrued[_msgSender()][inflationRewardToken] = 0;
     }
@@ -172,9 +180,12 @@ contract SymbioticStakingReward is
             uint256 operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][_operator][inflationRewardToken];
             uint256 vaultRewardPerTokenPaid = rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken];
 
+            // update reward accrued for the vault
             rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(_vault, stakeToken, _operator).mulDiv(
                 operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
             );
+
+            // update rewardPerTokenPaid of the vault
             rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken] = operatorRewardPerTokenStored;
         }
     }
