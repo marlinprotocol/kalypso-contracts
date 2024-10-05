@@ -16,6 +16,8 @@ interface IStakingPool {
 
     function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256);
 
+    function getVaultStakeAmount(address _vault, address _token) external view returns (uint256);
+
     function rewardDistributor() external view returns (address);
 
     function distributeInflationReward(address _operator, uint256 _rewardAmount) external; // Staking Manager only

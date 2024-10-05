@@ -12,6 +12,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -35,7 +36,7 @@ contract SymbioticStakingReward is
     using Math for uint256;
 
     address public jobManager;
-    address public stakingPool;
+    address public symbioticStaking;
 
     address public feeRewardToken;
     address public inflationRewardToken;
@@ -45,15 +46,8 @@ contract SymbioticStakingReward is
         stakeToken: staking token
     */
 
-    // total amount staked for each stakeToken
-    // notice: the total amount can be reduced when a job is created and the stake is locked
-    mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 amount)) public totalStakeAmounts;
-
-    // locked amount for each stakeToken upon job creation
-    mapping(uint256 captureTimestamp => mapping(address stakeToken => uint256 amount)) public lockedStakeAmounts;
-
     // reward accrued per operator
-    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount))) rewards;
+    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount))) rewards; // TODO: check if needed
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken)))
@@ -70,17 +64,20 @@ contract SymbioticStakingReward is
     // reward accrued that the vault can claim
     mapping(address vault => mapping(address rewardToken => uint256 amount)) public rewardAccrued;
 
-    address public symbioticStaking;
 
-    // TODO: vault => claimAddress
     modifier onlySymbioticStaking() {
         require(_msgSender() == symbioticStaking, "Caller is not the staking manager");
         _;
     }
 
     /*============================================= init =============================================*/
-    // TODO: initialize contract addresses
-    function initialize(address _admin, address _stakingManager) public initializer {
+    function initialize(
+        address _admin,
+        address _jobManager,
+        address _symbioticStaking,
+        address _feeRewardToken,
+        address _inflationRewardToken
+    ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -90,7 +87,11 @@ contract SymbioticStakingReward is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        _setStakingManager(_stakingManager);
+        jobManager = _jobManager;
+        symbioticStaking = _symbioticStaking;
+
+        feeRewardToken = _feeRewardToken;
+        inflationRewardToken = _inflationRewardToken;
     }
 
     /*============================================= external functions =============================================*/
@@ -98,70 +99,89 @@ contract SymbioticStakingReward is
     /* ------------------------- reward update ------------------------- */
 
     /// @notice called when fee reward is generated
-    function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
-        rewards[_stakeToken][_operator][feeRewardToken] += _rewardAmount;
-        rewardPerTokenStored[_stakeToken][_operator][feeRewardToken] += _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, _stakeToken));
+    /// @dev triggered from JobManager when job is completed
+    function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount)
+        external
+        onlySymbioticStaking
+    {
+        rewardPerTokenStored[_stakeToken][_operator][feeRewardToken] +=
+            _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, _stakeToken));
     }
 
     /// @notice called when inflation reward is generated
     function updateInflationReward(address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
         address[] memory stakeTokenLost = _getStakeTokenList();
-        for(uint256 i = 0; i < stakeTokenLost.length; i++) {
-            rewards[stakeTokenLost[i]][_operator][inflationRewardToken] += _rewardAmount;
-            rewardPerTokenStored[stakeTokenLost[i]][_operator][inflationRewardToken] += _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenLost[i]));
+        for (uint256 i = 0; i < stakeTokenLost.length; i++) {
+            rewardPerTokenStored[stakeTokenLost[i]][_operator][inflationRewardToken] +=
+                _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenLost[i]));
         }
     }
 
     /* ------------------------- symbiotic staking ------------------------- */
 
-    function onSnapshotSubmission(Struct.VaultSnapshot calldata _vaultSnapshots) external onlySymbioticStaking {
-        // TODO: update rewardPerToken for each stakeToken
+    /// @notice update rewardPerToken and rewardAccrued for each vault
+    /// @dev called when snapshot is submitted
+    function onSnapshotSubmission(Struct.VaultSnapshot[] calldata _vaultSnapshots) external onlySymbioticStaking {
+        // TODO: this can be called redundantly as each snapshots can have same operator address
+        // update inlfationReward info of each vault
+        address[] memory stakeTokenList = _getStakeTokenList();
+
+        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
+            _updatePendingInflationReward(_vaultSnapshots[i].operator);
+
+            _updateVaultInflationReward(stakeTokenList, _vaultSnapshots[i].vault, _vaultSnapshots[i].operator);
+        }
+    }
+
+    /* ------------------------- reward claim ------------------------- */
+
+    /// @notice vault can claim reward calling this function
+    function claimReward(address _operator) external nonReentrant {
+        _updatePendingInflationReward(_operator);
+
+        _updateVaultInflationReward(_getStakeTokenList(), _msgSender(), _operator);
+
+        // TODO: check transfer logic
+        IERC20(feeRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][feeRewardToken]);
+        rewardAccrued[_msgSender()][feeRewardToken] = 0;
+
+        IERC20(inflationRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][inflationRewardToken]);
+        rewardAccrued[_msgSender()][inflationRewardToken] = 0;
     }
 
     /*============================================= external view functions =============================================*/
-        
-    // TODO: needed?
-    // function getLatestConfirmedTimestamp() external view returns (uint256) {
-    //     return _latestConfirmedTimestamp();
-    // }
 
-    // function getRewardTokens() external view returns (address[] memory) {
-    //     address[] memory _rewardTokens = new address[](_rewardTokenSet.length());
-    //     uint256 len = _rewardTokenSet.length();
-    //     for (uint256 i = 0; i < len; i++) {
-    //         _rewardTokens[i] = _rewardTokenSet.at(i);
-    //     }
-    //     return _rewardTokens;
-    // }
-
-    // /// @notice rewardToken amount per stakeToken
-    // function _rewardPerToken(address _stakeToken, address _rewardToken, address _operator)
-    //     internal
-    //     view
-    //     returns (uint256)
-    // {
-    //     uint256 operatorStakeAmount = _getOperatorStakeAmount(_operator, _stakeToken);
-    //     uint256 rewardAmount = rewards[_rewardToken][_stakeToken];
-
-    //     return operatorStakeAmount == 0
-    //         ? rewardPerTokenStored[_stakeToken][_operator][_rewardToken]
-    //         : rewardPerTokenStored[_stakeToken][_operator][_rewardToken]
-    //             + totalRewardAmount.mulDiv(1e18, operatorStakeAmount);
-    // }
-
-    // function _getOperatorStakeAmount(address _operator, address _stakeToken) internal view returns (uint256) {
-    //     return ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(_operator, _stakeToken);
-    // }
-
-    // function _latestConfirmedTimestamp() internal view returns (uint256) {
-    //     return ISymbioticStaking(symbioticStaking).lastConfirmedTimestamp();
-    // }
+    function getVaultRewardAccrued(address _vault) external view returns (uint256 feeReward, uint256 inflationReward) {
+        // TODO: this does not include pending inflation reward as it requires states update in JobManager
+        return (rewardAccrued[_vault][feeRewardToken], rewardAccrued[_vault][inflationRewardToken]);
+    }
 
     /*============================================= internal functions =============================================*/
 
+    /// @dev update pending inflation reward and update rewardPerTokenStored of the operator
+    function _updatePendingInflationReward(address _operator) internal {
+        IJobManager(jobManager).updateInflationReward(_operator);
+    }
+
+    /// @dev update rewardPerToken and rewardAccrued for each vault
+    function _updateVaultInflationReward(address[] memory _stakeTokenList, address _vault, address _operator)
+        internal
+    {
+        for (uint256 i = 0; i < _stakeTokenList.length; i++) {
+            address stakeToken = _stakeTokenList[i];
+            uint256 operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][_operator][inflationRewardToken];
+            uint256 vaultRewardPerTokenPaid = rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken];
+
+            rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(_vault, stakeToken).mulDiv(
+                operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
+            );
+            rewardPerTokenPaids[_vault][stakeToken][_operator][inflationRewardToken] = operatorRewardPerTokenStored;
+        }
+    }
+
     /*============================================= internal view functions =============================================*/
 
-    function _getStakeTokenList() internal view returns(address[] memory) {
+    function _getStakeTokenList() internal view returns (address[] memory) {
         return ISymbioticStaking(symbioticStaking).getStakeTokenList();
     }
 
@@ -169,54 +189,28 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(_operator, _stakeToken);
     }
 
+    function _getVaultStakeAmount(address _vault, address _stakeToken) internal view returns (uint256) {
+        return ISymbioticStaking(symbioticStaking).getVaultStakeAmount(_vault, _stakeToken);
+    }
+
     /*============================================= internal pure functions =============================================*/
-
-
-
-    // function _update(uint256 _captureTimestamp, address _vault, address _stakeToken, address _rewardToken) internal {
-    //     // update rewardPerToken
-    //     uint256 currentRewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
-    //     rewardPerTokens[_stakeToken][_rewardToken] = currentRewardPerToken;
-
-    //     // update reward for each vault
-    //     claimableRewards[_vault] += _pendingReward(_vault, _stakeToken, _rewardToken);
-    //     vaultRewardPerTokenPaid[_captureTimestamp][_vault] = currentRewardPerToken;
-    // }
-
-    // function _updateRewardPerTokens(address _stakeToken) internal {
-    //     uint256 len = _rewardTokenSet.length();
-    //     for (uint256 i = 0; i < len; i++) {
-    //         address rewardToken = _rewardTokenSet.at(i);
-    //         rewardPerTokens[_stakeToken][rewardToken] = _rewardPerToken(_stakeToken, rewardToken);
-    //     }
-    // }
-
-    // function _pendingReward(address _vault, address _stakeToken, address _rewardToken)
-    //     internal
-    //     view
-    //     returns (uint256)
-    // {
-    //     uint256 latestConfirmedTimestamp = _latestConfirmedTimestamp();
-    //     uint256 rewardPerTokenPaid = vaultRewardPerTokenPaid[latestConfirmedTimestamp][_vault];
-    //     uint256 rewardPerToken = _rewardPerToken(_stakeToken, _rewardToken);
-
-    //     return (vaultStakeAmounts[latestConfirmedTimestamp][_vault].mulDiv((rewardPerToken - rewardPerTokenPaid), 1e18));
-    // }
-
-    /*======================================== internal functions ========================================*/
-
-    /*======================================== internal view functions ========================================*/
-
 
     /*======================================== admin functions ========================================*/
 
-    function setStakingManager(address _stakingManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setStakingManager(_stakingManager);
+    function setStakingPool(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        symbioticStaking = _symbioticStaking;
     }
 
-    function _setStakingManager(address _stakingManager) internal {
-        symbioticStaking = _stakingManager;
-        // TODO: emit event
+    function setJobManager(address _jobManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        jobManager = _jobManager;
+    }
+
+    function setFeeRewardToken(address _feeRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        feeRewardToken = _feeRewardToken;
+    }
+
+    function setInflationRewardToken(address _inflationRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        inflationRewardToken = _inflationRewardToken;
     }
 
     /*======================================== overrides ========================================*/
@@ -232,6 +226,4 @@ contract SymbioticStakingReward is
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
-
-    //-------------------------------- Overrides end --------------------------------//
 }
