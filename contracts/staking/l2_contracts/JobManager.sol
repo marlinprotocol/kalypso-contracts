@@ -106,11 +106,12 @@ contract JobManager is
         uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator);
 
         // send fee and unlock stake
+        // TODO: consider where the fund comes from
         IERC20(feeToken).safeTransfer(stakingManager, feePaid); // TODO: make RewardDistributor pull fee from JobManager
         IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
         IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
 
-        _updateJobCompletionEpoch(_jobId);
+        _updateJobCompletionEpoch(_jobId); // TODO
     }
 
     /**
@@ -137,7 +138,7 @@ contract JobManager is
         }
     }
 
-    /*======================================== Fee ========================================*/
+    /*======================================== Fee Reward ========================================*/
 
     /// @notice refund fee to the job requester
     /// @dev most likely called by the requester when job is not completed
@@ -171,6 +172,10 @@ contract JobManager is
         }
     }
 
+    function getPendingInflationReward(address _operator) external view returns(uint256) {
+        return _getPendingInflationReward(_operator);
+    }
+
     /*======================================== Internal functions ========================================*/
 
     function _verifyProof(uint256 _jobId, bytes calldata _proof) internal {
@@ -188,12 +193,12 @@ contract JobManager is
         uint256[] storage completedEpochs = operatorJobCompletionEpochs[_operator];
 
         // first epoch which the reward has not been distributed
-        uint256 _beginIdx = inflationRewardEpochBeginIdx[_operator];
+        uint256 beginIdx = inflationRewardEpochBeginIdx[_operator];
 
         // no job completed since last update
-        if(_beginIdx > completedEpochs.length) return 0;
+        if(beginIdx > completedEpochs.length) return 0;
 
-        uint256 beginEpoch = completedEpochs[_beginIdx];
+        uint256 beginEpoch = completedEpochs[beginIdx];
         uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
 
         // no pending reward if operator has already claimed reward until latest epoch
@@ -203,7 +208,7 @@ contract JobManager is
         uint256 rewardPerEpoch = inflationRewardPerEpoch; // cache
         uint256 len = completedEpochs.length;
 
-        for(uint256 idx = _beginIdx; idx < len; idx++) {
+        for(uint256 idx = beginIdx; idx < len; idx++) {
             uint256 epoch = completedEpochs[idx];
 
             // for last epoch in epoch array
@@ -211,6 +216,38 @@ contract JobManager is
                 // idx can be greater than actual length of epoch array by 1
                 inflationRewardEpochBeginIdx[_operator] = epoch == currentEpoch ? idx : idx + 1;
             }
+
+            pendingInflationReward += Math.mulDiv(rewardPerEpoch, operatorJobCount[epoch][_operator], totalJobCount[epoch]);
+        }
+
+        return pendingInflationReward;
+    }
+
+    function _getPendingInflationReward(address _operator) internal view returns(uint256 pendingInflationReward) {
+        // check if operator has completed any job
+        if (operatorJobCompletionEpochs[_operator].length == 0) return 0;
+        
+        // list of epochs in which operator has completed jobs
+        uint256[] storage completedEpochs = operatorJobCompletionEpochs[_operator];
+
+        // first epoch which the reward has not been distributed
+        uint256 beginIdx = inflationRewardEpochBeginIdx[_operator];
+
+        // no job completed since last update
+        if(beginIdx > completedEpochs.length) return 0;
+
+        uint256 beginEpoch = completedEpochs[beginIdx];
+        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
+
+        // no pending reward if operator has already claimed reward until latest epoch
+        if(beginEpoch == currentEpoch) return 0;
+
+        // update pending reward
+        uint256 rewardPerEpoch = inflationRewardPerEpoch; // cache
+        uint256 len = completedEpochs.length;
+
+        for(uint256 idx = beginIdx; idx < len; idx++) {
+            uint256 epoch = completedEpochs[idx];
 
             pendingInflationReward += Math.mulDiv(rewardPerEpoch, operatorJobCount[epoch][_operator], totalJobCount[epoch]);
         }
