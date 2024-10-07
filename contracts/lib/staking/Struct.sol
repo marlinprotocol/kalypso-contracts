@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 library Struct {
 
-    /* Job Manager */
+    /*=========================== Job Manager =============================*/
     struct JobInfo {
         address requester;
         address operator;
@@ -11,14 +11,23 @@ library Struct {
         uint256 deadline;
     }
 
-    /* Staking Pool */
+    /*========================= Staking Manager ===========================*/
+
+    struct PoolConfig {
+        uint256 weight;
+        bool enabled;
+    }
+
+    /*=========================== Staking Pool ============================*/
+
     struct PoolLockInfo {
         address token;
         uint256 amount;
         address transmitter;
     }
 
-    /* NativeStaking */
+    /*========================== Native Staking ===========================*/
+
     struct NativeStakingLock {
         address token;
         uint256 amount;
@@ -30,19 +39,24 @@ library Struct {
         address rewardAddress;
     }
 
-    struct SnapshotTxCountInfo {
-        uint256 idxToSubmit; // idx of pratial snapshot tx to submit
-        uint256 numOfTxs; // total number of txs for the snapshot
+    struct WithdrawalRequest {
+        address stakeToken;
+        uint256 amount;
+        uint256 withdrawalTime;
     }
 
-    /*==================== Symbiotic Staking ==================== */
+    /*========================= Symbiotic Staking =========================*/
 
-    /* Snapshot Submission */
     struct VaultSnapshot {
         address operator;
         address vault;
         address stakeToken;
         uint256 stakeAmount;
+    }
+
+    struct SnapshotTxCountInfo {
+        uint256 idxToSubmit; // idx of pratial snapshot tx to submit
+        uint256 numOfTxs; // total number of txs for the snapshot
     }
 
     struct ConfirmedTimestamp {
@@ -51,7 +65,6 @@ library Struct {
         uint256 transmitterComissionRate;
     }
 
-    /* Job Lock */
     struct SymbioticStakingLock {
         address stakeToken;
         uint256 amount;
@@ -60,12 +73,4 @@ library Struct {
         uint256 transmitterComissionRate;
     }
 
-    struct PoolConfig {
-        uint256 weight;
-        bool enabled;
-    }
-    struct RewardPerToken {
-        uint256 value;
-        uint256 lastUpdatedTimestamp; //? not sure if this actually saves gas
-    }
 }

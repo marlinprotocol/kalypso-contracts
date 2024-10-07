@@ -38,14 +38,19 @@ contract NativeStaking is
     address public inflationRewardToken;
 
     /* Config */
+    uint256 public withdrawalDuration;
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
     mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
     /* Stake */
     // total staked amounts for each operator
-    mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorstakeAmounts; 
+    mapping(address operator => mapping(address stakeToken => uint256 stakeAmounts)) public operatorstakeAmounts;
     // staked amount for each account
-    mapping(address account => mapping(address operator => mapping(address token => uint256 amount))) public stakeAmounts;
+    mapping(address account => mapping(address operator => mapping(address stakeToken => uint256 amount))) public
+        stakeAmounts;
+
+    mapping(address account => mapping(address operator => Struct.WithdrawalRequest[] withdrawalRequest)) public
+        withdrawalRequests;
 
     /* Locked Stakes */
     mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
@@ -63,13 +68,26 @@ contract NativeStaking is
 
     /*=================================================== initialize ====================================================*/
 
-    function initialize(address _admin) public initializer {
+    function initialize(
+        address _admin,
+        address _stakingManager,
+        address _rewardDistributor,
+        uint256 _withdrawalDuration,
+        address _feeToken,
+        address _inflationRewardToken
+    ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        stakingManager = _stakingManager;
+        rewardDistributor = _rewardDistributor;
+        withdrawalDuration = _withdrawalDuration;
+        feeRewardToken = _feeToken;
+        inflationRewardToken = _inflationRewardToken;
     }
 
     /*==================================================== external =====================================================*/
@@ -90,7 +108,7 @@ contract NativeStaking is
         stakeAmounts[msg.sender][_operator][_stakeToken] += _amount;
         operatorstakeAmounts[_operator][_stakeToken] += _amount;
 
-        INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
+        // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
 
         emit Staked(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
@@ -103,18 +121,19 @@ contract NativeStaking is
         stakeAmounts[msg.sender][_operator][_stakeToken] -= _amount;
         operatorstakeAmounts[_operator][_stakeToken] -= _amount;
 
-        IERC20(_stakeToken).safeTransfer(msg.sender, _amount);
+        withdrawalRequests[msg.sender][_operator].push(
+            Struct.WithdrawalRequest(_stakeToken, _amount, block.timestamp + withdrawalDuration)
+        );
 
-        INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
+        // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
 
         emit StakeWithdrawn(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
     }
 
-    function withdrawStake(address _operator, address _stakeToken) external nonReentrant {
+    function withdrawStake(address _operator, uint256[] calldata _index) external nonReentrant {
         require(msg.sender == _operator, "Only operator can withdraw stake");
-        uint256 _amount = stakeAmounts[msg.sender][_operator][_stakeToken];
-        require(_amount > 0, "No stake to withdraw");
 
+        _withdrawStake(_operator, _index);
         // TODO
     }
 
@@ -132,21 +151,26 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    /// @notice unlock stake and distribute reward 
+    /// @notice unlock stake and distribute reward
     /// @dev called by StakingManager when job is completed
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
+    function onJobCompletion(
+        uint256 _jobId,
+        address _operator,
+        uint256 _feeRewardAmount,
+        uint256 _inflationRewardAmount
+    ) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = lockInfo[_jobId];
 
-        if(lock.amount == 0) return;
+        if (lock.amount == 0) return;
 
         _unlockStake(_jobId, _operator, lock.token, lock.amount);
 
         // distribute fee reward
-        if(_feeRewardAmount > 0){
+        if (_feeRewardAmount > 0) {
             _distributeFeeReward(lock.token, _operator, _feeRewardAmount);
         }
 
-        if(_inflationRewardAmount > 0) {
+        if (_inflationRewardAmount > 0) {
             _distributeInflationReward(_operator, _inflationRewardAmount);
         }
 
@@ -159,18 +183,18 @@ contract NativeStaking is
             Struct.NativeStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
 
             uint256 lockedAmount = lock.amount;
-            if(lockedAmount == 0) continue; // if already slashed
+            if (lockedAmount == 0) continue; // if already slashed
 
             _unlockStake(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
             IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
 
-            INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, lock.token, _slashedJobs[i].operator);
+            // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, lock.token, _slashedJobs[i].operator);
         }
         // TODO: emit event
     }
 
     function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
-        if(_rewardAmount == 0) return;
+        if (_rewardAmount == 0) return;
 
         _distributeInflationReward(_operator, _rewardAmount);
     }
@@ -193,16 +217,15 @@ contract NativeStaking is
         return _getOperatorActiveStakeAmount(_operator, _token);
     }
 
-
     function isSupportedToken(address _token) external view returns (bool) {
         return stakeTokenSet.contains(_token);
     }
 
     /*===================================================== internal ====================================================*/
-    
+
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount); 
+        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
     }
 
     function _distributeInflationReward(address _operator, uint256 _rewardAmount) internal {
@@ -210,7 +233,7 @@ contract NativeStaking is
         address[] memory stakeTokens = stakeTokenSet.values();
         uint256[] memory rewardAmounts = new uint256[](len);
         uint256 inflationRewardAmount;
-        for(uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; i++) {
             rewardAmounts[i] = _calcInflationRewardAmount(stakeTokens[i], _rewardAmount);
             inflationRewardAmount += rewardAmounts[i];
         }
@@ -224,15 +247,33 @@ contract NativeStaking is
         delete lockInfo[_jobId];
     }
 
+    function _withdrawStake(address _operator, uint256[] calldata _index) internal {
+        for (uint256 i = 0; i < _index.length; i++) {
+            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_operator][_index[i]];
+
+            require(request.withdrawalTime <= block.timestamp, "Withdrawal time not reached");
+
+            require(request.amount > 0, "Invalid withdrawal request");
+
+            withdrawalRequests[msg.sender][_operator][_index[i]].amount = 0;
+
+            IERC20(request.stakeToken).safeTransfer(msg.sender, request.amount);
+        }
+    }
+
     /*============================================== internal view =============================================*/
 
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
+        internal
+        view
+        returns (uint256)
+    {
         return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
     }
 
-    function _selectTokenToLock() internal view returns(address) {
+    function _selectTokenToLock() internal view returns (address) {
         require(stakeTokenSet.length() > 0, "No supported token");
-        
+
         uint256 idx;
         if (stakeTokenSet.length() > 1) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
@@ -244,7 +285,7 @@ contract NativeStaking is
     function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
         return operatorstakeAmounts[_operator][_token];
     }
-    
+
     function _getOperatorActiveStakeAmount(address _operator, address _token) internal view returns (uint256) {
         return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
     }
