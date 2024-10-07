@@ -105,10 +105,10 @@ abstract contract RewardDistributor is
 
     /// @notice called when inflation reward is generated
     function updateInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingPool {
-        address[] memory stakeTokenLost = _getStakeTokenList();
-        for(uint256 i = 0; i < stakeTokenLost.length; i++) {
-            rewards[stakeTokenLost[i]][_operator][inflationRewardToken] += _rewardAmount;
-            rewardPerTokenStored[stakeTokenLost[i]][_operator][inflationRewardToken] += _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenLost[i]));
+        address[] memory stakeTokenList = _getStakeTokenList();
+        for(uint256 i = 0; i < stakeTokenList.length; i++) {
+            rewards[stakeTokenList[i]][_operator][inflationRewardToken] += _rewardAmount;
+            rewardPerTokenStored[stakeTokenList[i]][_operator][inflationRewardToken] += _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenList[i]));
         }
     }
 

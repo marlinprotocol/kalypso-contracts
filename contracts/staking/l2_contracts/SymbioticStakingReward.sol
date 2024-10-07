@@ -107,10 +107,10 @@ contract SymbioticStakingReward is
     /// @notice called when inflation reward is generated
     /// @dev this function is not called if there is no pending inflation reward in JobManager
     function updateInflationReward(address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
-        address[] memory stakeTokenLost = _getStakeTokenList();
-        for (uint256 i = 0; i < stakeTokenLost.length; i++) {
-            rewardPerTokenStored[stakeTokenLost[i]][_operator][inflationRewardToken] +=
-                _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenLost[i]));
+        address[] memory stakeTokenList = _getStakeTokenList();
+        for (uint256 i = 0; i < stakeTokenList.length; i++) {
+            rewardPerTokenStored[stakeTokenList[i]][_operator][inflationRewardToken] +=
+                _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenList[i]));
         }
     }
 
