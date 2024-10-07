@@ -84,6 +84,25 @@ contract StakingManager is
         // TODO: emit event
     }
 
+    /// @notice called by SymbioticStaking contract when slash result is submitted
+    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {
+        // msg.sender will most likely be SymbioticStaking contract
+        require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
+
+        // refund fee to the requester
+        for(uint256 i = 0; i < _jobsSlashed.length; i++) {
+            // this can be done manually in the JobManager contract
+            // refunds nothing if already refunded
+            IJobManager(jobManager).refundFee(_jobsSlashed[i].jobId);
+        }
+
+        uint256 len = stakingPoolSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address pool = stakingPoolSet.at(i);
+            IStakingPool(pool).slash(_jobsSlashed);
+        }
+    }
+
     function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyJobManager {
         if(_rewardAmount == 0) return;
 
@@ -106,25 +125,6 @@ contract StakingManager is
         uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolWeight, 1e18) : 0;
 
         return (poolFeeRewardAmount, poolInflationRewardAmount);
-    }
-
-    /// @notice called by SymbioticStaking contract when slash result is submitted
-    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {
-        // msg.sender will most likely be SymbioticStaking contract
-        require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
-
-        // refund fee to the requester
-        for(uint256 i = 0; i < _jobsSlashed.length; i++) {
-            // this can be done manually in the JobManager contract
-            // refunds nothing if already refunded
-            IJobManager(jobManager).refundFee(_jobsSlashed[i].jobId);
-        }
-
-        uint256 len = stakingPoolSet.length();
-        for (uint256 i = 0; i < len; i++) {
-            address pool = stakingPoolSet.at(i);
-            IStakingPool(pool).slash(_jobsSlashed);
-        }
     }
 
     /*======================================== Getters ========================================*/

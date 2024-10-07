@@ -18,11 +18,6 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Struct} from "../../lib/staking/Struct.sol";
 
-/* 
-    Unlike common staking contracts, this contract is interacted each time snapshot is submitted to Symbiotic Staking,
-    which means the state of each vault address will be updated whenvever snapshot is submitted.
-*/
-
 contract SymbioticStakingReward is
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -70,7 +65,8 @@ contract SymbioticStakingReward is
         _;
     }
 
-    /*============================================= init =============================================*/
+    /*=============================================== initialize ===============================================*/
+
     function initialize(
         address _admin,
         address _jobManager,
@@ -94,7 +90,7 @@ contract SymbioticStakingReward is
         inflationRewardToken = _inflationRewardToken;
     }
 
-    /*============================================= external functions =============================================*/
+    /*================================================ external ================================================*/
 
     /* ------------------------- reward update ------------------------- */
 
@@ -158,14 +154,14 @@ contract SymbioticStakingReward is
         rewardAccrued[_msgSender()][inflationRewardToken] = 0;
     }
 
-    /*============================================= external view functions =============================================*/
+    /*================================================== external view ==================================================*/
 
     function getVaultRewardAccrued(address _vault) external view returns (uint256 feeReward, uint256 inflationReward) {
         // TODO: this does not include pending inflation reward as it requires states update in JobManager
         return (rewardAccrued[_vault][feeRewardToken], rewardAccrued[_vault][inflationRewardToken]);
     }
 
-    /*============================================= internal functions =============================================*/
+    /*===================================================== internal ====================================================*/
 
     /// @dev update pending inflation reward and update rewardPerTokenStored of the operator
     function _updatePendingInflationReward(address _operator) internal {
@@ -191,7 +187,7 @@ contract SymbioticStakingReward is
         }
     }
 
-    /*============================================= internal view functions =============================================*/
+    /*================================================== internal view ==================================================*/
 
     function _getStakeTokenList() internal view returns (address[] memory) {
         return ISymbioticStaking(symbioticStaking).getStakeTokenList();
@@ -205,9 +201,7 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).getStakeAmount(_vault, _stakeToken, _operator);
     }
 
-    /*============================================= internal pure functions =============================================*/
-
-    /*======================================== admin functions ========================================*/
+    /*======================================================= admin =====================================================*/
 
     function setStakingPool(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
         symbioticStaking = _symbioticStaking;
@@ -225,7 +219,7 @@ contract SymbioticStakingReward is
         inflationRewardToken = _inflationRewardToken;
     }
 
-    /*======================================== overrides ========================================*/
+    /*===================================================== overrides ===================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public

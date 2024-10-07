@@ -17,7 +17,6 @@ import {INativeStakingReward} from "../../interfaces/staking/INativeStakingRewar
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
 import {Struct} from "../../lib/staking/Struct.sol";
 
 contract NativeStaking is
@@ -62,6 +61,8 @@ contract NativeStaking is
         _;
     }
 
+    /*=================================================== initialize ====================================================*/
+
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -70,6 +71,10 @@ contract NativeStaking is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
+
+    /*==================================================== external =====================================================*/
+
+    /*-------------------------------- Native Staking --------------------------------*/
 
     // Staker should be able to choose an Operator they want to stake into
     function stake(address _operator, address _stakeToken, uint256 _amount)
@@ -113,67 +118,8 @@ contract NativeStaking is
         // TODO
     }
 
-    /*======================================== Getters ========================================*/
+    /*-------------------------------- Satking Manager -------------------------------*/
 
-    function getStakeTokenList() external view returns (address[] memory) {
-        return stakeTokenSet.values();
-    }
-
-    function getStakeAmount(address _account, address _operator, address _stakeToken) external view returns (uint256) {
-        return stakeAmounts[_account][_operator][_stakeToken];
-    }
-
-    function getOperatorStakeAmount(address _operator, address _token) external view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token];
-    }
-
-    function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256) {
-        return _getOperatorActiveStakeAmount(_operator, _token);
-    }
-
-    function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token];
-    }
-    
-    function _getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
-    }
-
-    function isSupportedToken(address _token) external view returns (bool) {
-        return stakeTokenSet.contains(_token);
-    }
-
-    /*======================================== Admin ========================================*/
-
-    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_isSupported) {
-            stakeTokenSet.add(_token);
-        } else {
-            stakeTokenSet.remove(_token);
-        }
-
-        // TODO: emit event
-    }
-
-    function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        rewardDistributor = _nativeStakingReward;
-
-        // TODO: emit event
-    }
-
-    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakingManager = _stakingManager;
-
-        // TODO: emit event
-    }
-
-    function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        amountToLock[_token] = _amount;
-
-        // TODO: emit event
-    }
-
-    /*======================================== StakingManager ========================================*/
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectTokenToLock();
         uint256 _amountToLock = amountToLock[_token];
@@ -229,10 +175,31 @@ contract NativeStaking is
         _distributeInflationReward(_operator, _rewardAmount);
     }
 
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
-        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    /*================================================== external view ==================================================*/
+
+    function getStakeTokenList() external view returns (address[] memory) {
+        return stakeTokenSet.values();
     }
 
+    function getStakeAmount(address _account, address _operator, address _stakeToken) external view returns (uint256) {
+        return stakeAmounts[_account][_operator][_stakeToken];
+    }
+
+    function getOperatorStakeAmount(address _operator, address _token) external view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token];
+    }
+
+    function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256) {
+        return _getOperatorActiveStakeAmount(_operator, _token);
+    }
+
+
+    function isSupportedToken(address _token) external view returns (bool) {
+        return stakeTokenSet.contains(_token);
+    }
+
+    /*===================================================== internal ====================================================*/
+    
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
         IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount); 
@@ -257,6 +224,12 @@ contract NativeStaking is
         delete lockInfo[_jobId];
     }
 
+    /*============================================== internal view =============================================*/
+
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    }
+
     function _selectTokenToLock() internal view returns(address) {
         require(stakeTokenSet.length() > 0, "No supported token");
         
@@ -268,7 +241,44 @@ contract NativeStaking is
         return stakeTokenSet.at(idx);
     }
 
-    /*======================================== Overrides ========================================*/
+    function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token];
+    }
+    
+    function _getOperatorActiveStakeAmount(address _operator, address _token) internal view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
+    }
+
+    /*====================================================== admin ======================================================*/
+
+    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_isSupported) {
+            stakeTokenSet.add(_token);
+        } else {
+            stakeTokenSet.remove(_token);
+        }
+
+        // TODO: emit event
+    }
+
+    function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        rewardDistributor = _nativeStakingReward;
+
+        // TODO: emit event
+    }
+
+    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakingManager = _stakingManager;
+
+        // TODO: emit event
+    }
+
+    function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        amountToLock[_token] = _amount;
+
+        // TODO: emit event
+    }
+    /*==================================================== overrides ====================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public

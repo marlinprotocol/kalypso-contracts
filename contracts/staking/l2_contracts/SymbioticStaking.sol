@@ -54,7 +54,6 @@ contract SymbioticStaking is
 
 
     /* Symbiotic Snapshot */
-
     // to track if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; 
     // to track if all partial txs are received
@@ -91,9 +90,9 @@ contract SymbioticStaking is
         rewardDistributor = _rewardDistributor;
     }
 
-    /*============================================= external functions =============================================*/
+    /*===================================================== external ====================================================*/    
 
-    /*------------------------- L1 to L2 submission ------------------------- */
+    /*------------------------------ L1 to L2 submission -----------------------------*/
 
     function submitVaultSnapshot(
         uint256 _index,
@@ -160,7 +159,7 @@ contract SymbioticStaking is
         // TODO: unlock the selfStake and reward it to the transmitter 
     }
 
-    /*------------------------- stake lock/unlock for job -------------------------*/
+    /*--------------------------- stake lock/unlock for job --------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
@@ -204,7 +203,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    /*------------------------- slash -------------------------*/
+    /*------------------------------------- slash ------------------------------------*/
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
@@ -230,9 +229,9 @@ contract SymbioticStaking is
         }
     }
 
-    /*======================================== internal functions ========================================*/
+    /*===================================================== internal ====================================================*/
 
-    /*------------------------- Snapshot Submission -------------------------*/
+    /*------------------------------- Snapshot Submission ----------------------------*/
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
         if(registeredTransmitters[_captureTimestamp] == address(0)) {
@@ -280,7 +279,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    /*------------------------- Reward Distribution -------------------------*/
+    /*------------------------------ Reward Distribution -----------------------------*/
 
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
         IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
@@ -293,8 +292,9 @@ contract SymbioticStaking is
         ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, _amount);
     }
 
-    /*======================================== external view functions ========================================*/
-    
+    /*================================================== external view ==================================================*/
+
+
     function lastConfirmedTimestamp() public view returns (uint256) {
         return confirmedTimestamps[confirmedTimestamps.length - 1].captureTimestamp;
     }
@@ -321,9 +321,9 @@ contract SymbioticStaking is
         return stakeTokenSet.contains(_token);
     }
 
-    /*======================================== internal view functions ========================================*/
+    /*================================================== internal view ==================================================*/
 
-    /*--------------- Snapshot Submission ---------------*/
+    /*------------------------------ Snapshot Submission -----------------------------*/
 
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
         require(_numOfTxs > 0, "Invalid length");
@@ -357,7 +357,7 @@ contract SymbioticStaking is
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
     }
 
-    /*------------------------- Job -------------------------*/
+    /*-------------------------------------- Job -------------------------------------*/
 
     function _selectLockToken() internal view returns(address) {
         require(stakeTokenSet.length() > 0, "No supported token");
@@ -374,13 +374,14 @@ contract SymbioticStaking is
         // TODO: implement logic
     }
 
-    /*------------------------- Reward -------------------------*/
+    /*------------------------------------ Reward ------------------------------------*/
 
     function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
         return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
     }
 
-    /*======================================== Admin ========================================*/ 
+    /*====================================================== admin ======================================================*/
+
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
 
@@ -407,7 +408,7 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    /*======================================== Overrides ========================================*/
+    /*==================================================== overrides ====================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public
