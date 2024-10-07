@@ -166,13 +166,13 @@ contract NativeStaking is
         _unlockStake(_jobId, _operator, lock.token, lock.amount);
 
         // distribute fee reward
-        if (_feeRewardAmount > 0) {
-            _distributeFeeReward(lock.token, _operator, _feeRewardAmount);
-        }
+        // if (_feeRewardAmount > 0) {
+        //     _distributeFeeReward(lock.token, _operator, _feeRewardAmount);
+        // }
 
-        if (_inflationRewardAmount > 0) {
-            _distributeInflationReward(_operator, _inflationRewardAmount);
-        }
+        // if (_inflationRewardAmount > 0) {
+        //     _distributeInflationReward(_operator, _inflationRewardAmount);
+        // }
 
         // TODO: emit event
     }
@@ -196,7 +196,7 @@ contract NativeStaking is
     function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
         if (_rewardAmount == 0) return;
 
-        _distributeInflationReward(_operator, _rewardAmount);
+        // _distributeInflationReward(_operator, _rewardAmount);
     }
 
     /*================================================== external view ==================================================*/
@@ -223,24 +223,24 @@ contract NativeStaking is
 
     /*===================================================== internal ====================================================*/
 
-    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
-        IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
-    }
+    // function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
+    //     IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
+    //     IRewardDistributor(rewardDistributor).addFeeReward(_stakeToken, _operator, _amount);
+    // }
 
-    function _distributeInflationReward(address _operator, uint256 _rewardAmount) internal {
-        uint256 len = stakeTokenSet.length();
-        address[] memory stakeTokens = stakeTokenSet.values();
-        uint256[] memory rewardAmounts = new uint256[](len);
-        uint256 inflationRewardAmount;
-        for (uint256 i = 0; i < len; i++) {
-            rewardAmounts[i] = _calcInflationRewardAmount(stakeTokens[i], _rewardAmount);
-            inflationRewardAmount += rewardAmounts[i];
-        }
+    // function _distributeInflationReward(address _operator, uint256 _rewardAmount) internal {
+    //     uint256 len = stakeTokenSet.length();
+    //     address[] memory stakeTokens = stakeTokenSet.values();
+    //     uint256[] memory rewardAmounts = new uint256[](len);
+    //     uint256 inflationRewardAmount;
+    //     for (uint256 i = 0; i < len; i++) {
+    //         rewardAmounts[i] = _calcInflationRewardAmount(stakeTokens[i], _rewardAmount);
+    //         inflationRewardAmount += rewardAmounts[i];
+    //     }
 
-        IERC20(inflationRewardToken).safeTransfer(rewardDistributor, inflationRewardAmount);
-        IRewardDistributor(rewardDistributor).addInflationReward(_operator, stakeTokens, rewardAmounts);
-    }
+    //     IERC20(inflationRewardToken).safeTransfer(rewardDistributor, inflationRewardAmount);
+    //     IRewardDistributor(rewardDistributor).addInflationReward(_operator, stakeTokens, rewardAmounts);
+    // }
 
     function _unlockStake(uint256 _jobId, address _operator, address _stakeToken, uint256 _amount) internal {
         operatorLockedAmounts[_operator][_stakeToken] -= _amount;
