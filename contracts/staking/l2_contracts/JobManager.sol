@@ -37,7 +37,6 @@ contract JobManager is
     address public inflationRewardToken;
 
     uint256 public jobDuration;
-    uint256 public totalFeeStored; // TODO: check if needed
 
     uint256 inflationRewardEpochSize;
     uint256 inflationRewardPerEpoch;
@@ -89,8 +88,6 @@ contract JobManager is
 
         IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
 
-        totalFeeStored += _feeAmount;
-
         // TODO: emit event
     }
 
@@ -103,7 +100,7 @@ contract JobManager is
         _verifyProof(_jobId, _proof);
 
         uint256 feePaid = jobs[_jobId].feePaid;
-        uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator);
+        uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator); // TODO: move to StakingManager
 
         // send fee and unlock stake
         // TODO: consider where the fund comes from
@@ -148,7 +145,6 @@ contract JobManager is
             require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
 
             jobs[_jobId].feePaid = 0;
-            totalFeeStored -= jobs[_jobId].feePaid;
 
             IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
 
