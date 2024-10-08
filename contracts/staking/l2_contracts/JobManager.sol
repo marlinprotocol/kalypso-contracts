@@ -46,6 +46,9 @@ contract JobManager is
     // idx of operatorJobCompletionEpochs, inflationReward distribution should be reflected from this idx
     mapping(address operator => uint256 idx) inflationRewardEpochBeginIdx;
 
+    // TODO: temporary
+    mapping(address operator => uint256 comissionRate) operatorInflationRewardComissionRate; // 1e18 == 100%
+
     // count of jobs done by operator in an epoch
     mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCount; 
     // total count of jobs done in an epoch
@@ -75,7 +78,8 @@ contract JobManager is
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount)
         external
         nonReentrant
-    {
+    {   
+        // TODO: this should be removed
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
 
         // stakeToken and lockAmount will be decided in each pool
