@@ -1,0 +1,13 @@
+[profile.default]
+src = "contracts"
+out = "artifacts"
+libs = ["lib", "node_modules"]
+remappings = [
+    "@openzeppelin/=node_modules/@openzeppelin/",
+    "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+    "hardhat/=node_modules/hardhat/",
+    "forge-std/=lib/forge-std/src/",
+]
+auto_detect_solc = true
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
