@@ -302,7 +302,7 @@ contract SymbioticStaking is
     }
 
     function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        uint256 operatorStakeAmount = operatorStakeAmounts[lastConfirmedTimestamp()][_operator][_token];
+        uint256 operatorStakeAmount = getOperatorStakeAmount(_operator, _token);
         uint256 operatorLockedAmount = operatorLockedAmounts[_operator][_token];
         return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
     }
