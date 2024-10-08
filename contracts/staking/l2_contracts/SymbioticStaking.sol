@@ -169,7 +169,7 @@ contract SymbioticStaking is
         uint256 timestampIdx = confirmedTimestamps.length - 1;
         address transmitter = confirmedTimestamps[timestampIdx].transmitter;
 
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], transmitter, confirmedTimestamps[timestampIdx].transmitterComissionRate);
+        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], timestampIdx);
         operatorLockedAmounts[_operator][_token] += amountToLock[_token];
 
         // TODO: emit event
@@ -178,8 +178,8 @@ contract SymbioticStaking is
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
-        uint256 transmitterComissionRate = lock.transmitterComissionRate;
-        uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, transmitterComissionRate, 1e18);
+        uint256 timestampIdx = lock.timestampIdx;
+        uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[timestampIdx].transmitterComissionRate, 1e18);
 
         uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
@@ -194,7 +194,7 @@ contract SymbioticStaking is
         }
 
         // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-        IERC20(feeRewardToken).safeTransfer(lock.transmitter, transmitterComission);
+        IERC20(feeRewardToken).safeTransfer(confirmedTimestamps[timestampIdx].transmitter, transmitterComission);
 
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];

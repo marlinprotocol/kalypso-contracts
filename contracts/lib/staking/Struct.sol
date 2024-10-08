@@ -68,9 +68,6 @@ library Struct {
     struct SymbioticStakingLock {
         address stakeToken;
         uint256 amount;
-        // transmitter who submitted with confirmedTimestamp used when job is created
-        address transmitter; 
-        uint256 transmitterComissionRate;
+        uint256 timestampIdx;
     }
-
 }
