@@ -315,7 +315,7 @@ contract SymbioticStaking is
         return stakeTokenSet.values();
     }
 
-    function isSupportedToken(address _token) public view returns (bool) {
+    function isSupportedStakeToken(address _token) public view returns (bool) {
         return stakeTokenSet.contains(_token);
     }
 

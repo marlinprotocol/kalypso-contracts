@@ -116,7 +116,7 @@ contract NativeStaking is
     // This should update StakingManger's state
     // TODO
     function requestStakeWithdrawal(address _operator, address _stakeToken, uint256 _amount) external nonReentrant {
-        require(_getOperatorActiveStakeAmount(_operator, _stakeToken) >= _amount, "Insufficient stake");
+        require(getOperatorActiveStakeAmount(_operator, _stakeToken) >= _amount, "Insufficient stake");
 
         stakeAmounts[msg.sender][_operator][_stakeToken] -= _amount;
         operatorstakeAmounts[_operator][_stakeToken] -= _amount;
@@ -142,7 +142,7 @@ contract NativeStaking is
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectTokenToLock();
         uint256 _amountToLock = amountToLock[_token];
-        require(_getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
+        require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
         lockInfo[_jobId] = Struct.NativeStakingLock(_token, _amountToLock);
@@ -199,6 +199,16 @@ contract NativeStaking is
         // _distributeInflationReward(_operator, _rewardAmount);
     }
 
+    /*==================================================== public view ==================================================*/
+
+    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token];
+    }
+
+    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
+        return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
+    }
+
     /*================================================== external view ==================================================*/
 
     function getStakeTokenList() external view returns (address[] memory) {
@@ -209,15 +219,7 @@ contract NativeStaking is
         return stakeAmounts[_account][_operator][_stakeToken];
     }
 
-    function getOperatorStakeAmount(address _operator, address _token) external view returns (uint256) {
-        return _getOperatorStakeAmount(_operator, _token);
-    }
-
-    function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256) {
-        return _getOperatorActiveStakeAmount(_operator, _token);
-    }
-
-    function isSupportedToken(address _token) external view returns (bool) {
+    function isSupportedStakeToken(address _token) public view returns (bool) {
         return stakeTokenSet.contains(_token);
     }
 
@@ -282,13 +284,13 @@ contract NativeStaking is
         return stakeTokenSet.at(idx);
     }
 
-    function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token];
-    }
+    // function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
+    //     return operatorstakeAmounts[_operator][_token];
+    // }
 
-    function _getOperatorActiveStakeAmount(address _operator, address _token) internal view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
-    }
+    // function _getOperatorActiveStakeAmount(address _operator, address _token) internal view returns (uint256) {
+    //     return operatorstakeAmounts[_operator][_token] - operatorLockedAmounts[_operator][_token];
+    // }
 
     /*====================================================== admin ======================================================*/
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {Struct} from "../../lib/staking/Struct.sol";
 
 interface IStakingPool {
-    function isSupportedToken(address _token) external view returns (bool);
+    function isSupportedStakeToken(address _token) external view returns (bool);
 
     function lockStake(uint256 _jobId, address _operator) external; // Staking Manager only
 
