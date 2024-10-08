@@ -32,6 +32,8 @@ contract JobManager is
 
     mapping(uint256 jobId => Struct.JobInfo jobInfo) public jobs;
 
+    uint256 public startTime; // TODO: immutable?
+
     address public stakingManager;
     address public feeToken;
     address public inflationRewardToken;
@@ -41,10 +43,12 @@ contract JobManager is
     uint256 inflationRewardEpochSize;
     uint256 inflationRewardPerEpoch;
 
-    // epochs in which operator has done jobs
-    mapping(address operator => uint256[] epochs) operatorJobCompletionEpochs; 
-    // idx of operatorJobCompletionEpochs, inflationReward distribution should be reflected from this idx
-    mapping(address operator => uint256 idx) inflationRewardEpochBeginIdx;
+    // // epochs in which operator has done jobs
+    // mapping(address operator => uint256[] epochs) operatorJobCompletionEpochs; 
+    // // idx of operatorJobCompletionEpochs, inflationReward distribution should be reflected from this idx
+    // mapping(address operator => uint256 idx) inflationRewardEpochBeginIdx;
+
+    mapping(address operator => uint256 lastJobCompletionEpoch) opeartorLastJobCompletionEpochs;
 
     // TODO: temporary
     mapping(address operator => uint256 comissionRate) operatorInflationRewardComissionRate; // 1e18 == 100%
@@ -56,7 +60,7 @@ contract JobManager is
 
     /*======================================== Init ========================================*/
 
-    function initialize(address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration)
+    function initialize(uint256 _startTime, address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration)
         public
         initializer
     {
@@ -67,6 +71,7 @@ contract JobManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
+        startTime = _startTime;
         stakingManager = _stakingManager;
         feeToken = _feeToken;
         jobDuration = _jobDuration;
@@ -104,7 +109,7 @@ contract JobManager is
         _verifyProof(_jobId, _proof);
 
         uint256 feePaid = jobs[_jobId].feePaid;
-        uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator); // TODO: move to StakingManager
+        uint256 pendingInflationReward = updateInflationReward(jobs[_jobId].operator); // TODO: move to StakingManager
 
         // send fee and unlock stake
         IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
@@ -128,11 +133,11 @@ contract JobManager is
     }
 
     function _updateJobCompletionEpoch(uint256 _jobId) internal {
-        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
-        uint256 len = operatorJobCompletionEpochs[jobs[_jobId].operator].length;
-        
-        if(len > 0 && operatorJobCompletionEpochs[jobs[_jobId].operator][len - 1] != currentEpoch) {
-            operatorJobCompletionEpochs[jobs[_jobId].operator].push(currentEpoch);
+        uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
+        address operator = jobs[_jobId].operator;
+
+        if(opeartorLastJobCompletionEpochs[operator] != currentEpoch) {
+            opeartorLastJobCompletionEpochs[operator] = currentEpoch;
         }
     }
 
@@ -158,20 +163,26 @@ contract JobManager is
     /// @notice update inflation reward for operator
     /// @dev can be called by anyone, but most likely when proof is submitted(when job is completed) by operator
     /// @dev or inflation reward is claimed in a RewardDistributor
-    function updateInflationReward(address _operator) external {
-        uint256 pendingInflationReward = _updateInflationReward(_operator);
+    function updateInflationReward(address _operator) public returns(uint256 pendingInflationReward) {
+        pendingInflationReward = getPendingInflationReward(_operator);
 
         if(pendingInflationReward > 0) {
-            // send reward to StakingManager
-            IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
             // and distribute
             IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
         }
     }
 
-    function getPendingInflationReward(address _operator) external view returns(uint256) {
-        return _getPendingInflationReward(_operator);
+    /// @notice update pending inflation reward for operator
+    function getPendingInflationReward(address _operator) public view returns(uint256 pendingInflationReward) {
+        uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
+        uint256 lastEpoch = opeartorLastJobCompletionEpochs[_operator];
+
+        if(lastEpoch == currentEpoch) return 0;
+
+        return Math.mulDiv(inflationRewardPerEpoch, operatorJobCount[lastEpoch][_operator], totalJobCount[lastEpoch]);
     }
+
+
 
     /*======================================== Internal functions ========================================*/
 
@@ -179,77 +190,6 @@ contract JobManager is
         // TODO: verify proof
 
         // TODO: emit event
-    }
-
-    /// @notice update pending inflation reward for operator
-    function _updateInflationReward(address _operator) internal returns(uint256 pendingInflationReward) {
-        // check if operator has completed any job
-        if (operatorJobCompletionEpochs[_operator].length == 0) return 0;
-        
-        // list of epochs in which operator has completed jobs
-        uint256[] storage completedEpochs = operatorJobCompletionEpochs[_operator];
-
-        // first epoch which the reward has not been distributed
-        uint256 beginIdx = inflationRewardEpochBeginIdx[_operator];
-
-        // no job completed since last update
-        if(beginIdx > completedEpochs.length) return 0;
-
-        uint256 beginEpoch = completedEpochs[beginIdx];
-        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
-
-        // no pending reward if operator has already claimed reward until latest epoch
-        if(beginEpoch == currentEpoch) return 0;
-
-        // update pending reward
-        uint256 rewardPerEpoch = inflationRewardPerEpoch; // cache
-        uint256 len = completedEpochs.length;
-
-        for(uint256 idx = beginIdx; idx < len; idx++) {
-            uint256 epoch = completedEpochs[idx];
-
-            // for last epoch in epoch array
-            if(idx == len - 1) {
-                // idx can be greater than actual length of epoch array by 1
-                inflationRewardEpochBeginIdx[_operator] = epoch == currentEpoch ? idx : idx + 1;
-            }
-
-            pendingInflationReward += Math.mulDiv(rewardPerEpoch, operatorJobCount[epoch][_operator], totalJobCount[epoch]);
-        }
-
-        return pendingInflationReward;
-    }
-
-    function _getPendingInflationReward(address _operator) internal view returns(uint256 pendingInflationReward) {
-        // check if operator has completed any job
-        if (operatorJobCompletionEpochs[_operator].length == 0) return 0;
-        
-        // list of epochs in which operator has completed jobs
-        uint256[] storage completedEpochs = operatorJobCompletionEpochs[_operator];
-
-        // first epoch which the reward has not been distributed
-        uint256 beginIdx = inflationRewardEpochBeginIdx[_operator];
-
-        // no job completed since last update
-        if(beginIdx > completedEpochs.length) return 0;
-
-        uint256 beginEpoch = completedEpochs[beginIdx];
-        uint256 currentEpoch = block.timestamp / inflationRewardEpochSize;
-
-        // no pending reward if operator has already claimed reward until latest epoch
-        if(beginEpoch == currentEpoch) return 0;
-
-        // update pending reward
-        uint256 rewardPerEpoch = inflationRewardPerEpoch; // cache
-        uint256 len = completedEpochs.length;
-
-        for(uint256 idx = beginIdx; idx < len; idx++) {
-            uint256 epoch = completedEpochs[idx];
-
-            pendingInflationReward += Math.mulDiv(rewardPerEpoch, operatorJobCount[epoch][_operator], totalJobCount[epoch]);
-        }
-
-        return pendingInflationReward;
     }
 
     /*======================================== Admin ========================================*/

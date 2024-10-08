@@ -8,5 +8,5 @@ interface IJobManager {
 
     function refundFee(uint256 jobId) external;
 
-    function updateInflationReward(address _operator) external;
+    // function updateInflationReward(address _operator) external;
 }
