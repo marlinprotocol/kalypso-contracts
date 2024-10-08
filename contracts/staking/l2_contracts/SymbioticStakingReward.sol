@@ -99,9 +99,10 @@ contract SymbioticStakingReward is
     function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount)
         external
         onlySymbioticStaking
-    {
+    {   
         rewardPerTokenStored[_stakeToken][_operator][feeRewardToken] +=
             _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, _stakeToken));
+        IERC20(feeRewardToken).safeTransferFrom(jobManager, address(this), _rewardAmount);
     }
 
     /// @notice called when inflation reward is generated
@@ -112,6 +113,7 @@ contract SymbioticStakingReward is
             rewardPerTokenStored[stakeTokenList[i]][_operator][inflationRewardToken] +=
                 _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenList[i]));
         }
+        IERC20(inflationRewardToken).safeTransferFrom(jobManager, address(this), _rewardAmount);
     }
 
     /* ------------------------- symbiotic staking ------------------------- */
@@ -146,11 +148,11 @@ contract SymbioticStakingReward is
 
         // TODO: check transfer logic
         // transfer fee reward to the vault
-        IERC20(feeRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][feeRewardToken]);
+        IERC20(feeRewardToken).safeTransferFrom(jobManager, _msgSender(), rewardAccrued[_msgSender()][feeRewardToken]);
         rewardAccrued[_msgSender()][feeRewardToken] = 0;
 
         // transfer inflation reward to the vault
-        IERC20(inflationRewardToken).safeTransfer(_msgSender(), rewardAccrued[_msgSender()][inflationRewardToken]);
+        IERC20(inflationRewardToken).safeTransferFrom(jobManager, _msgSender(), rewardAccrued[_msgSender()][inflationRewardToken]);
         rewardAccrued[_msgSender()][inflationRewardToken] = 0;
     }
 

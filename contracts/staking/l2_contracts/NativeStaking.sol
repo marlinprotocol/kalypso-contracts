@@ -210,7 +210,7 @@ contract NativeStaking is
     }
 
     function getOperatorStakeAmount(address _operator, address _token) external view returns (uint256) {
-        return operatorstakeAmounts[_operator][_token];
+        return _getOperatorStakeAmount(_operator, _token);
     }
 
     function getOperatorActiveStakeAmount(address _operator, address _token) external view returns (uint256) {

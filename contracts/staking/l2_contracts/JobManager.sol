@@ -103,12 +103,9 @@ contract JobManager is
         uint256 pendingInflationReward = _updateInflationReward(jobs[_jobId].operator); // TODO: move to StakingManager
 
         // send fee and unlock stake
-        // TODO: consider where the fund comes from
-        IERC20(feeToken).safeTransfer(stakingManager, feePaid); // TODO: make RewardDistributor pull fee from JobManager
-        IERC20(inflationRewardToken).safeTransfer(stakingManager, pendingInflationReward);
         IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
 
-        _updateJobCompletionEpoch(_jobId); // TODO
+        _updateJobCompletionEpoch(_jobId);
     }
 
     /**

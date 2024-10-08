@@ -282,13 +282,11 @@ contract SymbioticStaking is
     /*------------------------------ Reward Distribution -----------------------------*/
 
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
         ISymbioticStakingReward(rewardDistributor).updateFeeReward(_stakeToken, _operator, _amount);
     }
 
 
     function _distributeInflationReward(address _operator, uint256 _amount) internal {
-        IERC20(feeRewardToken).safeTransfer(rewardDistributor, _amount);
         ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, _amount);
     }
 
@@ -359,6 +357,7 @@ contract SymbioticStaking is
 
     /*-------------------------------------- Job -------------------------------------*/
 
+    // TODO: weight based random selection
     function _selectLockToken() internal view returns(address) {
         require(stakeTokenSet.length() > 0, "No supported token");
 

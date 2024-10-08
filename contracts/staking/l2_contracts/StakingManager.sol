@@ -77,9 +77,7 @@ contract StakingManager is
 
             (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feePaid, _inflationRewardAmount);
 
-            IERC20(feeToken).safeTransfer(pool, poolFeeRewardAmount);
-            IERC20(inflationRewardToken).safeTransfer(pool, poolInflationRewardAmount);
-            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, _inflationRewardAmount);
+            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, poolInflationRewardAmount);
         }
         // TODO: emit event
     }
