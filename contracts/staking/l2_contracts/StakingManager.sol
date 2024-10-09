@@ -43,6 +43,11 @@ contract StakingManager is
         _;
     }
 
+    modifier onlyInflationRewardManager() {
+        require(msg.sender == jobManager, "StakingManager: Only JobManager");
+        _;
+    }
+
     function initialize(address _admin, address _jobManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -101,7 +106,7 @@ contract StakingManager is
         }
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyJobManager {
+    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyInflationRewardManager {
         if(_rewardAmount == 0) return;
 
         uint256 len = stakingPoolSet.length();
@@ -109,9 +114,7 @@ contract StakingManager is
             address pool = stakingPoolSet.at(i);
 
             (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
-            IERC20(inflationRewardToken).safeTransfer(pool, poolRewardAmount);
 
-            // TODO
             IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount);
         }
     }

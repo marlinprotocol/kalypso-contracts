@@ -128,8 +128,6 @@ contract SymbioticStakingReward is
         // update pending inflation reward and update rewardPerToken for each operator and vault
         // feeReward is updated on job completion so no need to update here
         for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
-            // update pending inflation reward of the operator and update rewardPerTokenStored
-            _updatePendingInflationReward(_vaultSnapshots[i].operator);
 
             // update rewardPerTokenPaid and rewardAccrued for each vault
             _updateVaultInflationReward(stakeTokenList, _vaultSnapshots[i].vault, _vaultSnapshots[i].operator);
@@ -140,9 +138,6 @@ contract SymbioticStakingReward is
 
     /// @notice vault can claim reward calling this function
     function claimReward(address _operator) external nonReentrant {
-        // update pending inflation reward of the operator and update rewardPerTokenStored
-        _updatePendingInflationReward(_operator);
-
         // update rewardPerTokenPaid and rewardAccrued for each vault
         _updateVaultInflationReward(_getStakeTokenList(), _msgSender(), _operator);
 
@@ -164,11 +159,6 @@ contract SymbioticStakingReward is
     }
 
     /*===================================================== internal ====================================================*/
-
-    /// @dev update pending inflation reward and update rewardPerTokenStored of the operator
-    function _updatePendingInflationReward(address _operator) internal {
-        IJobManager(jobManager).updateInflationReward(_operator);
-    }
 
     /// @dev update rewardPerToken and rewardAccrued for each vault
     function _updateVaultInflationReward(address[] memory _stakeTokenList, address _vault, address _operator)

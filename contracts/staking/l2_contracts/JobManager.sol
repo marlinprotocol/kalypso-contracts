@@ -10,6 +10,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {Struct} from "../../lib/staking/Struct.sol";
@@ -34,29 +35,12 @@ contract JobManager is
 
     uint256 public startTime; // TODO: immutable?
 
+    address public inflationRewardManager;
     address public stakingManager;
     address public feeToken;
     address public inflationRewardToken;
 
     uint256 public jobDuration;
-
-    uint256 inflationRewardEpochSize;
-    uint256 inflationRewardPerEpoch;
-
-    // // epochs in which operator has done jobs
-    // mapping(address operator => uint256[] epochs) operatorJobCompletionEpochs; 
-    // // idx of operatorJobCompletionEpochs, inflationReward distribution should be reflected from this idx
-    // mapping(address operator => uint256 idx) inflationRewardEpochBeginIdx;
-
-    mapping(address operator => uint256 lastJobCompletionEpoch) opeartorLastJobCompletionEpochs;
-
-    // TODO: temporary
-    mapping(address operator => uint256 comissionRate) operatorInflationRewardComissionRate; // 1e18 == 100%
-
-    // count of jobs done by operator in an epoch
-    mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCount; 
-    // total count of jobs done in an epoch
-    mapping(uint256 epoch => uint256 totalCount) totalJobCount; 
 
     /*======================================== Init ========================================*/
 
@@ -109,12 +93,11 @@ contract JobManager is
         _verifyProof(_jobId, _proof);
 
         uint256 feePaid = jobs[_jobId].feePaid;
-        uint256 pendingInflationReward = updateInflationReward(jobs[_jobId].operator); // TODO: move to StakingManager
 
-        // send fee and unlock stake
+        uint256 pendingInflationReward = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(jobs[_jobId].operator);
+
+        // distribute fee reward from the job and pending inflation reward
         IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
-
-        _updateJobCompletionEpoch(_jobId);
     }
 
     /**
@@ -128,16 +111,6 @@ contract JobManager is
             uint256 jobId = _jobIds[idx];
             submitProof(jobId, _proofs[idx]); // TODO: optimize
 
-            _updateJobCompletionEpoch(jobId);
-        }
-    }
-
-    function _updateJobCompletionEpoch(uint256 _jobId) internal {
-        uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
-        address operator = jobs[_jobId].operator;
-
-        if(opeartorLastJobCompletionEpochs[operator] != currentEpoch) {
-            opeartorLastJobCompletionEpochs[operator] = currentEpoch;
         }
     }
 
@@ -157,32 +130,6 @@ contract JobManager is
             // TODO: emit event
         }
     }
-
-    /*======================================== Inflation Reward ========================================*/
-
-    /// @notice update inflation reward for operator
-    /// @dev can be called by anyone, but most likely when proof is submitted(when job is completed) by operator
-    /// @dev or inflation reward is claimed in a RewardDistributor
-    function updateInflationReward(address _operator) public returns(uint256 pendingInflationReward) {
-        pendingInflationReward = getPendingInflationReward(_operator);
-
-        if(pendingInflationReward > 0) {
-            // and distribute
-            IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
-        }
-    }
-
-    /// @notice update pending inflation reward for operator
-    function getPendingInflationReward(address _operator) public view returns(uint256 pendingInflationReward) {
-        uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
-        uint256 lastEpoch = opeartorLastJobCompletionEpochs[_operator];
-
-        if(lastEpoch == currentEpoch) return 0;
-
-        return Math.mulDiv(inflationRewardPerEpoch, operatorJobCount[lastEpoch][_operator], totalJobCount[lastEpoch]);
-    }
-
-
 
     /*======================================== Internal functions ========================================*/
 
