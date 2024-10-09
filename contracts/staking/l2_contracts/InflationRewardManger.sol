@@ -12,6 +12,8 @@ import {IInflationRewardManager} from "../../interfaces/staking/IInflationReward
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract InflationRewardManager is
     ContextUpgradeable,
@@ -21,11 +23,20 @@ contract InflationRewardManager is
     ReentrancyGuardUpgradeable,
     IInflationRewardManager
 {
+    using SafeERC20 for IERC20;
+
+    uint256 public startTime;
+
     address public jobManager;
     address public stakingManager;
-    uint256 public startTime;
+
+    address public inflationRewardToken;
+
     uint256 public inflationRewardEpochSize;
     uint256 public inflationRewardPerEpoch;
+
+    // operator deducts comission from inflation reward
+    mapping(address operator => uint256 rewardShare) operatorRewardShare; // 1e18 == 100%
 
     // last epoch when operator completed a job
     mapping(address operator => uint256 lastJobCompletionEpoch) rewardEpoch;
@@ -48,9 +59,10 @@ contract InflationRewardManager is
 
     function initialize(
         address _admin,
+        uint256 _startTime,
         address _jobManager,
         address _stakingManager,
-        uint256 _startTime,
+        address _inflationRewardToken,
         uint256 _inflationRewardEpochSize,
         uint256 _inflationRewardPerEpoch
     ) public initializer {
@@ -69,6 +81,9 @@ contract InflationRewardManager is
 
         require(_startTime > 0, "InflationRewardManager: startTime is zero");
         startTime = _startTime;
+
+        require(_inflationRewardToken != address(0), "InflationRewardManager: inflationRewardToken address is zero");
+        inflationRewardToken = _inflationRewardToken;
 
         require(_inflationRewardEpochSize > 0, "InflationRewardManager: inflationRewardEpochSize is zero");
         inflationRewardEpochSize = _inflationRewardEpochSize;
@@ -101,17 +116,28 @@ contract InflationRewardManager is
             return 0;
         }
 
+        // when operator has done job in last epoch, distribute inflation reward
+        // if 0, it means pendingInflationReward was updated and no job has been done
         if(operatorLastEpochJobCount > 0) {
             uint256 totalJobCount = totalJobCountsPerEpoch[operatorLastEpoch];
-
+            
             pendingInflationReward = Math.mulDiv(
                 inflationRewardPerEpoch, operatorLastEpochJobCount, totalJobCount
             );
 
-            // when job is completed, inflation reward with distributed by JobManager along with fee reward
-            if(msg.sender != jobManager) {
-                IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
-            }
+            // operator deducts comission from inflation reward
+            uint256 operatorComission  = Math.mulDiv(
+                pendingInflationReward, operatorRewardShare[_operator], 1e18
+            );
+            IERC20(inflationRewardToken).safeTransfer(_operator, pendingInflationReward - operatorComission);
+
+            pendingInflationReward -= operatorComission;
+        }
+
+        // when job is completed, inflation reward with distributed by JobManager along with fee reward
+        if(msg.sender != jobManager && pendingInflationReward > 0) {
+            // staking manager will distribute inflation reward based on each pool's share
+            IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
         }
 
         rewardEpoch[_operator] = currentEpoch;
