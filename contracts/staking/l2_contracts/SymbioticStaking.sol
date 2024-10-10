@@ -49,10 +49,13 @@ contract SymbioticStaking is
 
     address public feeRewardToken;
     address public inflationRewardToken;
+
+    uint256 public tokenSelectionWeightSum;
     
     
     /* Config */
-    mapping(address token => uint256 amount) public amountToLock;
+    mapping(address stakeToken => uint256 amount) public amountToLock;
+    mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
     mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
 
@@ -178,7 +181,7 @@ contract SymbioticStaking is
     /*--------------------------- stake lock/unlock for job --------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _token = _selectLockToken();
+        address _token = _selectStakeToken();
         uint256 _amountToLock = amountToLock[_token];
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake amount");
 
@@ -393,16 +396,66 @@ contract SymbioticStaking is
 
     /*-------------------------------------- Job -------------------------------------*/
 
-    // TODO: weight based random selection
-    function _selectLockToken() internal view returns(address) {
-        require(stakeTokenSet.length() > 0, "No supported token");
+    function _selectStakeToken() internal view returns(address) {
+        require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
+        require(stakeTokenSet.length() > 0, "No tokens available");
 
-        uint256 idx;
-        if (stakeTokenSet.length() > 1) {
-            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            idx = randomNumber % stakeTokenSet.length();
+        address[] memory tokens = new address[](stakeTokenSet.length());
+        uint256[] memory weights = new uint256[](stakeTokenSet.length());
+
+        uint256 weightSum = tokenSelectionWeightSum;
+
+        uint256 idx = 0;
+        uint256 len = stakeTokenSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address token = stakeTokenSet.at(i);
+            uint256 weight = tokenSelectionWeight[token];
+            // ignore if weight is 0
+            if (weight > 0) {
+                tokens[idx] = token;
+                weights[idx] = weight;
+                idx++;
+            }
         }
-        return stakeTokenSet.at(idx);
+
+        // repeat until a valid token is selected
+        while (true) {
+            require(idx > 0, "No stakeToken available");
+
+            // random number in range [0, weightSum - 1]
+            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))) % weightSum;
+
+            uint256 cumulativeWeight = 0;
+            address selectedToken;
+            
+
+            uint256 i;
+            // select token based on weight
+            for (i = 0; i < idx; i++) {
+                cumulativeWeight += weights[i];
+                if (random < cumulativeWeight) {
+                    selectedToken = tokens[i];
+                    break;
+                }
+            }
+
+            // check if the selected token has enough active stake amount
+            if (_getTotalActiveStakeAmount(selectedToken) >= amountToLock[selectedToken]) {
+                return selectedToken;
+            }
+
+            weightSum -= weights[i];
+            tokens[i] = tokens[idx - 1];
+            weights[i] = weights[idx - 1];
+            idx--;  // 배열 크기를 줄임
+        }
+
+        // this should be returned
+        return address(0);  
+    }
+
+    function _getTotalActiveStakeAmount(address _stakeToken) internal view returns(uint256) {
+        // TODO
     }
 
     function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
@@ -423,12 +476,18 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_isSupported) {
-            require(stakeTokenSet.add(_token), "Token already exists");
-        } else {
-            require(stakeTokenSet.remove(_token), "Token does not exist");
-        }
+    function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.add(_token), "Token already exists");
+        
+        tokenSelectionWeightSum += _weight;
+        inflationRewardShare[_token] = _weight;
+    }
+
+    function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.remove(_token), "Token does not exist");
+        
+        tokenSelectionWeightSum -= inflationRewardShare[_token];
+        delete inflationRewardShare[_token];
     }
 
     function setSubmissionCooldown(uint256 _submissionCooldown) external onlyRole(DEFAULT_ADMIN_ROLE) {
