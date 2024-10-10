@@ -30,6 +30,12 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    mapping(address pool => Struct.PoolConfig config) private poolConfig;
+    mapping(address pool => uint256 weight) private stakingPoolWeight;
+
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+    
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public jobManager;
@@ -38,8 +44,8 @@ contract StakingManager is
     address public feeToken;
     address public inflationRewardToken;
 
-    mapping(address pool => Struct.PoolConfig config) private poolConfig;
-    mapping(address pool => uint256 weight) private stakingPoolWeight;
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
 
     modifier onlyJobManager() {
         require(msg.sender == jobManager, "StakingManager: Only JobManager");

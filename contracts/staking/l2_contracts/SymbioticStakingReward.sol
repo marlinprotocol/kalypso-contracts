@@ -31,6 +31,10 @@ contract SymbioticStakingReward is
     using EnumerableSet for EnumerableSet.AddressSet;
     using Math for uint256;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+
+
     address public jobManager;
     address public symbioticStaking;
     address public inflationRewardManager;
@@ -38,6 +42,8 @@ contract SymbioticStakingReward is
     address public feeRewardToken;
     address public inflationRewardToken;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken)))

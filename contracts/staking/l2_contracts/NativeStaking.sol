@@ -30,12 +30,18 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+
     EnumerableSet.AddressSet private stakeTokenSet;
 
     address public rewardDistributor;
     address public stakingManager;
     address public feeRewardToken;
     address public inflationRewardToken;
+
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
 
     /* Config */
     uint256 public withdrawalDuration;

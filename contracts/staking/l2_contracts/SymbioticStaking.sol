@@ -30,8 +30,8 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    uint256 submissionCooldown; // 18 decimal (in seconds)
-    uint256 baseTransmitterComissionRate; // 18 decimal (in percentage)
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
 
     /* Job Status */
     bytes32 public constant STAKE_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -39,6 +39,10 @@ contract SymbioticStaking is
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT");
+
+    uint256 submissionCooldown; // 18 decimal (in seconds)
+    uint256 baseTransmitterComissionRate; // 18 decimal (in percentage)
+
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT");
 
     EnumerableSet.AddressSet stakeTokenSet;
@@ -51,6 +55,9 @@ contract SymbioticStaking is
     address public inflationRewardToken;
 
     uint256 public tokenSelectionWeightSum;
+
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
     
     
     /* Config */

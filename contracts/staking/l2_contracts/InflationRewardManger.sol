@@ -26,6 +26,9 @@ contract InflationRewardManager is
 {
     using SafeERC20 for IERC20;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+
     /* config */
     uint256 public startTime;
 
@@ -38,6 +41,9 @@ contract InflationRewardManager is
     address public inflationRewardToken;
     uint256 public inflationRewardEpochSize;
     uint256 public inflationRewardPerEpoch;
+
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
 
     // last epoch when operator completed a job
     mapping(address operator => uint256 lastJobCompletionEpoch) lastJobCompletionEpochs;

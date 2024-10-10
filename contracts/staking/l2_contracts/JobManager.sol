@@ -35,7 +35,8 @@ contract JobManager is
     // operator deducts comission from inflation reward
     mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
 
-    uint256 public startTime; // TODO: immutable?
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
 
     address public stakingManager;
     address public feeToken;
@@ -43,9 +44,12 @@ contract JobManager is
 
     uint256 public jobDuration;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
+
     /*======================================== Init ========================================*/
 
-    function initialize(uint256 _startTime, address _admin, address _stakingManager, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
+    function initialize(address _admin, address _stakingManager, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
         public
         initializer
     {
@@ -55,9 +59,6 @@ contract JobManager is
         __UUPSUpgradeable_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-
-        require(_startTime >= block.timestamp, "JobManager: Invalid Start Time");
-        startTime = _startTime;
 
         require(_stakingManager != address(0), "JobManager: Invalid StakingManager");
         stakingManager = _stakingManager;
@@ -183,4 +184,6 @@ contract JobManager is
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+
 }
