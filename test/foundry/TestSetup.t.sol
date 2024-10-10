@@ -125,6 +125,7 @@ contract TestSetup is Test {
         JobManager(address(jobManager)).initialize(
             admin, address(stakingManager), address(feeToken), address(inflationRewardManager), 1 hours
         );
+        assertEq(JobManager(jobManager).hasRole(JobManager(jobManager).DEFAULT_ADMIN_ROLE(), admin), true); 
 
         // StakingManager
         StakingManager(address(stakingManager)).initialize(
@@ -134,6 +135,7 @@ contract TestSetup is Test {
             address(feeToken),
             address(inflationRewardToken)
         );
+        assertEq(StakingManager(stakingManager).hasRole(StakingManager(stakingManager).DEFAULT_ADMIN_ROLE(), admin), true); 
 
         // NativeStaking
         NativeStaking(address(nativeStaking)).initialize(
@@ -144,7 +146,8 @@ contract TestSetup is Test {
             address(feeToken),
             address(inflationRewardToken)
         );
-
+        assertEq(NativeStaking(nativeStaking).hasRole(NativeStaking(nativeStaking).DEFAULT_ADMIN_ROLE(), admin), true); 
+    
         // SymbioticStaking
         SymbioticStaking(address(symbioticStaking)).initialize(
             admin,
@@ -154,7 +157,7 @@ contract TestSetup is Test {
             address(feeToken),
             address(inflationRewardToken)
         );
-
+        assertEq(SymbioticStaking(symbioticStaking).hasRole(SymbioticStaking(symbioticStaking).DEFAULT_ADMIN_ROLE(), admin), true); 
         // SymbioticStakingReward
         SymbioticStakingReward(address(symbioticStakingReward)).initialize(
             admin,
@@ -164,6 +167,7 @@ contract TestSetup is Test {
             address(feeToken),
             address(inflationRewardToken)
         );
+        assertEq(SymbioticStakingReward(symbioticStakingReward).hasRole(SymbioticStakingReward(symbioticStakingReward).DEFAULT_ADMIN_ROLE(), admin), true); 
 
         // InflationRewardManager
         InflationRewardManager(address(inflationRewardManager)).initialize(
@@ -175,7 +179,7 @@ contract TestSetup is Test {
             30 minutes, // inflationRewardEpochSize
             1000 ether // inflationRewardPerEpoch
         );
-
+        assertEq(InflationRewardManager(inflationRewardManager).hasRole(InflationRewardManager(inflationRewardManager).DEFAULT_ADMIN_ROLE(), admin), true); 
         vm.stopPrank();
     }
 }

@@ -139,10 +139,15 @@ contract InflationRewardManager is
         // if 0, it means pendingInflationReward was updated and no job has been done
         if(operatorLastEpochJobCount > 0) {
             uint256 lastEpochTotalJobCount = totalJobCountsPerEpoch[operatorLastEpoch];
-            
+
             pendingInflationReward = Math.mulDiv(
                 inflationRewardPerEpoch, operatorLastEpochJobCount, lastEpochTotalJobCount
             );
+
+            // TODO: check logic
+            if(pendingInflationReward > IERC20(inflationRewardToken).balanceOf(address(this))) {
+                pendingInflationReward = IERC20(inflationRewardToken).balanceOf(address(this));
+            }
 
             // operator deducts comission from inflation reward
             uint256 operatorComission  = Math.mulDiv(
