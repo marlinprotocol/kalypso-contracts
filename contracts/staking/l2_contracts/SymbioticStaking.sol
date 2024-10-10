@@ -179,10 +179,11 @@ contract SymbioticStaking is
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _token = _selectLockToken();
-        require(getOperatorActiveStakeAmount(_operator, _token) >= amountToLock[_token], "Insufficient stake amount");
+        uint256 _amountToLock = amountToLock[_token];
+        require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake amount");
 
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token]);
-        operatorLockedAmounts[_operator][_token] += amountToLock[_token];
+        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, _amountToLock);
+        operatorLockedAmounts[_operator][_token] += _amountToLock;
 
         // TODO: emit event
     }
@@ -208,7 +209,7 @@ contract SymbioticStaking is
 
         // distribute inflation reward
         if(_inflationRewardAmount > 0) {
-            uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18);
+            uint256 transmitterComission = Math.mulDiv(_inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18);
             uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
@@ -242,12 +243,19 @@ contract SymbioticStaking is
         }
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+    /// @notice called when pending inflation reward is updated
+    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyStakingManager {
         if(_rewardAmount == 0) return;
+
+        uint256 transmitterComission = Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
+        uint256 inflationRewardRemaining = _rewardAmount - transmitterComission;
+
+        // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+        IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_timestampIdx].transmitter, transmitterComission);
 
         uint256 len = stakeTokenSet.length();
         for(uint256 i = 0; i < len; i++) {
-            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), _rewardAmount)); // TODO: gas optimization
+            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)); // TODO: gas optimization
         }
     }
 

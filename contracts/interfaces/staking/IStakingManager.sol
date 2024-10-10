@@ -11,5 +11,5 @@ interface IStakingManager {
 
     function onSlashResult(Struct.JobSlashed[] calldata slashedJobs) external;
 
-    function distributeInflationReward(address operator, uint256 rewardAmount) external;
+    function distributeInflationReward(address operator, uint256 rewardAmount, uint256 timestampIdx) external;
 }

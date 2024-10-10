@@ -194,7 +194,7 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyStakingManager {
+    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 /* _timestampIdx */) external onlyStakingManager {
         if (_rewardAmount == 0) return;
 
         // _distributeInflationReward(_operator, _rewardAmount);

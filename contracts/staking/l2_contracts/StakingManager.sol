@@ -123,7 +123,7 @@ contract StakingManager is
         }
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount) external onlyInflationRewardManager {
+    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyInflationRewardManager {
         if(_rewardAmount == 0) return;
 
         uint256 len = stakingPoolSet.length();
@@ -132,7 +132,7 @@ contract StakingManager is
 
             (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
 
-            IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount);
+            IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount, _timestampIdx);
         }
     }
 

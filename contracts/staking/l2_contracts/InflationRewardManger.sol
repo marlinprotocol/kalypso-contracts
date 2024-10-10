@@ -127,6 +127,8 @@ contract InflationRewardManager is
             return (0, 0);
         }
 
+        timestampIdx = epochTimestampIdx[operatorLastEpoch];
+
         // when operator has done job in last epoch, distribute inflation reward
         // if 0, it means pendingInflationReward was updated and no job has been done
         if(operatorLastEpochJobCount > 0) {
@@ -149,7 +151,7 @@ contract InflationRewardManager is
         // when job is completed, inflation reward with distributed by JobManager along with fee reward
         if(msg.sender != stakingManager && pendingInflationReward > 0) {
             // staking manager will distribute inflation reward based on each pool's share
-            IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
+            IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward, timestampIdx);
         }
 
         lastJobCompletionEpochs[_operator] = currentEpoch;
