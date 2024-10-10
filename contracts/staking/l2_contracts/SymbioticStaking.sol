@@ -167,7 +167,6 @@ contract SymbioticStaking is
 
         // Store transmitter address to reward when job is closed
         uint256 timestampIdx = confirmedTimestamps.length - 1;
-        address transmitter = confirmedTimestamps[timestampIdx].transmitter;
 
         lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], timestampIdx);
         operatorLockedAmounts[_operator][_token] += amountToLock[_token];
@@ -266,8 +265,6 @@ contract SymbioticStaking is
 
             // TODO: emit event for each update?
         }
-        
-        ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(_vaultSnapshots);
     }
 
     function _completeSubmission(uint256 _captureTimestamp) internal {

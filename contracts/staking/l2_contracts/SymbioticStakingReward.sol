@@ -11,8 +11,9 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
+import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
+import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -32,17 +33,11 @@ contract SymbioticStakingReward is
 
     address public jobManager;
     address public symbioticStaking;
+    address public inflationRewardManager;
 
     address public feeRewardToken;
     address public inflationRewardToken;
 
-    /* 
-        rewardToken: Fee Reward, Inflation Reward
-        stakeToken: staking token
-    */
-
-    // reward accrued per operator
-    mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 amount))) rewards; // TODO: check if needed
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken)))
@@ -69,6 +64,7 @@ contract SymbioticStakingReward is
 
     function initialize(
         address _admin,
+        address _inflationRewardManager,
         address _jobManager,
         address _symbioticStaking,
         address _feeRewardToken,
@@ -83,10 +79,19 @@ contract SymbioticStakingReward is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        jobManager = _jobManager;
+        require(_inflationRewardManager != address(0), "SymbioticStakingReward: inflationRewardManager address is zero");
+        inflationRewardManager = _inflationRewardManager;
+
+        require(_jobManager != address(0), "SymbioticStakingReward: jobManager address is zero");
+        jobManager = _jobManager;  
+
+        require(_symbioticStaking != address(0), "SymbioticStakingReward: symbioticStaking address is zero");
         symbioticStaking = _symbioticStaking;
 
+        require(_feeRewardToken != address(0), "SymbioticStakingReward: feeRewardToken address is zero");
         feeRewardToken = _feeRewardToken;
+
+        require(_inflationRewardToken != address(0), "SymbioticStakingReward: inflationRewardToken address is zero");
         inflationRewardToken = _inflationRewardToken;
     }
 
@@ -102,7 +107,6 @@ contract SymbioticStakingReward is
     {   
         rewardPerTokenStored[_stakeToken][_operator][feeRewardToken] +=
             _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, _stakeToken));
-        IERC20(feeRewardToken).safeTransferFrom(jobManager, address(this), _rewardAmount);
     }
 
     /// @notice called when inflation reward is generated
@@ -113,31 +117,16 @@ contract SymbioticStakingReward is
             rewardPerTokenStored[stakeTokenList[i]][_operator][inflationRewardToken] +=
                 _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, stakeTokenList[i]));
         }
-        IERC20(inflationRewardToken).safeTransferFrom(jobManager, address(this), _rewardAmount);
     }
 
-    /* ------------------------- symbiotic staking ------------------------- */
-
-    /// @notice update rewardPerToken and rewardAccrued for each vault
-    /// @dev called when snapshot is submitted
-    function onSnapshotSubmission(Struct.VaultSnapshot[] calldata _vaultSnapshots) external onlySymbioticStaking {
-        // TODO: this can be called redundantly as each snapshots can include same operator and vault address
-        // update inlfationReward info of each vault
-        address[] memory stakeTokenList = _getStakeTokenList();
-
-        // update pending inflation reward and update rewardPerToken for each operator and vault
-        // feeReward is updated on job completion so no need to update here
-        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
-
-            // update rewardPerTokenPaid and rewardAccrued for each vault
-            _updateVaultInflationReward(stakeTokenList, _vaultSnapshots[i].vault, _vaultSnapshots[i].operator);
-        }
-    }
 
     /* ------------------------- reward claim ------------------------- */
 
     /// @notice vault can claim reward calling this function
     function claimReward(address _operator) external nonReentrant {
+        // update pending inflation reward for the operator
+        _updatePendingInflaionReward(_operator);
+
         // update rewardPerTokenPaid and rewardAccrued for each vault
         _updateVaultInflationReward(_getStakeTokenList(), _msgSender(), _operator);
 
@@ -159,6 +148,11 @@ contract SymbioticStakingReward is
     }
 
     /*===================================================== internal ====================================================*/
+
+    /// @dev this will update pending inflation reward and rewardPerToken for the operator
+    function _updatePendingInflaionReward(address _operator) internal {
+        IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);
+    }
 
     /// @dev update rewardPerToken and rewardAccrued for each vault
     function _updateVaultInflationReward(address[] memory _stakeTokenList, address _vault, address _operator)
