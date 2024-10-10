@@ -32,19 +32,20 @@ contract JobManager is
     using SafeERC20 for IERC20;
 
     mapping(uint256 jobId => Struct.JobInfo jobInfo) public jobs;
+    // operator deducts comission from inflation reward
+    mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
 
     uint256 public startTime; // TODO: immutable?
 
-    address public inflationRewardManager;
     address public stakingManager;
     address public feeToken;
-    address public inflationRewardToken;
+    address public inflationRewardManager;
 
     uint256 public jobDuration;
 
     /*======================================== Init ========================================*/
 
-    function initialize(uint256 _startTime, address _admin, address _stakingManager, address _feeToken, uint256 _jobDuration)
+    function initialize(uint256 _startTime, address _admin, address _stakingManager, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
         public
         initializer
     {
@@ -55,9 +56,19 @@ contract JobManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
+        require(_startTime >= block.timestamp, "JobManager: Invalid Start Time");
         startTime = _startTime;
+
+        require(_stakingManager != address(0), "JobManager: Invalid StakingManager");
         stakingManager = _stakingManager;
+
+        require(_feeToken != address(0), "JobManager: Invalid Fee Token");
         feeToken = _feeToken;
+
+        require(_inflationRewardManager != address(0), "JobManager: Invalid InflationRewardManager");
+        inflationRewardManager = _inflationRewardManager;
+
+        require(_jobDuration > 0, "JobManager: Invalid Job Duration");
         jobDuration = _jobDuration;
     }
 
@@ -91,13 +102,14 @@ contract JobManager is
         require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
 
         _verifyProof(_jobId, _proof);
+        
+        address operator = jobs[_jobId].operator;   
 
-        uint256 feePaid = jobs[_jobId].feePaid;
+        // distribute fee reward
+        uint256 feeRewardRemaining = _distributeFeeReward(operator, jobs[_jobId].feePaid);
 
-        uint256 pendingInflationReward = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(jobs[_jobId].operator);
-
-        // distribute fee reward from the job and pending inflation reward
-        IStakingManager(stakingManager).onJobCompletion(_jobId, jobs[_jobId].operator, feePaid, pendingInflationReward);
+        // inflation reward will be distributed here
+        IStakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
     }
 
     /**
@@ -109,8 +121,7 @@ contract JobManager is
         uint256 len = _jobIds.length;
         for (uint256 idx = 0; idx < len; idx++) {
             uint256 jobId = _jobIds[idx];
-            submitProof(jobId, _proofs[idx]); // TODO: optimize
-
+            submitProof(jobId, _proofs[idx]);
         }
     }
 
@@ -137,6 +148,12 @@ contract JobManager is
         // TODO: verify proof
 
         // TODO: emit event
+    }
+
+    function _distributeFeeReward(address _operator, uint256 _feePaid) internal returns(uint256 feeRewardRemaining) {
+        uint256 operatorFeeReward = Math.mulDiv(_feePaid, operatorRewardShares[_operator], 1e18);
+        IERC20(feeToken).safeTransfer(_operator, operatorFeeReward);
+        feeRewardRemaining = _feePaid - operatorFeeReward;
     }
 
     /*======================================== Admin ========================================*/

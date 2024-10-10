@@ -157,7 +157,8 @@ contract NativeStaking is
         uint256 _jobId,
         address _operator,
         uint256 _feeRewardAmount,
-        uint256 _inflationRewardAmount
+        uint256 _inflationRewardAmount,
+        uint256 /* _inflationRewardTimestampIdx */
     ) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = lockInfo[_jobId];
 

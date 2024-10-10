@@ -14,6 +14,7 @@ import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
+import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 
 import {Struct} from "../../lib/staking/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -32,6 +33,8 @@ contract StakingManager is
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public jobManager;
+    address public inflationRewardManager;
+
     address public feeToken;
     address public inflationRewardToken;
 
@@ -48,7 +51,7 @@ contract StakingManager is
         _;
     }
 
-    function initialize(address _admin, address _jobManager) public initializer {
+    function initialize(address _admin, address _jobManager, address _inflationRewardManager, address _feeToken, address _inflationRewardToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -56,7 +59,17 @@ contract StakingManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
+        require(_jobManager != address(0), "StakingManager: Invalid JobManager");
         jobManager = _jobManager;
+
+        require(_inflationRewardManager != address(0), "StakingManager: Invalid InflationRewardManager");
+        inflationRewardManager = _inflationRewardManager;
+
+        require(_feeToken != address(0), "StakingManager: Invalid FeeToken");
+        feeToken = _feeToken;
+
+        require(_inflationRewardToken != address(0), "StakingManager: Invalid InflationRewardToken");
+        inflationRewardToken = _inflationRewardToken;
     }
 
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
@@ -75,15 +88,19 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feePaid, uint256 _inflationRewardAmount) external onlyJobManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyJobManager {
+        // update pending inflation reward
+        (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
+
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
-            (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feePaid, _inflationRewardAmount);
+            (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feeRewardAmount, pendingInflationReward);
 
-            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, poolInflationRewardAmount);
+            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, poolInflationRewardAmount, timestampIdx);
         }
+
         // TODO: emit event
     }
 

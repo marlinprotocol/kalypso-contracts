@@ -15,5 +15,8 @@ interface ISymbioticStaking is IStakingPool {
     // event SubmissionCompleted
 
     /// @notice Returns the captureTimestamp of latest completed snapshot submission
-    function lastConfirmedTimestamp() external view returns (uint256);
+    function latestConfirmedTimestamp() external view returns (uint256);
+
+    /// @notice Returns the timestampIdx of latest completed snapshot submission
+    function latestConfirmedTimestampIdx() external view returns (uint256);
 }

@@ -119,7 +119,6 @@ contract SymbioticStakingReward is
         }
     }
 
-
     /* ------------------------- reward claim ------------------------- */
 
     /// @notice vault can claim reward calling this function

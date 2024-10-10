@@ -8,7 +8,7 @@ interface IStakingPool {
 
     function lockStake(uint256 _jobId, address _operator) external; // Staking Manager only
 
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external; // Staking Manager only
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount, uint256 _timestampIdx) external; // Staking Manager only
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external; // Staking Manager only  
 

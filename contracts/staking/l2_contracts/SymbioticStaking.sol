@@ -18,7 +18,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
-
+import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 contract SymbioticStaking is 
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -43,10 +43,13 @@ contract SymbioticStaking is
 
     EnumerableSet.AddressSet stakeTokenSet;
 
-    address public feeRewardToken;
-    address public inflationRewardToken;
     address public stakingManager;
     address public rewardDistributor;
+    address public inflationRewardManager;
+
+    address public feeRewardToken;
+    address public inflationRewardToken;
+    
     
     /* Config */
     mapping(address token => uint256 amount) public amountToLock;
@@ -77,7 +80,7 @@ contract SymbioticStaking is
         _;
     }
 
-    function initialize(address _admin, address _stakingManager, address _rewardDistributor) public initializer {
+    function initialize(address _admin, address _stakingManager, address _rewardDistributor, address _inflationRewardManager, address _feeRewardToken, address _inflationRewardToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -86,9 +89,22 @@ contract SymbioticStaking is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
+        require(_stakingManager != address(0), "SymbioticStaking: stakingManager is zero");
         stakingManager = _stakingManager;
+
+        require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
         rewardDistributor = _rewardDistributor;
+
+        require(_inflationRewardManager != address(0), "SymbioticStaking: inflationRewardManager is zero");
+        inflationRewardManager = _inflationRewardManager;
+
+        require(_feeRewardToken != address(0), "SymbioticStaking: feeRewardToken is zero");
+        feeRewardToken = _feeRewardToken;
+
+        require(_inflationRewardToken != address(0), "SymbioticStaking: inflationRewardToken is zero");
+        inflationRewardToken = _inflationRewardToken;
     }
+    
 
     /*===================================================== external ====================================================*/    
 
@@ -165,35 +181,42 @@ contract SymbioticStaking is
         address _token = _selectLockToken();
         require(getOperatorActiveStakeAmount(_operator, _token) >= amountToLock[_token], "Insufficient stake amount");
 
-        // Store transmitter address to reward when job is closed
-        uint256 timestampIdx = confirmedTimestamps.length - 1;
-
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token], timestampIdx);
+        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, amountToLock[_token]);
         operatorLockedAmounts[_operator][_token] += amountToLock[_token];
 
         // TODO: emit event
     }
 
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) external onlyStakingManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount, uint256 _inflationRewardTimestampIdx) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
-        uint256 timestampIdx = lock.timestampIdx;
-        uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[timestampIdx].transmitterComissionRate, 1e18);
-
-        uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
+        // currentEpoch => currentTimestampIdx
+        IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
 
         // distribute fee reward
-        if(feeRewardRemaining > 0) {
+        if(_feeRewardAmount > 0) {
+            uint256 currentTimestampIdx = latestConfirmedTimestampIdx();
+            uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[currentTimestampIdx].transmitterComissionRate, 1e18);
+            uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
+
+            // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+            IERC20(feeRewardToken).safeTransfer(confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission);
+
+            // distribute the remaining fee reward
             _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
         // distribute inflation reward
         if(_inflationRewardAmount > 0) {
-            _distributeInflationReward(_operator, _inflationRewardAmount);
-        }
+            uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18);
+            uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
 
-        // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-        IERC20(feeRewardToken).safeTransfer(confirmedTimestamps[timestampIdx].transmitter, transmitterComission);
+            // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+            IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission);
+
+            // distribute the remaining inflation reward
+            _distributeInflationReward(_operator, inflationRewardRemaining);
+        }
 
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];
@@ -273,6 +296,7 @@ contract SymbioticStaking is
         Struct.ConfirmedTimestamp memory confirmedTimestamp = Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
+        IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
         // TODO: emit event
     }
 
@@ -289,13 +313,16 @@ contract SymbioticStaking is
 
     /*================================================== external view ==================================================*/
 
+    function latestConfirmedTimestamp() public view returns (uint256) {
+        return confirmedTimestamps[latestConfirmedTimestampIdx()].captureTimestamp;
+    }
 
-    function lastConfirmedTimestamp() public view returns (uint256) {
-        return confirmedTimestamps[confirmedTimestamps.length - 1].captureTimestamp;
+    function latestConfirmedTimestampIdx() public view returns (uint256) {
+        return confirmedTimestamps.length - 1;
     }
 
     function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakeAmounts[lastConfirmedTimestamp()][_operator][_token];
+        return operatorStakeAmounts[latestConfirmedTimestamp()][_operator][_token];
     }
 
     function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
@@ -305,7 +332,7 @@ contract SymbioticStaking is
     }
 
     function getStakeAmount(address _vault, address _stakeToken, address _operator) external view returns (uint256) {
-        return vaultStakeAmounts[lastConfirmedTimestamp()][_vault][_stakeToken][_operator];
+        return vaultStakeAmounts[latestConfirmedTimestamp()][_vault][_stakeToken][_operator];
     }
 
     function getStakeTokenList() external view returns(address[] memory) {
@@ -324,7 +351,7 @@ contract SymbioticStaking is
         require(_numOfTxs > 0, "Invalid length");
 
         // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
-        require(block.timestamp >= (lastConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
+        require(block.timestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
 
         
         Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
@@ -350,6 +377,10 @@ contract SymbioticStaking is
 
     function _calcTransmitterComissionRate(uint256 _confirmedTimestamp) internal view returns(uint256) {
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
+    }
+
+    function _currentTransmitter() internal view returns (address) {
+        return confirmedTimestamps[latestConfirmedTimestampIdx()].transmitter;
     }
 
     /*-------------------------------------- Job -------------------------------------*/

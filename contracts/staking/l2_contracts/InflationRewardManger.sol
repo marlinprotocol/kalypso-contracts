@@ -9,6 +9,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
+import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -25,33 +26,39 @@ contract InflationRewardManager is
 {
     using SafeERC20 for IERC20;
 
+    /* config */
     uint256 public startTime;
 
+    /* contract addresses */
     address public jobManager;
     address public stakingManager;
+    address public symbioticStaking;
 
+    /* reward config */
     address public inflationRewardToken;
-
     uint256 public inflationRewardEpochSize;
     uint256 public inflationRewardPerEpoch;
 
-    // operator deducts comission from inflation reward
-    mapping(address operator => uint256 rewardShare) operatorRewardShare; // 1e18 == 100%
-
     // last epoch when operator completed a job
-    mapping(address operator => uint256 lastJobCompletionEpoch) rewardEpoch;
+    mapping(address operator => uint256 lastJobCompletionEpoch) lastJobCompletionEpochs;
 
     // TODO: temporary
     mapping(address operator => uint256 comissionRate) operatorInflationRewardComissionRate; // 1e18 == 100%
 
     // count of jobs done by operator in an epoch
     mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCountsPerEpoch;
-
     // total count of jobs done in an epoch
     mapping(uint256 epoch => uint256 totalCount) totalJobCountsPerEpoch;
+    // timestampIdx of the latestConfirmedTimestamp at the time of job completion or snapshot submission
+    mapping(uint256 epoch => uint256 timestampIdx) epochTimestampIdx;
 
     modifier onlyJobManager() {
         require(msg.sender == jobManager, "InflationRewardManager: Only JobManager");
+        _;
+    }
+
+    modifier onlySymbioticStaking() {
+        require(msg.sender == symbioticStaking, "InflationRewardManager: Only SymbioticStaking");
         _;
     }
 
@@ -96,51 +103,66 @@ contract InflationRewardManager is
 
     /// @notice update pending inflation reward for given operator
     /// @dev called by JobManager when job is completed or by RewardDistributor when operator is slashed
-    function updatePendingInflationReward(address _operator) external returns (uint256 pendingInflationReward) {
+    function updatePendingInflationReward(address _operator) external returns (uint256 timestampIdx, uint256 pendingInflationReward) {
         uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
-        uint256 operatorLastEpoch = rewardEpoch[_operator];
+        uint256 operatorLastEpoch = lastJobCompletionEpochs[_operator];
 
+        // no need to update and distribute pending inflation reward
         if (operatorLastEpoch == currentEpoch) {
-            return 0;
+            // return address(0) as the transmitter value will not be used
+            return (0, 0);
         }
 
-        if(msg.sender == jobManager) {
+        // when job is completed, increase job count
+        if(msg.sender == stakingManager) {
             _increaseJobCount(_operator, currentEpoch);
         }
 
         uint256 operatorLastEpochJobCount = operatorJobCountsPerEpoch[operatorLastEpoch][_operator];
         uint256 operatorCurrentEpochJobCount = operatorJobCountsPerEpoch[currentEpoch][_operator];
 
-        // when there is no job done by operator both in last epoch and current epoch don't update anything
-        if(operatorLastEpochJobCount * operatorCurrentEpochJobCount == 0) {
-            return 0;
+        // if operator has not completed any job
+        if(operatorLastEpochJobCount == 0 && operatorCurrentEpochJobCount == 0) {
+            // return address(0) as the transmitter value will not be used
+            return (0, 0);
         }
 
         // when operator has done job in last epoch, distribute inflation reward
         // if 0, it means pendingInflationReward was updated and no job has been done
         if(operatorLastEpochJobCount > 0) {
-            uint256 totalJobCount = totalJobCountsPerEpoch[operatorLastEpoch];
+            uint256 lastEpochTotalJobCount = totalJobCountsPerEpoch[operatorLastEpoch];
             
             pendingInflationReward = Math.mulDiv(
-                inflationRewardPerEpoch, operatorLastEpochJobCount, totalJobCount
+                inflationRewardPerEpoch, operatorLastEpochJobCount, lastEpochTotalJobCount
             );
 
             // operator deducts comission from inflation reward
             uint256 operatorComission  = Math.mulDiv(
-                pendingInflationReward, operatorRewardShare[_operator], 1e18
+                pendingInflationReward, IJobManager(jobManager).operatorRewardShares(_operator), 1e18
             );
-            IERC20(inflationRewardToken).safeTransfer(_operator, pendingInflationReward - operatorComission);
+
+            IERC20(inflationRewardToken).safeTransfer(_operator, operatorComission);
 
             pendingInflationReward -= operatorComission;
         }
 
         // when job is completed, inflation reward with distributed by JobManager along with fee reward
-        if(msg.sender != jobManager && pendingInflationReward > 0) {
+        if(msg.sender != stakingManager && pendingInflationReward > 0) {
             // staking manager will distribute inflation reward based on each pool's share
             IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward);
         }
 
-        rewardEpoch[_operator] = currentEpoch;
+        lastJobCompletionEpochs[_operator] = currentEpoch;
+    }
+
+    /// @notice update when snapshot submission is completed, or when a job is completed
+    function updateEpochTimestampIdx() external onlySymbioticStaking {
+        // latest confirmed timestampIdx
+        uint256 currentTimestampIdx = ISymbioticStaking(symbioticStaking).latestConfirmedTimestampIdx();
+
+        if(epochTimestampIdx[_getCurrentEpoch()] != currentTimestampIdx) {
+            epochTimestampIdx[_getCurrentEpoch()] = currentTimestampIdx;
+        }
     }
 
     /*===================================================== internal ====================================================*/
@@ -148,6 +170,18 @@ contract InflationRewardManager is
     function _increaseJobCount(address _operator, uint256 _epoch) internal {
         operatorJobCountsPerEpoch[_epoch][_operator]++;
         totalJobCountsPerEpoch[_epoch]++;
+    }
+
+    /*=================================================== external view =================================================*/
+
+    function getEpochTimestampIdx(uint256 _epoch) external view returns (uint256) {
+        return epochTimestampIdx[_epoch];
+    }
+
+    /*=================================================== internal view =================================================*/
+
+    function _getCurrentEpoch() internal view returns (uint256) {
+        return (block.timestamp - startTime) / inflationRewardEpochSize;
     }
 
     /*======================================== Admin ========================================*/

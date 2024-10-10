@@ -68,6 +68,5 @@ library Struct {
     struct SymbioticStakingLock {
         address stakeToken;
         uint256 amount;
-        uint256 timestampIdx;
     }
 }
