@@ -171,6 +171,10 @@ contract JobManager is
         jobDuration = _jobDuration;
     }
 
+    function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        operatorRewardShares[_operator] = _rewardShare;
+    }
+
     /*======================================== Overrides ========================================*/
 
     function supportsInterface(bytes4 interfaceId)

@@ -143,10 +143,10 @@ contract StakingManager is
     }
 
     function _calcRewardAmount(address _pool, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) internal view returns (uint256, uint256) {
-        uint256 poolWeight = poolConfig[_pool].weight;
+        uint256 poolShare = poolConfig[_pool].share;
         
-        uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolWeight, 1e18) : 0;
-        uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolWeight, 1e18) : 0;
+        uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
+        uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolShare, 1e18) : 0;
 
         return (poolFeeRewardAmount, poolInflationRewardAmount);
     }
@@ -178,7 +178,7 @@ contract StakingManager is
     }
 
     // when job is closed, the reward will be distributed based on the share
-    function setShare(address[] calldata _pools, uint256[] calldata _shares)
+    function setPoolShare(address[] calldata _pools, uint256[] calldata _shares)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
@@ -186,7 +186,7 @@ contract StakingManager is
 
         uint256 sum = 0;
         for (uint256 i = 0; i < _shares.length; i++) {
-            poolConfig[_pools[i]].weight = _shares[i];
+            poolConfig[_pools[i]].share = _shares[i];
 
             sum += _shares[i];
         }
