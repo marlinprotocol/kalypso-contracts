@@ -30,11 +30,10 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    mapping(address pool => Struct.PoolConfig config) private poolConfig;
-    mapping(address pool => uint256 weight) private stakingPoolWeight;
-
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
+
+    mapping(address pool => Struct.PoolConfig config) private poolConfig;
     
     EnumerableSet.AddressSet private stakingPoolSet;
 
@@ -102,6 +101,8 @@ contract StakingManager is
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
+            if(!isEnabledPool(pool)) continue;
+
             (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feeRewardAmount, pendingInflationReward);
 
             IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, poolInflationRewardAmount, timestampIdx);
@@ -156,9 +157,14 @@ contract StakingManager is
         return poolConfig[_pool].enabled;
     }
 
+    function getPoolConfig(address _pool) external view returns (Struct.PoolConfig memory) {
+        return poolConfig[_pool];
+    }
+
     /*======================================== Admin ========================================*/
 
-    // add new staking pool
+    /// @notice add new staking pool
+    /// @dev share and enabled must be set
     function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.add(_stakingPool);
 
@@ -171,6 +177,12 @@ contract StakingManager is
         // TODO: emit event
     }
 
+    function setEnabledPool(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        poolConfig[_pool].enabled = _enabled;
+
+        // TODO: emit event
+    }
+
     function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobManager = _jobManager;
 
@@ -178,7 +190,7 @@ contract StakingManager is
     }
 
     // when job is closed, the reward will be distributed based on the share
-    function setPoolShare(address[] calldata _pools, uint256[] calldata _shares)
+    function setPoolRewardShare(address[] calldata _pools, uint256[] calldata _shares)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {

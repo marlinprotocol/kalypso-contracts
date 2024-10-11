@@ -40,8 +40,8 @@ contract SymbioticStaking is
 
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT");
 
-    uint256 submissionCooldown; // 18 decimal (in seconds)
-    uint256 baseTransmitterComissionRate; // 18 decimal (in percentage)
+    uint256 public submissionCooldown; // 18 decimal (in seconds)
+    uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT");
 
@@ -71,6 +71,7 @@ contract SymbioticStaking is
     mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; 
     // to track if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; 
+
     // staked amount for each operator
     mapping(uint256 captureTimestamp => mapping(address operator => mapping(address stakeToken => uint256 stakeAmount))) operatorStakeAmounts;
     // staked amount for each vault
@@ -188,7 +189,7 @@ contract SymbioticStaking is
     /*--------------------------- stake lock/unlock for job --------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _token = _selectStakeToken();
+        address _token = _selectStakeToken(_operator);
         uint256 _amountToLock = amountToLock[_token];
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake amount");
 
@@ -403,7 +404,7 @@ contract SymbioticStaking is
 
     /*-------------------------------------- Job -------------------------------------*/
 
-    function _selectStakeToken() internal view returns(address) {
+    function _selectStakeToken(address _operator) internal view returns(address) {
         require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -447,7 +448,7 @@ contract SymbioticStaking is
             }
 
             // check if the selected token has enough active stake amount
-            if (_getTotalActiveStakeAmount(selectedToken) >= amountToLock[selectedToken]) {
+            if (getOperatorActiveStakeAmount(_operator, selectedToken) >= amountToLock[selectedToken]) {
                 return selectedToken;
             }
 
@@ -461,12 +462,13 @@ contract SymbioticStaking is
         return address(0);  
     }
 
-    function _getTotalActiveStakeAmount(address _stakeToken) internal view returns(uint256) {
+    function _getActiveStakeAmount(address _stakeToken) internal view returns(uint256) {
         // TODO
     }
 
     function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
         // TODO: implement logic
+        return baseTransmitterComissionRate;
     }
 
     /*------------------------------------ Reward ------------------------------------*/
@@ -497,13 +499,22 @@ contract SymbioticStaking is
         delete inflationRewardShare[_token];
     }
 
+    function setStakeTokenWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        tokenSelectionWeightSum -= tokenSelectionWeight[_token];
+        tokenSelectionWeight[_token] = _weight;
+        tokenSelectionWeightSum += _weight;
+    }
+
     function setSubmissionCooldown(uint256 _submissionCooldown) external onlyRole(DEFAULT_ADMIN_ROLE) {
         submissionCooldown = _submissionCooldown;
 
         // TODO: emit event
     }
+    
+    /// @dev base transmitter comission rate is in range [0, 1e18)
+    function setBaseTransmitterComissionRate(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_baseTransmitterComission < 1e18, "Invalid comission rate");
 
-    function setBaseTransmitterComission(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
         baseTransmitterComissionRate = _baseTransmitterComission;
 
         // TODO: emit event

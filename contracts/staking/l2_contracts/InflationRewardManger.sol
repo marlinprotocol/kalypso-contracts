@@ -48,9 +48,6 @@ contract InflationRewardManager is
     // last epoch when operator completed a job
     mapping(address operator => uint256 lastJobCompletionEpoch) lastJobCompletionEpochs;
 
-    // TODO: temporary
-    mapping(address operator => uint256 comissionRate) operatorInflationRewardComissionRate; // 1e18 == 100%
-
     // count of jobs done by operator in an epoch
     mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCountsPerEpoch;
     // total count of jobs done in an epoch
