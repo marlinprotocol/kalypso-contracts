@@ -41,23 +41,26 @@ contract NativeStaking is
     address public inflationRewardToken;
 
     // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
 
     /* Config */
     uint256 public withdrawalDuration;
+    uint256 public tokenSelectionWeightSum;
+
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
+    mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
     mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
     /* Stake */
-    // total staked amounts for each operator
-    mapping(address operator => mapping(address stakeToken => uint256 stakeAmounts)) public operatorstakeAmounts;
     // staked amount for each account
     mapping(address account => mapping(address operator => mapping(address stakeToken => uint256 amount))) public
         stakeAmounts;
+    // total staked amounts for each operator
+    mapping(address operator => mapping(address stakeToken => uint256 stakeAmounts)) public operatorstakeAmounts;
 
     mapping(address account => mapping(address operator => Struct.WithdrawalRequest[] withdrawalRequest)) public
         withdrawalRequests;
 
+    uint256[500] private __gap_1;
     /* Locked Stakes */
     mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address operator => mapping(address token => uint256 stakeAmounts)) public operatorLockedAmounts;
@@ -146,7 +149,7 @@ contract NativeStaking is
     /*-------------------------------- Satking Manager -------------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _token = _selectTokenToLock();
+        address _token = _selectStakeToken(_operator);
         uint256 _amountToLock = amountToLock[_token];
         require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake to lock");
 
@@ -280,15 +283,62 @@ contract NativeStaking is
         return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
     }
 
-    function _selectTokenToLock() internal view returns (address) {
-        require(stakeTokenSet.length() > 0, "No supported token");
+    function _selectStakeToken(address _operator) internal view returns(address) {
+        require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
+        require(stakeTokenSet.length() > 0, "No tokens available");
 
-        uint256 idx;
-        if (stakeTokenSet.length() > 1) {
-            uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1))));
-            idx = randomNumber % stakeTokenSet.length();
+        address[] memory tokens = new address[](stakeTokenSet.length());
+        uint256[] memory weights = new uint256[](stakeTokenSet.length());
+
+        uint256 weightSum = tokenSelectionWeightSum;
+
+        uint256 idx = 0;
+        uint256 len = stakeTokenSet.length();
+        for (uint256 i = 0; i < len; i++) {
+            address token = stakeTokenSet.at(i);
+            uint256 weight = tokenSelectionWeight[token];
+            // ignore if weight is 0
+            if (weight > 0) {
+                tokens[idx] = token;
+                weights[idx] = weight;
+                idx++;
+            }
         }
-        return stakeTokenSet.at(idx);
+
+        // repeat until a valid token is selected
+        while (true) {
+            require(idx > 0, "No stakeToken available");
+
+            // random number in range [0, weightSum - 1]
+            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))) % weightSum;
+
+            uint256 cumulativeWeight = 0;
+            address selectedToken;
+            
+
+            uint256 i;
+            // select token based on weight
+            for (i = 0; i < idx; i++) {
+                cumulativeWeight += weights[i];
+                if (random < cumulativeWeight) {
+                    selectedToken = tokens[i];
+                    break;
+                }
+            }
+
+            // check if the selected token has enough active stake amount
+            if (getOperatorActiveStakeAmount(_operator, selectedToken) >= amountToLock[selectedToken]) {
+                return selectedToken;
+            }
+
+            weightSum -= weights[i];
+            tokens[i] = tokens[idx - 1];
+            weights[i] = weights[idx - 1];
+            idx--;  // 배열 크기를 줄임
+        }
+
+        // this should be returned
+        return address(0);  
     }
 
     // function _getOperatorStakeAmount(address _operator, address _token) internal view returns (uint256) {
@@ -301,14 +351,24 @@ contract NativeStaking is
 
     /*====================================================== admin ======================================================*/
 
-    function setStakeToken(address _token, bool _isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_isSupported) {
-            stakeTokenSet.add(_token);
-        } else {
-            stakeTokenSet.remove(_token);
-        }
+    function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.add(_token), "Token already exists");
+        
+        tokenSelectionWeightSum += _weight;
+        inflationRewardShare[_token] = _weight;
+    }
 
-        // TODO: emit event
+    function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.remove(_token), "Token does not exist");
+        
+        tokenSelectionWeightSum -= inflationRewardShare[_token];
+        delete inflationRewardShare[_token];
+    }
+
+    function setStakeTokenWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        tokenSelectionWeightSum -= tokenSelectionWeight[_token];
+        tokenSelectionWeight[_token] = _weight;
+        tokenSelectionWeightSum += _weight;
     }
 
     function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
