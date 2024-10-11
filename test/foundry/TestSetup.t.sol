@@ -41,6 +41,7 @@ contract TestSetup is Test {
     
     uint256 constant FUND_FOR_GAS = 10 ether; // 10 ether
     uint256 constant FUND_FOR_FEE = 10_000 ether; // 10,000 USDC
+    uint256 constant FUND_FOR_SELF_STAKE = 1000_000 ether; // 10,000 POND
     uint256 constant FUND_FOR_INFLATION_REWARD = 100_000 ether; // 100,000 POND
 
     uint256 constant INFLATION_REWARD_EPOCH_SIZE = 30 minutes; // 30 minutes
@@ -283,7 +284,7 @@ contract TestSetup is Test {
 
     function _setNativeStakingConfig() internal {
         vm.startPrank(admin);
-        NativeStaking(nativeStaking).setStakeToken(pond, true);
+        NativeStaking(nativeStaking).addStakeToken(pond, _calcShareAmount(HUNDRED_PERCENT));
         vm.stopPrank();
     }
 
@@ -301,6 +302,12 @@ contract TestSetup is Test {
 
         assertEq(SymbioticStaking(symbioticStaking).baseTransmitterComissionRate(), _calcShareAmount(TWENTY_PERCENT));
         assertEq(SymbioticStaking(symbioticStaking).submissionCooldown(), 12 hours);
+    }
+
+    function _fund_tokens() internal {
+        deal(pond, operatorA, FUND_FOR_SELF_STAKE);
+        deal(pond, operatorB, FUND_FOR_SELF_STAKE);
+        deal(pond, operatorC, FUND_FOR_SELF_STAKE);
     }
 
 
