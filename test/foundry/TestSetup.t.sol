@@ -32,20 +32,22 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract TestSetup is Test {
-    uint256 constant TWENTY_PERCENT = 20;
-    uint256 constant THIRTY_PERCENT = 30;
-    uint256 constant FORTY_PERCENT = 40;
-    uint256 constant FIFTY_PERCENT = 50;
-    uint256 constant SIXTY_PERCENT = 60;
-    uint256 constant HUNDRED_PERCENT = 100;
-    
-    uint256 constant FUND_FOR_GAS = 10 ether; // 10 ether
-    uint256 constant FUND_FOR_FEE = 10_000 ether; // 10,000 USDC
-    uint256 constant FUND_FOR_SELF_STAKE = 1000_000 ether; // 10,000 POND
-    uint256 constant FUND_FOR_INFLATION_REWARD = 100_000 ether; // 100,000 POND
+    uint256 constant public TWENTY_PERCENT = 20;
+    uint256 constant public THIRTY_PERCENT = 30;
+    uint256 constant public FORTY_PERCENT = 40;
+    uint256 constant public FIFTY_PERCENT = 50;
+    uint256 constant public SIXTY_PERCENT = 60;
+    uint256 constant public HUNDRED_PERCENT = 100;
 
-    uint256 constant INFLATION_REWARD_EPOCH_SIZE = 30 minutes; // 30 minutes
-    uint256 constant INFLATION_REWARD_PER_EPOCH = 1000 ether; // 1,000 POND
+    uint256 constant public FUND_FOR_GAS = 10 ether; // 10 ether
+    uint256 constant public FUND_FOR_FEE = 10_000 ether; // 10,000 USDC
+    uint256 constant public FUND_FOR_SELF_STAKE = 1000_000 ether; // 10,000 POND
+    uint256 constant public FUND_FOR_INFLATION_REWARD = 100_000 ether; // 100,000 POND
+
+    uint256 constant public INFLATION_REWARD_EPOCH_SIZE = 30 minutes; // 30 minutes
+    uint256 constant public INFLATION_REWARD_PER_EPOCH = 100 ether; // 1,000 POND
+
+    uint256 constant public SUBMISSION_COOLDOWN = 12 hours;
 
 
     /* contracts */
@@ -69,17 +71,30 @@ contract TestSetup is Test {
     /* admin */
     address public deployer;
     address public admin;
-    address public vault; // holds inflation reward tokens
+    address public inflationRewardVault; // holds inflation reward tokens
 
     /* operators */
     address public operatorA;
     address public operatorB;
     address public operatorC;
 
+    /* symbiotic vaults */
+    address public symbioticVaultA;
+    address public symbioticVaultB; 
+    address public symbioticVaultC;
+
+    /* transmitters */
+    address public transmitterA;
+    address public transmitterB;
+    address public transmitterC;
+
     /* stakers */
     address public stakerA;
     address public stakerB;
     address public stakerC;
+
+    /* slasher */
+    address public slasher;
 
     /* job requesters */
     address public jobRequesterA;
@@ -91,7 +106,9 @@ contract TestSetup is Test {
         /* set address */
         deployer = makeAddr("deployer");
         admin = makeAddr("admin");
-        vault = makeAddr("vault");
+        inflationRewardVault = makeAddr("inflationRewardVault");
+        
+        slasher = makeAddr("slasher");
 
         stakerA = makeAddr("stakerA");
         stakerB = makeAddr("stakerB");
@@ -101,6 +118,14 @@ contract TestSetup is Test {
         operatorB = makeAddr("operatorB");
         operatorC = makeAddr("operatorC");
 
+        symbioticVaultA = makeAddr("symbioticVaultA");
+        symbioticVaultB = makeAddr("symbioticVaultB");
+        symbioticVaultC = makeAddr("symbioticVaultC");
+
+        transmitterA = makeAddr("transmitterA");
+        transmitterB = makeAddr("transmitterB");
+        transmitterC = makeAddr("transmitterC");
+
         jobRequesterA = makeAddr("jobRequesterA");
         jobRequesterB = makeAddr("jobRequesterB");
         jobRequesterC = makeAddr("jobRequesterC");
@@ -108,15 +133,20 @@ contract TestSetup is Test {
         /* fund gas */
         vm.deal(deployer, FUND_FOR_GAS);
         vm.deal(admin, FUND_FOR_GAS);
-        vm.deal(vault, FUND_FOR_GAS);
+        vm.deal(inflationRewardVault, FUND_FOR_GAS);
 
         vm.deal(operatorA, FUND_FOR_GAS);
         vm.deal(operatorB, FUND_FOR_GAS);
         vm.deal(operatorC, FUND_FOR_GAS);
+        vm.deal(slasher, FUND_FOR_GAS);
 
         vm.deal(stakerA, FUND_FOR_GAS);
         vm.deal(stakerB, FUND_FOR_GAS);
         vm.deal(stakerC, FUND_FOR_GAS);
+
+        vm.deal(transmitterA, FUND_FOR_GAS);
+        vm.deal(transmitterB, FUND_FOR_GAS);
+        vm.deal(transmitterC, FUND_FOR_GAS);
 
         vm.deal(jobRequesterA, FUND_FOR_GAS);
         vm.deal(jobRequesterB, FUND_FOR_GAS);
@@ -125,6 +155,7 @@ contract TestSetup is Test {
         /* label */
         vm.label(deployer, "deployer");
         vm.label(admin, "admin");
+        vm.label(slasher, "slasher");
 
         vm.label(operatorA, "operatorA");
         vm.label(operatorB, "operatorB");
@@ -134,9 +165,17 @@ contract TestSetup is Test {
         vm.label(stakerB, "stakerB");
         vm.label(stakerC, "stakerC");
 
+        vm.label(symbioticVaultA, "symbioticVaultA");
+        vm.label(symbioticVaultB, "symbioticVaultB");
+        vm.label(symbioticVaultC, "symbioticVaultC");
+
         vm.label(jobRequesterA, "jobRequesterA");
         vm.label(jobRequesterB, "jobRequesterB");
         vm.label(jobRequesterC, "jobRequesterC");
+
+        vm.label(transmitterA, "transmitterA");
+        vm.label(transmitterB, "transmitterB");
+        vm.label(transmitterC, "transmitterC");
     }
 
     /*======================================== internal ========================================*/
@@ -150,10 +189,12 @@ contract TestSetup is Test {
         vm.startPrank(deployer);
 
         // FeeToken
-        feeToken = address(new USDC(admin));
+        usdc = address(new USDC(admin));
+        feeToken = usdc;
 
         // InflationRewardToken
-        inflationRewardToken = address(new POND(admin));
+        pond = address(new POND(admin));
+        inflationRewardToken = pond;
 
         // stakeToken
         weth = address(new WETH(admin));
@@ -190,7 +231,7 @@ contract TestSetup is Test {
 
         // JobManager
         JobManager(address(jobManager)).initialize(
-            admin, address(stakingManager), address(feeToken), address(inflationRewardManager), 1 hours
+            admin, address(stakingManager), address(symbioticStaking), address(symbioticStakingReward), address(feeToken), address(inflationRewardManager), 1 hours
         );
         assertEq(JobManager(jobManager).hasRole(JobManager(jobManager).DEFAULT_ADMIN_ROLE(), admin), true); 
 
@@ -198,6 +239,7 @@ contract TestSetup is Test {
         StakingManager(address(stakingManager)).initialize(
             admin,
             address(jobManager),
+            address(symbioticStaking),
             address(inflationRewardManager),
             address(feeToken),
             address(inflationRewardToken)
@@ -218,21 +260,22 @@ contract TestSetup is Test {
         // SymbioticStaking
         SymbioticStaking(address(symbioticStaking)).initialize(
             admin,
-            address(stakingManager),
-            address(symbioticStakingReward),
-            address(inflationRewardManager),
-            address(feeToken),
-            address(inflationRewardToken)
+            jobManager,
+            stakingManager,
+            symbioticStakingReward,
+            inflationRewardManager,
+            feeToken,
+            inflationRewardToken
         );
         assertEq(SymbioticStaking(symbioticStaking).hasRole(SymbioticStaking(symbioticStaking).DEFAULT_ADMIN_ROLE(), admin), true); 
         // SymbioticStakingReward
         SymbioticStakingReward(address(symbioticStakingReward)).initialize(
             admin,
-            address(inflationRewardManager),
-            address(jobManager),
-            address(symbioticStaking),
-            address(feeToken),
-            address(inflationRewardToken)
+            inflationRewardManager,
+            jobManager,
+            symbioticStaking,
+            feeToken,
+            inflationRewardToken
         );
         assertEq(SymbioticStakingReward(symbioticStakingReward).hasRole(SymbioticStakingReward(symbioticStakingReward).DEFAULT_ADMIN_ROLE(), admin), true); 
 
@@ -240,9 +283,11 @@ contract TestSetup is Test {
         InflationRewardManager(address(inflationRewardManager)).initialize(
             admin,
             block.timestamp,
-            address(jobManager),
-            address(stakingManager),
-            address(inflationRewardToken),
+            jobManager,
+            stakingManager,
+            symbioticStaking,
+            symbioticStakingReward,
+            inflationRewardToken,
             INFLATION_REWARD_EPOCH_SIZE, // inflationRewardEpochSize
             INFLATION_REWARD_PER_EPOCH // inflationRewardPerEpoch
         );
@@ -285,6 +330,7 @@ contract TestSetup is Test {
     function _setNativeStakingConfig() internal {
         vm.startPrank(admin);
         NativeStaking(nativeStaking).addStakeToken(pond, _calcShareAmount(HUNDRED_PERCENT));
+        NativeStaking(nativeStaking).setAmountToLock(pond, 1 ether);
         vm.stopPrank();
     }
 
@@ -298,16 +344,27 @@ contract TestSetup is Test {
         /* base transmitter comission rate and submission cooldown */
         SymbioticStaking(symbioticStaking).setBaseTransmitterComissionRate(_calcShareAmount(TWENTY_PERCENT));
         SymbioticStaking(symbioticStaking).setSubmissionCooldown(12 hours);
+
+        /* amount to lock */
+        SymbioticStaking(symbioticStaking).setAmountToLock(pond, 0.2 ether);
+        SymbioticStaking(symbioticStaking).setAmountToLock(weth, 0.2 ether);
+
         vm.stopPrank();
 
         assertEq(SymbioticStaking(symbioticStaking).baseTransmitterComissionRate(), _calcShareAmount(TWENTY_PERCENT));
-        assertEq(SymbioticStaking(symbioticStaking).submissionCooldown(), 12 hours);
+        assertEq(SymbioticStaking(symbioticStaking).submissionCooldown(), SUBMISSION_COOLDOWN);
     }
 
     function _fund_tokens() internal {
         deal(pond, operatorA, FUND_FOR_SELF_STAKE);
         deal(pond, operatorB, FUND_FOR_SELF_STAKE);
         deal(pond, operatorC, FUND_FOR_SELF_STAKE);
+
+        deal(usdc, jobRequesterA, FUND_FOR_FEE);
+        deal(usdc, jobRequesterB, FUND_FOR_FEE);
+        deal(usdc, jobRequesterC, FUND_FOR_FEE);
+
+        deal(inflationRewardToken, inflationRewardManager, FUND_FOR_INFLATION_REWARD);
     }
 
 
