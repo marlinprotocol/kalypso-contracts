@@ -3,8 +3,30 @@ pragma solidity ^0.8.26;
 
 import {IStakingPool} from "./IStakingPool.sol";
 
+import {Struct} from "../../lib/staking/Struct.sol";    
+
 interface ISymbioticStaking is IStakingPool {
-    // function stakeOf(address _operator, address _token) external view returns (uint256);
+    function submitVaultSnapshot(
+        uint256 _index,
+        uint256 _numOfTxs, // number of total transactions
+        bytes calldata _vaultSnapshotData,
+        bytes calldata _signature
+    ) external;
+
+    function submitSlashResult(
+        uint256 _index,
+        uint256 _numOfTxs, // number of total transactions
+        bytes memory _slashResultData,
+        bytes memory _signature
+    ) external;
+
+    function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type) external view returns (Struct.SnapshotTxCountInfo memory);
+
+    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32);
+
+    
+
+    function confirmedTimestampInfo(uint256 _idx) external view returns (Struct.ConfirmedTimestamp memory);
 
     // event OperatorSnapshotSubmitted
 

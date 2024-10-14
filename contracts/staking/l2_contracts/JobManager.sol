@@ -39,6 +39,8 @@ contract JobManager is
     uint256[500] private __gap_0;
 
     address public stakingManager;
+    address public symbioticStaking;
+    address public symbioticStakingReward;
     address public feeToken;
     address public inflationRewardManager;
 
@@ -47,9 +49,14 @@ contract JobManager is
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
 
+    modifier onlySymbioticStaking() {
+        require(msg.sender == symbioticStaking || msg.sender == symbioticStakingReward, "JobManager: caller is not the SymbioticStaking");
+        _;
+    }
+
     /*======================================== Init ========================================*/
 
-    function initialize(address _admin, address _stakingManager, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
+    function initialize(address _admin, address _stakingManager, address _symbioticStaking, address _symbioticStakingReward, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
         public
         initializer
     {
@@ -63,8 +70,15 @@ contract JobManager is
         require(_stakingManager != address(0), "JobManager: Invalid StakingManager");
         stakingManager = _stakingManager;
 
+        require(_symbioticStaking != address(0), "JobManager: Invalid SymbioticStaking");
+        symbioticStaking = _symbioticStaking;
+
+        require(_symbioticStakingReward != address(0), "JobManager: Invalid SymbioticStakingReward");
+        symbioticStakingReward = _symbioticStakingReward;
+
         require(_feeToken != address(0), "JobManager: Invalid Fee Token");
         feeToken = _feeToken;
+    
 
         require(_inflationRewardManager != address(0), "JobManager: Invalid InflationRewardManager");
         inflationRewardManager = _inflationRewardManager;
@@ -100,11 +114,12 @@ contract JobManager is
      * @notice Submit Single Proof
      */
     function submitProof(uint256 _jobId, bytes calldata _proof) public nonReentrant {
+        require(jobs[_jobId].deadline > 0, "Job not created");
         require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
 
         _verifyProof(_jobId, _proof);
-        
-        address operator = jobs[_jobId].operator;   
+
+        address operator = jobs[_jobId].operator;
 
         // distribute fee reward
         uint256 feeRewardRemaining = _distributeFeeReward(operator, jobs[_jobId].feePaid);
@@ -135,9 +150,8 @@ contract JobManager is
         if (jobs[_jobId].feePaid > 0) {
             require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
 
-            jobs[_jobId].feePaid = 0;
-
             IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
+            jobs[_jobId].feePaid = 0;
 
             // TODO: emit event
         }
@@ -173,6 +187,11 @@ contract JobManager is
 
     function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
         operatorRewardShares[_operator] = _rewardShare;
+    }
+
+    // TODO
+    function transferFeeToken(address _recipient, uint256 _amount) external onlySymbioticStaking {
+        IERC20(feeToken).safeTransfer(_recipient, _amount);
     }
 
     /*======================================== Overrides ========================================*/

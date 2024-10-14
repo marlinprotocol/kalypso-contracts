@@ -16,6 +16,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import {console} from "forge-std/Test.sol";
+
 contract InflationRewardManager is
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -36,6 +38,7 @@ contract InflationRewardManager is
     address public jobManager;
     address public stakingManager;
     address public symbioticStaking;
+    address public symbioticStakingReward;
 
     /* reward config */
     address public inflationRewardToken;
@@ -61,7 +64,7 @@ contract InflationRewardManager is
     }
 
     modifier onlySymbioticStaking() {
-        require(msg.sender == symbioticStaking, "InflationRewardManager: Only SymbioticStaking");
+        require(msg.sender == symbioticStaking || msg.sender == symbioticStakingReward, "InflationRewardManager: Only SymbioticStaking or SymbioticStakingReward");
         _;
     }
 
@@ -72,6 +75,8 @@ contract InflationRewardManager is
         uint256 _startTime,
         address _jobManager,
         address _stakingManager,
+        address _symbioticStaking,
+        address _symbioticStakingReward,
         address _inflationRewardToken,
         uint256 _inflationRewardEpochSize,
         uint256 _inflationRewardPerEpoch
@@ -88,6 +93,12 @@ contract InflationRewardManager is
 
         require(_stakingManager != address(0), "InflationRewardManager: stakingManager address is zero");
         stakingManager = _stakingManager;
+
+        require(_symbioticStaking != address(0), "InflationRewardManager: symbioticStaking address is zero");
+        symbioticStaking = _symbioticStaking;
+
+        require(_symbioticStakingReward != address(0), "InflationRewardManager: symbioticStakingReward address is zero");
+        symbioticStakingReward = _symbioticStakingReward;
 
         require(_startTime > 0, "InflationRewardManager: startTime is zero");
         startTime = _startTime;
@@ -212,6 +223,15 @@ contract InflationRewardManager is
 
     function setInflationRewardEpochSize(uint256 _inflationRewardEpochSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
         inflationRewardEpochSize = _inflationRewardEpochSize;
+    }
+
+    function setSymbioticStakingReward(address _symbioticStakingReward) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_symbioticStakingReward != address(0), "InflationRewardManager: symbioticStakingReward address is zero");
+        symbioticStakingReward = _symbioticStakingReward;
+    }
+
+    function transferInflationRewardToken(address _to, uint256 _amount) public onlySymbioticStaking {
+        IERC20(inflationRewardToken).safeTransfer(_to, _amount);
     }
 
     /*======================================== Overrides ========================================*/

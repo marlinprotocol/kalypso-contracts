@@ -6,7 +6,7 @@ import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intro
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-
+import {JobManager} from "./JobManager.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
@@ -19,14 +19,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
-contract SymbioticStaking is 
+
+contract SymbioticStaking is
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    ISymbioticStaking 
-    {
+    ISymbioticStaking
+{
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -38,16 +39,16 @@ contract SymbioticStaking is
     bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
-    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT");
+    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
+    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
 
     uint256 public submissionCooldown; // 18 decimal (in seconds)
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
-    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT");
-
     EnumerableSet.AddressSet stakeTokenSet;
 
     address public stakingManager;
+    address public jobManager;
     address public rewardDistributor;
     address public inflationRewardManager;
 
@@ -58,31 +59,35 @@ contract SymbioticStaking is
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
-    
-    
+
     /* Config */
     mapping(address stakeToken => uint256 amount) public amountToLock;
     mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
     mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
-
     /* Symbiotic Snapshot */
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))) txCountInfo; 
+    mapping(
+        uint256 captureTimestamp
+            => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))
+    ) txCountInfo;
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus; 
+    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus;
 
     // staked amount for each operator
-    mapping(uint256 captureTimestamp => mapping(address operator => mapping(address stakeToken => uint256 stakeAmount))) operatorStakeAmounts;
+    mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address operator => uint256 stakeAmount)))
+        operatorStakeAmounts;
     // staked amount for each vault
-    mapping(uint256 captureTimestamp => mapping(address vault => mapping(address operator => mapping(address stakeToken => uint256 stakeAmount)))) vaultStakeAmounts;
+    mapping(
+        uint256 captureTimestamp
+            => mapping(address stakeToken => mapping(address vault => mapping(address operator => uint256 stakeAmount)))
+    ) vaultStakeAmounts;
 
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
-
     /* Staking */
     mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
-    mapping(address operator => mapping(address stakeToken => uint256 locked)) public operatorLockedAmounts;
+    mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
@@ -91,7 +96,15 @@ contract SymbioticStaking is
         _;
     }
 
-    function initialize(address _admin, address _stakingManager, address _rewardDistributor, address _inflationRewardManager, address _feeRewardToken, address _inflationRewardToken) public initializer {
+    function initialize(
+        address _admin,
+        address _jobManager,
+        address _stakingManager,
+        address _rewardDistributor,
+        address _inflationRewardManager,
+        address _feeRewardToken,
+        address _inflationRewardToken
+    ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -102,6 +115,9 @@ contract SymbioticStaking is
 
         require(_stakingManager != address(0), "SymbioticStaking: stakingManager is zero");
         stakingManager = _stakingManager;
+
+        require(_jobManager != address(0), "SymbioticStaking: jobManager is zero");
+        jobManager = _jobManager;
 
         require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
         rewardDistributor = _rewardDistributor;
@@ -115,38 +131,37 @@ contract SymbioticStaking is
         require(_inflationRewardToken != address(0), "SymbioticStaking: inflationRewardToken is zero");
         inflationRewardToken = _inflationRewardToken;
     }
-    
 
-    /*===================================================== external ====================================================*/    
+    /*===================================================== external ====================================================*/
 
     /*------------------------------ L1 to L2 submission -----------------------------*/
 
     function submitVaultSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
-        uint256 _captureTimestamp,
-        bytes memory _vaultSnapshotData,
-        bytes memory _signature
+        bytes calldata _vaultSnapshotData,
+        bytes calldata _signature
     ) external {
-        _checkTransmitterRegistration(_captureTimestamp);
+        (uint256 captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) =
+            abi.decode(_vaultSnapshotData, (uint256, Struct.VaultSnapshot[]));
 
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
+        _checkTransmitterRegistration(captureTimestamp);
 
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
-        
-        Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
+        _checkValidity(_index, _numOfTxs, captureTimestamp, STAKE_SNAPSHOT_TYPE);
+
+        _verifySignature(_index, _numOfTxs, captureTimestamp, _vaultSnapshotData, _signature);
 
         // update Vault and Operator stake amount
         // update rewardPerToken for each vault and operator in SymbioticStakingReward
-        _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
+        _submitVaultSnapshot(captureTimestamp, _vaultSnapshots);
 
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
+        _updateTxCountInfo(_numOfTxs, captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
-        
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
+
         // when all chunks of VaultSnapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
+            submissionStatus[captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
     }
 
@@ -154,85 +169,103 @@ contract SymbioticStaking is
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
-        uint256 _captureTimestamp,
         bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
+        (uint256 captureTimestamp, Struct.JobSlashed[] memory _jobSlashed) =
+            abi.decode(_SlashResultData, (uint256, Struct.JobSlashed[]));
+
         // Vault Snapshot should be submitted before Slash Result
-        require(submissionStatus[_captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK, "Vault Snapshot not submitted");
+        require(
+            submissionStatus[captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK,
+            "Vault Snapshot not submitted"
+        );
 
-        _checkTransmitterRegistration(_captureTimestamp);
+        _checkTransmitterRegistration(captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
+        _checkValidity(_index, _numOfTxs, captureTimestamp, SLASH_RESULT_TYPE);
 
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
+        _verifySignature(_index, _numOfTxs, captureTimestamp, _SlashResultData, _signature);
 
-        Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
-        // _updateSlashResultDataInfo(_captureTimestamp, _jobSlashed);
+        _updateTxCountInfo(_numOfTxs, captureTimestamp, SLASH_RESULT_TYPE);
 
-        _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
-        
-        IStakingManager(stakingManager).onSlashResult(_jobSlashed);
-        
+        // there could be no operator slashed
+        if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
+
         // when all chunks of Snapshots are submitted
-        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
-            _completeSubmission(_captureTimestamp);
+        uint256 numOfTxsStored = _snapshot.numOfTxs;
+        if (numOfTxsStored > 0 && _snapshot.idxToSubmit == _snapshot.numOfTxs) {
+            submissionStatus[captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
+            _completeSubmission(captureTimestamp);
         }
 
-
-        // TODO: unlock the selfStake and reward it to the transmitter 
+        // TODO: unlock the selfStake and reward it to the transmitter
     }
 
     /*--------------------------- stake lock/unlock for job --------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _token = _selectStakeToken(_operator);
-        uint256 _amountToLock = amountToLock[_token];
-        require(getOperatorActiveStakeAmount(_operator, _token) >= _amountToLock, "Insufficient stake amount");
+        address _stakeToken = _selectStakeToken(_operator);
+        uint256 _amountToLock = amountToLock[_stakeToken];
+        require(getOperatorActiveStakeAmount(_stakeToken, _operator) >= _amountToLock, "Insufficient stake amount");
 
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_token, _amountToLock);
-        operatorLockedAmounts[_operator][_token] += _amountToLock;
+        lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
+        operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
 
         // TODO: emit event
     }
 
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount, uint256 _inflationRewardAmount, uint256 _inflationRewardTimestampIdx) external onlyStakingManager {
+    function onJobCompletion(
+        uint256 _jobId,
+        address _operator,
+        uint256 _feeRewardAmount,
+        uint256 _inflationRewardAmount,
+        uint256 _inflationRewardTimestampIdx
+    ) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
         // currentEpoch => currentTimestampIdx
         IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
 
         // distribute fee reward
-        if(_feeRewardAmount > 0) {
+        if (_feeRewardAmount > 0) {
             uint256 currentTimestampIdx = latestConfirmedTimestampIdx();
-            uint256 transmitterComission = Math.mulDiv(_feeRewardAmount, confirmedTimestamps[currentTimestampIdx].transmitterComissionRate, 1e18);
+            uint256 transmitterComission =
+                Math.mulDiv(_feeRewardAmount, confirmedTimestamps[currentTimestampIdx].transmitterComissionRate, 1e18);
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            IERC20(feeRewardToken).safeTransfer(confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission);
+            JobManager(jobManager).transferFeeToken(confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission);
 
             // distribute the remaining fee reward
             _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
+
+            ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
         // distribute inflation reward
-        if(_inflationRewardAmount > 0) {
-            uint256 transmitterComission = Math.mulDiv(_inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18);
+        if (_inflationRewardAmount > 0) {
+            uint256 transmitterComission = Math.mulDiv(
+                _inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18
+            );
             uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission);
+            IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(
+                confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission
+            );
 
             // distribute the remaining inflation reward
             _distributeInflationReward(_operator, inflationRewardRemaining);
+
+            ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, inflationRewardRemaining);
         }
 
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];
-        operatorLockedAmounts[_operator][lock.stakeToken] -= amountToLock[lock.stakeToken];
+        operatorLockedAmounts[lock.stakeToken][_operator] -= amountToLock[lock.stakeToken];
 
         // TODO: emit event
     }
@@ -247,7 +280,7 @@ contract SymbioticStaking is
             uint256 lockedAmount = lock.amount;
 
             // unlock the stake locked during job creation
-            operatorLockedAmounts[_slashedJobs[i].operator][lock.stakeToken] -= lockedAmount;
+            operatorLockedAmounts[lock.stakeToken][_slashedJobs[i].operator] -= lockedAmount;
             delete lockInfo[_slashedJobs[i].jobId];
 
             // TODO: emit events?
@@ -255,18 +288,24 @@ contract SymbioticStaking is
     }
 
     /// @notice called when pending inflation reward is updated
-    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyStakingManager {
-        if(_rewardAmount == 0) return;
+    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx)
+        external
+        onlyStakingManager
+    {
+        if (_rewardAmount == 0) return;
 
-        uint256 transmitterComission = Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
+        uint256 transmitterComission =
+            Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
         uint256 inflationRewardRemaining = _rewardAmount - transmitterComission;
 
         // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
         IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_timestampIdx].transmitter, transmitterComission);
 
         uint256 len = stakeTokenSet.length();
-        for(uint256 i = 0; i < len; i++) {
-            _distributeInflationReward(_operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)); // TODO: gas optimization
+        for (uint256 i = 0; i < len; i++) {
+            _distributeInflationReward(
+                _operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)
+            ); // TODO: gas optimization
         }
     }
 
@@ -275,7 +314,7 @@ contract SymbioticStaking is
     /*------------------------------- Snapshot Submission ----------------------------*/
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
-        if(registeredTransmitters[_captureTimestamp] == address(0)) {
+        if (registeredTransmitters[_captureTimestamp] == address(0)) {
             // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
             registeredTransmitters[_captureTimestamp] = msg.sender;
         } else {
@@ -300,10 +339,16 @@ contract SymbioticStaking is
             Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
 
             // update vault staked amount
-            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.vault][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] = _vaultSnapshot.stakeAmount;
+            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot
+                .operator] = _vaultSnapshot.stakeAmount;
 
             // update operator staked amount
-            operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.operator][_vaultSnapshot.stakeToken] += _vaultSnapshot.stakeAmount;
+            operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.operator] +=
+                _vaultSnapshot.stakeAmount;
+
+            ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(
+                _vaultSnapshot.vault, _vaultSnapshot.operator
+            );
 
             // TODO: emit event for each update?
         }
@@ -312,7 +357,8 @@ contract SymbioticStaking is
     function _completeSubmission(uint256 _captureTimestamp) internal {
         uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
 
-        Struct.ConfirmedTimestamp memory confirmedTimestamp = Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
+        Struct.ConfirmedTimestamp memory confirmedTimestamp =
+            Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
         IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
@@ -321,10 +367,7 @@ contract SymbioticStaking is
 
     /*------------------------------ Reward Distribution -----------------------------*/
 
-    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {
-        ISymbioticStakingReward(rewardDistributor).updateFeeReward(_stakeToken, _operator, _amount);
-    }
-
+    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {}
 
     function _distributeInflationReward(address _operator, uint256 _amount) internal {
         ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, _amount);
@@ -333,50 +376,78 @@ contract SymbioticStaking is
     /*================================================== external view ==================================================*/
 
     function latestConfirmedTimestamp() public view returns (uint256) {
-        return confirmedTimestamps[latestConfirmedTimestampIdx()].captureTimestamp;
+        uint256 len = confirmedTimestamps.length;
+        return len > 0 ? confirmedTimestamps[len - 1].captureTimestamp : 0;
+    }
+
+    function confirmedTimestampInfo(uint256 _idx) public view returns (Struct.ConfirmedTimestamp memory) {
+        return confirmedTimestamps[_idx];
     }
 
     function latestConfirmedTimestampIdx() public view returns (uint256) {
-        return confirmedTimestamps.length - 1;
+        uint256 len = confirmedTimestamps.length;
+        return len > 0 ? len - 1 : 0;
     }
 
-    function getOperatorStakeAmount(address _operator, address _token) public view returns (uint256) {
-        return operatorStakeAmounts[latestConfirmedTimestamp()][_operator][_token];
+    function getOperatorStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
+        return operatorStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_operator];
     }
 
-    function getOperatorActiveStakeAmount(address _operator, address _token) public view returns (uint256) {
-        uint256 operatorStakeAmount = getOperatorStakeAmount(_operator, _token);
-        uint256 operatorLockedAmount = operatorLockedAmounts[_operator][_token];
+    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
+        uint256 operatorStakeAmount = getOperatorStakeAmount(_stakeToken, _operator);
+        uint256 operatorLockedAmount = operatorLockedAmounts[_stakeToken][_operator];
         return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
     }
 
-    function getStakeAmount(address _vault, address _stakeToken, address _operator) external view returns (uint256) {
-        return vaultStakeAmounts[latestConfirmedTimestamp()][_vault][_stakeToken][_operator];
+    function getStakeAmount(address _stakeToken, address _vault, address _operator) external view returns (uint256) {
+        return vaultStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_vault][_operator];
     }
 
-    function getStakeTokenList() external view returns(address[] memory) {
+    function getStakeTokenList() external view returns (address[] memory) {
         return stakeTokenSet.values();
     }
 
-    function isSupportedStakeToken(address _token) public view returns (bool) {
-        return stakeTokenSet.contains(_token);
+    function getStakeTokenWeights() external view returns (address[] memory, uint256[] memory) {
+        uint256[] memory weights = new uint256[](stakeTokenSet.length());
+        for (uint256 i = 0; i < stakeTokenSet.length(); i++) {
+            weights[i] = tokenSelectionWeight[stakeTokenSet.at(i)];
+        }
+        return (stakeTokenSet.values(), weights);
+    }
+
+    function isSupportedStakeToken(address _stakeToken) public view returns (bool) {
+        return stakeTokenSet.contains(_stakeToken);
+    }
+
+    function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type)
+        external
+        view
+        returns (Struct.SnapshotTxCountInfo memory)
+    {
+        return txCountInfo[_captureTimestamp][_transmitter][_type];
+    }
+
+    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32) {
+        return submissionStatus[_captureTimestamp][_transmitter];
     }
 
     /*================================================== internal view ==================================================*/
 
     /*------------------------------ Snapshot Submission -----------------------------*/
 
-    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal view {
+    function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type)
+        internal
+        view
+    {
         require(_numOfTxs > 0, "Invalid length");
 
         // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
-        require(block.timestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
+        require(_captureTimestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
+        require(_captureTimestamp <= block.timestamp, "Invalid timestamp");
 
-        
         Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
         require(_index == snapshot.idxToSubmit, "Invalid index");
-        require(_index < snapshot.numOfTxs, "Invalid index");
-        require(snapshot.numOfTxs == _numOfTxs, "Invalid numOfTxs");
+        require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
 
         bytes32 mask;
         if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
@@ -385,7 +456,13 @@ contract SymbioticStaking is
         require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
     }
 
-    function _verifySignature(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes memory _data, bytes memory _signature) internal {
+    function _verifySignature(
+        uint256 _index,
+        uint256 _numOfTxs,
+        uint256 _captureTimestamp,
+        bytes memory _data,
+        bytes memory _signature
+    ) internal {
         // TODO: Verify the signature
         // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
     }
@@ -394,8 +471,9 @@ contract SymbioticStaking is
         return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
     }
 
-    function _calcTransmitterComissionRate(uint256 _confirmedTimestamp) internal view returns(uint256) {
+    function _calcTransmitterComissionRate(uint256 _confirmedTimestamp) internal view returns (uint256) {
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
+        return baseTransmitterComissionRate;
     }
 
     function _currentTransmitter() internal view returns (address) {
@@ -404,7 +482,7 @@ contract SymbioticStaking is
 
     /*-------------------------------------- Job -------------------------------------*/
 
-    function _selectStakeToken(address _operator) internal view returns(address) {
+    function _selectStakeToken(address _operator) internal view returns (address) {
         require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -431,11 +509,12 @@ contract SymbioticStaking is
             require(idx > 0, "No stakeToken available");
 
             // random number in range [0, weightSum - 1]
-            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))) % weightSum;
+            uint256 random = uint256(
+                keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))
+            ) % weightSum;
 
             uint256 cumulativeWeight = 0;
             address selectedToken;
-            
 
             uint256 i;
             // select token based on weight
@@ -448,21 +527,21 @@ contract SymbioticStaking is
             }
 
             // check if the selected token has enough active stake amount
-            if (getOperatorActiveStakeAmount(_operator, selectedToken) >= amountToLock[selectedToken]) {
+            if (getOperatorActiveStakeAmount(selectedToken, _operator) >= amountToLock[selectedToken]) {
                 return selectedToken;
             }
 
             weightSum -= weights[i];
             tokens[i] = tokens[idx - 1];
             weights[i] = weights[idx - 1];
-            idx--;  // 배열 크기를 줄임
+            idx--; // 배열 크기를 줄임
         }
 
         // this should be returned
-        return address(0);  
+        return address(0);
     }
 
-    function _getActiveStakeAmount(address _stakeToken) internal view returns(uint256) {
+    function _getActiveStakeAmount(address _stakeToken) internal view returns (uint256) {
         // TODO
     }
 
@@ -473,7 +552,11 @@ contract SymbioticStaking is
 
     /*------------------------------------ Reward ------------------------------------*/
 
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount) internal view returns(uint256) {
+    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
+        internal
+        view
+        returns (uint256)
+    {
         return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
     }
 
@@ -485,23 +568,27 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.add(_token), "Token already exists");
-        
+    function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.add(_stakeToken), "Token already exists");
+
         tokenSelectionWeightSum += _weight;
-        inflationRewardShare[_token] = _weight;
+        tokenSelectionWeight[_stakeToken] = _weight;
     }
 
-    function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.remove(_token), "Token does not exist");
-        
-        tokenSelectionWeightSum -= inflationRewardShare[_token];
-        delete inflationRewardShare[_token];
+    function setAmountToLock(address _stakeToken, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        amountToLock[_stakeToken] = _amount;
     }
 
-    function setStakeTokenWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        tokenSelectionWeightSum -= tokenSelectionWeight[_token];
-        tokenSelectionWeight[_token] = _weight;
+    function removeStakeToken(address _stakeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakeTokenSet.remove(_stakeToken), "Token does not exist");
+
+        tokenSelectionWeightSum -= tokenSelectionWeight[_stakeToken];
+        delete tokenSelectionWeight[_stakeToken];
+    }
+
+    function setStakeTokenWeight(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        tokenSelectionWeightSum -= tokenSelectionWeight[_stakeToken];
+        tokenSelectionWeight[_stakeToken] = _weight;
         tokenSelectionWeightSum += _weight;
     }
 
@@ -510,7 +597,7 @@ contract SymbioticStaking is
 
         // TODO: emit event
     }
-    
+
     /// @dev base transmitter comission rate is in range [0, 1e18)
     function setBaseTransmitterComissionRate(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_baseTransmitterComission < 1e18, "Invalid comission rate");

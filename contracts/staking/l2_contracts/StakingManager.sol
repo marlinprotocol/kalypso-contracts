@@ -38,10 +38,12 @@ contract StakingManager is
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public jobManager;
+    address public symbioticStaking;
     address public inflationRewardManager;
 
     address public feeToken;
     address public inflationRewardToken;
+
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
@@ -51,12 +53,17 @@ contract StakingManager is
         _;
     }
 
+    modifier onlySymbioticStaking() {
+        require(msg.sender == symbioticStaking, "StakingManager: Only SymbioticStaking");
+        _;
+    }
+
     modifier onlyInflationRewardManager() {
         require(msg.sender == jobManager, "StakingManager: Only JobManager");
         _;
     }
 
-    function initialize(address _admin, address _jobManager, address _inflationRewardManager, address _feeToken, address _inflationRewardToken) public initializer {
+    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _inflationRewardManager, address _feeToken, address _inflationRewardToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -72,6 +79,9 @@ contract StakingManager is
 
         require(_feeToken != address(0), "StakingManager: Invalid FeeToken");
         feeToken = _feeToken;
+
+        require(_symbioticStaking != address(0), "StakingManager: Invalid SymbioticStaking");
+        symbioticStaking = _symbioticStaking;
 
         require(_inflationRewardToken != address(0), "StakingManager: Invalid InflationRewardToken");
         inflationRewardToken = _inflationRewardToken;
@@ -112,7 +122,7 @@ contract StakingManager is
     }
 
     /// @notice called by SymbioticStaking contract when slash result is submitted
-    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlyJobManager {
+    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlySymbioticStaking {
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
 
