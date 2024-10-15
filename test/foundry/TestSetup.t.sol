@@ -15,7 +15,7 @@ import {StakingManager} from "../../contracts/staking/l2_contracts/StakingManage
 import {NativeStaking} from "../../contracts/staking/l2_contracts/NativeStaking.sol";
 import {SymbioticStaking} from "../../contracts/staking/l2_contracts/SymbioticStaking.sol";
 import {SymbioticStakingReward} from "../../contracts/staking/l2_contracts/SymbioticStakingReward.sol";
-import {InflationRewardManager} from "../../contracts/staking/l2_contracts/InflationRewardManger.sol";
+import {InflationRewardManager} from "../../contracts/staking/l2_contracts/InflationRewardManager.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
