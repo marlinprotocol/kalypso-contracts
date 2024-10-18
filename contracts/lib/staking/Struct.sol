@@ -35,7 +35,7 @@ library Struct {
 
     struct JobSlashed {
         uint256 jobId;
-        address operator; // TODO: check if cheaper than pulling from JobManager
+        address operator;
         address rewardAddress;
     }
 

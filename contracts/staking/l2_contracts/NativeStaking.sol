@@ -34,6 +34,10 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /*===================================================================================================================*/
+    /*================================================ state variable ===================================================*/
+    /*===================================================================================================================*/
+
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
@@ -50,6 +54,13 @@ contract NativeStaking is
     uint256 public withdrawalDuration;
     uint256 public tokenSelectionWeightSum;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
+
+    /*===================================================================================================================*/
+    /*==================================================== mapping ======================================================*/
+    /*===================================================================================================================*/
+
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
     mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
     mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
@@ -64,10 +75,13 @@ contract NativeStaking is
     mapping(address account => mapping(address operator => Struct.WithdrawalRequest[] withdrawalRequest)) public
         withdrawalRequests;
 
-    uint256[500] private __gap_1;
     /* Locked Stakes */
     mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address operator => uint256 amount)) public operatorLockedAmounts;
+
+    /*===================================================================================================================*/
+    /*=================================================== modifier ======================================================*/
+    /*===================================================================================================================*/
 
     modifier onlySupportedToken(address _stakeToken) {
         require(stakeTokenSet.contains(_stakeToken), "Token not supported");
@@ -79,7 +93,9 @@ contract NativeStaking is
         _;
     }
 
-    /*=================================================== initialize ====================================================*/
+    /*===================================================================================================================*/
+    /*================================================== initializer ====================================================*/
+    /*===================================================================================================================*/
 
     function initialize(
         address _admin,
@@ -101,9 +117,11 @@ contract NativeStaking is
         feeRewardToken = _feeToken;
     }
 
+    /*===================================================================================================================*/
     /*==================================================== external =====================================================*/
+    /*===================================================================================================================*/
 
-    /*-------------------------------- Native Staking --------------------------------*/
+    /*------------------------------------------------ Native Staking ---------------------------------------------------*/
 
     // Staker should be able to choose an Operator they want to stake into
     function stake(address _stakeToken, address _operator, uint256 _amount)
@@ -119,9 +137,7 @@ contract NativeStaking is
         stakeAmounts[_stakeToken][msg.sender][_operator] += _amount;
         operatorstakeAmounts[_stakeToken][_operator] += _amount;
 
-        // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
-
-        emit Staked(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
+        emit Staked(msg.sender, _operator, _stakeToken, _amount);
     }
 
     // TODO
@@ -135,19 +151,31 @@ contract NativeStaking is
             Struct.WithdrawalRequest(_stakeToken, _amount, block.timestamp + withdrawalDuration)
         );
 
-        // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, _stakeToken, _operator);
+        uint256 index = withdrawalRequests[msg.sender][_operator].length - 1;
 
-        emit StakeWithdrawn(msg.sender, _operator, _stakeToken, _amount, block.timestamp);
+        emit StakeWithdrawalRequested(msg.sender, _operator, _stakeToken, index, _amount);
     }
 
     function withdrawStake(address _operator, uint256[] calldata _index) external nonReentrant {
         require(msg.sender == _operator, "Only operator can withdraw stake");
+        require(_index.length > 0, "Invalid index length");
 
-        _withdrawStake(_operator, _index);
-        // TODO
+        for (uint256 i = 0; i < _index.length; i++) {
+            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_operator][_index[i]];
+
+            require(request.withdrawalTime <= block.timestamp, "Withdrawal time not reached");
+
+            require(request.amount > 0, "Invalid withdrawal request");
+
+            withdrawalRequests[msg.sender][_operator][_index[i]].amount = 0;
+
+            IERC20(request.stakeToken).safeTransfer(msg.sender, request.amount);
+
+            emit StakeWithdrawn(msg.sender, _operator, request.stakeToken, _index[i], request.amount);
+        }
     }
 
-    /*-------------------------------- Satking Manager -------------------------------*/
+    /*----------------------------------------------- Staking Manager ---------------------------------------------------*/
 
     function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
         address _stakeToken = _selectStakeToken(_operator);
@@ -158,7 +186,7 @@ contract NativeStaking is
         lockInfo[_jobId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
         operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
 
-        // TODO: emit event
+        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
     }
 
     /// @notice unlock stake and distribute reward
@@ -166,9 +194,7 @@ contract NativeStaking is
     function onJobCompletion(
         uint256 _jobId,
         address _operator,
-        uint256 _feeRewardAmount
-        // uint256 _inflationRewardAmount,
-        // uint256 /* _inflationRewardTimestampIdx */
+        uint256 /* _feeRewardAmount */
     ) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = lockInfo[_jobId];
 
@@ -176,16 +202,7 @@ contract NativeStaking is
 
         _unlockStake(_jobId, lock.token, _operator, lock.amount);
 
-        // distribute fee reward
-        // if (_feeRewardAmount > 0) {
-        //     _distributeFeeReward(lock.token, _operator, _feeRewardAmount);
-        // }
-
-        // if (_inflationRewardAmount > 0) {
-        //     _distributeInflationReward(_operator, _inflationRewardAmount);
-        // }
-
-        // TODO: emit event
+        emit StakeUnlocked(_jobId, _operator, lock.token, lock.amount);
     }
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
@@ -198,33 +215,40 @@ contract NativeStaking is
 
             _unlockStake(_slashedJobs[i].jobId, lock.token, _slashedJobs[i].operator, lockedAmount);
             IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
-
-            // INativeStakingReward(rewardDistributor).onStakeUpdate(msg.sender, lock.token, _slashedJobs[i].operator);
+        
+            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
         }
-        // TODO: emit event
     }
 
-    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 /* _timestampIdx */) external onlyStakingManager {
-    //     if (_rewardAmount == 0) return;
+    /*===================================================================================================================*/
+    /*===================================================== internal ====================================================*/
+    /*===================================================================================================================*/
 
-    //     // _distributeInflationReward(_operator, _rewardAmount);
-    // }
+    function _unlockStake(uint256 _jobId, address _stakeToken, address _operator, uint256 _amount) internal {
+        operatorLockedAmounts[_stakeToken][_operator] -= _amount;
+        delete lockInfo[_jobId];
+    }
 
-    /*==================================================== public view ==================================================*/
+
+    /*===================================================================================================================*/
+    /*=================================================== public view ===================================================*/
+    /*===================================================================================================================*/
 
     function getOperatorStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
         return operatorstakeAmounts[_stakeToken][_operator];
-    }
-
-    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return getOperatorStakeAmount(_stakeToken, _operator) - getOperatorLockedAmount(_stakeToken, _operator);
     }
 
     function getOperatorLockedAmount(address _stakeToken, address _operator) public view returns (uint256) {
         return operatorLockedAmounts[_stakeToken][_operator];
     }
 
+    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
+        return getOperatorStakeAmount(_stakeToken, _operator) - getOperatorLockedAmount(_stakeToken, _operator);
+    }
+
+    /*===================================================================================================================*/
     /*================================================== external view ==================================================*/
+    /*===================================================================================================================*/
 
     function getStakeTokenList() external view returns (address[] memory) {
         return stakeTokenSet.values();
@@ -246,47 +270,21 @@ contract NativeStaking is
         return stakeTokenSet.contains(_stakeToken);
     }
 
-    /*===================================================== internal ====================================================*/
 
-    function _unlockStake(uint256 _jobId, address _stakeToken, address _operator, uint256 _amount) internal {
-        operatorLockedAmounts[_stakeToken][_operator] -= _amount;
-        delete lockInfo[_jobId];
-    }
-
-    function _withdrawStake(address _operator, uint256[] calldata _index) internal {
-        for (uint256 i = 0; i < _index.length; i++) {
-            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_operator][_index[i]];
-
-            require(request.withdrawalTime <= block.timestamp, "Withdrawal time not reached");
-
-            require(request.amount > 0, "Invalid withdrawal request");
-
-            withdrawalRequests[msg.sender][_operator][_index[i]].amount = 0;
-
-            IERC20(request.stakeToken).safeTransfer(msg.sender, request.amount);
-        }
-    }
-
-    /*============================================== internal view =============================================*/
-
-    // function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
-    //     internal
-    //     view
-    //     returns (uint256)
-    // {
-    //     return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    // }
+    /*===================================================================================================================*/
+    /*================================================== internal view ==================================================*/
+    /*===================================================================================================================*/
 
     function _selectStakeToken(address _operator) internal view returns(address) {
         require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
-        address[] memory tokens = new address[](stakeTokenSet.length());
-        uint256[] memory weights = new uint256[](stakeTokenSet.length());
+        uint256 len = stakeTokenSet.length();
+        address[] memory tokens = new address[](len);
+        uint256[] memory weights = new uint256[](len);
 
         uint256 weightSum = tokenSelectionWeightSum;
         uint256 idx = 0;
-        uint256 len = stakeTokenSet.length();
         for (uint256 i = 0; i < len; i++) {
             address token = stakeTokenSet.at(i);
             uint256 weight = tokenSelectionWeight[token];
@@ -333,13 +331,17 @@ contract NativeStaking is
         return address(0);  
     }
 
-    /*====================================================== admin ======================================================*/
+    /*===================================================================================================================*/
+    /*===================================================== admin =======================================================*/
+    /*===================================================================================================================*/
 
     function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.add(_token), "Token already exists");
         
         tokenSelectionWeight[_token] = _weight;
         tokenSelectionWeightSum += _weight;
+
+        emit StakeTokenAdded(_token, _weight);
     }
 
     function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -347,32 +349,33 @@ contract NativeStaking is
         
         // tokenSelectionWeightSum -= inflationRewardShare[_token];
         delete tokenSelectionWeight[_token];
+
+        emit StakeTokenRemoved(_token);
     }
 
-    function setStakeTokenWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setStakeTokenSelectionWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         tokenSelectionWeightSum -= tokenSelectionWeight[_token];
         tokenSelectionWeight[_token] = _weight;
         tokenSelectionWeightSum += _weight;
-    }
 
-    function setNativeStakingReward(address _nativeStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        rewardDistributor = _nativeStakingReward;
-
-        // TODO: emit event
+        emit StakeTokenSelectionWeightSet(_token, _weight);
     }
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
 
-        // TODO: emit event
+        emit StakingManagerSet(_stakingManager);
     }
 
     function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         amountToLock[_token] = _amount;
 
-        // TODO: emit event
+        emit AmountToLockSet(_token, _amount);
     }
-    /*==================================================== overrides ====================================================*/
+
+    /*===================================================================================================================*/
+    /*==================================================== override =====================================================*/
+    /*===================================================================================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public

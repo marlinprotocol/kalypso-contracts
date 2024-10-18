@@ -32,9 +32,9 @@ contract JobManager is
 {
     using SafeERC20 for IERC20;
 
-    mapping(uint256 jobId => Struct.JobInfo jobInfo) public jobs;
-    // operator deducts comission from inflation reward
-    mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
+    /*===================================================================================================================*/
+    /*================================================ state variable ===================================================*/
+    /*===================================================================================================================*/
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
@@ -50,12 +50,26 @@ contract JobManager is
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
 
+    /*===================================================================================================================*/
+    /*==================================================== mapping ======================================================*/
+    /*===================================================================================================================*/
+
+    mapping(uint256 jobId => Struct.JobInfo jobInfo) public jobs;
+    // operator deducts comission from inflation reward
+    mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
+
+    /*===================================================================================================================*/
+    /*=================================================== modifier ======================================================*/
+    /*===================================================================================================================*/
+
     modifier onlySymbioticStaking() {
         require(msg.sender == symbioticStaking || msg.sender == symbioticStakingReward, "JobManager: caller is not the SymbioticStaking");
         _;
     }
 
-    /*======================================== Init ========================================*/
+    /*===================================================================================================================*/
+    /*================================================== initializer ====================================================*/
+    /*===================================================================================================================*/
 
     function initialize(address _admin, address _stakingManager, address _symbioticStaking, address _symbioticStakingReward, address _feeToken, uint256 _jobDuration)
         public
@@ -70,26 +84,31 @@ contract JobManager is
 
         require(_stakingManager != address(0), "JobManager: Invalid StakingManager");
         stakingManager = _stakingManager;
+        emit StakingManagerSet(_stakingManager);
 
         require(_symbioticStaking != address(0), "JobManager: Invalid SymbioticStaking");
         symbioticStaking = _symbioticStaking;
-
+        emit SymbioticStakingSet(_symbioticStaking);
+        
         require(_symbioticStakingReward != address(0), "JobManager: Invalid SymbioticStakingReward");
         symbioticStakingReward = _symbioticStakingReward;
+        emit SymbioticStakingRewardSet(_symbioticStakingReward);
 
         require(_feeToken != address(0), "JobManager: Invalid Fee Token");
         feeToken = _feeToken;
-    
-        // require(_inflationRewardManager != address(0), "JobManager: Invalid InflationRewardManager");
-        // inflationRewardManager = _inflationRewardManager;
-
+        emit FeeTokenSet(_feeToken);
+        
         require(_jobDuration > 0, "JobManager: Invalid Job Duration");
         jobDuration = _jobDuration;
+        emit JobDurationSet(_jobDuration);
     }
 
-    /*======================================== Job ========================================*/
+    /*===================================================================================================================*/
+    /*==================================================== external =====================================================*/
+    /*===================================================================================================================*/
 
-    // TODO: check paramter for job details
+    /*----------------------------------------------------- Job ---------------------------------------------------------*/
+
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount)
         external
         nonReentrant
@@ -107,7 +126,7 @@ contract JobManager is
 
         IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
 
-        // TODO: emit event
+        emit JobCreated(_jobId, _requester, _operator, _feeAmount);
     }
 
     /**
@@ -126,6 +145,8 @@ contract JobManager is
 
         // inflation reward will be distributed here
         IStakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
+
+        emit JobCompleted(_jobId, operator, feeRewardRemaining);
     }
 
     /**
@@ -141,8 +162,6 @@ contract JobManager is
         }
     }
 
-    /*======================================== Fee Reward ========================================*/
-
     /// @notice refund fee to the job requester
     /// @dev most likely called by the requester when job is not completed
     /// @dev or when the job is slashed and the slash result is submitted in SymbioticStaking contract
@@ -153,11 +172,13 @@ contract JobManager is
             IERC20(feeToken).safeTransfer(jobs[_jobId].requester, jobs[_jobId].feePaid);
             jobs[_jobId].feePaid = 0;
 
-            // TODO: emit event
+            emit FeeRefunded(_jobId, jobs[_jobId].requester, jobs[_jobId].feePaid);
         }
     }
 
-    /*======================================== Internal functions ========================================*/
+    /*===================================================================================================================*/
+    /*===================================================== internal ====================================================*/
+    /*===================================================================================================================*/
 
     function _verifyProof(uint256 _jobId, bytes calldata _proof) internal {
         // TODO: verify proof
@@ -171,30 +192,45 @@ contract JobManager is
         feeRewardRemaining = _feePaid - operatorFeeReward;
     }
 
-    /*======================================== Admin ========================================*/
+    /*===================================================================================================================*/
+    /*=============================================== Symbiotic Staking =================================================*/
+    /*===================================================================================================================*/
+
+    function transferFeeToken(address _recipient, uint256 _amount) external onlySymbioticStaking {
+        IERC20(feeToken).safeTransfer(_recipient, _amount);
+    }
+    
+    /*===================================================================================================================*/
+    /*===================================================== admin =======================================================*/
+    /*===================================================================================================================*/
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
+        emit StakingManagerSet(_stakingManager);
     }
 
     function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeToken = _feeToken;
+        emit FeeTokenSet(_feeToken);
     }
 
     function setJobDuration(uint256 _jobDuration) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobDuration = _jobDuration;
+        emit JobDurationSet(_jobDuration);
     }
 
     function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
         operatorRewardShares[_operator] = _rewardShare;
+        emit OperatorRewardShareSet(_operator, _rewardShare);
     }
 
-    // TODO
-    function transferFeeToken(address _recipient, uint256 _amount) external onlySymbioticStaking {
-        IERC20(feeToken).safeTransfer(_recipient, _amount);
+    function emergencyWithdraw(address token, address _recipient, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(_recipient, _amount);
     }
 
-    /*======================================== Overrides ========================================*/
+    /*===================================================================================================================*/
+    /*==================================================== override =====================================================*/
+    /*===================================================================================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -207,6 +243,5 @@ contract JobManager is
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
-
 
 }

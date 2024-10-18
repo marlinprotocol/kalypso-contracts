@@ -4,27 +4,53 @@ pragma solidity ^0.8.26;
 import {Struct} from "../../lib/staking/Struct.sol";
 
 interface IStakingPool {
-    function isSupportedStakeToken(address stakeToken) external view returns (bool);
+    /*====================================================== events =======================================================*/
 
-    function lockStake(uint256 jobId, address operator) external; // Staking Manager only
+    /* Job */
 
-    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount) external; // Staking Manager only
+    event StakeLocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
 
-    function slash(Struct.JobSlashed[] calldata slashedJobs) external; // Staking Manager only  
+    event StakeUnlocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
 
-    function getOperatorStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    event JobSlashed(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    
+    /* Stake Token */
 
-    function getOperatorActiveStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    event StakeTokenAdded(address indexed token, uint256 indexed weight);
+
+    event StakeTokenRemoved(address indexed token);
+
+    event StakeTokenSelectionWeightSet(address indexed token, uint256 indexed weight);
+
+    event AmountToLockSet(address indexed token, uint256 indexed amount);
+
+    /* Contracts Set */
+
+    event StakingManagerSet(address indexed stakingManager);
+
+
+    /*===================================================== functions =====================================================*/
+
+    function lockStake(uint256 jobId, address operator) external;
+
+    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount) external;
+
+    function slash(Struct.JobSlashed[] calldata slashedJobs) external;
 
     function rewardDistributor() external view returns (address);
 
-    // function distributeInflationReward(address operator, uint256 rewardAmount, uint256 timestampIdx) external; // Staking Manager only
-
     function getStakeTokenList() external view returns (address[] memory);
-
+    
     function getStakeTokenWeights() external view returns (address[] memory, uint256[] memory);
-
+    
     function tokenSelectionWeightSum() external view returns (uint256);
 
+    function isSupportedStakeToken(address stakeToken) external view returns (bool);
+
+    function getOperatorStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    
     function getStakeAmount(address stakeToken, address staker, address operator) external view returns (uint256);
+
+    function getOperatorActiveStakeAmount(address stakeToken, address operator) external view returns (uint256);
+
 }

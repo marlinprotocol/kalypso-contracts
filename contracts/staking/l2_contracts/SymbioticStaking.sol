@@ -35,6 +35,10 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /*===================================================================================================================*/
+    /*================================================ state variable ===================================================*/
+    /*===================================================================================================================*/
+
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
@@ -50,19 +54,21 @@ contract SymbioticStaking is
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     EnumerableSet.AddressSet stakeTokenSet;
+    uint256 public tokenSelectionWeightSum;
 
     address public stakingManager;
     address public jobManager;
     address public rewardDistributor;
-    address public inflationRewardManager;
 
     address public feeRewardToken;
-    address public inflationRewardToken;
 
-    uint256 public tokenSelectionWeightSum;
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
+
+    /*===================================================================================================================*/
+    /*==================================================== mapping ======================================================*/
+    /*===================================================================================================================*/
 
     /* Config */
     mapping(address stakeToken => uint256 amount) public amountToLock;
@@ -95,17 +101,24 @@ contract SymbioticStaking is
 
     mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
+    /*===================================================================================================================*/
+    /*=================================================== modifier ======================================================*/
+    /*===================================================================================================================*/
+
     modifier onlyStakingManager() {
         require(msg.sender == stakingManager, "Only StakingManager");
         _;
     }
+
+    /*===================================================================================================================*/
+    /*================================================== initializer ====================================================*/
+    /*===================================================================================================================*/
 
     function initialize(
         address _admin,
         address _jobManager,
         address _stakingManager,
         address _rewardDistributor,
-        address _inflationRewardManager,
         address _feeRewardToken
     ) public initializer {
         __Context_init_unchained();
@@ -125,14 +138,13 @@ contract SymbioticStaking is
         require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
         rewardDistributor = _rewardDistributor;
 
-        require(_inflationRewardManager != address(0), "SymbioticStaking: inflationRewardManager is zero");
-        inflationRewardManager = _inflationRewardManager;
-
         require(_feeRewardToken != address(0), "SymbioticStaking: feeRewardToken is zero");
         feeRewardToken = _feeRewardToken;
     }
 
-    /*===================================================== external ====================================================*/
+    /*===================================================================================================================*/
+    /*==================================================== external =====================================================*/
+    /*===================================================================================================================*/
 
     /*------------------------------ L1 to L2 submission -----------------------------*/
 
@@ -163,9 +175,10 @@ contract SymbioticStaking is
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
             submissionStatus[captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
+
+        emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _vaultSnapshotData, _signature);
     }
 
-    // TODO
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
@@ -202,6 +215,7 @@ contract SymbioticStaking is
         }
 
         // TODO: unlock the selfStake and reward it to the transmitter
+        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _SlashResultData, _signature);
     }
 
     /*--------------------------- stake lock/unlock for job --------------------------*/
@@ -214,7 +228,7 @@ contract SymbioticStaking is
         lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
 
-        // TODO: emit event
+        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
     }
 
     function onJobCompletion(
@@ -223,9 +237,6 @@ contract SymbioticStaking is
         uint256 _feeRewardAmount
     ) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
-
-        // currentEpoch => currentTimestampIdx
-        // IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
 
         // distribute fee reward
         if (_feeRewardAmount > 0) {
@@ -243,33 +254,16 @@ contract SymbioticStaking is
             ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
-        // distribute inflation reward
-        // if (_inflationRewardAmount > 0) {
-        //     uint256 transmitterComission = Math.mulDiv(
-        //         _inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18
-        //     );
-        //     uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
-
-        //     // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-        //     IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(
-        //         confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission
-        //     );
-
-        //     // distribute the remaining inflation reward
-        //     _distributeInflationReward(_operator, inflationRewardRemaining);
-
-        //     ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, inflationRewardRemaining);
-        // }
-
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];
         operatorLockedAmounts[lock.stakeToken][_operator] -= amountToLock[lock.stakeToken];
 
-        // TODO: emit event
+        emit StakeUnlocked(_jobId, _operator, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
     /*------------------------------------- slash ------------------------------------*/
 
+    // TODO: later
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
         uint256 len = _slashedJobs.length;
         for (uint256 i = 0; i < len; i++) {
@@ -281,33 +275,13 @@ contract SymbioticStaking is
             operatorLockedAmounts[lock.stakeToken][_slashedJobs[i].operator] -= lockedAmount;
             delete lockInfo[_slashedJobs[i].jobId];
 
-            // TODO: emit events?
+            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.stakeToken, lockedAmount);
         }
     }
 
-    /// @notice called when pending inflation reward is updated
-    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx)
-    //     external
-    //     onlyStakingManager
-    // {
-    //     if (_rewardAmount == 0) return;
-
-    //     uint256 transmitterComission =
-    //         Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
-    //     uint256 inflationRewardRemaining = _rewardAmount - transmitterComission;
-
-    //     // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-    //     IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_timestampIdx].transmitter, transmitterComission);
-
-    //     uint256 len = stakeTokenSet.length();
-    //     for (uint256 i = 0; i < len; i++) {
-    //         _distributeInflationReward(
-    //             _operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)
-    //         ); // TODO: gas optimization
-    //     }
-    // }
-
+    /*===================================================================================================================*/
     /*===================================================== internal ====================================================*/
+    /*===================================================================================================================*/
 
     /*------------------------------- Snapshot Submission ----------------------------*/
 
@@ -359,7 +333,6 @@ contract SymbioticStaking is
             Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
-        // IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
         // TODO: emit event
     }
 
@@ -367,11 +340,9 @@ contract SymbioticStaking is
 
     function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {}
 
-    function _distributeInflationReward(address _operator, uint256 _amount) internal {
-        ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, _amount);
-    }
-
+    /*===================================================================================================================*/
     /*================================================== external view ==================================================*/
+    /*===================================================================================================================*/
 
     function latestConfirmedTimestamp() public view returns (uint256) {
         uint256 len = confirmedTimestamps.length;
@@ -429,7 +400,9 @@ contract SymbioticStaking is
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 
+    /*===================================================================================================================*/
     /*================================================== internal view ==================================================*/
+    /*===================================================================================================================*/
 
     /*------------------------------ Snapshot Submission -----------------------------*/
 
@@ -550,15 +523,9 @@ contract SymbioticStaking is
 
     /*------------------------------------ Reward ------------------------------------*/
 
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    }
-
-    /*====================================================== admin ======================================================*/
+    /*===================================================================================================================*/
+    /*===================================================== admin =======================================================*/
+    /*===================================================================================================================*/
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
@@ -605,7 +572,9 @@ contract SymbioticStaking is
         // TODO: emit event
     }
 
-    /*==================================================== overrides ====================================================*/
+    /*===================================================================================================================*/
+    /*==================================================== override =====================================================*/
+    /*===================================================================================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public

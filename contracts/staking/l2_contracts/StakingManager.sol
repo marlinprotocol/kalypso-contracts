@@ -34,23 +34,33 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /*===================================================================================================================*/
+    /*================================================ state variable ===================================================*/
+    /*===================================================================================================================*/
+
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
-    mapping(address pool => Struct.PoolConfig config) private poolConfig;
-    
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public jobManager;
     address public symbioticStaking;
-    address public inflationRewardManager; // will be set later
-
+    // address public inflationRewardManager;
     address public feeToken;
-    address public inflationRewardToken;
-
+    // address public inflationRewardToken;
 
     // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
+    uint256[500] private __gap_1; 
+
+    /*===================================================================================================================*/
+    /*==================================================== mapping ======================================================*/
+    /*===================================================================================================================*/
+
+    mapping(address pool => Struct.PoolConfig config) private poolConfig;
+
+    /*===================================================================================================================*/
+    /*=================================================== modifier ======================================================*/
+    /*===================================================================================================================*/
 
     modifier onlyJobManager() {
         require(msg.sender == jobManager, "StakingManager: Only JobManager");
@@ -62,10 +72,9 @@ contract StakingManager is
         _;
     }
 
-    // modifier onlyInflationRewardManager() {
-    //     require(msg.sender == jobManager, "StakingManager: Only JobManager");
-    //     _;
-    // }
+    /*===================================================================================================================*/
+    /*================================================== initializer ====================================================*/
+    /*===================================================================================================================*/
 
     function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeToken, address _inflationRewardToken) public initializer {
         __Context_init_unchained();
@@ -78,18 +87,19 @@ contract StakingManager is
         require(_jobManager != address(0), "StakingManager: Invalid JobManager");
         jobManager = _jobManager;
 
-        // require(_inflationRewardManager != address(0), "StakingManager: Invalid InflationRewardManager");
-        // inflationRewardManager = _inflationRewardManager;
-
         require(_feeToken != address(0), "StakingManager: Invalid FeeToken");
         feeToken = _feeToken;
 
         require(_symbioticStaking != address(0), "StakingManager: Invalid SymbioticStaking");
         symbioticStaking = _symbioticStaking;
-
-        require(_inflationRewardToken != address(0), "StakingManager: Invalid InflationRewardToken");
-        inflationRewardToken = _inflationRewardToken;
     }
+
+    /*===================================================================================================================*/
+    /*==================================================== external =====================================================*/
+    /*===================================================================================================================*/
+    
+
+    /*------------------------------------------------- Job Manager -----------------------------------------------------*/
 
     // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
     // locked stake will be unlocked after an epoch if no slas result is submitted
@@ -125,6 +135,8 @@ contract StakingManager is
         // TODO: emit event
     }
 
+    /*---------------------------------------------- Symbiotic Staking --------------------------------------------------*/
+
     /// @notice called by SymbioticStaking contract when slash result is submitted
     function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlySymbioticStaking {
         // msg.sender will most likely be SymbioticStaking contract
@@ -144,27 +156,21 @@ contract StakingManager is
         }
     }
 
-    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyInflationRewardManager {
-    //     if(_rewardAmount == 0) return;
+    /*===================================================================================================================*/
+    /*=================================================== public view ===================================================*/
+    /*===================================================================================================================*/
 
-    //     uint256 len = stakingPoolSet.length();
-    //     for (uint256 i = 0; i < len; i++) {
-    //         address pool = stakingPoolSet.at(i);
+    function isEnabledPool(address _pool) public view returns (bool) {
+        return poolConfig[_pool].enabled;
+    }
 
-    //         (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
+    function getPoolConfig(address _pool) external view returns (Struct.PoolConfig memory) {
+        return poolConfig[_pool];
+    }
 
-    //         IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount, _timestampIdx);
-    //     }
-    // }
-
-    // function _calcRewardAmount(address _pool, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) internal view returns (uint256, uint256) {
-    //     uint256 poolShare = poolConfig[_pool].share;
-        
-    //     uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
-    //     uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolShare, 1e18) : 0;
-
-    //     return (poolFeeRewardAmount, poolInflationRewardAmount);
-    // }
+    /*===================================================================================================================*/
+    /*================================================== internal view ==================================================*/
+    /*===================================================================================================================*/
 
     function _calcFeeRewardAmount(address _pool, uint256 _feeRewardAmount) internal view returns (uint256) {
         uint256 poolShare = poolConfig[_pool].share;
@@ -174,41 +180,48 @@ contract StakingManager is
         return poolFeeRewardAmount;
     }
 
-    /*======================================== Getters ========================================*/
-    function isEnabledPool(address _pool) public view returns (bool) {
-        return poolConfig[_pool].enabled;
-    }
-
-    function getPoolConfig(address _pool) external view returns (Struct.PoolConfig memory) {
-        return poolConfig[_pool];
-    }
-
-    /*======================================== Admin ========================================*/
+    /*===================================================================================================================*/
+    /*===================================================== admin =======================================================*/
+    /*===================================================================================================================*/
 
     /// @notice add new staking pool
     /// @dev share and enabled must be set
     function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.add(_stakingPool);
 
-        // TODO: emit event
+        emit StakingPoolAdded(_stakingPool);
     }
 
     function removeStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.remove(_stakingPool);
 
-        // TODO: emit event
-    }
-
-    function setEnabledPool(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        poolConfig[_pool].enabled = _enabled;
-
-        // TODO: emit event
+        emit StakingPoolRemoved(_stakingPool);
     }
 
     function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         jobManager = _jobManager;
 
-        // TODO: emit event
+        emit JobManagerSet(_jobManager);
+    }
+
+    function setSymbioticStaking(address _symbioticStaking) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        symbioticStaking = _symbioticStaking;
+
+        emit SymbioticStakingSet(_symbioticStaking);
+    }
+
+    function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        feeToken = _feeToken;
+
+        emit FeeTokenSet(_feeToken);
+    }
+
+    function setEnabledPool(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakingPoolSet.contains(_pool), "StakingManager: Pool not in set");
+
+        poolConfig[_pool].enabled = _enabled;
+
+        emit PoolEnabledSet(_pool, _enabled);
     }
 
     // when job is closed, the reward will be distributed based on the share
@@ -227,9 +240,13 @@ contract StakingManager is
 
         // as the weight is in percentage, the sum of the shares should be 1e18 (100%)
         require(sum == 1e18, "Invalid Shares");
+
+        emit PoolRewardShareSet(_pools, _shares);
     }
 
-    /*======================================== Override ========================================*/
+    /*===================================================================================================================*/
+    /*==================================================== override =====================================================*/
+    /*===================================================================================================================*/
 
     function supportsInterface(bytes4 interfaceId)
         public
