@@ -209,6 +209,16 @@ contract JobManager is
         emit StakingManagerSet(_stakingManager);
     }
 
+    function setSymbioticStaking(address _symbioticStaking) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        symbioticStaking = _symbioticStaking;
+        emit SymbioticStakingSet(_symbioticStaking);
+    }
+
+    function setSymbioticStakingReward(address _symbioticStakingReward) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        symbioticStakingReward = _symbioticStakingReward;
+        emit SymbioticStakingRewardSet(_symbioticStakingReward);
+    }
+
     function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeToken = _feeToken;
         emit FeeTokenSet(_feeToken);
@@ -224,8 +234,11 @@ contract JobManager is
         emit OperatorRewardShareSet(_operator, _rewardShare);
     }
 
-    function emergencyWithdraw(address token, address _recipient, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        IERC20(token).safeTransfer(_recipient, _amount);
+    function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_token != address(0), "zero token address");
+        require(_to != address(0), "zero to address");
+
+        IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
     /*===================================================================================================================*/

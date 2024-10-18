@@ -16,6 +16,8 @@ interface ISymbioticStakingReward {
 
     event JobManagerSet(address indexed jobManager);
 
+    event SymbioticStakingSet(address indexed symbioticStaking);
+
     event FeeRewardTokenSet(address indexed feeRewardToken);
 
     /*===================================================== functions =====================================================*/

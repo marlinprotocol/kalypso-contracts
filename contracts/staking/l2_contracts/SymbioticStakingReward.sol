@@ -101,12 +101,15 @@ contract SymbioticStakingReward is
 
         require(_jobManager != address(0), "SymbioticStakingReward: jobManager address is zero");
         jobManager = _jobManager;  
+        emit JobManagerSet(_jobManager);
 
         require(_symbioticStaking != address(0), "SymbioticStakingReward: symbioticStaking address is zero");
         symbioticStaking = _symbioticStaking;
+        emit SymbioticStakingSet(_symbioticStaking);
 
         require(_feeRewardToken != address(0), "SymbioticStakingReward: feeRewardToken address is zero");
         feeRewardToken = _feeRewardToken;
+        emit FeeRewardTokenSet(_feeRewardToken);
     }
 
     /*===================================================================================================================*/
@@ -208,15 +211,21 @@ contract SymbioticStakingReward is
     /*===================================================== admin =======================================================*/
     /*===================================================================================================================*/
 
+    function setJobManager(address _jobManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        jobManager = _jobManager;
+        emit JobManagerSet(_jobManager);
+    }
+
+    function setSymbioticStaking(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        symbioticStaking = _symbioticStaking;
+        emit SymbioticStakingSet(_symbioticStaking);
+    }
+
     function setStakingPool(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
         symbioticStaking = _symbioticStaking;
         emit StakingPoolSet(_symbioticStaking);
     }
 
-    function setJobManager(address _jobManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
-    }
 
     function setFeeRewardToken(address _feeRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
         feeRewardToken = _feeRewardToken;
@@ -224,8 +233,8 @@ contract SymbioticStakingReward is
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_token != address(0), "SymbioticStakingReward: token address is zero");
-        require(_to != address(0), "SymbioticStakingReward: to address is zero");
+        require(_token != address(0), "zero token address");
+        require(_to != address(0), "zero to address");
 
         IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }

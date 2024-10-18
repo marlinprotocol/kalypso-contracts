@@ -13,7 +13,6 @@ import {JobManager} from "./JobManager.sol";
 // import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
-import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -54,7 +53,7 @@ contract SymbioticStaking is
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     EnumerableSet.AddressSet stakeTokenSet;
-    uint256 public tokenSelectionWeightSum;
+    uint256 public stakeTokenSelectionWeightSum;
 
     address public stakingManager;
     address public jobManager;
@@ -72,8 +71,7 @@ contract SymbioticStaking is
 
     /* Config */
     mapping(address stakeToken => uint256 amount) public amountToLock;
-    mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
-    mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
+    mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
 
     /* Symbiotic Snapshot */
     // to track if all partial txs are received
@@ -131,15 +129,18 @@ contract SymbioticStaking is
 
         require(_stakingManager != address(0), "SymbioticStaking: stakingManager is zero");
         stakingManager = _stakingManager;
+        emit StakingManagerSet(_stakingManager);
 
         require(_jobManager != address(0), "SymbioticStaking: jobManager is zero");
         jobManager = _jobManager;
-
+        emit JobManagerSet(_jobManager);
         require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
         rewardDistributor = _rewardDistributor;
+        emit RewardDistributorSet(_rewardDistributor);
 
         require(_feeRewardToken != address(0), "SymbioticStaking: feeRewardToken is zero");
         feeRewardToken = _feeRewardToken;
+        emit FeeRewardTokenSet(_feeRewardToken);
     }
 
     /*===================================================================================================================*/
@@ -379,7 +380,7 @@ contract SymbioticStaking is
     function getStakeTokenWeights() external view returns (address[] memory, uint256[] memory) {
         uint256[] memory weights = new uint256[](stakeTokenSet.length());
         for (uint256 i = 0; i < stakeTokenSet.length(); i++) {
-            weights[i] = tokenSelectionWeight[stakeTokenSet.at(i)];
+            weights[i] = stakeTokenSelectionWeight[stakeTokenSet.at(i)];
         }
         return (stakeTokenSet.values(), weights);
     }
@@ -454,19 +455,19 @@ contract SymbioticStaking is
     /*-------------------------------------- Job -------------------------------------*/
 
     function _selectStakeToken(address _operator) internal view returns (address) {
-        require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
+        require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
         address[] memory tokens = new address[](stakeTokenSet.length());
         uint256[] memory weights = new uint256[](stakeTokenSet.length());
 
-        uint256 weightSum = tokenSelectionWeightSum;
+        uint256 weightSum = stakeTokenSelectionWeightSum;
 
         uint256 idx = 0;
         uint256 len = stakeTokenSet.length();
         for (uint256 i = 0; i < len; i++) {
             address token = stakeTokenSet.at(i);
-            uint256 weight = tokenSelectionWeight[token];
+            uint256 weight = stakeTokenSelectionWeight[token];
             // ignore if weight is 0
             if (weight > 0) {
                 tokens[idx] = token;
@@ -527,40 +528,42 @@ contract SymbioticStaking is
     /*===================================================== admin =======================================================*/
     /*===================================================================================================================*/
 
-    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakingManager = _stakingManager;
-
-        // TODO: emit event
-    }
-
     function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.add(_stakeToken), "Token already exists");
 
-        tokenSelectionWeightSum += _weight;
-        tokenSelectionWeight[_stakeToken] = _weight;
-    }
+        stakeTokenSelectionWeightSum += _weight;
+        stakeTokenSelectionWeight[_stakeToken] = _weight;
 
-    function setAmountToLock(address _stakeToken, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        amountToLock[_stakeToken] = _amount;
+        emit StakeTokenAdded(_stakeToken, _weight);
     }
 
     function removeStakeToken(address _stakeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.remove(_stakeToken), "Token does not exist");
 
-        tokenSelectionWeightSum -= tokenSelectionWeight[_stakeToken];
-        delete tokenSelectionWeight[_stakeToken];
+        stakeTokenSelectionWeightSum -= stakeTokenSelectionWeight[_stakeToken];
+        delete stakeTokenSelectionWeight[_stakeToken];
+
+        emit StakeTokenRemoved(_stakeToken);
     }
 
-    function setStakeTokenWeight(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        tokenSelectionWeightSum -= tokenSelectionWeight[_stakeToken];
-        tokenSelectionWeight[_stakeToken] = _weight;
-        tokenSelectionWeightSum += _weight;
+    function setAmountToLock(address _stakeToken, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        amountToLock[_stakeToken] = _amount;
+
+        emit AmountToLockSet(_stakeToken, _amount);
+    }
+
+    function setStakeTokenSelectionWeight(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakeTokenSelectionWeightSum -= stakeTokenSelectionWeight[_stakeToken];
+        stakeTokenSelectionWeight[_stakeToken] = _weight;
+        stakeTokenSelectionWeightSum += _weight;
+
+        emit StakeTokenSelectionWeightSet(_stakeToken, _weight);
     }
 
     function setSubmissionCooldown(uint256 _submissionCooldown) external onlyRole(DEFAULT_ADMIN_ROLE) {
         submissionCooldown = _submissionCooldown;
 
-        // TODO: emit event
+        emit SubmissionCooldownSet(_submissionCooldown);
     }
 
     /// @dev base transmitter comission rate is in range [0, 1e18)
@@ -569,7 +572,39 @@ contract SymbioticStaking is
 
         baseTransmitterComissionRate = _baseTransmitterComission;
 
-        // TODO: emit event
+        emit BaseTransmitterComissionRateSet(_baseTransmitterComission);
+    }
+
+    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakingManager = _stakingManager;
+
+        emit StakingManagerSet(_stakingManager);
+    }
+
+    function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        jobManager = _jobManager;
+
+        emit JobManagerSet(_jobManager);
+    }
+
+    function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        rewardDistributor = _rewardDistributor;
+
+        emit RewardDistributorSet(_rewardDistributor);
+    }
+
+    function setFeeRewardToken(address _feeRewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        feeRewardToken = _feeRewardToken;
+
+        emit FeeRewardTokenSet(_feeRewardToken);
+    }
+
+
+    function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_token != address(0), "zero token address");
+        require(_to != address(0), "zero to address");
+
+        IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
     /*===================================================================================================================*/

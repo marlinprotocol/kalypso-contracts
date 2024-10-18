@@ -11,7 +11,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 /* Interfaces */
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
-import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -43,16 +42,16 @@ contract NativeStaking is
 
     EnumerableSet.AddressSet private stakeTokenSet;
 
-    address public rewardDistributor;
     address public stakingManager;
+    address public rewardDistributor;
+
     address public feeRewardToken;
-    address public inflationRewardToken;
 
     // gaps in case we new vars in same file
 
     /* Config */
     uint256 public withdrawalDuration;
-    uint256 public tokenSelectionWeightSum;
+    uint256 public stakeTokenSelectionWeightSum;
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
@@ -62,8 +61,7 @@ contract NativeStaking is
     /*===================================================================================================================*/
 
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
-    mapping(address stakeToken => uint256 weight) public tokenSelectionWeight;
-    mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
+    mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
 
     /* Stake */
     // staked amount for each account
@@ -100,7 +98,6 @@ contract NativeStaking is
     function initialize(
         address _admin,
         address _stakingManager,
-        address _rewardDistributor,
         uint256 _withdrawalDuration,
         address _feeToken
     ) public initializer {
@@ -111,9 +108,13 @@ contract NativeStaking is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
+        require(_stakingManager != address(0), "NativeStaking: Invalid StakingManager");
         stakingManager = _stakingManager;
-        rewardDistributor = _rewardDistributor;
+        emit StakingManagerSet(_stakingManager);
+
         withdrawalDuration = _withdrawalDuration;
+
+        require(_feeToken != address(0), "NativeStaking: Invalid Fee Token");
         feeRewardToken = _feeToken;
     }
 
@@ -257,7 +258,7 @@ contract NativeStaking is
     function getStakeTokenWeights() external view returns (address[] memory, uint256[] memory) {
         uint256[] memory weights = new uint256[](stakeTokenSet.length());
         for (uint256 i = 0; i < stakeTokenSet.length(); i++) {
-            weights[i] = tokenSelectionWeight[stakeTokenSet.at(i)];
+            weights[i] = stakeTokenSelectionWeight[stakeTokenSet.at(i)];
         }
         return (stakeTokenSet.values(), weights);
     }
@@ -276,18 +277,18 @@ contract NativeStaking is
     /*===================================================================================================================*/
 
     function _selectStakeToken(address _operator) internal view returns(address) {
-        require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
+        require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
         uint256 len = stakeTokenSet.length();
         address[] memory tokens = new address[](len);
         uint256[] memory weights = new uint256[](len);
 
-        uint256 weightSum = tokenSelectionWeightSum;
+        uint256 weightSum = stakeTokenSelectionWeightSum;
         uint256 idx = 0;
         for (uint256 i = 0; i < len; i++) {
             address token = stakeTokenSet.at(i);
-            uint256 weight = tokenSelectionWeight[token];
+            uint256 weight = stakeTokenSelectionWeight[token];
             // ignore if weight is 0
             if (weight > 0) {
                 tokens[idx] = token;
@@ -338,8 +339,8 @@ contract NativeStaking is
     function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.add(_token), "Token already exists");
         
-        tokenSelectionWeight[_token] = _weight;
-        tokenSelectionWeightSum += _weight;
+        stakeTokenSelectionWeight[_token] = _weight;
+        stakeTokenSelectionWeightSum += _weight;
 
         emit StakeTokenAdded(_token, _weight);
     }
@@ -347,18 +348,9 @@ contract NativeStaking is
     function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.remove(_token), "Token does not exist");
         
-        // tokenSelectionWeightSum -= inflationRewardShare[_token];
-        delete tokenSelectionWeight[_token];
+        delete stakeTokenSelectionWeight[_token];
 
         emit StakeTokenRemoved(_token);
-    }
-
-    function setStakeTokenSelectionWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        tokenSelectionWeightSum -= tokenSelectionWeight[_token];
-        tokenSelectionWeight[_token] = _weight;
-        tokenSelectionWeightSum += _weight;
-
-        emit StakeTokenSelectionWeightSet(_token, _weight);
     }
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -367,10 +359,37 @@ contract NativeStaking is
         emit StakingManagerSet(_stakingManager);
     }
 
+    function setFeeRewardToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        feeRewardToken = _token;
+
+        emit FeeRewardTokenSet(_token);
+    }
+
+    function setWithdrawalDuration(uint256 _duration) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        withdrawalDuration = _duration;
+
+        emit WithdrawalDurationSet(_duration);
+    }
+
+    function setStakeTokenSelectionWeight(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stakeTokenSelectionWeightSum -= stakeTokenSelectionWeight[_token];
+        stakeTokenSelectionWeight[_token] = _weight;
+        stakeTokenSelectionWeightSum += _weight;
+
+        emit StakeTokenSelectionWeightSet(_token, _weight);
+    }
+
     function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         amountToLock[_token] = _amount;
 
         emit AmountToLockSet(_token, _amount);
+    }
+
+    function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_token != address(0), "zero token address");
+        require(_to != address(0), "zero to address");
+
+        IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
     /*===================================================================================================================*/

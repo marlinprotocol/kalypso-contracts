@@ -15,6 +15,14 @@ interface ISymbioticStaking is IStakingPool {
     // TODO: temporary  
     event SlashResultSubmitted(address indexed transmitter, uint256 index, uint256 numOfTxs, bytes slashResultData, bytes signature);
 
+    event SubmissionCooldownSet(uint256 cooldown);
+
+    event BaseTransmitterComissionRateSet(uint256 rate);
+
+    event JobManagerSet(address jobManager);
+
+    event RewardDistributorSet(address rewardDistributor);
+
     /*===================================================== functions =====================================================*/
 
     function submitVaultSnapshot(

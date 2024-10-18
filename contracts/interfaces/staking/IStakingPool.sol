@@ -28,6 +28,8 @@ interface IStakingPool {
 
     event StakingManagerSet(address indexed stakingManager);
 
+    event FeeRewardTokenSet(address indexed token);
+
 
     /*===================================================== functions =====================================================*/
 
@@ -43,7 +45,7 @@ interface IStakingPool {
     
     function getStakeTokenWeights() external view returns (address[] memory, uint256[] memory);
     
-    function tokenSelectionWeightSum() external view returns (uint256);
+    function stakeTokenSelectionWeightSum() external view returns (uint256);
 
     function isSupportedStakeToken(address stakeToken) external view returns (bool);
 

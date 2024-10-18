@@ -76,7 +76,7 @@ contract StakingManager is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeToken, address _inflationRewardToken) public initializer {
+    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -242,6 +242,13 @@ contract StakingManager is
         require(sum == 1e18, "Invalid Shares");
 
         emit PoolRewardShareSet(_pools, _shares);
+    }
+
+    function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_token != address(0), "zero token address");
+        require(_to != address(0), "zero to address");
+
+        IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
     /*===================================================================================================================*/
