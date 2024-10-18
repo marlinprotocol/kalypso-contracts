@@ -10,7 +10,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {JobManager} from "./JobManager.sol";
 
 /* Interfaces */
-import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
+// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
@@ -106,8 +106,7 @@ contract SymbioticStaking is
         address _stakingManager,
         address _rewardDistributor,
         address _inflationRewardManager,
-        address _feeRewardToken,
-        address _inflationRewardToken
+        address _feeRewardToken
     ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -131,9 +130,6 @@ contract SymbioticStaking is
 
         require(_feeRewardToken != address(0), "SymbioticStaking: feeRewardToken is zero");
         feeRewardToken = _feeRewardToken;
-
-        require(_inflationRewardToken != address(0), "SymbioticStaking: inflationRewardToken is zero");
-        inflationRewardToken = _inflationRewardToken;
     }
 
     /*===================================================== external ====================================================*/
@@ -224,14 +220,12 @@ contract SymbioticStaking is
     function onJobCompletion(
         uint256 _jobId,
         address _operator,
-        uint256 _feeRewardAmount,
-        uint256 _inflationRewardAmount,
-        uint256 _inflationRewardTimestampIdx
+        uint256 _feeRewardAmount
     ) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
         // currentEpoch => currentTimestampIdx
-        IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
+        // IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
 
         // distribute fee reward
         if (_feeRewardAmount > 0) {
@@ -250,22 +244,22 @@ contract SymbioticStaking is
         }
 
         // distribute inflation reward
-        if (_inflationRewardAmount > 0) {
-            uint256 transmitterComission = Math.mulDiv(
-                _inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18
-            );
-            uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
+        // if (_inflationRewardAmount > 0) {
+        //     uint256 transmitterComission = Math.mulDiv(
+        //         _inflationRewardAmount, confirmedTimestamps[_inflationRewardTimestampIdx].transmitterComissionRate, 1e18
+        //     );
+        //     uint256 inflationRewardRemaining = _inflationRewardAmount - transmitterComission;
 
-            // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(
-                confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission
-            );
+        //     // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+        //     IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(
+        //         confirmedTimestamps[_inflationRewardTimestampIdx].transmitter, transmitterComission
+        //     );
 
-            // distribute the remaining inflation reward
-            _distributeInflationReward(_operator, inflationRewardRemaining);
+        //     // distribute the remaining inflation reward
+        //     _distributeInflationReward(_operator, inflationRewardRemaining);
 
-            ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, inflationRewardRemaining);
-        }
+        //     ISymbioticStakingReward(rewardDistributor).updateInflationReward(_operator, inflationRewardRemaining);
+        // }
 
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];
@@ -292,26 +286,26 @@ contract SymbioticStaking is
     }
 
     /// @notice called when pending inflation reward is updated
-    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx)
-        external
-        onlyStakingManager
-    {
-        if (_rewardAmount == 0) return;
+    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx)
+    //     external
+    //     onlyStakingManager
+    // {
+    //     if (_rewardAmount == 0) return;
 
-        uint256 transmitterComission =
-            Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
-        uint256 inflationRewardRemaining = _rewardAmount - transmitterComission;
+    //     uint256 transmitterComission =
+    //         Math.mulDiv(_rewardAmount, confirmedTimestamps[_timestampIdx].transmitterComissionRate, 1e18);
+    //     uint256 inflationRewardRemaining = _rewardAmount - transmitterComission;
 
-        // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-        IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_timestampIdx].transmitter, transmitterComission);
+    //     // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+    //     IERC20(inflationRewardToken).safeTransfer(confirmedTimestamps[_timestampIdx].transmitter, transmitterComission);
 
-        uint256 len = stakeTokenSet.length();
-        for (uint256 i = 0; i < len; i++) {
-            _distributeInflationReward(
-                _operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)
-            ); // TODO: gas optimization
-        }
-    }
+    //     uint256 len = stakeTokenSet.length();
+    //     for (uint256 i = 0; i < len; i++) {
+    //         _distributeInflationReward(
+    //             _operator, _calcInflationRewardAmount(stakeTokenSet.at(i), inflationRewardRemaining)
+    //         ); // TODO: gas optimization
+    //     }
+    // }
 
     /*===================================================== internal ====================================================*/
 
@@ -365,7 +359,7 @@ contract SymbioticStaking is
             Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
-        IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
+        // IInflationRewardManager(inflationRewardManager).updateEpochTimestampIdx();
         // TODO: emit event
     }
 

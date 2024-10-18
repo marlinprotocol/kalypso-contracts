@@ -11,7 +11,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 /* Interfaces */
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
-import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
+// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
 import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.sol";
@@ -43,7 +43,7 @@ contract StakingManager is
 
     address public jobManager;
     address public symbioticStaking;
-    address public inflationRewardManager;
+    address public inflationRewardManager; // will be set later
 
     address public feeToken;
     address public inflationRewardToken;
@@ -62,12 +62,12 @@ contract StakingManager is
         _;
     }
 
-    modifier onlyInflationRewardManager() {
-        require(msg.sender == jobManager, "StakingManager: Only JobManager");
-        _;
-    }
+    // modifier onlyInflationRewardManager() {
+    //     require(msg.sender == jobManager, "StakingManager: Only JobManager");
+    //     _;
+    // }
 
-    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _inflationRewardManager, address _feeToken, address _inflationRewardToken) public initializer {
+    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeToken, address _inflationRewardToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -78,8 +78,8 @@ contract StakingManager is
         require(_jobManager != address(0), "StakingManager: Invalid JobManager");
         jobManager = _jobManager;
 
-        require(_inflationRewardManager != address(0), "StakingManager: Invalid InflationRewardManager");
-        inflationRewardManager = _inflationRewardManager;
+        // require(_inflationRewardManager != address(0), "StakingManager: Invalid InflationRewardManager");
+        // inflationRewardManager = _inflationRewardManager;
 
         require(_feeToken != address(0), "StakingManager: Invalid FeeToken");
         feeToken = _feeToken;
@@ -109,7 +109,7 @@ contract StakingManager is
     // called when job is completed to unlock the locked stakes
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyJobManager {
         // update pending inflation reward
-        (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
+        // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
 
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
@@ -117,9 +117,9 @@ contract StakingManager is
 
             if(!isEnabledPool(pool)) continue;
 
-            (uint256 poolFeeRewardAmount, uint256 poolInflationRewardAmount) = _calcRewardAmount(pool, _feeRewardAmount, pendingInflationReward);
+            uint256 poolFeeRewardAmount = _calcFeeRewardAmount(pool, _feeRewardAmount);
 
-            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount, poolInflationRewardAmount, timestampIdx);
+            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount);
         }
 
         // TODO: emit event
@@ -144,26 +144,34 @@ contract StakingManager is
         }
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyInflationRewardManager {
-        if(_rewardAmount == 0) return;
+    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 _timestampIdx) external onlyInflationRewardManager {
+    //     if(_rewardAmount == 0) return;
 
-        uint256 len = stakingPoolSet.length();
-        for (uint256 i = 0; i < len; i++) {
-            address pool = stakingPoolSet.at(i);
+    //     uint256 len = stakingPoolSet.length();
+    //     for (uint256 i = 0; i < len; i++) {
+    //         address pool = stakingPoolSet.at(i);
 
-            (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
+    //         (, uint256 poolRewardAmount) = _calcRewardAmount(pool, 0, _rewardAmount);
 
-            IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount, _timestampIdx);
-        }
-    }
+    //         IStakingPool(pool).distributeInflationReward(_operator, poolRewardAmount, _timestampIdx);
+    //     }
+    // }
 
-    function _calcRewardAmount(address _pool, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) internal view returns (uint256, uint256) {
+    // function _calcRewardAmount(address _pool, uint256 _feeRewardAmount, uint256 _inflationRewardAmount) internal view returns (uint256, uint256) {
+    //     uint256 poolShare = poolConfig[_pool].share;
+        
+    //     uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
+    //     uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolShare, 1e18) : 0;
+
+    //     return (poolFeeRewardAmount, poolInflationRewardAmount);
+    // }
+
+    function _calcFeeRewardAmount(address _pool, uint256 _feeRewardAmount) internal view returns (uint256) {
         uint256 poolShare = poolConfig[_pool].share;
         
         uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
-        uint256 poolInflationRewardAmount = _inflationRewardAmount > 0 ? Math.mulDiv(_inflationRewardAmount, poolShare, 1e18) : 0;
 
-        return (poolFeeRewardAmount, poolInflationRewardAmount);
+        return poolFeeRewardAmount;
     }
 
     /*======================================== Getters ========================================*/

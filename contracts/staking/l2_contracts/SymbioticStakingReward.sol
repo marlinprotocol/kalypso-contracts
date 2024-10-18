@@ -14,7 +14,7 @@ import {JobManager} from "./JobManager.sol";
 
 /* Interfaces */
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
-import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
+// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -127,17 +127,17 @@ contract SymbioticStakingReward is
 
     /// @notice called when inflation reward is generated
     /// @dev this function is not called if there is no pending inflation reward in JobManager
-    function updateInflationReward(address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
-        address[] memory stakeTokenList = _getStakeTokenList();
-        for (uint256 i = 0; i < stakeTokenList.length; i++) {
-            uint256 operatorStakeAmount = _getOperatorStakeAmount(stakeTokenList[i], _operator);
-            // TODO: fix this logic
-            if (operatorStakeAmount > 0) {
-                rewardPerTokenStored[stakeTokenList[i]][inflationRewardToken][_operator] +=
-                    _rewardAmount.mulDiv(1e18, operatorStakeAmount);
-            }
-        }
-    }
+    // function updateInflationReward(address _operator, uint256 _rewardAmount) external onlySymbioticStaking {
+    //     address[] memory stakeTokenList = _getStakeTokenList();
+    //     for (uint256 i = 0; i < stakeTokenList.length; i++) {
+    //         uint256 operatorStakeAmount = _getOperatorStakeAmount(stakeTokenList[i], _operator);
+    //         // TODO: fix this logic
+    //         if (operatorStakeAmount > 0) {
+    //             rewardPerTokenStored[stakeTokenList[i]][inflationRewardToken][_operator] +=
+    //                 _rewardAmount.mulDiv(1e18, operatorStakeAmount);
+    //         }
+    //     }
+    // }
 
     function onSnapshotSubmission(address _vault, address _operator) external onlySymbioticStaking {
         _updateVaultReward(_getStakeTokenList(), _vault, _operator);
@@ -148,7 +148,7 @@ contract SymbioticStakingReward is
     /// @notice vault can claim reward calling this function
     function claimReward(address _operator) external nonReentrant {
         // update pending inflation reward for the operator
-        _updatePendingInflaionReward(_operator);
+        // _updatePendingInflaionReward(_operator);
 
         // update rewardPerTokenPaid and rewardAccrued for each vault
         _updateVaultReward(_getStakeTokenList(), _msgSender(), _operator);
@@ -167,26 +167,26 @@ contract SymbioticStakingReward is
         }
 
         // transfer inflation reward to the vault
-        uint256 inflationRewardAmount = rewardAccrued[_msgSender()][inflationRewardToken];
-        if (inflationRewardAmount > 0) {
-            IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(_msgSender(), inflationRewardAmount);
-            rewardAccrued[_msgSender()][inflationRewardToken] = 0;
-        }
+        // uint256 inflationRewardAmount = rewardAccrued[_msgSender()][inflationRewardToken];
+        // if (inflationRewardAmount > 0) {
+        //     IInflationRewardManager(inflationRewardManager).transferInflationRewardToken(_msgSender(), inflationRewardAmount);
+        //     rewardAccrued[_msgSender()][inflationRewardToken] = 0;
+        // }
     }
 
     /*================================================== external view ==================================================*/
 
-    function getVaultRewardAccrued(address _vault) external view returns (uint256 feeReward, uint256 inflationReward) {
+    function getVaultRewardAccrued(address _vault) external view returns (uint256) {
         // TODO: this does not include pending inflation reward as it requires states update in JobManager
-        return (rewardAccrued[feeRewardToken][_vault], rewardAccrued[inflationRewardToken][_vault]);
+        return rewardAccrued[feeRewardToken][_vault];
     }
 
     /*===================================================== internal ====================================================*/
 
     /// @dev this will update pending inflation reward and rewardPerToken for the operator
-    function _updatePendingInflaionReward(address _operator) internal {
-        IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);
-    }
+    // function _updatePendingInflaionReward(address _operator) internal {
+    //     IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);
+    // }
 
     /// @dev update rewardPerToken and rewardAccrued for each vault
     function _updateVaultReward(address[] memory _stakeTokenList, address _vault, address _operator)
@@ -209,17 +209,17 @@ contract SymbioticStakingReward is
             rewardPerTokenPaids[stakeToken][feeRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
 
 
-            /* inflation reward */
-            operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][inflationRewardToken][_operator];
-            vaultRewardPerTokenPaid = rewardPerTokenPaids[stakeToken][inflationRewardToken][_vault][_operator];
+            // /* inflation reward */
+            // operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][inflationRewardToken][_operator];
+            // vaultRewardPerTokenPaid = rewardPerTokenPaids[stakeToken][inflationRewardToken][_vault][_operator];
 
-            // update reward accrued for the vault
-            rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(stakeToken, _vault, _operator).mulDiv(
-                operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
-            );
+            // // update reward accrued for the vault
+            // rewardAccrued[_vault][inflationRewardToken] += _getVaultStakeAmount(stakeToken, _vault, _operator).mulDiv(
+            //     operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
+            // );
 
-            // update rewardPerTokenPaid of the vault
-            rewardPerTokenPaids[stakeToken][inflationRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
+            // // update rewardPerTokenPaid of the vault
+            // rewardPerTokenPaids[stakeToken][inflationRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
         }
     }
 
@@ -251,9 +251,9 @@ contract SymbioticStakingReward is
         feeRewardToken = _feeRewardToken;
     }
 
-    function setInflationRewardToken(address _inflationRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        inflationRewardToken = _inflationRewardToken;
-    }
+    // function setInflationRewardToken(address _inflationRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    //     inflationRewardToken = _inflationRewardToken;
+    // }
 
     /*===================================================== overrides ===================================================*/
 

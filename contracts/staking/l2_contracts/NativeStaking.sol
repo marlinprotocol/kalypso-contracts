@@ -86,8 +86,7 @@ contract NativeStaking is
         address _stakingManager,
         address _rewardDistributor,
         uint256 _withdrawalDuration,
-        address _feeToken,
-        address _inflationRewardToken
+        address _feeToken
     ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
@@ -100,7 +99,6 @@ contract NativeStaking is
         rewardDistributor = _rewardDistributor;
         withdrawalDuration = _withdrawalDuration;
         feeRewardToken = _feeToken;
-        inflationRewardToken = _inflationRewardToken;
     }
 
     /*==================================================== external =====================================================*/
@@ -168,9 +166,9 @@ contract NativeStaking is
     function onJobCompletion(
         uint256 _jobId,
         address _operator,
-        uint256 _feeRewardAmount,
-        uint256 _inflationRewardAmount,
-        uint256 /* _inflationRewardTimestampIdx */
+        uint256 _feeRewardAmount
+        // uint256 _inflationRewardAmount,
+        // uint256 /* _inflationRewardTimestampIdx */
     ) external onlyStakingManager {
         Struct.NativeStakingLock memory lock = lockInfo[_jobId];
 
@@ -206,11 +204,11 @@ contract NativeStaking is
         // TODO: emit event
     }
 
-    function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 /* _timestampIdx */) external onlyStakingManager {
-        if (_rewardAmount == 0) return;
+    // function distributeInflationReward(address _operator, uint256 _rewardAmount, uint256 /* _timestampIdx */) external onlyStakingManager {
+    //     if (_rewardAmount == 0) return;
 
-        // _distributeInflationReward(_operator, _rewardAmount);
-    }
+    //     // _distributeInflationReward(_operator, _rewardAmount);
+    // }
 
     /*==================================================== public view ==================================================*/
 
@@ -271,13 +269,13 @@ contract NativeStaking is
 
     /*============================================== internal view =============================================*/
 
-    function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
-    }
+    // function _calcInflationRewardAmount(address _stakeToken, uint256 _inflationRewardAmount)
+    //     internal
+    //     view
+    //     returns (uint256)
+    // {
+    //     return Math.mulDiv(_inflationRewardAmount, inflationRewardShare[_stakeToken], 1e18);
+    // }
 
     function _selectStakeToken(address _operator) internal view returns(address) {
         require(tokenSelectionWeightSum > 0, "Total weight must be greater than zero");
@@ -347,7 +345,7 @@ contract NativeStaking is
     function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.remove(_token), "Token does not exist");
         
-        tokenSelectionWeightSum -= inflationRewardShare[_token];
+        // tokenSelectionWeightSum -= inflationRewardShare[_token];
         delete tokenSelectionWeight[_token];
     }
 

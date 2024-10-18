@@ -8,7 +8,7 @@ interface IStakingPool {
 
     function lockStake(uint256 jobId, address operator) external; // Staking Manager only
 
-    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount, uint256 inflationRewardAmount, uint256 timestampIdx) external; // Staking Manager only
+    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount) external; // Staking Manager only
 
     function slash(Struct.JobSlashed[] calldata slashedJobs) external; // Staking Manager only  
 
@@ -18,7 +18,7 @@ interface IStakingPool {
 
     function rewardDistributor() external view returns (address);
 
-    function distributeInflationReward(address operator, uint256 rewardAmount, uint256 timestampIdx) external; // Staking Manager only
+    // function distributeInflationReward(address operator, uint256 rewardAmount, uint256 timestampIdx) external; // Staking Manager only
 
     function getStakeTokenList() external view returns (address[] memory);
 

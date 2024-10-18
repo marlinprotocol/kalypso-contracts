@@ -11,7 +11,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 /* Interfaces */
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
-import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
+// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -43,7 +43,7 @@ contract JobManager is
     address public symbioticStaking;
     address public symbioticStakingReward;
     address public feeToken;
-    address public inflationRewardManager;
+    // address public inflationRewardManager;
 
     uint256 public jobDuration;
 
@@ -57,7 +57,7 @@ contract JobManager is
 
     /*======================================== Init ========================================*/
 
-    function initialize(address _admin, address _stakingManager, address _symbioticStaking, address _symbioticStakingReward, address _feeToken, address _inflationRewardManager, uint256 _jobDuration)
+    function initialize(address _admin, address _stakingManager, address _symbioticStaking, address _symbioticStakingReward, address _feeToken, uint256 _jobDuration)
         public
         initializer
     {
@@ -80,9 +80,8 @@ contract JobManager is
         require(_feeToken != address(0), "JobManager: Invalid Fee Token");
         feeToken = _feeToken;
     
-
-        require(_inflationRewardManager != address(0), "JobManager: Invalid InflationRewardManager");
-        inflationRewardManager = _inflationRewardManager;
+        // require(_inflationRewardManager != address(0), "JobManager: Invalid InflationRewardManager");
+        // inflationRewardManager = _inflationRewardManager;
 
         require(_jobDuration > 0, "JobManager: Invalid Job Duration");
         jobDuration = _jobDuration;
