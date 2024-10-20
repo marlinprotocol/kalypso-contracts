@@ -101,10 +101,8 @@ contract StakingManager is
 
     /*------------------------------------------------- Job Manager -----------------------------------------------------*/
 
-    // create job and lock stakes (operator self stake, some portion of native stake and symbiotic stake)
-    // locked stake will be unlocked after an epoch if no slas result is submitted
-
-    // note: data related to the job should be stored in JobManager (e.g. operator, lockToken, lockAmount, proofDeadline)
+    /// @notice lock stake for the job for all enabled pools
+    /// @dev called by JobManager contract when a job is created
     function onJobCreation(uint256 _jobId, address _operator) external onlyJobManager {
         uint256 len = stakingPoolSet.length();
 
@@ -185,15 +183,17 @@ contract StakingManager is
     /*===================================================================================================================*/
 
     /// @notice add new staking pool
-    /// @dev share and enabled must be set
+    /// @dev 
     function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.add(_stakingPool);
 
         emit StakingPoolAdded(_stakingPool);
     }
 
+    /// @notice remove staking pool
     function removeStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.remove(_stakingPool);
+        delete poolConfig[_stakingPool];
 
         emit StakingPoolRemoved(_stakingPool);
     }

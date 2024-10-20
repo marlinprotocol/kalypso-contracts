@@ -7,20 +7,17 @@ import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intro
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-
+import {StakingManager} from "./StakingManager.sol";
 
 /* Interfaces */
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
-// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
-
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Struct} from "../../lib/staking/Struct.sol";
 
 contract JobManager is
     ContextUpgradeable,
@@ -63,7 +60,10 @@ contract JobManager is
     /*===================================================================================================================*/
 
     modifier onlySymbioticStaking() {
-        require(msg.sender == symbioticStaking || msg.sender == symbioticStakingReward, "JobManager: caller is not the SymbioticStaking");
+        require(
+            msg.sender == symbioticStaking || msg.sender == symbioticStakingReward,
+            "JobManager: caller is not the SymbioticStaking"
+        );
         _;
     }
 
@@ -71,10 +71,14 @@ contract JobManager is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(address _admin, address _stakingManager, address _symbioticStaking, address _symbioticStakingReward, address _feeToken, uint256 _jobDuration)
-        public
-        initializer
-    {
+    function initialize(
+        address _admin,
+        address _stakingManager,
+        address _symbioticStaking,
+        address _symbioticStakingReward,
+        address _feeToken,
+        uint256 _jobDuration
+    ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -89,7 +93,7 @@ contract JobManager is
         require(_symbioticStaking != address(0), "JobManager: Invalid SymbioticStaking");
         symbioticStaking = _symbioticStaking;
         emit SymbioticStakingSet(_symbioticStaking);
-        
+
         require(_symbioticStakingReward != address(0), "JobManager: Invalid SymbioticStakingReward");
         symbioticStakingReward = _symbioticStakingReward;
         emit SymbioticStakingRewardSet(_symbioticStakingReward);
@@ -97,7 +101,7 @@ contract JobManager is
         require(_feeToken != address(0), "JobManager: Invalid Fee Token");
         feeToken = _feeToken;
         emit FeeTokenSet(_feeToken);
-        
+
         require(_jobDuration > 0, "JobManager: Invalid Job Duration");
         jobDuration = _jobDuration;
         emit JobDurationSet(_jobDuration);
@@ -108,11 +112,12 @@ contract JobManager is
     /*===================================================================================================================*/
 
     /*----------------------------------------------------- Job ---------------------------------------------------------*/
-
+    
+ 
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount)
         external
         nonReentrant
-    {   
+    {
         // TODO: this should be removed
         IERC20(feeToken).safeTransferFrom(_requester, address(this), _feeAmount);
 
@@ -124,14 +129,13 @@ contract JobManager is
             deadline: block.timestamp + jobDuration
         });
 
-        IStakingManager(stakingManager).onJobCreation(_jobId, _operator);
+        StakingManager(stakingManager).onJobCreation(_jobId, _operator);
 
         emit JobCreated(_jobId, _requester, _operator, _feeAmount);
     }
 
-    /**
-     * @notice Submit Single Proof
-     */
+
+    /// @notice Submit a proof and complete the job
     function submitProof(uint256 _jobId, bytes calldata _proof) public nonReentrant {
         require(jobs[_jobId].deadline > 0, "Job not created");
         require(block.timestamp <= jobs[_jobId].deadline, "Job Expired");
@@ -144,14 +148,12 @@ contract JobManager is
         uint256 feeRewardRemaining = _distributeFeeReward(operator, jobs[_jobId].feePaid);
 
         // inflation reward will be distributed here
-        IStakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
+        StakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
 
         emit JobCompleted(_jobId, operator, feeRewardRemaining);
     }
 
-    /**
-     * @notice Submit Multiple proofs in single transaction
-     */
+    /// @notice Submit proofs of multiple jobs
     function submitProofs(uint256[] calldata _jobIds, bytes[] calldata _proofs) external nonReentrant {
         require(_jobIds.length == _proofs.length, "Invalid Length");
 
@@ -162,8 +164,8 @@ contract JobManager is
         }
     }
 
-    /// @notice refund fee to the job requester
-    /// @dev most likely called by the requester when job is not completed
+    /// @notice Refund fee to the job requester
+    /// @dev Can be called by the requester if the job is not completed by the deadline.
     /// @dev or when the job is slashed and the slash result is submitted in SymbioticStaking contract
     function refundFee(uint256 _jobId) external nonReentrant {
         if (jobs[_jobId].feePaid > 0) {
@@ -186,7 +188,7 @@ contract JobManager is
         // TODO: emit event
     }
 
-    function _distributeFeeReward(address _operator, uint256 _feePaid) internal returns(uint256 feeRewardRemaining) {
+    function _distributeFeeReward(address _operator, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
         uint256 operatorFeeReward = Math.mulDiv(_feePaid, operatorRewardShares[_operator], 1e18);
         IERC20(feeToken).safeTransfer(_operator, operatorFeeReward);
         feeRewardRemaining = _feePaid - operatorFeeReward;
@@ -196,10 +198,11 @@ contract JobManager is
     /*=============================================== Symbiotic Staking =================================================*/
     /*===================================================================================================================*/
 
+    /// @dev Only SymbioticStaking and SymbioticStakingReward can call this function
     function transferFeeToken(address _recipient, uint256 _amount) external onlySymbioticStaking {
         IERC20(feeToken).safeTransfer(_recipient, _amount);
     }
-    
+
     /*===================================================================================================================*/
     /*===================================================== admin =======================================================*/
     /*===================================================================================================================*/
@@ -256,5 +259,4 @@ contract JobManager is
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
-
 }

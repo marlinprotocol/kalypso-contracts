@@ -1,5 +1,6 @@
 [profile.default]
 src = "contracts"
+script = "scripts/foundry"
 out = "artifacts"
 libs = ["lib", "node_modules"]
 remappings = [

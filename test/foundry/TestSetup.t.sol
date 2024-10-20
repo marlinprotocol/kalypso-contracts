@@ -15,14 +15,12 @@ import {StakingManager} from "../../contracts/staking/l2_contracts/StakingManage
 import {NativeStaking} from "../../contracts/staking/l2_contracts/NativeStaking.sol";
 import {SymbioticStaking} from "../../contracts/staking/l2_contracts/SymbioticStaking.sol";
 import {SymbioticStakingReward} from "../../contracts/staking/l2_contracts/SymbioticStakingReward.sol";
-import {InflationRewardManager} from "../../contracts/staking/l2_contracts/InflationRewardManager.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* interfaces */
 import {IJobManager} from "../../contracts/interfaces/staking/IJobManager.sol";
 import {IStakingManager} from "../../contracts/interfaces/staking/IStakingManager.sol";
-import {IInflationRewardManager} from "../../contracts/interfaces/staking/IInflationRewardManager.sol";
 import {INativeStaking} from "../../contracts/interfaces/staking/INativeStaking.sol";
 import {ISymbioticStaking} from "../../contracts/interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../contracts/interfaces/staking/ISymbioticStakingReward.sol";
@@ -206,7 +204,6 @@ contract TestSetup is Test {
         address nativeStakingImpl = address(new NativeStaking());
         address symbioticStakingImpl = address(new SymbioticStaking());
         address symbioticStakingRewardImpl = address(new SymbioticStakingReward());
-        address inflationRewardManagerImpl = address(new InflationRewardManager());
 
         // deploy proxies   
         jobManager = address(new ERC1967Proxy(jobManagerImpl, ""));
@@ -214,7 +211,7 @@ contract TestSetup is Test {
         nativeStaking = address(new ERC1967Proxy(nativeStakingImpl, ""));
         symbioticStaking = address(new ERC1967Proxy(symbioticStakingImpl, ""));
         symbioticStakingReward = address(new ERC1967Proxy(symbioticStakingRewardImpl, ""));
-        inflationRewardManager = address(new ERC1967Proxy(inflationRewardManagerImpl, ""));
+        // inflationRewardManager = address(new ERC1967Proxy(inflationRewardManagerImpl, ""));
         vm.stopPrank();
 
         /* label */
@@ -223,7 +220,7 @@ contract TestSetup is Test {
         vm.label(address(nativeStaking), "NativeStaking");
         vm.label(address(symbioticStaking), "SymbioticStaking");
         vm.label(address(symbioticStakingReward), "SymbioticStakingReward");
-        vm.label(address(inflationRewardManager), "InflationRewardManager");
+        // vm.label(address(inflationRewardManager), "InflationRewardManager");
     }
 
     function _initializeContracts() internal {
@@ -231,7 +228,7 @@ contract TestSetup is Test {
 
         // JobManager
         JobManager(address(jobManager)).initialize(
-            admin, address(stakingManager), address(symbioticStaking), address(symbioticStakingReward), address(feeToken), address(inflationRewardManager), 1 hours
+            admin, address(stakingManager), address(symbioticStaking), address(symbioticStakingReward), address(feeToken),  1 hours
         );
         assertEq(JobManager(jobManager).hasRole(JobManager(jobManager).DEFAULT_ADMIN_ROLE(), admin), true); 
 
@@ -240,9 +237,7 @@ contract TestSetup is Test {
             admin,
             address(jobManager),
             address(symbioticStaking),
-            address(inflationRewardManager),
-            address(feeToken),
-            address(inflationRewardToken)
+            address(feeToken)
         );
         assertEq(StakingManager(stakingManager).hasRole(StakingManager(stakingManager).DEFAULT_ADMIN_ROLE(), admin), true); 
 
@@ -250,10 +245,8 @@ contract TestSetup is Test {
         NativeStaking(address(nativeStaking)).initialize(
             admin,
             address(stakingManager),
-            address(0), // rewardDistributor (not set)
             2 days, // withdrawalDuration
-            address(feeToken),
-            address(inflationRewardToken)
+            address(feeToken)
         );
         assertEq(NativeStaking(nativeStaking).hasRole(NativeStaking(nativeStaking).DEFAULT_ADMIN_ROLE(), admin), true); 
     
@@ -263,35 +256,31 @@ contract TestSetup is Test {
             jobManager,
             stakingManager,
             symbioticStakingReward,
-            inflationRewardManager,
-            feeToken,
-            inflationRewardToken
+            feeToken
         );
         assertEq(SymbioticStaking(symbioticStaking).hasRole(SymbioticStaking(symbioticStaking).DEFAULT_ADMIN_ROLE(), admin), true); 
         // SymbioticStakingReward
         SymbioticStakingReward(address(symbioticStakingReward)).initialize(
             admin,
-            inflationRewardManager,
             jobManager,
             symbioticStaking,
-            feeToken,
-            inflationRewardToken
+            feeToken
         );
         assertEq(SymbioticStakingReward(symbioticStakingReward).hasRole(SymbioticStakingReward(symbioticStakingReward).DEFAULT_ADMIN_ROLE(), admin), true); 
 
         // InflationRewardManager
-        InflationRewardManager(address(inflationRewardManager)).initialize(
-            admin,
-            block.timestamp,
-            jobManager,
-            stakingManager,
-            symbioticStaking,
-            symbioticStakingReward,
-            inflationRewardToken,
-            INFLATION_REWARD_EPOCH_SIZE, // inflationRewardEpochSize
-            INFLATION_REWARD_PER_EPOCH // inflationRewardPerEpoch
-        );
-        assertEq(InflationRewardManager(inflationRewardManager).hasRole(InflationRewardManager(inflationRewardManager).DEFAULT_ADMIN_ROLE(), admin), true); 
+        // InflationRewardManager(address(inflationRewardManager)).initialize(
+        //     admin,
+        //     block.timestamp,
+        //     jobManager,
+        //     stakingManager,
+        //     symbioticStaking,
+        //     symbioticStakingReward,
+        //     inflationRewardToken,
+        //     INFLATION_REWARD_EPOCH_SIZE, // inflationRewardEpochSize
+        //     INFLATION_REWARD_PER_EPOCH // inflationRewardPerEpoch
+        // );
+        // assertEq(InflationRewardManager(inflationRewardManager).hasRole(InflationRewardManager(inflationRewardManager).DEFAULT_ADMIN_ROLE(), admin), true); 
         vm.stopPrank();
     }
 

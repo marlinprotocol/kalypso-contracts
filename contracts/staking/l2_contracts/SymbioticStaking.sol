@@ -34,14 +34,6 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    /*===================================================================================================================*/
-    /*================================================ state variable ===================================================*/
-    /*===================================================================================================================*/
-
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
-
-    /* Job Status */
     bytes32 public constant STAKE_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
     bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
@@ -49,18 +41,30 @@ contract SymbioticStaking is
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
 
+    /*===================================================================================================================*/
+    /*================================================ state variable ===================================================*/
+    /*===================================================================================================================*/
+
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+
+    /* Config */
     uint256 public submissionCooldown; // 18 decimal (in seconds)
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
+    /* Stake Token */
     EnumerableSet.AddressSet stakeTokenSet;
     uint256 public stakeTokenSelectionWeightSum;
-
+    
+    /* Contracts */
     address public stakingManager;
     address public jobManager;
     address public rewardDistributor;
 
+    /* RewardToken */
     address public feeRewardToken;
 
+    Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
@@ -91,9 +95,7 @@ contract SymbioticStaking is
             => mapping(address stakeToken => mapping(address vault => mapping(address operator => uint256 stakeAmount)))
     ) vaultStakeAmounts;
 
-    Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
-    /* Staking */
     mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
 
