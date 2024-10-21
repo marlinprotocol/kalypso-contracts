@@ -31,6 +31,7 @@ interface ISymbioticStaking is IStakingPool {
     function submitVaultSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
         bytes calldata _vaultSnapshotData,
         bytes calldata _signature
     ) external;
@@ -38,6 +39,7 @@ interface ISymbioticStaking is IStakingPool {
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
         bytes calldata _slashResultData,
         bytes calldata _signature
     ) external;

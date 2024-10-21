@@ -152,29 +152,30 @@ contract SymbioticStaking is
     function submitVaultSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
         bytes calldata _vaultSnapshotData,
         bytes calldata _signature
     ) external {
-        (uint256 captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) =
-            abi.decode(_vaultSnapshotData, (uint256, Struct.VaultSnapshot[]));
+       Struct.VaultSnapshot[] memory _vaultSnapshots =
+            abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
-        _checkTransmitterRegistration(captureTimestamp);
+        _checkTransmitterRegistration(_captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, captureTimestamp, STAKE_SNAPSHOT_TYPE);
+        _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        _verifySignature(_index, _numOfTxs, captureTimestamp, _vaultSnapshotData, _signature);
+        _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
 
         // update Vault and Operator stake amount
         // update rewardPerToken for each vault and operator in SymbioticStakingReward
-        _submitVaultSnapshot(captureTimestamp, _vaultSnapshots);
+        _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
 
-        _updateTxCountInfo(_numOfTxs, captureTimestamp, STAKE_SNAPSHOT_TYPE);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][STAKE_SNAPSHOT_TYPE];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][STAKE_SNAPSHOT_TYPE];
 
         // when all chunks of VaultSnapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
 
         emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _vaultSnapshotData, _signature);
@@ -183,27 +184,28 @@ contract SymbioticStaking is
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
+        uint256 _captureTimestamp,
         bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
-        (uint256 captureTimestamp, Struct.JobSlashed[] memory _jobSlashed) =
-            abi.decode(_SlashResultData, (uint256, Struct.JobSlashed[]));
+        Struct.JobSlashed[] memory _jobSlashed =
+            abi.decode(_SlashResultData, (Struct.JobSlashed[]));
 
         // Vault Snapshot should be submitted before Slash Result
         require(
-            submissionStatus[captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK,
+            submissionStatus[_captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK,
             "Vault Snapshot not submitted"
         );
 
-        _checkTransmitterRegistration(captureTimestamp);
+        _checkTransmitterRegistration(_captureTimestamp);
 
-        _checkValidity(_index, _numOfTxs, captureTimestamp, SLASH_RESULT_TYPE);
+        _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        _verifySignature(_index, _numOfTxs, captureTimestamp, _SlashResultData, _signature);
+        _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
 
-        _updateTxCountInfo(_numOfTxs, captureTimestamp, SLASH_RESULT_TYPE);
+        _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][STAKE_SNAPSHOT_TYPE];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][STAKE_SNAPSHOT_TYPE];
 
         // there could be no operator slashed
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
@@ -211,8 +213,8 @@ contract SymbioticStaking is
         // when all chunks of Snapshots are submitted
         uint256 numOfTxsStored = _snapshot.numOfTxs;
         if (numOfTxsStored > 0 && _snapshot.idxToSubmit == _snapshot.numOfTxs) {
-            submissionStatus[captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
-            _completeSubmission(captureTimestamp);
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
+            _completeSubmission(_captureTimestamp);
         }
 
         // TODO: unlock the selfStake and reward it to the transmitter
@@ -386,14 +388,6 @@ contract SymbioticStaking is
     function isSupportedStakeToken(address _stakeToken) public view returns (bool) {
         return stakeTokenSet.contains(_stakeToken);
     }
-
-    // function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type)
-    //     external
-    //     view
-    //     returns (Struct.SnapshotTxCountInfo memory)
-    // {
-    //     return txCountInfo[_captureTimestamp][_transmitter][_type];
-    // }
 
     function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32) {
         return submissionStatus[_captureTimestamp][_transmitter];
