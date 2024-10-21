@@ -226,4 +226,16 @@ contract AttestationAutherSample is Initializable,  // initializer
     }
 
 //-------------------------------- Slashing utils end --------------------------------//
+
+//-------------------------------- utils start --------------------------------//
+
+    function getVaults() external view returns (address[] memory) {
+        return vaults;
+    }
+
+    function getNoOfVaults() external view returns (uint256) {
+        return vaults.length;
+    }
+
+//-------------------------------- utils end --------------------------------//
 }
