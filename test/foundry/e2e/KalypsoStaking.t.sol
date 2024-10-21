@@ -177,21 +177,21 @@ contract KalypsoStakingTest is Test, TestSetup {
         {
             vm.expectRevert("Invalid index");
             ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
-                3, 2, abi.encode(block.timestamp - 5, _vaultSnapshots1), ""
+                3, 2, block.timestamp - 5, abi.encode(_vaultSnapshots1), ""
             );
 
             vm.expectRevert("Invalid index");
             ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
-                2, 2, abi.encode(block.timestamp - 5, _vaultSnapshots1), ""
+                2, 2, block.timestamp - 5, abi.encode(_vaultSnapshots1), ""
             );
 
             vm.expectRevert("Invalid timestamp");
             ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
-                1, 2, abi.encode(block.timestamp + 1, _vaultSnapshots1), ""
+                1, 2, block.timestamp + 1, abi.encode(_vaultSnapshots1), ""
             );
 
             ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
-                0, 2, abi.encode(block.timestamp - 5, _vaultSnapshots1), ""
+                0, 2, block.timestamp - 5, abi.encode(_vaultSnapshots1), ""
             );
         }
         vm.stopPrank();
@@ -210,7 +210,7 @@ contract KalypsoStakingTest is Test, TestSetup {
         vm.startPrank(transmitterA);
         {
             ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
-                1, 2, abi.encode(block.timestamp - 5, _vaultSnapshots2), ""
+                1, 2, block.timestamp - 5, abi.encode(_vaultSnapshots2), ""
             );
         }
         vm.stopPrank();
@@ -234,7 +234,7 @@ contract KalypsoStakingTest is Test, TestSetup {
 
         /* Slash Result Submission */
         vm.prank(transmitterA);
-        ISymbioticStaking(symbioticStaking).submitSlashResult(0, 1, abi.encode(block.timestamp - 5, ""), "");
+        ISymbioticStaking(symbioticStaking).submitSlashResult(0, 1, block.timestamp - 5, abi.encode(""), "");
     }
 
     function _create_job_1() internal {
