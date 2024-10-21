@@ -23,6 +23,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 contract SymbioticStaking is
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -55,7 +56,7 @@ contract SymbioticStaking is
     /* Stake Token */
     EnumerableSet.AddressSet stakeTokenSet;
     uint256 public stakeTokenSelectionWeightSum;
-    
+
     /* Contracts */
     address public stakingManager;
     address public jobManager;
@@ -79,12 +80,10 @@ contract SymbioticStaking is
 
     /* Symbiotic Snapshot */
     // to track if all partial txs are received
-    mapping(
-        uint256 captureTimestamp
-            => mapping(address account => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))
-    ) txCountInfo;
+    mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))
+        public txCountInfo;
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) submissionStatus;
+    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
 
     // staked amount for each operator
     mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address operator => uint256 stakeAmount)))
@@ -95,11 +94,10 @@ contract SymbioticStaking is
             => mapping(address stakeToken => mapping(address vault => mapping(address operator => uint256 stakeAmount)))
     ) vaultStakeAmounts;
 
-
     mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
 
-    mapping(uint256 captureTimestamp => address transmitter) registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
+    mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
     /*===================================================================================================================*/
     /*=================================================== modifier ======================================================*/
@@ -172,7 +170,7 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][STAKE_SNAPSHOT_TYPE];
 
         // when all chunks of VaultSnapshots are submitted
         if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
@@ -205,7 +203,7 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, captureTimestamp, SLASH_RESULT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][msg.sender][STAKE_SNAPSHOT_TYPE];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[captureTimestamp][STAKE_SNAPSHOT_TYPE];
 
         // there could be no operator slashed
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
@@ -234,11 +232,7 @@ contract SymbioticStaking is
         emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
     }
 
-    function onJobCompletion(
-        uint256 _jobId,
-        address _operator,
-        uint256 _feeRewardAmount
-    ) external onlyStakingManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
         // distribute fee reward
@@ -249,7 +243,9 @@ contract SymbioticStaking is
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            JobManager(jobManager).transferFeeToken(confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission);
+            JobManager(jobManager).transferFeeToken(
+                confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
+            );
 
             // distribute the remaining fee reward
             _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
@@ -298,15 +294,15 @@ contract SymbioticStaking is
     }
 
     function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][_type];
 
         // update length if 0
         if (_snapshot.numOfTxs == 0) {
-            txCountInfo[_captureTimestamp][msg.sender][_type].numOfTxs = _numOfTxs;
+            txCountInfo[_captureTimestamp][_type].numOfTxs = _numOfTxs;
         }
 
         // increase count by 1
-        txCountInfo[_captureTimestamp][msg.sender][_type].idxToSubmit += 1;
+        txCountInfo[_captureTimestamp][_type].idxToSubmit += 1;
     }
 
     function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
@@ -391,13 +387,13 @@ contract SymbioticStaking is
         return stakeTokenSet.contains(_stakeToken);
     }
 
-    function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type)
-        external
-        view
-        returns (Struct.SnapshotTxCountInfo memory)
-    {
-        return txCountInfo[_captureTimestamp][_transmitter][_type];
-    }
+    // function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type)
+    //     external
+    //     view
+    //     returns (Struct.SnapshotTxCountInfo memory)
+    // {
+    //     return txCountInfo[_captureTimestamp][_transmitter][_type];
+    // }
 
     function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32) {
         return submissionStatus[_captureTimestamp][_transmitter];
@@ -419,7 +415,7 @@ contract SymbioticStaking is
         require(_captureTimestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
         require(_captureTimestamp <= block.timestamp, "Invalid timestamp");
 
-        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][msg.sender][_type];
+        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][_type];
         require(_index == snapshot.idxToSubmit, "Invalid index");
         require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
 
@@ -600,7 +596,6 @@ contract SymbioticStaking is
 
         emit FeeRewardTokenSet(_feeRewardToken);
     }
-
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_token != address(0), "zero token address");

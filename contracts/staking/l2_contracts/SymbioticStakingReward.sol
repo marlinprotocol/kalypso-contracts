@@ -139,6 +139,7 @@ contract SymbioticStakingReward is
 
     /* ------------------------- reward claim ------------------------- */
 
+    // TODO: Vault -> Claimer address
     /// @notice vault can claim reward calling this function
     function claimReward(address _operator) external nonReentrant {
         // update rewardPerTokenPaid and rewardAccrued for each vault

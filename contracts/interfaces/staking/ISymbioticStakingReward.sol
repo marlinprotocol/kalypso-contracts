@@ -22,6 +22,10 @@ interface ISymbioticStakingReward {
 
     /*===================================================== functions =====================================================*/
 
+    function rewardPerTokenPaids(address _stakeToken, address _rewardToken, address _vault, address _operator) external view returns (uint256);
+
+    function rewardPerTokenStored(address _stakeToken, address _rewardToken, address _operator) external view returns (uint256);
+
     function claimReward(address _operator) external;
 
     function updateFeeReward(address _stakeToken, address _operator, uint256 _amount) external;

@@ -3,17 +3,20 @@ pragma solidity ^0.8.26;
 
 import {IStakingPool} from "./IStakingPool.sol";
 
-import {Struct} from "../../lib/staking/Struct.sol";    
+import {Struct} from "../../lib/staking/Struct.sol";
 
 interface ISymbioticStaking is IStakingPool {
-
     /*====================================================== events =======================================================*/
 
     // TODO: temporary
-    event VaultSnapshotSubmitted(address indexed transmitter, uint256 index, uint256 numOfTxs, bytes vaultSnapshotData, bytes signature);
+    event VaultSnapshotSubmitted(
+        address indexed transmitter, uint256 index, uint256 numOfTxs, bytes vaultSnapshotData, bytes signature
+    );
 
-    // TODO: temporary  
-    event SlashResultSubmitted(address indexed transmitter, uint256 index, uint256 numOfTxs, bytes slashResultData, bytes signature);
+    // TODO: temporary
+    event SlashResultSubmitted(
+        address indexed transmitter, uint256 index, uint256 numOfTxs, bytes slashResultData, bytes signature
+    );
 
     event SubmissionCooldownSet(uint256 cooldown);
 
@@ -35,11 +38,18 @@ interface ISymbioticStaking is IStakingPool {
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
-        bytes memory _slashResultData,
-        bytes memory _signature
+        bytes calldata _slashResultData,
+        bytes calldata _signature
     ) external;
 
-    function getTxCountInfo(uint256 _captureTimestamp, address _transmitter, bytes32 _type) external view returns (Struct.SnapshotTxCountInfo memory);
+    function lockInfo(uint256 _jobId) external view returns (address stakeToken, uint256 amount);
+
+    function txCountInfo(uint256 _captureTimestamp, bytes32 _type)
+        external
+        view
+        returns (uint256 idxToSubmit, uint256 numOfTxs);
+
+    function registeredTransmitters(uint256 _captureTimestamp) external view returns (address);
 
     function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32);
 

@@ -47,6 +47,8 @@ contract TestSetup is Test {
 
     uint256 constant public SUBMISSION_COOLDOWN = 12 hours;
 
+    uint256 constant public USDC_DECIMALS = 1e6;
+
 
     /* contracts */
     address public jobManager;
@@ -284,7 +286,7 @@ contract TestSetup is Test {
         vm.stopPrank();
     }
 
-        function _setJobManagerConfig() internal {
+    function _setJobManagerConfig() internal {
         vm.startPrank(admin);
         // operatorA: 30% of the reward as comission
         JobManager(jobManager).setOperatorRewardShare(operatorA, _calcShareAmount(THIRTY_PERCENT));

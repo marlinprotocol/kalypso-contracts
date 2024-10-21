@@ -14,8 +14,6 @@ import {StakingManager} from "../../contracts/staking/l2_contracts/StakingManage
 import {NativeStaking} from "../../contracts/staking/l2_contracts/NativeStaking.sol";
 import {SymbioticStaking} from "../../contracts/staking/l2_contracts/SymbioticStaking.sol";
 import {SymbioticStakingReward} from "../../contracts/staking/l2_contracts/SymbioticStakingReward.sol";
-import {InflationRewardManager} from "../../contracts/staking/l2_contracts/InflationRewardManager.sol";
-
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* Interfaces */
@@ -48,7 +46,6 @@ contract DeployArbitrumSepolia is Script {
         address nativeStaking = address(new NativeStaking());
         address symbioticStaking = address(new SymbioticStaking());
         address symbioticStakingReward = address(new SymbioticStakingReward());
-        address inflationRewardManager = address(new InflationRewardManager());
 
         /* deploy proxies  */
         jobManager = address(new ERC1967Proxy(jobManager, ""));
@@ -56,13 +53,12 @@ contract DeployArbitrumSepolia is Script {
         nativeStaking = address(new ERC1967Proxy(nativeStaking, ""));
         symbioticStaking = address(new ERC1967Proxy(symbioticStaking, ""));
         symbioticStakingReward = address(new ERC1967Proxy(symbioticStakingReward, ""));
-        inflationRewardManager = address(new ERC1967Proxy(inflationRewardManager, ""));
 
         /* initialize contracts */
         
         // JobManager
         JobManager(address(jobManager)).initialize(
-            admin, address(stakingManager), address(symbioticStaking), address(symbioticStakingReward), address(feeToken), address(inflationRewardManager), 1 hours
+            admin, address(stakingManager), address(symbioticStaking), address(symbioticStakingReward), address(feeToken), 1 hours
         );
 
         // StakingManager
@@ -70,19 +66,15 @@ contract DeployArbitrumSepolia is Script {
             admin,
             address(jobManager),
             address(symbioticStaking),
-            address(inflationRewardManager),
-            address(feeToken),
-            address(inflationRewardToken)
+            address(feeToken)
         );
 
         // NativeStaking
         NativeStaking(address(nativeStaking)).initialize(
             admin,
             address(stakingManager),
-            address(0), // rewardDistributor (not set)
             2 days, // withdrawalDuration
-            address(feeToken),
-            address(inflationRewardToken)
+            address(feeToken)
         );
     
         // SymbioticStaking
@@ -91,34 +83,16 @@ contract DeployArbitrumSepolia is Script {
             jobManager,
             stakingManager,
             symbioticStakingReward,
-            inflationRewardManager,
-            feeToken,
-            inflationRewardToken
+            feeToken
         );
 
         // SymbioticStakingReward
         SymbioticStakingReward(address(symbioticStakingReward)).initialize(
             admin,
-            inflationRewardManager,
             jobManager,
             symbioticStaking,
-            feeToken,
-            inflationRewardToken
+            feeToken
         );
-
-        // InflationRewardManager
-        InflationRewardManager(address(inflationRewardManager)).initialize(
-            admin,
-            block.timestamp, // start time
-            jobManager,
-            stakingManager,
-            symbioticStaking,
-            symbioticStakingReward,
-            inflationRewardToken,
-            INFLATION_REWARD_EPOCH_SIZE, // inflationRewardEpochSize
-            INFLATION_REWARD_PER_EPOCH // inflationRewardPerEpoch
-        );
-        IERC20(inflationRewardToken).transfer(admin, 100_000e18); // send POND to inflation reward manager
 
         vm.stopBroadcast();
 
@@ -132,7 +106,6 @@ contract DeployArbitrumSepolia is Script {
         console.log("nativeStaking: \t\t", address(nativeStaking));
         console.log("symbioticStaking: \t\t", address(symbioticStaking));
         console.log("symbioticStakingReward: \t", address(symbioticStakingReward));
-        console.log("inflationRewardManager: \t", address(inflationRewardManager));
         console.log("");
 
         console.log("USDC (feeToken): \t\t", usdc);
