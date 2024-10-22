@@ -21,7 +21,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-
 contract NativeStaking is
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -299,7 +298,7 @@ contract NativeStaking is
 
         // repeat until a valid token is selected
         while (true) {
-            require(idx > 0, "No stakeToken available");
+            require(idx > 0, "No stakeToken available to lock");
 
             // random number in range [0, weightSum - 1]
             uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))) % weightSum;

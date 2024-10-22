@@ -18,6 +18,8 @@ interface ISymbioticStaking is IStakingPool {
         address indexed transmitter, uint256 index, uint256 numOfTxs, bytes slashResultData, bytes signature
     );
 
+    event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
+
     event SubmissionCooldownSet(uint256 cooldown);
 
     event BaseTransmitterComissionRateSet(uint256 rate);
@@ -59,6 +61,8 @@ interface ISymbioticStaking is IStakingPool {
 
     /// @notice Returns the captureTimestamp of latest completed snapshot submission
     function latestConfirmedTimestamp() external view returns (uint256);
+
+    function latestConfirmedTimestampInfo() external view returns (Struct.ConfirmedTimestamp memory);
 
     /// @notice Returns the timestampIdx of latest completed snapshot submission
     function latestConfirmedTimestampIdx() external view returns (uint256);

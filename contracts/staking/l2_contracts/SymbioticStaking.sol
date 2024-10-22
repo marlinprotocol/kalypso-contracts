@@ -24,6 +24,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+
 contract SymbioticStaking is
     ContextUpgradeable,
     ERC165Upgradeable,
@@ -80,8 +81,8 @@ contract SymbioticStaking is
 
     /* Symbiotic Snapshot */
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot))
-        public txCountInfo;
+    mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot)) public
+        txCountInfo;
     // to track if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
 
@@ -156,8 +157,7 @@ contract SymbioticStaking is
         bytes calldata _vaultSnapshotData,
         bytes calldata _signature
     ) external {
-       Struct.VaultSnapshot[] memory _vaultSnapshots =
-            abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
+        Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
         _checkTransmitterRegistration(_captureTimestamp);
 
@@ -171,10 +171,8 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][STAKE_SNAPSHOT_TYPE];
-
         // when all chunks of VaultSnapshots are submitted
-        if (_snapshot.idxToSubmit == _snapshot.numOfTxs) {
+        if (_index == _numOfTxs - 1) {
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
 
@@ -188,8 +186,7 @@ contract SymbioticStaking is
         bytes memory _SlashResultData,
         bytes memory _signature
     ) external {
-        Struct.JobSlashed[] memory _jobSlashed =
-            abi.decode(_SlashResultData, (Struct.JobSlashed[]));
+        Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
 
         // Vault Snapshot should be submitted before Slash Result
         require(
@@ -210,15 +207,14 @@ contract SymbioticStaking is
         // there could be no operator slashed
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
+        // TODO: unlock the selfStake and reward it to the transmitter
+        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _SlashResultData, _signature);
+
         // when all chunks of Snapshots are submitted
-        uint256 numOfTxsStored = _snapshot.numOfTxs;
-        if (numOfTxsStored > 0 && _snapshot.idxToSubmit == _snapshot.numOfTxs) {
+        if (_index == _numOfTxs - 1) {
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
             _completeSubmission(_captureTimestamp);
         }
-
-        // TODO: unlock the selfStake and reward it to the transmitter
-        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _SlashResultData, _signature);
     }
 
     /*--------------------------- stake lock/unlock for job --------------------------*/
@@ -322,8 +318,6 @@ contract SymbioticStaking is
             ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(
                 _vaultSnapshot.vault, _vaultSnapshot.operator
             );
-
-            // TODO: emit event for each update?
         }
     }
 
@@ -334,7 +328,7 @@ contract SymbioticStaking is
             Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
-        // TODO: emit event
+        emit SnapshotConfirmed(msg.sender, _captureTimestamp);
     }
 
     /*------------------------------ Reward Distribution -----------------------------*/
@@ -348,6 +342,10 @@ contract SymbioticStaking is
     function latestConfirmedTimestamp() public view returns (uint256) {
         uint256 len = confirmedTimestamps.length;
         return len > 0 ? confirmedTimestamps[len - 1].captureTimestamp : 0;
+    }
+
+    function latestConfirmedTimestampInfo() external view returns (Struct.ConfirmedTimestamp memory) {
+        return confirmedTimestamps[latestConfirmedTimestampIdx()];
     }
 
     function confirmedTimestampInfo(uint256 _idx) public view returns (Struct.ConfirmedTimestamp memory) {
@@ -416,8 +414,8 @@ contract SymbioticStaking is
         bytes32 mask;
         if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
         else if (_type == SLASH_RESULT_TYPE) mask = SLASH_RESULT_MASK;
-
         require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
+
     }
 
     function _verifySignature(
@@ -470,7 +468,7 @@ contract SymbioticStaking is
 
         // repeat until a valid token is selected
         while (true) {
-            require(idx > 0, "No stakeToken available");
+            require(idx > 0, "No stakeToken available to lock");
 
             // random number in range [0, weightSum - 1]
             uint256 random = uint256(

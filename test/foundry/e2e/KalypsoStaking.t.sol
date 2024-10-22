@@ -26,9 +26,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract KalypsoStakingTest is Test, TestSetup {
     uint256 constant OPERATORA_SELF_STAKE_AMOUNT = 1000 ether;
     uint256 constant OPERATORB_SELF_STAKE_AMOUNT = 2000 ether;
-    uint256 constant VAULT_A_INTO_OPERATOR_A = 1000 ether;
-    uint256 constant VAULT_B_INTO_OPERATOR_A = 2000 ether;
-    uint256 constant VAULT_B_INTO_OPERATOR_B = 3000 ether;
+    uint256 constant OPERATORC_SELF_STAKE_AMOUNT = 1500 ether;
 
     function setUp() public {
         _setupAddr();
@@ -58,33 +56,63 @@ contract KalypsoStakingTest is Test, TestSetup {
         // operators self stake
         _operator_self_stake();
 
-        // symbiotic staking snapshot submitted
-        _symbiotic_staking_snapshot_submission();
+        /*============================== Snapshot 1 ==============================*/
+        // Snapshot 1 submitted
+        _symbiotic_staking_snapshot_submission_1();
 
-        // jobId1 created (jobRequesterA -> OperatorA, 1 USDC)
+        /* jobId1 created (jobRequesterA -> OperatorA, 1 USDC) */
         _create_job_1();
 
-        vm.warp(block.timestamp + 10 minutes);
-
         // proof submitted
+        vm.warp(block.timestamp + 10 minutes);
         _submit_proof_job_1();
 
         // symbioticVaultA claims fee reward
         _vault_claims_reward_from_job_1();
 
-        // jobId2 created (jobRequesterB -> OperatorB, 0.5 USDC)
-        vm.warp(block.timestamp + INFLATION_REWARD_EPOCH_SIZE);
+        /* jobId2 created (jobRequesterB -> OperatorB, 0.5 USDC) */
+        vm.warp(block.timestamp + SUBMISSION_COOLDOWN); // POND locked
         _create_job_2();
 
         // jobId2 completed
         _submit_proof_job_2();
 
-        // job created
-        // _create_job_3();
+        /*============================== Snapshot 2 ==============================*/
+        // Snapshot 2 submitted
+        // here, the reward for jobId2 should be accrued for the symbioticVaultB (for staking 3000 POND to OperatorB)
+        vm.warp(block.timestamp + SUBMISSION_COOLDOWN);
+        _symbiotic_staking_snapshot_submission_2();
 
-        // job slashed in Symbiotic Staking and result submitted
-        // vm.warp(block.timestamp + SUBMISSION_COOLDOWN);
-        // _slash_result_submission_job_3();
+        _create_job_3();
+
+        _submit_proof_job_3();
+
+        _vaultA_claims_reward_from_job_3();
+
+        /*============================== Snapshot 3 ==============================*/
+        // Snapshot 3 submitted
+        vm.warp(block.timestamp + SUBMISSION_COOLDOWN);
+        _symbiotic_staking_snapshot_submission_3();
+
+        _create_job_4();
+
+        _submit_proof_job_4();
+
+        _vaultA_claims_reward_from_job_4();
+
+        _vaultC_claims_reward_from_job_4();
+
+        _vaultD_claims_reward_from_job_4();
+
+        console.log("");
+
+        vm.prank(symbioticVaultB);
+        ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorB);
+
+        console.log("VaultA: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultA));
+        console.log("VaultB: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultB));
+        console.log("VaultC: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultC));
+        console.log("VaultD: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultD));
     }
 
     /*===================================================== internal ====================================================*/
@@ -121,7 +149,7 @@ contract KalypsoStakingTest is Test, TestSetup {
 
         // OperatorB self stakes 2000 POND
         vm.startPrank(operatorB);
-        {   
+        {
             IERC20(pond).approve(nativeStaking, type(uint256).max);
 
             INativeStaking(nativeStaking).stake(pond, operatorB, OPERATORB_SELF_STAKE_AMOUNT);
@@ -137,9 +165,16 @@ contract KalypsoStakingTest is Test, TestSetup {
             OPERATORB_SELF_STAKE_AMOUNT,
             "_operator_self_stake: OperatorB active stake amount mismatch"
         );
+
+        vm.startPrank(operatorC);
+        {
+            IERC20(pond).approve(nativeStaking, type(uint256).max);
+            INativeStaking(nativeStaking).stake(pond, operatorC, OPERATORC_SELF_STAKE_AMOUNT);
+        }
+        vm.stopPrank();
     }
 
-    function _symbiotic_staking_snapshot_submission() internal {
+    function _symbiotic_staking_snapshot_submission_1() internal {
         /*  
             < TransmitterA Transmits >
             OperatorA: opted-into symbioticVaultA (weth) - 1000 weth, 
@@ -153,7 +188,7 @@ contract KalypsoStakingTest is Test, TestSetup {
         _vaultSnapshots1[0].operator = operatorA;
         _vaultSnapshots1[0].vault = symbioticVaultA;
         _vaultSnapshots1[0].stakeToken = weth;
-        _vaultSnapshots1[0].stakeAmount = VAULT_A_INTO_OPERATOR_A;
+        _vaultSnapshots1[0].stakeAmount = 1000 ether;
 
         // Partial Tx 2
         Struct.VaultSnapshot[] memory _vaultSnapshots2 = new Struct.VaultSnapshot[](2);
@@ -164,13 +199,13 @@ contract KalypsoStakingTest is Test, TestSetup {
         _vaultSnapshots2[0].operator = operatorB;
         _vaultSnapshots2[0].vault = symbioticVaultA;
         _vaultSnapshots2[0].stakeToken = weth;
-        _vaultSnapshots2[0].stakeAmount = VAULT_B_INTO_OPERATOR_A;
+        _vaultSnapshots2[0].stakeAmount = 2000 ether;
 
         // VaultB(3000 POND) -> OperatorB
         _vaultSnapshots2[1].operator = operatorB;
         _vaultSnapshots2[1].vault = symbioticVaultB;
         _vaultSnapshots2[1].stakeToken = pond;
-        _vaultSnapshots2[1].stakeAmount = VAULT_B_INTO_OPERATOR_B;
+        _vaultSnapshots2[1].stakeAmount = 3000 ether;
 
         /* Snapshot Submission */
         vm.startPrank(transmitterA);
@@ -195,16 +230,15 @@ contract KalypsoStakingTest is Test, TestSetup {
             );
         }
         vm.stopPrank();
-        (uint256 _idxToSubmit, uint256 _numOfTxs) = ISymbioticStaking(symbioticStaking).txCountInfo(
-            block.timestamp - 5, keccak256("STAKE_SNAPSHOT_TYPE")
-        );
+        (uint256 _idxToSubmit, uint256 _numOfTxs) =
+            ISymbioticStaking(symbioticStaking).txCountInfo(block.timestamp - 5, keccak256("STAKE_SNAPSHOT_TYPE"));
 
-        assertEq(_idxToSubmit, 1, "_symbiotic_staking_snapshot_submission: Tx count info mismatch");
-        assertEq(_numOfTxs, 2, "_symbiotic_staking_snapshot_submission: Tx count info mismatch");
+        assertEq(_idxToSubmit, 1, "_symbiotic_staking_snapshot_submission_1: Tx count info mismatch");
+        assertEq(_numOfTxs, 2, "_symbiotic_staking_snapshot_submission_1: Tx count info mismatch");
         assertEq(
             ISymbioticStaking(symbioticStaking).getSubmissionStatus(block.timestamp - 5, transmitterA),
             0x0,
-            "_symbiotic_staking_snapshot_submission: Submission status mismatch"
+            "_symbiotic_staking_snapshot_submission_1: Submission status mismatch"
         );
 
         vm.startPrank(transmitterA);
@@ -218,12 +252,11 @@ contract KalypsoStakingTest is Test, TestSetup {
         assertEq(
             ISymbioticStaking(symbioticStaking).registeredTransmitters(block.timestamp - 5),
             transmitterA,
-            "_symbiotic_staking_snapshot_submission: Registered transmitter mismatch"
+            "_symbiotic_staking_snapshot_submission_1: Registered transmitter mismatch"
         );
 
-        (_idxToSubmit, _numOfTxs) = ISymbioticStaking(symbioticStaking).txCountInfo(
-            block.timestamp - 5, keccak256("STAKE_SNAPSHOT_TYPE")
-        );
+        (_idxToSubmit, _numOfTxs) =
+            ISymbioticStaking(symbioticStaking).txCountInfo(block.timestamp - 5, keccak256("STAKE_SNAPSHOT_TYPE"));
         assertEq(_idxToSubmit, 2);
         assertEq(_numOfTxs, 2);
         assertEq(
@@ -244,8 +277,8 @@ contract KalypsoStakingTest is Test, TestSetup {
             IERC20(feeToken).approve(jobManager, type(uint256).max);
             uint256 jobmanagerBalanceBefore = IERC20(feeToken).balanceOf(jobManager);
 
-            vm.expectRevert("No stakeToken available");
-            IJobManager(jobManager).createJob(1, jobRequesterA, operatorC, 1 * USDC_DECIMALS ); // should revert as operatorC didn't stake any token to NativeStaking
+            vm.expectRevert("No stakeToken available to lock");
+            IJobManager(jobManager).createJob(1, jobRequesterA, operatorC, 1 * USDC_DECIMALS); // should revert as operatorC didn't stake any token to NativeStaking
 
             // pay 1 usdc as fee
             IJobManager(jobManager).createJob(1, jobRequesterA, operatorA, 1 * USDC_DECIMALS);
@@ -261,9 +294,8 @@ contract KalypsoStakingTest is Test, TestSetup {
         assertEq(lockedStakeToken, weth, "_submit_proof_job_1: Locked stake token mismatch");
 
         // rewardPerTokenStored before for operatorA
-        uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
-            lockedStakeToken, feeToken, operatorA
-        );
+        uint256 rewardPerTokenStoredBefore =
+            ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorA);
         assertEq(rewardPerTokenStoredBefore, 0, "_submit_proof_job_1: RewardPerTokenStored mismatch");
 
         // staked weth amount for operatorA
@@ -299,10 +331,13 @@ contract KalypsoStakingTest is Test, TestSetup {
         assertEq(IERC20(feeToken).balanceOf(transmitterA), 14 * USDC_DECIMALS / 100, "TransmitterA fee reward mismatch");
 
         // rewardPerTokenStored after for operatorA
-        uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
-            lockedStakeToken, feeToken, operatorA
+        uint256 rewardPerTokenStoredAfter =
+            ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorA);
+        assertEq(
+            rewardPerTokenStoredAfter,
+            rewardPerTokenStoredBefore + rewardPerTokenIncreased,
+            "_submit_proof_job_1: RewardPerTokenStored mismatch"
         );
-        assertEq(rewardPerTokenStoredAfter, rewardPerTokenStoredBefore + rewardPerTokenIncreased, "_submit_proof_job_1: RewardPerTokenStored mismatch");
     }
 
     function _vault_claims_reward_from_job_1() internal {
@@ -323,7 +358,9 @@ contract KalypsoStakingTest is Test, TestSetup {
             1 USDC * 0.7(after operatorA commision 30%) * 0.8(after transmitter commision 20%) = 0.56 USDC
          */
 
-        assertEq(IERC20(feeToken).balanceOf(symbioticVaultA), 56 * USDC_DECIMALS / 100, "SymbioticVaultA fee reward mismatch");
+        assertEq(
+            IERC20(feeToken).balanceOf(symbioticVaultA), 56 * USDC_DECIMALS / 100, "SymbioticVaultA fee reward mismatch"
+        );
     }
 
     // when multiple stakeTokens are staked to OperatorB
@@ -347,18 +384,19 @@ contract KalypsoStakingTest is Test, TestSetup {
         (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(jobId);
 
         // rewardPerTokenStored before for operatorA
-        uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
-            lockedStakeToken, feeToken, operatorB
-        );
+        uint256 rewardPerTokenStoredBefore =
+            ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorB);
         assertEq(rewardPerTokenStoredBefore, 0, "_submit_proof_job_2: RewardPerTokenStored mismatch");
 
         uint256 transmitterABalanceBefore = IERC20(feeToken).balanceOf(transmitterA);
 
         // staked weth amount for operatorA
-        uint256 stakeTokenAmount = ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(lockedStakeToken, operatorB);
+        uint256 stakeTokenAmount =
+            ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(lockedStakeToken, operatorB);
 
         // expected rewardPerTokenStored after job completion
-        uint256 rewardPerTokenToIncrease = Math.mulDiv(1 * USDC_DECIMALS * (50 * 50 * 80) / (100 * 100 * 100), 1e18, stakeTokenAmount);
+        uint256 rewardPerTokenToIncrease =
+            Math.mulDiv(1 * USDC_DECIMALS * (50 * 50 * 80) / (100 * 100 * 100), 1e18, stakeTokenAmount);
 
         vm.startPrank(operatorB);
         {
@@ -379,15 +417,417 @@ contract KalypsoStakingTest is Test, TestSetup {
             reward distributed
             => 0.5 * 0.5 * 0.8 = 0.2 usdc
          */
-        assertEq(IERC20(feeToken).balanceOf(operatorB), 25 * USDC_DECIMALS / 100, "_submit_proof_job_2: OperatorB fee reward mismatch");
-        assertEq(IERC20(feeToken).balanceOf(transmitterA) - transmitterABalanceBefore, 5 * USDC_DECIMALS / 100, "_submit_proof_job_2: TransmitterB fee reward mismatch");
-
-        // rewardPerTokenStored after for operatorB
-        uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
-            lockedStakeToken, feeToken, operatorB
+        assertEq(
+            IERC20(feeToken).balanceOf(operatorB),
+            25 * USDC_DECIMALS / 100,
+            "_submit_proof_job_2: OperatorB fee reward mismatch"
+        );
+        assertEq(
+            IERC20(feeToken).balanceOf(transmitterA) - transmitterABalanceBefore,
+            5 * USDC_DECIMALS / 100,
+            "_submit_proof_job_2: TransmitterA fee reward mismatch"
         );
 
-        assertEq(rewardPerTokenStoredAfter, rewardPerTokenStoredBefore + rewardPerTokenToIncrease, "_submit_proof_job_2: RewardPerTokenStored mismatch");
+        // rewardPerTokenStored after for operatorB
+        uint256 rewardPerTokenStoredAfter =
+            ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorB);
+
+        assertEq(
+            rewardPerTokenStoredAfter,
+            rewardPerTokenStoredBefore + rewardPerTokenToIncrease,
+            "_submit_proof_job_2: RewardPerTokenStored mismatch"
+        );
     }
 
+    // Reward from Job2 not claimed by vaultB
+    function _symbiotic_staking_snapshot_submission_2() internal {
+        uint256 vaultBRewardPerTokenPaidBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenPaid(
+            pond, feeToken, symbioticVaultB, operatorB
+        );
+
+        // same snapshot as in _symbiotic_staking_snapshot_submission_1
+        Struct.VaultSnapshot[] memory originalSnapshotData = new Struct.VaultSnapshot[](3);
+        // VaultA -> OperatorA (1000 weth)
+        originalSnapshotData[0].operator = operatorA;
+        originalSnapshotData[0].vault = symbioticVaultA;
+        originalSnapshotData[0].stakeToken = weth;
+        originalSnapshotData[0].stakeAmount = 1000 ether;
+
+        // VaultA -> OperatorB (2000 weth)
+        originalSnapshotData[1].operator = operatorB;
+        originalSnapshotData[1].vault = symbioticVaultA;
+        originalSnapshotData[1].stakeToken = weth;
+        originalSnapshotData[1].stakeAmount = 2000 ether;
+
+        // VaultB -> OperatorB (3000 pond)
+        originalSnapshotData[2].operator = operatorB;
+        originalSnapshotData[2].vault = symbioticVaultB;
+        originalSnapshotData[2].stakeToken = pond;
+        originalSnapshotData[2].stakeAmount = 3000 ether;
+
+        Struct.VaultSnapshot[] memory newSnapshotData = new Struct.VaultSnapshot[](5);
+
+        // VaultE -> OperatorB (1500 POND)
+        newSnapshotData[0].operator = operatorB;
+        newSnapshotData[0].vault = symbioticVaultE;
+        newSnapshotData[0].stakeToken = pond;
+        newSnapshotData[0].stakeAmount = 1500 ether;
+
+        // VaultA -> OperatorC (1500 WETH)
+        newSnapshotData[1].operator = operatorC;
+        newSnapshotData[1].vault = symbioticVaultA;
+        newSnapshotData[1].stakeToken = weth;
+        newSnapshotData[1].stakeAmount = 1500 ether;
+
+        // VaultC -> OperatorC (2300 WETH)
+        newSnapshotData[2].operator = operatorC;
+        newSnapshotData[2].vault = symbioticVaultC;
+        newSnapshotData[2].stakeToken = weth;
+        newSnapshotData[2].stakeAmount = 2300 ether;
+
+        // VaultD -> OperatorC (3000 WETH)
+        newSnapshotData[3].operator = operatorC;
+        newSnapshotData[3].vault = symbioticVaultD;
+        newSnapshotData[3].stakeToken = weth;
+        newSnapshotData[3].stakeAmount = 3000 ether;
+
+        // VaultE -> OperatorC (4000 POND)
+        newSnapshotData[4].operator = operatorC;
+        newSnapshotData[4].vault = symbioticVaultE;
+        newSnapshotData[4].stakeToken = pond;
+        newSnapshotData[4].stakeAmount = 4000 ether;
+
+        vm.startPrank(transmitterB);
+        {
+            ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
+                0, 2, block.timestamp - 5, abi.encode(originalSnapshotData), ""
+            );
+            ISymbioticStaking(symbioticStaking).submitVaultSnapshot(
+                1, 2, block.timestamp - 5, abi.encode(newSnapshotData), ""
+            );
+            ISymbioticStaking(symbioticStaking).submitSlashResult(0, 1, block.timestamp - 5, abi.encode(""), "");
+        }
+        vm.stopPrank();
+
+        assertEq(ISymbioticStaking(symbioticStaking).confirmedTimestampInfo(1).transmitter, transmitterB, "_symbiotic_staking_snapshot_submission_2: transmitter mismatch");
+
+        // check if reward distributed for JobId2 is reflected to symbioticVaultB during snapshot submission
+        {
+            // rewardPerTokenPaid for symbioticVaultB should be updated
+            // VaultB staked 3000 POND to OperatorB, and 0.2 USDC was distributed to OperatorB
+            uint256 vaultBStake = 3000 ether;
+            uint256 rewardPerTokenIncreased = Math.mulDiv(1 * USDC_DECIMALS * 20 / 100, 1e18, vaultBStake);
+            uint256 rewardPerTokenPaidAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenPaid(
+                pond, feeToken, symbioticVaultB, operatorB
+            );
+
+            assertEq(
+                rewardPerTokenPaidAfter - vaultBRewardPerTokenPaidBefore,
+                rewardPerTokenIncreased,
+                "_symbiotic_staking_snapshot_submission_2: RewardPerTokenPaid mismatch"
+            );
+            uint256 rewardAccruedForVaultB =
+                ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultB);
+            assertEq(
+                rewardAccruedForVaultB,
+                Math.mulDiv(rewardPerTokenIncreased, vaultBStake, 1e18),
+                "_symbiotic_staking_snapshot_submission_2: RewardAccrued mismatch"
+            );
+        }
+    }
+
+        // when multiple stakeTokens are staked to OperatorB
+    function _create_job_3() internal {
+        // requesterB creates a job
+        vm.startPrank(jobRequesterB);
+        {
+            // approve feeToken for jobManager
+            IERC20(feeToken).approve(jobManager, type(uint256).max);
+            uint256 jobmanagerBalanceBefore = IERC20(feeToken).balanceOf(jobManager);
+
+            // requesterB pays 0.7 usdc as fee
+            IJobManager(jobManager).createJob(3, jobRequesterA, operatorC, 7 * USDC_DECIMALS / 10);
+            assertEq(IERC20(feeToken).balanceOf(jobManager) - jobmanagerBalanceBefore, 7 * USDC_DECIMALS / 10);
+        }
+        vm.stopPrank();
+    }
+
+    function _submit_proof_job_3() internal {
+        (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(3);
+        
+        uint256 operatorCBalanceBefore = IERC20(feeToken).balanceOf(operatorC);
+        uint256 transmitterBBalanceBefore = IERC20(feeToken).balanceOf(transmitterB);
+        uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
+            lockedStakeToken, feeToken, operatorC
+        );
+
+        /* 
+            < expected fee reward >
+            fee paid: 0.7 usdc
+
+            OperatorC has 15% reward share
+            => 0.7 * 0.15 = 0.105 usdc
+
+            Transmitter comission rate: 20%
+            => 0.7 * 0.85 * 0.2 = 0.119 usdc
+
+            reward distributed
+            => 0.7 * 0.85 * 0.8 = 0.476 usdc
+         */
+        
+        // TransmitterA submits proof for JobId3
+        vm.startPrank(transmitterA);
+        {
+            IJobManager(jobManager).submitProof(3, "");
+        }
+        vm.stopPrank();
+
+        uint256 transmitterBBalanceAfter = IERC20(feeToken).balanceOf(transmitterB);
+        uint256 operatorCBalanceAfter = IERC20(feeToken).balanceOf(operatorC);
+        uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
+            lockedStakeToken, feeToken, operatorC
+        );
+
+        assertEq(operatorCBalanceAfter - operatorCBalanceBefore, 105 * USDC_DECIMALS / 1000, "_submit_proof_job_3: OperatorC fee reward mismatch");
+        assertEq(transmitterBBalanceAfter - transmitterBBalanceBefore, 119 * USDC_DECIMALS / 1000, "_submit_proof_job_3: TransmitterB fee reward mismatch");
+        // WETH locked, 0.476 usdc distributed, 6800 WETH staked to OperatorC
+        assertEq(rewardPerTokenStoredAfter - rewardPerTokenStoredBefore, Math.mulDiv(476 * USDC_DECIMALS / 1000, 1e18, 6800e18), "_submit_proof_job_3: RewardPerTokenStored mismatch");
+    }
+
+    function _vaultA_claims_reward_from_job_3() internal {
+        // 0.476 usdc distributed to OperatorC
+        uint256 rewardDistributed = 476 * USDC_DECIMALS / 1000;
+        // out of 6800 WETH staked to OperatorC, 1500 WETH is staked by SymbioticVaultA
+        uint256 rewardForVaultAExpected = Math.mulDiv(rewardDistributed, 1500e18, 6800e18);
+
+        uint256 vaultAUSDCBalanceBefore = IERC20(feeToken).balanceOf(symbioticVaultA);
+
+        vm.startPrank(symbioticVaultA);
+        {
+            ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorC);
+        }
+        vm.stopPrank();
+
+        uint256 vaultAUSDCBalanceAfter = IERC20(feeToken).balanceOf(symbioticVaultA);
+        assertEq(vaultAUSDCBalanceAfter - vaultAUSDCBalanceBefore, rewardForVaultAExpected, "_vaultA_claims_reward_from_job_3: VaultA fee reward mismatch");
+    }
+
+    function _symbiotic_staking_snapshot_submission_3() internal {
+        // Vaults that staked to OperatorC during JobId3
+        uint256 job3RewardDistributed = 476 * USDC_DECIMALS / 1000;
+
+        uint256 vaultARewardAccruedBefore = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultA);
+        uint256 vaultARewardExpected = 0;
+
+        // VaultC staked 2300 WETH to OperatorC
+        uint256 vaultCRewardAccruedBefore = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultC);
+        uint256 vaultCRewardExpected = Math.mulDiv(job3RewardDistributed, 2300e18, 6800e18);
+
+        // VaultD staked 3000 WETH to OperatorC
+        uint256 vaultDRewardAccruedBefore = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultD);
+        uint256 vaultDRewardExpected = Math.mulDiv(job3RewardDistributed, 3000e18, 6800e18);
+
+        // VaultE staked 1500 POND to OperatorC, WETH was selected so no reward accrued
+        uint256 vaultERewardAccruedBefore = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultE);
+        uint256 vaultERewardExpected = 0;
+        
+        // everything else is same as Snapshot2, except that VaultC and VaultE unstaked from OperatorC
+
+        // same snapshot as in _symbiotic_staking_snapshot_submission_1
+        Struct.VaultSnapshot[] memory snapshotData = new Struct.VaultSnapshot[](6);
+        // VaultA -> OperatorA (1000 weth)
+        snapshotData[0].operator = operatorA;
+        snapshotData[0].vault = symbioticVaultA;
+        snapshotData[0].stakeToken = weth;
+        snapshotData[0].stakeAmount = 1000 ether;
+
+        // VaultA -> OperatorB (2000 weth)
+        snapshotData[1].operator = operatorB;
+        snapshotData[1].vault = symbioticVaultA;
+        snapshotData[1].stakeToken = weth;
+        snapshotData[1].stakeAmount = 2000 ether;
+
+        // VaultB -> OperatorB (3000 pond)
+        snapshotData[2].operator = operatorB;
+        snapshotData[2].vault = symbioticVaultB;
+        snapshotData[2].stakeToken = pond;
+        snapshotData[2].stakeAmount = 3000 ether;
+
+        // VaultE -> OperatorB (1500 POND)
+        snapshotData[3].operator = operatorB;
+        snapshotData[3].vault = symbioticVaultE;
+        snapshotData[3].stakeToken = pond;
+        snapshotData[3].stakeAmount = 1500 ether;
+
+        // VaultA -> OperatorC (1500 WETH)
+        snapshotData[4].operator = operatorC;
+        snapshotData[4].vault = symbioticVaultA;
+        snapshotData[4].stakeToken = weth;
+        snapshotData[4].stakeAmount = 1500 ether;
+
+        // VaultD -> OperatorC (3000 WETH)
+        snapshotData[5].operator = operatorC;
+        snapshotData[5].vault = symbioticVaultD;
+        snapshotData[5].stakeToken = weth;
+        snapshotData[5].stakeAmount = 3000 ether;
+
+        Struct.VaultSnapshot[] memory unstakedSnapshotData = new Struct.VaultSnapshot[](5);
+        
+        // VaultC -> OperatorC (0 WETH) [Unstaked]
+        unstakedSnapshotData[0].operator = operatorC;
+        unstakedSnapshotData[0].vault = symbioticVaultC;
+        unstakedSnapshotData[0].stakeToken = weth;
+        unstakedSnapshotData[0].stakeAmount = 0 ether;
+
+        // VaultE -> OperatorC (0 POND) [Unstaked]
+        unstakedSnapshotData[1].operator = operatorC;
+        unstakedSnapshotData[1].vault = symbioticVaultE;
+        unstakedSnapshotData[1].stakeToken = pond;
+        unstakedSnapshotData[1].stakeAmount = 0 ether;
+
+        vm.startPrank(transmitterC);
+        {
+            ISymbioticStaking(symbioticStaking).submitVaultSnapshot(0, 2, block.timestamp - 5, abi.encode(snapshotData), "");
+            ISymbioticStaking(symbioticStaking).submitVaultSnapshot(1, 2, block.timestamp - 5, abi.encode(unstakedSnapshotData), "");
+            ISymbioticStaking(symbioticStaking).submitSlashResult(0, 1, block.timestamp - 5, abi.encode(""), "");
+        }
+        vm.stopPrank();
+        assertEq(ISymbioticStaking(symbioticStaking).latestConfirmedTimestampInfo().transmitter, transmitterC, "_symbiotic_staking_snapshot_submission_3: transmitter mismatch");
+
+        // check if reward accrued for Vaults are updated
+        uint256 vaultARewardAccruedAfter = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultA);
+        uint256 vaultCRewardAccruedAfter = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultC);
+        uint256 vaultDRewardAccruedAfter = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultD);
+        uint256 vaultERewardAccruedAfter = ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(feeToken, symbioticVaultE);
+
+        assertEq(vaultARewardAccruedAfter - vaultARewardAccruedBefore, vaultARewardExpected, "_symbiotic_staking_snapshot_submission_3: VaultA reward accrued mismatch");
+        assertEq(vaultCRewardAccruedAfter - vaultCRewardAccruedBefore, vaultCRewardExpected, "_symbiotic_staking_snapshot_submission_3: VaultC reward accrued mismatch");
+        assertEq(vaultDRewardAccruedAfter - vaultDRewardAccruedBefore, vaultDRewardExpected, "_symbiotic_staking_snapshot_submission_3: VaultD reward accrued mismatch");
+        assertEq(vaultERewardAccruedAfter - vaultERewardAccruedBefore, vaultERewardExpected, "_symbiotic_staking_snapshot_submission_3: VaultE reward accrued mismatch");
+    }
+
+    function _create_job_4() internal {
+        // requesterB creates a job
+        vm.startPrank(jobRequesterB);
+        {
+            IERC20(feeToken).approve(jobManager, type(uint256).max);
+            IJobManager(jobManager).createJob(4, jobRequesterA, operatorC, 97 * USDC_DECIMALS / 100);
+        }
+        vm.stopPrank();
+    }
+
+    /* 
+        < expected fee reward >
+
+        OperatorC has 15% reward share
+        => 0.97 * 0.15 = 0.1455 usdc
+
+        Transmitter comission rate: 20%
+        => 0.97 * 0.85 * 0.2 = 0.1649 usdc
+
+        reward distributed
+        => 0.97 * 0.85 * 0.8 = 0.6596 usdc
+
+    */
+    function _submit_proof_job_4() internal {
+        (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(4);
+
+        // Operator
+        uint256 operatorCBalanceBefore = IERC20(feeToken).balanceOf(operatorC);
+        
+        // Transmitter
+        uint256 transmitterCBalanceBefore = IERC20(feeToken).balanceOf(transmitterC);
+        
+        // RewardDistrobutor
+        uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
+            lockedStakeToken, feeToken, operatorC
+        );
+        uint256 rewardPertokenToIncrease = Math.mulDiv(6596 * USDC_DECIMALS / 10000, 1e18, 4500e18); // 4500 WETH staked to OperatorC
+
+        // TransmitterC submits proof for JobId4
+        vm.startPrank(transmitterC);
+        {
+            IJobManager(jobManager).submitProof(4, "");
+        }
+        vm.stopPrank();
+
+        uint256 operatorCBalanceAfter = IERC20(feeToken).balanceOf(operatorC);
+        uint256 transmitterCBalanceAfter = IERC20(feeToken).balanceOf(transmitterC);
+        // check if reward distributed for JobId4 is reflected to symbioticVaultA during snapshot submission
+        uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
+            lockedStakeToken, feeToken, operatorC
+        );
+        assertEq(operatorCBalanceAfter - operatorCBalanceBefore, 1455 * USDC_DECIMALS / 10000, "_submit_proof_job_4: OperatorC fee reward mismatch");
+        assertEq(transmitterCBalanceAfter - transmitterCBalanceBefore, 1649 * USDC_DECIMALS / 10000, "_submit_proof_job_4: TransmitterC fee reward mismatch");
+        assertEq(rewardPerTokenStoredAfter - rewardPerTokenStoredBefore, rewardPertokenToIncrease, "_submit_proof_job_4: RewardPerTokenStored mismatch");
+    }
+
+
+    function _vaultA_claims_reward_from_job_4() internal {
+        // 0.6596 usdc distributed to OperatorC for JobId4
+        uint256 rewardDistributed = 6596 * USDC_DECIMALS / 10000;
+        uint256 operatorCStake = 4500e18;
+        uint256 rewardPerTokenAdded = Math.mulDiv(rewardDistributed, 1e18, operatorCStake);
+
+        // out of 4500 WETH staked to OperatorC, 1500 WETH is staked by SymbioticVaultA
+        uint256 vaultARewardExpected = Math.mulDiv(rewardPerTokenAdded, 1500e18, 1e18);
+
+        uint256 vaultAUSDCBalanceBefore = IERC20(feeToken).balanceOf(symbioticVaultA);
+
+        vm.startPrank(symbioticVaultA);
+        {
+            ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorC);
+        }
+        vm.stopPrank();
+
+        uint256 vaultAUSDCBalanceAfter = IERC20(feeToken).balanceOf(symbioticVaultA);
+        assertEq(vaultAUSDCBalanceAfter - vaultAUSDCBalanceBefore, vaultARewardExpected, "_vaultA_claims_reward_from_job_4: VaultA fee reward mismatch");
+    }
+
+    // VaultC unstaked after Job3, and hasn't claimed the reward accrued
+    function _vaultC_claims_reward_from_job_4() internal {
+        // 0.476 usdc distributed to OperatorC for JobId3
+        uint256 job3RewardDistributed = 476 * USDC_DECIMALS / 1000;
+        uint256 job3OperatorCStake = 6800e18;
+        uint256 job3RewardPerTokenAdded = Math.mulDiv(job3RewardDistributed, 1e18, job3OperatorCStake);
+        uint256 vaultCRewardExpected = Math.mulDiv(job3RewardPerTokenAdded, 2300e18, 1e18);
+
+        uint256 vaultCUSDCBalanceBefore = IERC20(feeToken).balanceOf(symbioticVaultC);
+
+        vm.startPrank(symbioticVaultC);
+        {
+            ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorC);
+        }
+        vm.stopPrank();
+
+        uint256 vaultCUSDCBalanceAfter = IERC20(feeToken).balanceOf(symbioticVaultC);
+        assertEq(vaultCUSDCBalanceAfter - vaultCUSDCBalanceBefore, vaultCRewardExpected, "_vaultC_claims_reward_from_job_4: VaultC fee reward mismatch");
+    }
+
+    function _vaultD_claims_reward_from_job_4() internal {
+        uint256 vaultDRewardExpected;
+
+        // 0.476 usdc distributed to OperatorC for JobId3
+        uint256 job3RewardDistributed = 476 * USDC_DECIMALS / 1000;
+        uint256 job3OperatorCStake = 6800e18;
+        uint256 job3RewardPerTokenAdded = Math.mulDiv(job3RewardDistributed, 1e18, job3OperatorCStake);
+        vaultDRewardExpected += Math.mulDiv(job3RewardPerTokenAdded, 3000e18, 1e18);
+
+        // 0.6596 usdc distributed to OperatorC for JobId4
+        uint256 job4RewardDistributed = 6596 * USDC_DECIMALS / 10000;
+        uint256 job4OperatorCStake = 4500e18;
+        uint256 job4RewardPerTokenAdded = Math.mulDiv(job4RewardDistributed, 1e18, job4OperatorCStake);
+        vaultDRewardExpected += Math.mulDiv(job4RewardPerTokenAdded, 3000e18, 1e18);
+
+        uint256 vaultDUSDCBalanceBefore = IERC20(feeToken).balanceOf(symbioticVaultD);
+
+        vm.startPrank(symbioticVaultD);
+        {
+            ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorC);
+        }
+        vm.stopPrank();
+
+        uint256 vaultDUSDCBalanceAfter = IERC20(feeToken).balanceOf(symbioticVaultD);
+        assertEq(vaultDUSDCBalanceAfter - vaultDUSDCBalanceBefore, vaultDRewardExpected, "_vaultD_claims_reward_from_job_4: VaultD fee reward mismatch");
+    }
 }

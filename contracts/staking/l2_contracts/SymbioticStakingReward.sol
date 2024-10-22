@@ -35,7 +35,6 @@ contract SymbioticStakingReward is
 {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Math for uint256;
 
     /*===================================================================================================================*/
     /*================================================ state variable ===================================================*/
@@ -57,16 +56,15 @@ contract SymbioticStakingReward is
     /*===================================================================================================================*/
 
     // rewardTokens amount per stakeToken
-    mapping(address stakeToken => mapping(address rewardToken => mapping(address operator => uint256 rewardPerToken))) public
-        rewardPerTokenStored;
+    mapping(address stakeToken => mapping(address rewardToken => mapping(address operator => uint256 rewardPerToken)))
+        public rewardPerTokenStored;
 
     mapping(
         address stakeToken
             => mapping(
-                address rewardToken
-                    => mapping(address vault => mapping(address operator => uint256 rewardPerTokenPaid))
+                address rewardToken => mapping(address vault => mapping(address operator => uint256 rewardPerTokenPaid))
             )
-    ) public rewardPerTokenPaids;
+    ) public rewardPerTokenPaid;
 
     // reward accrued that the vault can claim
     mapping(address rewardToken => mapping(address vault => uint256 amount)) public rewardAccrued;
@@ -84,12 +82,10 @@ contract SymbioticStakingReward is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(
-        address _admin,
-        address _jobManager,
-        address _symbioticStaking,
-        address _feeRewardToken
-    ) public initializer {
+    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeRewardToken)
+        public
+        initializer
+    {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -100,7 +96,7 @@ contract SymbioticStakingReward is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
         require(_jobManager != address(0), "SymbioticStakingReward: jobManager address is zero");
-        jobManager = _jobManager;  
+        jobManager = _jobManager;
         emit JobManagerSet(_jobManager);
 
         require(_symbioticStaking != address(0), "SymbioticStakingReward: symbioticStaking address is zero");
@@ -123,14 +119,22 @@ contract SymbioticStakingReward is
     function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount)
         external
         onlySymbioticStaking
-    {   
+    {
         uint256 operatorStakeAmount = _getOperatorStakeAmount(_stakeToken, _operator);
         if (operatorStakeAmount > 0) {
-            rewardPerTokenStored[_stakeToken][feeRewardToken][_operator] +=
-                _rewardAmount.mulDiv(1e18, operatorStakeAmount);
-        }
+            uint256 rewardPerTokenAdded = Math.mulDiv(_rewardAmount, 1e18, operatorStakeAmount);
+            rewardPerTokenStored[_stakeToken][feeRewardToken][_operator] += rewardPerTokenAdded;
+           
+            emit RewardDistributed(_stakeToken, _operator, _rewardAmount);
 
-        emit RewardDistributed(_stakeToken, _operator, _rewardAmount);
+            emit RewardPerTokenUpdated(
+                _stakeToken,
+                feeRewardToken,
+                _operator,
+                rewardPerTokenStored[_stakeToken][feeRewardToken][_operator],
+                rewardPerTokenAdded
+            );
+        }
     }
 
     function onSnapshotSubmission(address _vault, address _operator) external onlySymbioticStaking {
@@ -146,14 +150,13 @@ contract SymbioticStakingReward is
         _updateVaultReward(_getStakeTokenList(), _msgSender(), _operator);
 
         address[] memory stakeTokenList = _getStakeTokenList();
-        for (uint256 i = 0; i < stakeTokenList.length; i++) {
-        }
+        for (uint256 i = 0; i < stakeTokenList.length; i++) {}
 
         // transfer fee reward to the vault
-        uint256 feeRewardAmount = rewardAccrued[_msgSender()][feeRewardToken];
+        uint256 feeRewardAmount = rewardAccrued[feeRewardToken][_msgSender()];
         if (feeRewardAmount > 0) {
             JobManager(jobManager).transferFeeToken(_msgSender(), feeRewardAmount);
-            rewardAccrued[_msgSender()][feeRewardToken] = 0;
+            rewardAccrued[feeRewardToken][_msgSender()] = 0;
         }
 
         emit RewardClaimed(_operator, feeRewardAmount);
@@ -172,23 +175,29 @@ contract SymbioticStakingReward is
     /*===================================================================================================================*/
 
     /// @dev update rewardPerToken and rewardAccrued for each vault
-    function _updateVaultReward(address[] memory _stakeTokenList, address _vault, address _operator)
-        internal
-    {   
+    function _updateVaultReward(address[] memory _stakeTokenList, address _vault, address _operator) internal {
+        uint256 rewardToAdd;
         for (uint256 i = 0; i < _stakeTokenList.length; i++) {
             address stakeToken = _stakeTokenList[i];
 
             /* fee reward */
             uint256 operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][feeRewardToken][_operator];
-            uint256 vaultRewardPerTokenPaid = rewardPerTokenPaids[stakeToken][feeRewardToken][_vault][_operator];
-            
+            uint256 vaultRewardPerTokenPaid = rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_operator];
+
             // update reward accrued for the vault
-            rewardAccrued[_vault][feeRewardToken] += _getVaultStakeAmount(stakeToken, _vault, _operator).mulDiv(
-                operatorRewardPerTokenStored - vaultRewardPerTokenPaid, 1e18
+            rewardToAdd += Math.mulDiv(
+                _getVaultStakeAmount(stakeToken, _vault, _operator),
+                operatorRewardPerTokenStored - vaultRewardPerTokenPaid,
+                1e18
             );
 
             // update rewardPerTokenPaid of the vault
-            rewardPerTokenPaids[stakeToken][feeRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
+            rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
+        }
+
+        if (rewardToAdd > 0) {
+            rewardAccrued[feeRewardToken][_vault] += rewardToAdd;
+            emit RewardAccrued(feeRewardToken, _vault, rewardToAdd);
         }
     }
 
@@ -204,8 +213,12 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(_stakeToken, _operator);
     }
 
-    function _getVaultStakeAmount(address _stakeToken, address _vault, address _operator) internal view returns (uint256) {
-        return ISymbioticStaking(symbioticStaking).getStakeAmount(_stakeToken, _vault,_operator);
+    function _getVaultStakeAmount(address _stakeToken, address _vault, address _operator)
+        internal
+        view
+        returns (uint256)
+    {
+        return ISymbioticStaking(symbioticStaking).getStakeAmount(_stakeToken, _vault, _operator);
     }
 
     /*===================================================================================================================*/
@@ -226,7 +239,6 @@ contract SymbioticStakingReward is
         symbioticStaking = _symbioticStaking;
         emit StakingPoolSet(_symbioticStaking);
     }
-
 
     function setFeeRewardToken(address _feeRewardToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
         feeRewardToken = _feeRewardToken;

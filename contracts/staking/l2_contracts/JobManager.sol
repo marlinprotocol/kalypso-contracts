@@ -149,7 +149,6 @@ contract JobManager is
 
         // inflation reward will be distributed here
         StakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
-
         emit JobCompleted(_jobId, operator, feeRewardRemaining);
     }
 

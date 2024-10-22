@@ -30,6 +30,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract TestSetup is Test {
+    uint256 constant public FIFTEEN_PERCENT = 15;
     uint256 constant public TWENTY_PERCENT = 20;
     uint256 constant public THIRTY_PERCENT = 30;
     uint256 constant public FORTY_PERCENT = 40;
@@ -42,8 +43,8 @@ contract TestSetup is Test {
     uint256 constant public FUND_FOR_SELF_STAKE = 1000_000 ether; // 10,000 POND
     uint256 constant public FUND_FOR_INFLATION_REWARD = 100_000 ether; // 100,000 POND
 
-    uint256 constant public INFLATION_REWARD_EPOCH_SIZE = 30 minutes; // 30 minutes
-    uint256 constant public INFLATION_REWARD_PER_EPOCH = 100 ether; // 1,000 POND
+    // uint256 constant public INFLATION_REWARD_EPOCH_SIZE = 30 minutes; // 30 minutes
+    // uint256 constant public INFLATION_REWARD_PER_EPOCH = 100 ether; // 1,000 POND
 
     uint256 constant public SUBMISSION_COOLDOWN = 12 hours;
 
@@ -82,6 +83,8 @@ contract TestSetup is Test {
     address public symbioticVaultA;
     address public symbioticVaultB; 
     address public symbioticVaultC;
+    address public symbioticVaultD;
+    address public symbioticVaultE;
 
     /* transmitters */
     address public transmitterA;
@@ -121,6 +124,8 @@ contract TestSetup is Test {
         symbioticVaultA = makeAddr("symbioticVaultA");
         symbioticVaultB = makeAddr("symbioticVaultB");
         symbioticVaultC = makeAddr("symbioticVaultC");
+        symbioticVaultD = makeAddr("symbioticVaultD");
+        symbioticVaultE = makeAddr("symbioticVaultE");
 
         transmitterA = makeAddr("transmitterA");
         transmitterB = makeAddr("transmitterB");
@@ -168,6 +173,8 @@ contract TestSetup is Test {
         vm.label(symbioticVaultA, "symbioticVaultA");
         vm.label(symbioticVaultB, "symbioticVaultB");
         vm.label(symbioticVaultC, "symbioticVaultC");
+        vm.label(symbioticVaultD, "symbioticVaultD");
+        vm.label(symbioticVaultE, "symbioticVaultE");
 
         vm.label(jobRequesterA, "jobRequesterA");
         vm.label(jobRequesterB, "jobRequesterB");
@@ -292,6 +299,8 @@ contract TestSetup is Test {
         JobManager(jobManager).setOperatorRewardShare(operatorA, _calcShareAmount(THIRTY_PERCENT));
         // operatorB: 50% of the reward as comission
         JobManager(jobManager).setOperatorRewardShare(operatorB, _calcShareAmount(FIFTY_PERCENT));
+        // operatorB: 15% of the reward as comission
+        JobManager(jobManager).setOperatorRewardShare(operatorC, _calcShareAmount(FIFTEEN_PERCENT));
         vm.stopPrank();
     }
 

@@ -20,11 +20,17 @@ interface ISymbioticStakingReward {
 
     event FeeRewardTokenSet(address indexed feeRewardToken);
 
+    event RewardAccrued(address indexed rewardToken, address indexed vault, uint256 amount);
+
+    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed operator, uint256 rewardPerTokenStoredUpdated, uint256 rewardPerTokenAdded);
+
     /*===================================================== functions =====================================================*/
 
-    function rewardPerTokenPaids(address _stakeToken, address _rewardToken, address _vault, address _operator) external view returns (uint256);
+    function rewardPerTokenPaid(address _stakeToken, address _rewardToken, address _vault, address _operator) external view returns (uint256);
 
     function rewardPerTokenStored(address _stakeToken, address _rewardToken, address _operator) external view returns (uint256);
+
+    function rewardAccrued(address _rewardToken, address _vault) external view returns (uint256);
 
     function claimReward(address _operator) external;
 
