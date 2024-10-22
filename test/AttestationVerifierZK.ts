@@ -2,11 +2,12 @@ import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
 import { Signer, ZeroAddress } from "ethers";
 import * as receipt from "../helpers/sample/risc0/receipt.json";
-import * as attestation from "../helpers/sample/risc0/attestation.json";
+// import * as attestation from "../helpers/sample/risc0/attestation.json";
+import * as attestation from "../helpers/sample/risc0/final.json";
 
 import {
-    IRiscZeroVerifier,
-    IRiscZeroVerifier__factory,
+    RiscZeroGroth16Verifier,
+    RiscZeroGroth16Verifier__factory,
     AttestationVerifierZK,
     AttestationVerifierZK__factory
 } from "../typechain-types";
@@ -16,15 +17,18 @@ describe("Attestation verifier for RISC0, testing", () => {
     let admin: Signer;
 
     let attestationVerifierZK: AttestationVerifierZK;
-    let riscZeroVerifier: IRiscZeroVerifier;
+    let riscZeroVerifier: RiscZeroGroth16Verifier;
 
     beforeEach(async () => {
         signers = await ethers.getSigners();
         admin = signers[0];
 
+        //arbSepolia
         // https://dev.risczero.com/api/blockchain-integration/contracts/verifier#arbitrum-sepolia-421614
-        riscZeroVerifier = IRiscZeroVerifier__factory.connect('0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF');
-        const AttestationVerifierZKContract = await ethers.getContractFactory("AttestationVerifierZK");
+        // control_id 0x05a022e1db38457fb510bc347b30eb8f8cf3eda95587653d0eac19e1f10d164e
+        // control_root_0 0x3f05edb31fb4615345ac63d411cf6d8b
+        // control_root_1 0x2e853b01450e34db0fa0de1b4917b8eb
+        riscZeroVerifier = RiscZeroGroth16Verifier__factory.connect('0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF');
         const _attestattionVerifierZK = await new AttestationVerifierZK__factory(admin).deploy(
             await riscZeroVerifier.getAddress()
         );
@@ -57,10 +61,25 @@ describe("Attestation verifier for RISC0, testing", () => {
         let journal = abiCoder.encode(["uint256[315]"], [receipt.receit.journal.bytes]);
         // console.log("journal: ", journal);
 
-        let attestation_bytes = abiCoder.encode(["uint256[4532]"], [attestation.attest]);
-        let attest_struct = abiCoder.decode(["tuple(bytes,bytes,bytes,bytes,uint256)"], attestation_bytes);
-        console.log("Attestation: ", attest_struct);
+        const encoded = abiCoder.encode(["string", "string", "string"], [seal, guest_id, journal]);
+        console.log("line62");
+        const digest = ethers.keccak256(encoded);
+        const signature = await admin.signMessage(ethers.getBytes(digest));
 
-        // let checker = attestationVerifierZK.getFunction("verify(bytes,(bytes,bytes,bytes,bytes,uint256))").staticCall(seal, guest_id, journal);
+        // let key = abiCoder.encode(["uint256[64]"], [attestation.enclavePubKey]);
+        // console.log("key: ", key);
+        // let pcr0 = abiCoder.encode(["uint256[48]"], [attestation.PCR0]);
+        // console.log("pcr0: ", pcr0);
+        // let pcr1 = abiCoder.encode(["uint256[48]"], [attestation.PCR1]);
+        // console.log("pcr1: ", pcr1);
+        // let pcr2 = abiCoder.encode(["uint256[48]"], [attestation.PCR2]);
+        // console.log("pcr2: ", pcr2);
+        // let ts = abiCoder.encode(["uint256[8]"], [attestation.timestampInMilliseconds]);
+        // let time_ts = abiCoder.decode(["uint256"], ts);
+        // console.log("ts: ", time_ts);
+        let input_attest = JSON.stringify(attestation);
+
+        let checker = await attestationVerifierZK.getFunction("verify(bytes,(bytes,bytes,bytes,bytes,uint256))").staticCallResult(signature, attestation);
+        console.log("Checker: ", checker);
     });
 });

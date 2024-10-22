@@ -9,7 +9,8 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
-import "lib/risc0-ethereum/contracts/src/IRiscZeroVerifier.sol";
+import "lib/risc0-ethereum/contracts/src/groth16/RiscZeroGroth16Verifier.sol";
+
 
 contract AttestationVerifierZK is
     Initializable, // initializer
@@ -26,7 +27,7 @@ contract AttestationVerifierZK is
     // disable all initializers and reinitializers
     // safeguard against takeover of the logic contract
     constructor(address _risc0Verifier) {
-        IRISC0_VERIFIER = IRiscZeroVerifier(_risc0Verifier);
+        RISC0_VERIFIER = RiscZeroGroth16Verifier(_risc0Verifier);
         _disableInitializers();
     }
 
@@ -80,7 +81,7 @@ contract AttestationVerifierZK is
         bytes PCR2;
     }
 
-    IRiscZeroVerifier public immutable IRISC0_VERIFIER;
+    RiscZeroGroth16Verifier public immutable RISC0_VERIFIER;
     // ImageId -> image details
     mapping(bytes32 => EnclaveImage) public whitelistedImages;
     // enclaveKey -> ImageId
@@ -229,7 +230,7 @@ contract AttestationVerifierZK is
         bytes32 imageId = verifiedKeys[signer];
 
         (bytes memory seal, bytes32 guestId, bytes32 journalDigest) = abi.decode(signature, (bytes, bytes32, bytes32));
-        IRISC0_VERIFIER.verify(seal, guestId, journalDigest);
+        RISC0_VERIFIER.verify(seal, guestId, journalDigest);
 
         if (!(imageId != bytes32(0))) revert AttestationVerifierKeyNotVerified();
         if (!(whitelistedImages[imageId].PCR0.length != 0)) revert AttestationVerifierImageNotWhitelisted();
