@@ -50,11 +50,17 @@ describe("Attestation verifier for RISC0, testing", () => {
               ],
             ],
           );
+        // console.log("guest_id: ", guest_id);
 
-        let seal = receipt.receit.inner.Groth16.seal;
-        let journal = receipt.receit.journal.bytes;
-        // const result = await attestationVerifierZK["verify(bytes,(bytes,bytes,bytes,bytes,uint256))"]
-        // const result = await attestationVerifierZK["verify(bytes,(bytes,bytes,bytes,bytes,uint256))"]
+        let seal = abiCoder.encode(["uint256[256]"], [receipt.receit.inner.Groth16.seal]);
+        // console.log("seal: ", seal);
+        let journal = abiCoder.encode(["uint256[315]"], [receipt.receit.journal.bytes]);
+        // console.log("journal: ", journal);
 
+        let attestation_bytes = abiCoder.encode(["uint256[4532]"], [attestation.attest]);
+        let attest_struct = abiCoder.decode(["tuple(bytes,bytes,bytes,bytes,uint256)"], attestation_bytes);
+        console.log("Attestation: ", attest_struct);
+
+        // let checker = attestationVerifierZK.getFunction("verify(bytes,(bytes,bytes,bytes,bytes,uint256))").staticCall(seal, guest_id, journal);
     });
 });
