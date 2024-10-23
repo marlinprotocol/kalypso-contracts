@@ -402,7 +402,6 @@ contract ProofMarketplace is
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
-        // _increaseClaimableAmount(TREASURY, platformFee);
         PAYMENT_TOKEN.safeTransfer(TREASURY, platformFee);
 
         if (market.marketmetadata.length == 0) {
@@ -552,8 +551,7 @@ contract ProofMarketplace is
         askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
         askWithState.generator = generator;
 
-        uint256 generatorAmountToLock = _slashingPenalty(askWithState.ask.marketId);
-        GENERATOR_REGISTRY.assignGeneratorTask(askId, generator, askWithState.ask.marketId, generatorAmountToLock);
+        GENERATOR_REGISTRY.assignGeneratorTask(askId, generator, askWithState.ask.marketId);
         emit TaskCreated(askId, generator, new_acl);
     }
 
@@ -568,7 +566,6 @@ contract ProofMarketplace is
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        // _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
         PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
@@ -596,8 +593,7 @@ contract ProofMarketplace is
         AskWithState memory askWithState,
         uint256 minRewardForGenerator,
         address generatorRewardAddress,
-        uint256 marketId,
-        uint256 _penalty
+        uint256 marketId
     ) internal {
         // Only assigned requests can be proved
         if (getAskState(askId) != AskState.ASSIGNED) {
@@ -610,13 +606,10 @@ contract ProofMarketplace is
 
         // transfer the reward to generator
         uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
-        // _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
-        
+
         // transfer the amount to treasury collection
-        // _increaseClaimableAmount(TREASURY, toTreasury);
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
 
-        // TODO: transfer 80% of minRewardForGenerator here
         GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
         emit InvalidInputsDetected(askId);
     }
@@ -627,7 +620,6 @@ contract ProofMarketplace is
     function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
         uint256 marketId = askWithState.ask.marketId;
-        Market memory currentMarket = marketData[marketId];
 
         (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
 
@@ -640,8 +632,7 @@ contract ProofMarketplace is
             askWithState,
             minRewardForGenerator,
             generatorRewardAddress,
-            marketId,
-            currentMarket.slashingPenalty
+            marketId
         );
     }
 
@@ -693,18 +684,14 @@ contract ProofMarketplace is
 
         uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
 
-        // TODO: only replace for generator rewards
-        // TODO: add operatorRewardShares mapping here
         // reward to generator
         uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
-        // _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+
         // fraction of amount back to requestor
-        // _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
         PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToRequestor);
 
         // TODO: consider setting slashingPenalty per market
         // uint256 generatorAmountToRelease = _slashingPenalty(marketId);
-        // uint256 feeRewards = 80%
         GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
         emit ProofCreated(askId, proof);
     }
@@ -712,11 +699,11 @@ contract ProofMarketplace is
     /**
      * @notice Slash Generator for deadline crossed requests
      */
-    function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant {
+    function slashGenerator(uint256 askId) external nonReentrant {
         if (getAskState(askId) != AskState.DEADLINE_CROSSED) {
             revert Error.ShouldBeInCrossedDeadlineState(askId);
         }
-        _slashGenerator(askId, rewardAddress);
+        _slashGenerator(askId);
     }
 
     /**
@@ -730,20 +717,18 @@ contract ProofMarketplace is
         if (askWithState.generator != _msgSender()) {
             revert Error.OnlyGeneratorCanDiscardRequest(askId);
         }
-        _slashGenerator(askId, TREASURY);
+        _slashGenerator(askId);
     }
 
-    function _slashGenerator(uint256 askId, address rewardAddress) internal {
+    function _slashGenerator(uint256 askId) internal {
         AskWithState storage askWithState = listOfAsk[askId];
 
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
-        // TODO: safeTransfer
-        // _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
         PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
-        GENERATOR_REGISTRY.slashGenerator(askId, askWithState.generator, marketId, _slashingPenalty(marketId), rewardAddress);
+        GENERATOR_REGISTRY.slashGenerator(askWithState.generator, marketId);
     }
 
     function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
@@ -802,7 +787,6 @@ contract ProofMarketplace is
         feeRewardRemaining = _feePaid - operatorFeeReward;
 
         // update operator fee reward
-        // operatorFeeRewards[_operator] += operatorFeeReward;
         _increaseClaimableAmount(_operator, operatorFeeReward);
 
         emit OperatorFeeRewardAdded(_operator, operatorFeeReward);
@@ -810,12 +794,11 @@ contract ProofMarketplace is
 
     /// @dev updated by SymbioticStaking contract when job is completed
     function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external onlyRole(SYMBIOTIC_STAKING_ROLE) {
-        // transmitterFeeRewards[_transmitter] += _feeRewardAmount;
         _increaseClaimableAmount(_transmitter, _feeRewardAmount);
         emit TransmitterFeeRewardAdded(_transmitter, _feeRewardAmount);
     }
 
-    /// @dev Only SymbioticStaking and SymbioticStakingReward can call this function
+    /// @dev Only SymbioticStakingReward can call this function
     function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
