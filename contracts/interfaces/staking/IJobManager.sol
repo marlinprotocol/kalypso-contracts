@@ -16,6 +16,15 @@ interface IJobManager {
     event JobDurationSet(uint256 jobDuration);
     event OperatorRewardShareSet(address indexed operator, uint256 rewardShare);
 
+    /* fee reward */
+    event OperatorFeeRewardAdded(address indexed operator, uint256 feeRewardAmount);
+    event OperatorFeeRewardClaimed(address indexed operator, uint256 feeRewardAmount);
+    event TransmitterFeeRewardAdded(address indexed transmitter, uint256 feeRewardAmount);
+    event TransmitterFeeRewardClaimed(address indexed transmitter, uint256 feeRewardAmount);
+
+    function operatorFeeRewards(address _operator) external view returns (uint256);
+    function transmitterFeeRewards(address _transmitter) external view returns (uint256);
+    
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external;
 
     function submitProof(uint256 jobId, bytes calldata proof) external;
@@ -24,5 +33,12 @@ interface IJobManager {
 
     function refundFee(uint256 jobId) external;
 
-    function operatorRewardShares(address _operator) external view returns (uint256);    
+    function operatorRewardShares(address _operator) external view returns (uint256);
+
+    function claimOperatorFeeReward(address _operator) external;
+
+    function claimTransmitterFeeReward(address _transmitter) external;
+
+    function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external;
+    
 }

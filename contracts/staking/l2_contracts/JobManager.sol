@@ -55,6 +55,9 @@ contract JobManager is
     // operator deducts comission from inflation reward
     mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
 
+    mapping(address operator => uint256 feeReward) public operatorFeeRewards;
+    mapping(address transmitter => uint256 feeReward) public transmitterFeeRewards;
+
     /*===================================================================================================================*/
     /*=================================================== modifier ======================================================*/
     /*===================================================================================================================*/
@@ -144,8 +147,8 @@ contract JobManager is
 
         address operator = jobs[_jobId].operator;
 
-        // distribute fee reward
-        uint256 feeRewardRemaining = _distributeFeeReward(operator, jobs[_jobId].feePaid);
+        // distribute fee reward and calculate remaining fee reward
+        uint256 feeRewardRemaining = _distributeOperatorFeeReward(operator, jobs[_jobId].feePaid);
 
         // inflation reward will be distributed here
         StakingManager(stakingManager).onJobCompletion(_jobId, operator, feeRewardRemaining);
@@ -177,6 +180,26 @@ contract JobManager is
         }
     }
 
+    function claimOperatorFeeReward(address _operator) external nonReentrant {
+        uint256 feeReward = operatorFeeRewards[_operator];
+        require(feeReward > 0, "No fee reward to claim");
+
+        operatorFeeRewards[_operator] = 0;
+        IERC20(feeToken).safeTransfer(_operator, feeReward);
+
+        emit OperatorFeeRewardClaimed(_operator, feeReward);
+    }
+
+    function claimTransmitterFeeReward(address _transmitter) external nonReentrant {
+        uint256 feeReward = transmitterFeeRewards[_transmitter];
+        require(feeReward > 0, "No fee reward to claim");
+
+        transmitterFeeRewards[_transmitter] = 0;
+        IERC20(feeToken).safeTransfer(_transmitter, feeReward);
+
+        emit TransmitterFeeRewardClaimed(_transmitter, feeReward);
+    }
+
     /*===================================================================================================================*/
     /*===================================================== internal ====================================================*/
     /*===================================================================================================================*/
@@ -187,10 +210,15 @@ contract JobManager is
         // TODO: emit event
     }
 
-    function _distributeFeeReward(address _operator, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
+    function _distributeOperatorFeeReward(address _operator, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
+        // calculate operator fee reward
         uint256 operatorFeeReward = Math.mulDiv(_feePaid, operatorRewardShares[_operator], 1e18);
-        IERC20(feeToken).safeTransfer(_operator, operatorFeeReward);
         feeRewardRemaining = _feePaid - operatorFeeReward;
+
+        // update operator fee reward
+        operatorFeeRewards[_operator] += operatorFeeReward;
+
+        emit OperatorFeeRewardAdded(_operator, operatorFeeReward);
     }
 
     /*===================================================================================================================*/
@@ -200,6 +228,12 @@ contract JobManager is
     /// @dev Only SymbioticStaking and SymbioticStakingReward can call this function
     function transferFeeToken(address _recipient, uint256 _amount) external onlySymbioticStaking {
         IERC20(feeToken).safeTransfer(_recipient, _amount);
+    }
+
+    /// @dev updated by SymbioticStaking contract when job is completed
+    function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external onlySymbioticStaking {
+        transmitterFeeRewards[_transmitter] += _feeRewardAmount;
+        emit TransmitterFeeRewardAdded(_transmitter, _feeRewardAmount);
     }
 
     /*===================================================================================================================*/

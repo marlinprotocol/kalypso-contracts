@@ -124,7 +124,9 @@ contract SymbioticStakingReward is
         if (operatorStakeAmount > 0) {
             uint256 rewardPerTokenAdded = Math.mulDiv(_rewardAmount, 1e18, operatorStakeAmount);
             rewardPerTokenStored[_stakeToken][feeRewardToken][_operator] += rewardPerTokenAdded;
-           
+
+            
+
             emit RewardDistributed(_stakeToken, _operator, _rewardAmount);
 
             emit RewardPerTokenUpdated(

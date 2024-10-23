@@ -28,6 +28,14 @@ contract KalypsoStakingTest is Test, TestSetup {
     uint256 constant OPERATORB_SELF_STAKE_AMOUNT = 2000 ether;
     uint256 constant OPERATORC_SELF_STAKE_AMOUNT = 1500 ether;
 
+    uint256 operatorAFeeReward;
+    uint256 operatorBFeeReward;
+    uint256 operatorCFeeReward;
+
+    uint256 transmitterAFeeReward;
+    uint256 transmitterBFeeReward;
+    uint256 transmitterCFeeReward;
+
     function setUp() public {
         _setupAddr();
         _setupContracts();
@@ -104,15 +112,7 @@ contract KalypsoStakingTest is Test, TestSetup {
 
         _vaultD_claims_reward_from_job_4();
 
-        console.log("");
-
-        vm.prank(symbioticVaultB);
-        ISymbioticStakingReward(symbioticStakingReward).claimReward(operatorB);
-
-        console.log("VaultA: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultA));
-        console.log("VaultB: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultB));
-        console.log("VaultC: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultC));
-        console.log("VaultD: ", ISymbioticStakingReward(symbioticStakingReward).rewardAccrued(usdc, symbioticVaultD));
+        _operators_and_transmitters_claim_fee_reward();
     }
 
     /*===================================================== internal ====================================================*/
@@ -293,6 +293,10 @@ contract KalypsoStakingTest is Test, TestSetup {
         (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(jobId);
         assertEq(lockedStakeToken, weth, "_submit_proof_job_1: Locked stake token mismatch");
 
+        // OperatorA and TransmitterA fee reward before
+        uint256 operatorAFeeRewardBefore = IJobManager(jobManager).operatorFeeRewards(operatorA);
+        uint256 transmitterAFeeRewardBefore = IJobManager(jobManager).transmitterFeeRewards(transmitterA);
+
         // rewardPerTokenStored before for operatorA
         uint256 rewardPerTokenStoredBefore =
             ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorA);
@@ -327,8 +331,16 @@ contract KalypsoStakingTest is Test, TestSetup {
             transmitter comission rate: 20%
             => 1 * 0.7 * 0.2 = 0.14 usdc
          */
-        assertEq(IERC20(feeToken).balanceOf(operatorA), 3 * USDC_DECIMALS / 10, "OperatorA fee reward mismatch");
-        assertEq(IERC20(feeToken).balanceOf(transmitterA), 14 * USDC_DECIMALS / 100, "TransmitterA fee reward mismatch");
+
+        // OperatorA and TransmitterA fee reward after
+        uint256 operatorAFeeRewardAfter = IJobManager(jobManager).operatorFeeRewards(operatorA);
+        uint256 transmitterAFeeRewardAfter = IJobManager(jobManager).transmitterFeeRewards(transmitterA);
+
+        assertEq(operatorAFeeRewardAfter - operatorAFeeRewardBefore, 3 * USDC_DECIMALS / 10, "OperatorA fee reward mismatch");
+        operatorAFeeReward += operatorAFeeRewardAfter - operatorAFeeRewardBefore;
+
+        assertEq(transmitterAFeeRewardAfter - transmitterAFeeRewardBefore, 14 * USDC_DECIMALS / 100, "TransmitterA fee reward mismatch");
+        transmitterAFeeReward += transmitterAFeeRewardAfter - transmitterAFeeRewardBefore;
 
         // rewardPerTokenStored after for operatorA
         uint256 rewardPerTokenStoredAfter =
@@ -383,12 +395,14 @@ contract KalypsoStakingTest is Test, TestSetup {
         uint256 jobId = 2;
         (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(jobId);
 
+        // OperatorB and TransmitterA fee reward before
+        uint256 operatorBFeeRewardBefore = IJobManager(jobManager).operatorFeeRewards(operatorB);
+        uint256 transmitterAFeeRewardBefore = IJobManager(jobManager).transmitterFeeRewards(transmitterA);
+
         // rewardPerTokenStored before for operatorA
         uint256 rewardPerTokenStoredBefore =
             ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(lockedStakeToken, feeToken, operatorB);
         assertEq(rewardPerTokenStoredBefore, 0, "_submit_proof_job_2: RewardPerTokenStored mismatch");
-
-        uint256 transmitterABalanceBefore = IERC20(feeToken).balanceOf(transmitterA);
 
         // staked weth amount for operatorA
         uint256 stakeTokenAmount =
@@ -404,6 +418,10 @@ contract KalypsoStakingTest is Test, TestSetup {
         }
         vm.stopPrank();
 
+        // OperatorB and TransmitterA fee reward after
+        uint256 operatorBFeeRewardAfter = IJobManager(jobManager).operatorFeeRewards(operatorB);
+        uint256 transmitterAFeeRewardAfter = IJobManager(jobManager).transmitterFeeRewards(transmitterA);
+
         /* 
             <expected fee reward>
             fee paid: 0.5 usdc
@@ -417,16 +435,12 @@ contract KalypsoStakingTest is Test, TestSetup {
             reward distributed
             => 0.5 * 0.5 * 0.8 = 0.2 usdc
          */
-        assertEq(
-            IERC20(feeToken).balanceOf(operatorB),
-            25 * USDC_DECIMALS / 100,
-            "_submit_proof_job_2: OperatorB fee reward mismatch"
-        );
-        assertEq(
-            IERC20(feeToken).balanceOf(transmitterA) - transmitterABalanceBefore,
-            5 * USDC_DECIMALS / 100,
-            "_submit_proof_job_2: TransmitterA fee reward mismatch"
-        );
+
+        assertEq(operatorBFeeRewardAfter - operatorBFeeRewardBefore, 25 * USDC_DECIMALS / 100, "_submit_proof_job_2: OperatorB fee reward mismatch");
+        operatorBFeeReward += operatorBFeeRewardAfter - operatorBFeeRewardBefore;
+
+        assertEq(transmitterAFeeRewardAfter - transmitterAFeeRewardBefore, 5 * USDC_DECIMALS / 100, "_submit_proof_job_2: TransmitterA fee reward mismatch");
+        transmitterAFeeReward += transmitterAFeeRewardAfter - transmitterAFeeRewardBefore;
 
         // rewardPerTokenStored after for operatorB
         uint256 rewardPerTokenStoredAfter =
@@ -536,7 +550,8 @@ contract KalypsoStakingTest is Test, TestSetup {
         }
     }
 
-        // when multiple stakeTokens are staked to OperatorB
+
+    // when multiple stakeTokens are staked to OperatorB
     function _create_job_3() internal {
         // requesterB creates a job
         vm.startPrank(jobRequesterB);
@@ -554,9 +569,11 @@ contract KalypsoStakingTest is Test, TestSetup {
 
     function _submit_proof_job_3() internal {
         (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(3);
+
+        // OperatorC and TransmitterB fee reward before
+        uint256 operatorCFeeRewardBefore = IJobManager(jobManager).operatorFeeRewards(operatorC);
+        uint256 transmitterBFeeRewardBefore = IJobManager(jobManager).transmitterFeeRewards(transmitterB);
         
-        uint256 operatorCBalanceBefore = IERC20(feeToken).balanceOf(operatorC);
-        uint256 transmitterBBalanceBefore = IERC20(feeToken).balanceOf(transmitterB);
         uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
             lockedStakeToken, feeToken, operatorC
         );
@@ -582,14 +599,20 @@ contract KalypsoStakingTest is Test, TestSetup {
         }
         vm.stopPrank();
 
-        uint256 transmitterBBalanceAfter = IERC20(feeToken).balanceOf(transmitterB);
-        uint256 operatorCBalanceAfter = IERC20(feeToken).balanceOf(operatorC);
+        // OperatorC and TransmitterB fee reward after
+        uint256 operatorCFeeRewardAfter = IJobManager(jobManager).operatorFeeRewards(operatorC);
+        uint256 transmitterBFeeRewardAfter = IJobManager(jobManager).transmitterFeeRewards(transmitterB);
+
+        assertEq(operatorCFeeRewardAfter - operatorCFeeRewardBefore, 105 * USDC_DECIMALS / 1000, "_submit_proof_job_3: OperatorC fee reward mismatch");
+        operatorCFeeReward += operatorCFeeRewardAfter - operatorCFeeRewardBefore;
+        
+        assertEq(transmitterBFeeRewardAfter - transmitterBFeeRewardBefore, 119 * USDC_DECIMALS / 1000, "_submit_proof_job_3: TransmitterB fee reward mismatch");
+        transmitterBFeeReward += transmitterBFeeRewardAfter - transmitterBFeeRewardBefore;
+
+        // rewardPerTokenStored for operatorC after
         uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
             lockedStakeToken, feeToken, operatorC
         );
-
-        assertEq(operatorCBalanceAfter - operatorCBalanceBefore, 105 * USDC_DECIMALS / 1000, "_submit_proof_job_3: OperatorC fee reward mismatch");
-        assertEq(transmitterBBalanceAfter - transmitterBBalanceBefore, 119 * USDC_DECIMALS / 1000, "_submit_proof_job_3: TransmitterB fee reward mismatch");
         // WETH locked, 0.476 usdc distributed, 6800 WETH staked to OperatorC
         assertEq(rewardPerTokenStoredAfter - rewardPerTokenStoredBefore, Math.mulDiv(476 * USDC_DECIMALS / 1000, 1e18, 6800e18), "_submit_proof_job_3: RewardPerTokenStored mismatch");
     }
@@ -732,11 +755,9 @@ contract KalypsoStakingTest is Test, TestSetup {
     function _submit_proof_job_4() internal {
         (address lockedStakeToken,) = ISymbioticStaking(symbioticStaking).lockInfo(4);
 
-        // Operator
-        uint256 operatorCBalanceBefore = IERC20(feeToken).balanceOf(operatorC);
-        
-        // Transmitter
-        uint256 transmitterCBalanceBefore = IERC20(feeToken).balanceOf(transmitterC);
+        // OperatorC and TransmitterB fee reward before
+        uint256 operatorCFeeRewardBefore = IJobManager(jobManager).operatorFeeRewards(operatorC);
+        uint256 transmitterCFeeRewardBefore = IJobManager(jobManager).transmitterFeeRewards(transmitterC);
         
         // RewardDistrobutor
         uint256 rewardPerTokenStoredBefore = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
@@ -751,17 +772,22 @@ contract KalypsoStakingTest is Test, TestSetup {
         }
         vm.stopPrank();
 
-        uint256 operatorCBalanceAfter = IERC20(feeToken).balanceOf(operatorC);
-        uint256 transmitterCBalanceAfter = IERC20(feeToken).balanceOf(transmitterC);
+        // OperatorC and TransmitterB fee reward after
+        uint256 operatorCFeeRewardAfter = IJobManager(jobManager).operatorFeeRewards(operatorC);
+        uint256 transmitterCFeeRewardAfter = IJobManager(jobManager).transmitterFeeRewards(transmitterC);
+
+        assertEq(operatorCFeeRewardAfter - operatorCFeeRewardBefore, 1455 * USDC_DECIMALS / 10000, "_submit_proof_job_4: OperatorC fee reward mismatch");
+        operatorCFeeReward += operatorCFeeRewardAfter - operatorCFeeRewardBefore;
+        
+        assertEq(transmitterCFeeRewardAfter - transmitterCFeeRewardBefore, 1649 * USDC_DECIMALS / 10000, "_submit_proof_job_4: TransmitterC fee reward mismatch");
+        transmitterCFeeReward += transmitterCFeeRewardAfter - transmitterCFeeRewardBefore;
+
         // check if reward distributed for JobId4 is reflected to symbioticVaultA during snapshot submission
         uint256 rewardPerTokenStoredAfter = ISymbioticStakingReward(symbioticStakingReward).rewardPerTokenStored(
             lockedStakeToken, feeToken, operatorC
         );
-        assertEq(operatorCBalanceAfter - operatorCBalanceBefore, 1455 * USDC_DECIMALS / 10000, "_submit_proof_job_4: OperatorC fee reward mismatch");
-        assertEq(transmitterCBalanceAfter - transmitterCBalanceBefore, 1649 * USDC_DECIMALS / 10000, "_submit_proof_job_4: TransmitterC fee reward mismatch");
         assertEq(rewardPerTokenStoredAfter - rewardPerTokenStoredBefore, rewardPertokenToIncrease, "_submit_proof_job_4: RewardPerTokenStored mismatch");
     }
-
 
     function _vaultA_claims_reward_from_job_4() internal {
         // 0.6596 usdc distributed to OperatorC for JobId4
@@ -829,5 +855,49 @@ contract KalypsoStakingTest is Test, TestSetup {
 
         uint256 vaultDUSDCBalanceAfter = IERC20(feeToken).balanceOf(symbioticVaultD);
         assertEq(vaultDUSDCBalanceAfter - vaultDUSDCBalanceBefore, vaultDRewardExpected, "_vaultD_claims_reward_from_job_4: VaultD fee reward mismatch");
+    }
+
+    function _operators_and_transmitters_claim_fee_reward() internal {
+        uint256 operatorAFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(operatorA);
+        uint256 operatorBFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(operatorB);
+        uint256 operatorCFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(operatorC);
+
+        uint256 transmitterAFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(transmitterA);
+        uint256 transmitterBFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(transmitterB);
+        uint256 transmitterCFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(transmitterC);
+
+        vm.prank(operatorA);
+        IJobManager(jobManager).claimOperatorFeeReward(operatorA);
+
+        vm.prank(operatorB);
+        IJobManager(jobManager).claimOperatorFeeReward(operatorB);  
+
+        vm.prank(operatorC);
+        IJobManager(jobManager).claimOperatorFeeReward(operatorC);
+
+        vm.prank(transmitterA);
+        IJobManager(jobManager).claimTransmitterFeeReward(transmitterA);
+
+        vm.prank(transmitterB);
+        IJobManager(jobManager).claimTransmitterFeeReward(transmitterB);
+
+        vm.prank(transmitterC);
+        IJobManager(jobManager).claimTransmitterFeeReward(transmitterC);
+
+        uint256 operatorAFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(operatorA);
+        uint256 operatorBFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(operatorB);
+        uint256 operatorCFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(operatorC);
+
+        uint256 transmitterAFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(transmitterA);
+        uint256 transmitterBFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(transmitterB);
+        uint256 transmitterCFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(transmitterC);
+
+        assertEq(operatorAFeeTokenBalanceAfter - operatorAFeeTokenBalanceBefore, operatorAFeeReward, "_operators_and_transmitters_claim_fee_reward: OperatorA fee token balance mismatch");
+        assertEq(operatorBFeeTokenBalanceAfter - operatorBFeeTokenBalanceBefore, operatorBFeeReward, "_operators_and_transmitters_claim_fee_reward: OperatorB fee token balance mismatch");
+        assertEq(operatorCFeeTokenBalanceAfter - operatorCFeeTokenBalanceBefore, operatorCFeeReward, "_operators_and_transmitters_claim_fee_reward: OperatorC fee token balance mismatch");
+
+        assertEq(transmitterAFeeTokenBalanceAfter - transmitterAFeeTokenBalanceBefore, transmitterAFeeReward, "_operators_and_transmitters_claim_fee_reward: TransmitterA fee token balance mismatch");
+        assertEq(transmitterBFeeTokenBalanceAfter - transmitterBFeeTokenBalanceBefore, transmitterBFeeReward, "_operators_and_transmitters_claim_fee_reward: TransmitterB fee token balance mismatch");
+        assertEq(transmitterCFeeTokenBalanceAfter - transmitterCFeeTokenBalanceBefore, transmitterCFeeReward, "_operators_and_transmitters_claim_fee_reward: TransmitterC fee token balance mismatch");
     }
 }

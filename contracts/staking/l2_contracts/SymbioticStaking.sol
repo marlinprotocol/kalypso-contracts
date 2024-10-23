@@ -241,7 +241,7 @@ contract SymbioticStaking is
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            JobManager(jobManager).transferFeeToken(
+            JobManager(jobManager).distributeTransmitterFeeReward(
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
 
