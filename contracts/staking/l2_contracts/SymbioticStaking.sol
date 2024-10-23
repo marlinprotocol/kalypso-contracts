@@ -246,8 +246,6 @@ contract SymbioticStaking is
             );
 
             // distribute the remaining fee reward
-            _distributeFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
-
             ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
         }
 
@@ -330,10 +328,6 @@ contract SymbioticStaking is
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
     }
-
-    /*------------------------------ Reward Distribution -----------------------------*/
-
-    function _distributeFeeReward(address _stakeToken, address _operator, uint256 _amount) internal {}
 
     /*===================================================================================================================*/
     /*================================================== external view ==================================================*/

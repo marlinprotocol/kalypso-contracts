@@ -11,10 +11,10 @@ import {SafeERC20 as SafeERC20Upgradeable} from "@openzeppelin/contracts/token/E
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
-import "./interfaces/IL2Staking.sol";
 import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 import "./ProofMarketplace.sol";
+import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -22,8 +22,7 @@ contract GeneratorRegistry is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IL2Staking
+    ReentrancyGuardUpgradeable
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -72,10 +71,11 @@ contract GeneratorRegistry is
     mapping(address => Generator) public generatorRegistry;
     mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
 
-    mapping(address => uint256) unstakeRequestBlock;
     mapping(address => uint256) reduceComputeRequestBlock;
 
     ProofMarketplace public proofMarketplace;
+
+    address public stakingManager;
 
     enum GeneratorState {
         NULL,
@@ -87,13 +87,10 @@ contract GeneratorRegistry is
 
     struct Generator {
         address rewardAddress;
-        uint256 totalStake;
         uint256 sumOfComputeAllocations;
         uint256 computeConsumed;
-        uint256 stakeLocked;
         uint256 activeMarketplaces;
         uint256 declaredCompute;
-        uint256 intendedStakeUtilization;
         uint256 intendedComputeUtilization;
         bytes generatorData;
     }
@@ -110,7 +107,7 @@ contract GeneratorRegistry is
 
     //-------------------------------- Events end --------------------------------//
 
-    event RegisteredGenerator(address indexed generator, uint256 initialCompute, uint256 initialStake);
+    event RegisteredGenerator(address indexed generator, uint256 initialCompute);
     event DeregisteredGenerator(address indexed generator);
 
     event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
@@ -121,18 +118,12 @@ contract GeneratorRegistry is
 
     event AddIvsKey(uint256 indexed marketId, address indexed signer);
 
-    event AddedStake(address indexed generator, uint256 amount);
-    event RequestStakeDecrease(address indexed generator, uint256 intendedUtilization);
-    event RemovedStake(address indexed generator, uint256 amount);
-
     event IncreasedCompute(address indexed generator, uint256 compute);
     event RequestComputeDecrease(address indexed generator, uint256 intendedUtilization);
     event DecreaseCompute(address indexed generator, uint256 compute);
 
-    event StakeLockImposed(address indexed generator, uint256 stake);
     event ComputeLockImposed(address indexed generator, uint256 stake);
 
-    event StakeLockReleased(address indexed generator, uint256 stake);
     event ComputeLockReleased(address indexed generator, uint256 stake);
 
     //-------------------------------- Events end --------------------------------//
@@ -154,7 +145,6 @@ contract GeneratorRegistry is
     function register(
         address rewardAddress,
         uint256 declaredCompute,
-        uint256 initialStake,
         bytes memory generatorData
     ) external nonReentrant {
         address _generatorAddress = _msgSender();
@@ -171,22 +161,15 @@ contract GeneratorRegistry is
 
         generatorRegistry[_generatorAddress] = Generator(
             rewardAddress,
-            initialStake,
-            0,
             0,
             0,
             0,
             declaredCompute,
             EXPONENT,
-            EXPONENT,
             generatorData
         );
 
-        // optional to stake during registration itself
-        if (initialStake != 0) {
-            STAKING_TOKEN.safeTransferFrom(_generatorAddress, address(this), initialStake);
-        }
-        emit RegisteredGenerator(_generatorAddress, declaredCompute, initialStake);
+        emit RegisteredGenerator(_generatorAddress, declaredCompute);
     }
 
     /**
@@ -298,95 +281,9 @@ contract GeneratorRegistry is
     }
 
     /**
-     * @notice Add/Increase stake
-     */
-    function stake(address generatorAddress, uint256 amount) external override nonReentrant returns (uint256) {
-        Generator storage generator = generatorRegistry[generatorAddress];
-        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
-            revert Error.InvalidGenerator();
-        }
-
-        if (amount == 0) {
-            revert Error.CannotBeZero();
-        }
-
-        STAKING_TOKEN.safeTransferFrom(_msgSender(), address(this), amount);
-        generator.totalStake += amount;
-
-        emit AddedStake(generatorAddress, amount);
-        return generator.totalStake;
-    }
-
-    /**
-     * @notice Notify matching engine about stake reduction. This will stop matching engine from assigning new tasks till the locked stake is down
-     * @param stakeToReduce Stake to Reduce
-     */
-    function intendToReduceStake(uint256 stakeToReduce) external override {
-        address _generatorAddress = _msgSender();
-        Generator storage generator = generatorRegistry[_generatorAddress];
-
-        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0 || stakeToReduce == 0) {
-            revert Error.CannotBeZero();
-        }
-
-        // if request is already in place, this will ICU will be less than EXP (as per design)
-        if (generator.intendedComputeUtilization != EXPONENT) {
-            revert Error.RequestAlreadyInPlace();
-        }
-
-        // new utilization after update
-        uint256 newTotalStake = generator.totalStake - stakeToReduce;
-
-        uint256 newUtilization = (newTotalStake * EXPONENT) / generator.totalStake;
-
-        generator.intendedStakeUtilization = newUtilization;
-
-        unstakeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
-        emit RequestStakeDecrease(_generatorAddress, newUtilization);
-    }
-
-    /**
-     * @notice Free up the unused stake. intendToReduceStake must have been called before this function
-     */
-    function unstake(address to) external override nonReentrant {
-        address generatorAddress = _msgSender();
-
-        Generator storage generator = generatorRegistry[generatorAddress];
-        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
-            revert Error.InvalidGenerator();
-        }
-
-        if (generator.intendedStakeUtilization == EXPONENT) {
-            revert Error.UnstakeRequestNotInPlace();
-        }
-
-        uint256 newTotalStake = (generator.intendedStakeUtilization * generator.totalStake) / EXPONENT;
-
-        uint256 amountToTransfer = generator.totalStake - newTotalStake;
-
-        // prevent removing amount unless existing stake is not released
-        if (newTotalStake < generator.stakeLocked) {
-            revert Error.InsufficientStakeToLock();
-        }
-
-        // amountToTransfer will be non-zero
-        STAKING_TOKEN.safeTransfer(to, amountToTransfer);
-
-        generator.totalStake = newTotalStake;
-        generator.intendedStakeUtilization = EXPONENT;
-
-        if (!(block.number >= unstakeRequestBlock[generatorAddress] && unstakeRequestBlock[generatorAddress] != 0)) {
-            revert Error.ReductionRequestNotValid();
-        }
-
-        delete unstakeRequestBlock[generatorAddress];
-        emit RemovedStake(generatorAddress, amountToTransfer);
-    }
-
-    /**
      * @notice Deregister the generator
      */
-    function deregister(address refundAddress) external nonReentrant {
+    function deregister() external nonReentrant {
         address _generatorAddress = _msgSender();
         Generator memory generator = generatorRegistry[_generatorAddress];
 
@@ -394,7 +291,6 @@ contract GeneratorRegistry is
             revert Error.CannotLeaveWithActiveMarket();
         }
 
-        STAKING_TOKEN.safeTransfer(refundAddress, generator.totalStake);
         delete generatorRegistry[_generatorAddress];
 
         emit DeregisteredGenerator(_generatorAddress);
@@ -567,17 +463,6 @@ contract GeneratorRegistry is
         return maxUsableCompute - generator.computeConsumed;
     }
 
-    function _maxReducableStake(address generatorAddress) internal view returns (uint256) {
-        Generator memory generator = generatorRegistry[generatorAddress];
-
-        uint256 maxUsableStake = (generator.totalStake * generator.intendedStakeUtilization) / EXPONENT;
-        if (maxUsableStake < generator.stakeLocked) {
-            return 0;
-        }
-
-        return maxUsableStake - generator.stakeLocked;
-    }
-
     function leaveMarketplaces(uint256[] calldata marketIds) external {
         for (uint256 index = 0; index < marketIds.length; index++) {
             // generatorAddress = _msgSender();
@@ -655,10 +540,8 @@ contract GeneratorRegistry is
      */
     function slashGenerator(
         address generatorAddress,
-        uint256 marketId,
-        uint256 slashingAmount,
-        address rewardAddress
-    ) external onlyRole(PROOF_MARKET_PLACE_ROLE) returns (uint256) {
+        uint256 marketId
+    ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
 
         // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
@@ -672,20 +555,13 @@ contract GeneratorRegistry is
 
         info.activeRequests--;
 
-        generator.totalStake -= slashingAmount;
-        generator.stakeLocked -= slashingAmount;
-
         generator.computeConsumed -= info.computePerRequestRequired;
-
-        STAKING_TOKEN.safeTransfer(rewardAddress, slashingAmount);
-
-        return generator.totalStake;
     }
 
     function assignGeneratorTask(
+        uint256 askId,
         address generatorAddress,
-        uint256 marketId,
-        uint256 stakeToLock
+        uint256 marketId
     ) external nonReentrant onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
 
@@ -704,22 +580,17 @@ contract GeneratorRegistry is
             revert Error.MaxParallelRequestsPerMarketExceeded();
         }
 
-        uint256 availableStake = _maxReducableStake(generatorAddress);
-
-        if (availableStake < stakeToLock) {
-            revert Error.InsufficientStakeToLock();
-        }
-
         uint256 computeConsumed = info.computePerRequestRequired;
-        generator.stakeLocked += stakeToLock;
         generator.computeConsumed += computeConsumed;
 
-        emit StakeLockImposed(generatorAddress, stakeToLock);
+        IStakingManager(stakingManager).onJobCreation(askId, generatorAddress);
+
         emit ComputeLockImposed(generatorAddress, computeConsumed);
         info.activeRequests++;
     }
 
     function completeGeneratorTask(
+        uint256 askId,
         address generatorAddress,
         uint256 marketId,
         uint256 stakeToRelease
@@ -736,10 +607,10 @@ contract GeneratorRegistry is
         GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
 
         uint256 computeReleased = info.computePerRequestRequired;
-        generator.stakeLocked -= stakeToRelease;
         generator.computeConsumed -= computeReleased;
 
-        emit StakeLockReleased(generatorAddress, stakeToRelease);
+        IStakingManager(stakingManager).onJobCompletion(askId, generatorAddress, stakeToRelease);
+
         emit ComputeLockReleased(generatorAddress, computeReleased);
 
         info.activeRequests--;
