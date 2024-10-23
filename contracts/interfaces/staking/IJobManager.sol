@@ -23,6 +23,7 @@ interface IJobManager {
     event TransmitterFeeRewardClaimed(address indexed transmitter, uint256 feeRewardAmount);
 
     function operatorFeeRewards(address _operator) external view returns (uint256);
+
     function transmitterFeeRewards(address _transmitter) external view returns (uint256);
     
     function createJob(uint256 _jobId, address _requester, address _operator, uint256 _feeAmount) external;
@@ -35,9 +36,9 @@ interface IJobManager {
 
     function operatorRewardShares(address _operator) external view returns (uint256);
 
-    function claimOperatorFeeReward(address _operator) external;
+    function claimOperatorFeeReward() external;
 
-    function claimTransmitterFeeReward(address _transmitter) external;
+    function claimTransmitterFeeReward() external;
 
     function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external;
     

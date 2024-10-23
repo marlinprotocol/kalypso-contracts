@@ -867,22 +867,23 @@ contract KalypsoStakingTest is Test, TestSetup {
         uint256 transmitterCFeeTokenBalanceBefore = IERC20(feeToken).balanceOf(transmitterC);
 
         vm.prank(operatorA);
-        IJobManager(jobManager).claimOperatorFeeReward(operatorA);
+        
+        IJobManager(jobManager).claimOperatorFeeReward();
 
         vm.prank(operatorB);
-        IJobManager(jobManager).claimOperatorFeeReward(operatorB);  
+        IJobManager(jobManager).claimOperatorFeeReward();  
 
         vm.prank(operatorC);
-        IJobManager(jobManager).claimOperatorFeeReward(operatorC);
+        IJobManager(jobManager).claimOperatorFeeReward();
 
         vm.prank(transmitterA);
-        IJobManager(jobManager).claimTransmitterFeeReward(transmitterA);
+        IJobManager(jobManager).claimTransmitterFeeReward();
 
         vm.prank(transmitterB);
-        IJobManager(jobManager).claimTransmitterFeeReward(transmitterB);
+        IJobManager(jobManager).claimTransmitterFeeReward();
 
         vm.prank(transmitterC);
-        IJobManager(jobManager).claimTransmitterFeeReward(transmitterC);
+        IJobManager(jobManager).claimTransmitterFeeReward();
 
         uint256 operatorAFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(operatorA);
         uint256 operatorBFeeTokenBalanceAfter = IERC20(feeToken).balanceOf(operatorB);

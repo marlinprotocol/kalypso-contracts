@@ -56,6 +56,7 @@ contract JobManager is
     mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
 
     mapping(address operator => uint256 feeReward) public operatorFeeRewards;
+
     mapping(address transmitter => uint256 feeReward) public transmitterFeeRewards;
 
     /*===================================================================================================================*/
@@ -180,24 +181,24 @@ contract JobManager is
         }
     }
 
-    function claimOperatorFeeReward(address _operator) external nonReentrant {
-        uint256 feeReward = operatorFeeRewards[_operator];
+    function claimOperatorFeeReward() external nonReentrant {
+        uint256 feeReward = operatorFeeRewards[msg.sender];
         require(feeReward > 0, "No fee reward to claim");
 
-        operatorFeeRewards[_operator] = 0;
-        IERC20(feeToken).safeTransfer(_operator, feeReward);
+        operatorFeeRewards[msg.sender] = 0;
+        IERC20(feeToken).safeTransfer(msg.sender, feeReward);
 
-        emit OperatorFeeRewardClaimed(_operator, feeReward);
+        emit OperatorFeeRewardClaimed(msg.sender, feeReward);
     }
 
-    function claimTransmitterFeeReward(address _transmitter) external nonReentrant {
-        uint256 feeReward = transmitterFeeRewards[_transmitter];
+    function claimTransmitterFeeReward() external nonReentrant {
+        uint256 feeReward = transmitterFeeRewards[msg.sender];
         require(feeReward > 0, "No fee reward to claim");
 
-        transmitterFeeRewards[_transmitter] = 0;
-        IERC20(feeToken).safeTransfer(_transmitter, feeReward);
+        transmitterFeeRewards[msg.sender] = 0;
+        IERC20(feeToken).safeTransfer(msg.sender, feeReward);
 
-        emit TransmitterFeeRewardClaimed(_transmitter, feeReward);
+        emit TransmitterFeeRewardClaimed(msg.sender, feeReward);
     }
 
     /*===================================================================================================================*/
