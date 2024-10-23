@@ -1,7 +1,4 @@
 {
   "solidity.compileUsingRemoteVersion": "v0.8.19+commit.7dd6d404",
-  "cSpell.words": [
-    "Groth",
-    "typechain"
-  ]
+  "cSpell.words": ["Groth", "typechain"]
 }

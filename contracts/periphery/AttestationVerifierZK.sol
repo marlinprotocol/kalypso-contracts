@@ -103,14 +103,21 @@ contract AttestationVerifierZK is
     error AttestationVerifierAttestationTooOld();
 
     function _verify(bytes memory proof, Attestation memory attestation) internal view {
-        // TODO
-        // Steps to do in verification
+        // Receipt memory receipt = abi.decode(proof, (Receipt));
+        (bytes memory seal, bytes32 imageId, bytes memory journal) = abi.decode(proof, (bytes, bytes32, bytes));
 
-        // 1. Receipt memory receipt = abi.decode(proof, (Receipt));
-        // 2. check if receipt and attestation belong to each other, else revert
-        // 3. Use RISC0_VERIFIER to check if the receipt is right, else revert
+        // Use RISC0_VERIFIER to check if the receipt is right, else revert
+        RISC0_VERIFIER.verify(seal, imageId, sha256(journal));
 
-        revert("TODO");
+        // check if receipt and attestation belong to each other, else revert
+        bytes memory attestationBytes = abi.encode(
+            attestation.enclavePubKey,
+            attestation.PCR0,
+            attestation.PCR1,
+            attestation.PCR2,
+            attestation.timestampInMilliseconds
+        );
+        if(!(keccak256(journal) == keccak256(attestationBytes))) revert AttestationVerifierAttestationTooOld();
     }
 
     // using bytes memory proof instead of Receipt memory receipt, because interface demands so
