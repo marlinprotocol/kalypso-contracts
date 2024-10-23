@@ -1,6 +1,6 @@
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 import { expect } from "chai";
-import { AbiCoder, BytesLike, Signer, ZeroAddress, sha256 } from "ethers";
+import { AbiCoder, Signer, ZeroAddress } from "ethers";
 import * as attestation from "../helpers/sample/risc0/attestation.json";
 
 import {
@@ -8,9 +8,7 @@ import {
   RiscZeroGroth16Verifier__factory,
   AttestationVerifierZK,
   AttestationVerifierZK__factory,
-  IAttestationVerifier,
 } from "../typechain-types";
-import { check } from "prettier";
 
 describe.only("Attestation verifier for RISC0, testing", () => {
   let signers: Signer[];
@@ -58,6 +56,7 @@ describe.only("Attestation verifier for RISC0, testing", () => {
     let verification_bytes = new AbiCoder().encode(types, [proofBytes, attestation_object]);
     console.log("verification_bytes", verification_bytes);
     // await expect(attestationVerifierZK["verify(bytes)"](verification_bytes)).to.not.reverted;
+    await attestationVerifierZK["verify(bytes)"](verification_bytes);
     // await expect(riscZeroVerifier.verify(seal, imageId, journal)).to.not.reverted;
     await riscZeroVerifier.verify(seal, imageId, journal);
   });
