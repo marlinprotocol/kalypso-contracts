@@ -18,6 +18,8 @@ import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
 import "./lib/Error.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 contract ProofMarketplace is
     Initializable,
     ContextUpgradeable,
@@ -86,6 +88,9 @@ contract ProofMarketplace is
     //-------------------------------- Constants and Immutable start --------------------------------//
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
+    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE = keccak256("SYMBIOTIC_STAKING_REWARD_ROLE");
+
     uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -118,6 +123,9 @@ contract ProofMarketplace is
     mapping(SecretType => uint256) public minProvingTime;
 
     mapping(address => uint256) public claimableAmount;
+
+    // operator deducts comission from inflation reward
+    mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -184,6 +192,11 @@ contract ProofMarketplace is
     event AddExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
     event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
     event RemoveExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
+
+    event OperatorRewardShareSet(address indexed operator, uint256 rewardShare);
+    event OperatorFeeRewardAdded(address indexed operator, uint256 feeRewardAmount);
+
+    event TransmitterFeeRewardAdded(address indexed transmitter, uint256 feeRewardAmount);
 
     //-------------------------------- Events end --------------------------------//
 
@@ -389,7 +402,8 @@ contract ProofMarketplace is
         uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
-        _increaseClaimableAmount(TREASURY, platformFee);
+        // _increaseClaimableAmount(TREASURY, platformFee);
+        PAYMENT_TOKEN.safeTransfer(TREASURY, platformFee);
 
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
@@ -539,7 +553,7 @@ contract ProofMarketplace is
         askWithState.generator = generator;
 
         uint256 generatorAmountToLock = _slashingPenalty(askWithState.ask.marketId);
-        GENERATOR_REGISTRY.assignGeneratorTask(generator, askWithState.ask.marketId, generatorAmountToLock);
+        GENERATOR_REGISTRY.assignGeneratorTask(askId, generator, askWithState.ask.marketId, generatorAmountToLock);
         emit TaskCreated(askId, generator, new_acl);
     }
 
@@ -554,7 +568,8 @@ contract ProofMarketplace is
         AskWithState storage askWithState = listOfAsk[askId];
         askWithState.state = AskState.COMPLETE;
 
-        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
+        // _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
+        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
 
         emit AskCancelled(askId);
     }
@@ -594,11 +609,15 @@ contract ProofMarketplace is
         uint256 toTreasury = askWithState.ask.reward - minRewardForGenerator;
 
         // transfer the reward to generator
-        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
+        // _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        
         // transfer the amount to treasury collection
-        _increaseClaimableAmount(TREASURY, toTreasury);
+        // _increaseClaimableAmount(TREASURY, toTreasury);
+        PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
 
-        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, _penalty);
+        // TODO: transfer 80% of minRewardForGenerator here
+        GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
         emit InvalidInputsDetected(askId);
     }
 
@@ -674,30 +693,36 @@ contract ProofMarketplace is
 
         uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
 
+        // TODO: only replace for generator rewards
+        // TODO: add operatorRewardShares mapping here
         // reward to generator
-        _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
+        uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
+        // _increaseClaimableAmount(generatorRewardAddress, minRewardForGenerator);
         // fraction of amount back to requestor
-        _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
+        // _increaseClaimableAmount(askWithState.ask.refundAddress, toBackToRequestor);
+        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToRequestor);
 
-        uint256 generatorAmountToRelease = _slashingPenalty(marketId);
-        GENERATOR_REGISTRY.completeGeneratorTask(askWithState.generator, marketId, generatorAmountToRelease);
+        // TODO: consider setting slashingPenalty per market
+        // uint256 generatorAmountToRelease = _slashingPenalty(marketId);
+        // uint256 feeRewards = 80%
+        GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
         emit ProofCreated(askId, proof);
     }
 
     /**
      * @notice Slash Generator for deadline crossed requests
      */
-    function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant returns (uint256) {
+    function slashGenerator(uint256 askId, address rewardAddress) external nonReentrant {
         if (getAskState(askId) != AskState.DEADLINE_CROSSED) {
             revert Error.ShouldBeInCrossedDeadlineState(askId);
         }
-        return _slashGenerator(askId, rewardAddress);
+        _slashGenerator(askId, rewardAddress);
     }
 
     /**
      * @notice Generator can discard assigned request if he choses to. This will however result in slashing
      */
-    function discardRequest(uint256 askId) external nonReentrant returns (uint256) {
+    function discardRequest(uint256 askId) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
         if (getAskState(askId) != AskState.ASSIGNED) {
             revert Error.ShouldBeInAssignedState(askId);
@@ -705,18 +730,20 @@ contract ProofMarketplace is
         if (askWithState.generator != _msgSender()) {
             revert Error.OnlyGeneratorCanDiscardRequest(askId);
         }
-        return _slashGenerator(askId, TREASURY);
+        _slashGenerator(askId, TREASURY);
     }
 
-    function _slashGenerator(uint256 askId, address rewardAddress) internal returns (uint256) {
+    function _slashGenerator(uint256 askId, address rewardAddress) internal {
         AskWithState storage askWithState = listOfAsk[askId];
 
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
-        _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
+        // TODO: safeTransfer
+        // _increaseClaimableAmount(askWithState.ask.refundAddress, askWithState.ask.reward);
+        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
         emit ProofNotGenerated(askId);
-        return GENERATOR_REGISTRY.slashGenerator(askWithState.generator, marketId, _slashingPenalty(marketId), rewardAddress);
+        GENERATOR_REGISTRY.slashGenerator(askId, askWithState.generator, marketId, _slashingPenalty(marketId), rewardAddress);
     }
 
     function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
@@ -762,6 +789,35 @@ contract ProofMarketplace is
 
     function marketCounter() public view returns (uint256) {
         return marketData.length;
+    }
+
+    function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        operatorRewardShares[_operator] = _rewardShare;
+        emit OperatorRewardShareSet(_operator, _rewardShare);
+    }
+
+    function _distributeOperatorFeeReward(address _operator, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
+        // calculate operator fee reward
+        uint256 operatorFeeReward = Math.mulDiv(_feePaid, operatorRewardShares[_operator], 1e18);
+        feeRewardRemaining = _feePaid - operatorFeeReward;
+
+        // update operator fee reward
+        // operatorFeeRewards[_operator] += operatorFeeReward;
+        _increaseClaimableAmount(_operator, operatorFeeReward);
+
+        emit OperatorFeeRewardAdded(_operator, operatorFeeReward);
+    }
+
+    /// @dev updated by SymbioticStaking contract when job is completed
+    function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external onlyRole(SYMBIOTIC_STAKING_ROLE) {
+        // transmitterFeeRewards[_transmitter] += _feeRewardAmount;
+        _increaseClaimableAmount(_transmitter, _feeRewardAmount);
+        emit TransmitterFeeRewardAdded(_transmitter, _feeRewardAmount);
+    }
+
+    /// @dev Only SymbioticStaking and SymbioticStakingReward can call this function
+    function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
+        IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
 
     // for further increase
