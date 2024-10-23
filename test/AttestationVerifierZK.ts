@@ -10,6 +10,7 @@ import {
   AttestationVerifierZK__factory,
   IAttestationVerifier,
 } from "../typechain-types";
+import { check } from "prettier";
 
 describe.only("Attestation verifier for RISC0, testing", () => {
   let signers: Signer[];
@@ -40,6 +41,10 @@ describe.only("Attestation verifier for RISC0, testing", () => {
     let claimDigest = "0x35a456463643fd270b2a41d2809cef83ebeff225eaffe9fbfe565dc6555dd1e5";
     let imageId = "0xbe8b537475a76008f0d8fc4257a6e79f98571aeaa12651598394ea18a0a3bfd6";
     let journal = "0x56a90e0d02e501fc9f28de7f194c6372ecb1ee7c26bdc8df482ec2a77721ccdb";
+
+    // Checking journal bytes conversion: Valid
+    // let checker = "0x00000192ba459a73189038eccf28a3a098949e402f3b3d86a876f4915c5b02d546abb5d8c507ceb1755b8192d8cfca66e8f226160ca4c7a65d3938eb05288e20a981038b1861062ff4174884968a39aee5982b312894e60561883576cc7381d1a7d05b809936bd166c3ef363c488a9a86faa63a44653fd806e645d4540b40540876f3b811fc1bceecf036a4703f07587c501ee45bb56a1aa04fc0254eba608c1f36870e29ada90be46383292736e894bfff672d989444b5051e534a4b1f6dbe3c0bc581a32b7b176070ede12d69a3fea211b66e752cf7dd1dd095f6f1370f4170843d9dc100121e4cf63012809664487c9796284304dc53ff4e646f8b0071d5ba75931402522cc6a5c42a84a6fea238864e5ac9a0e12d83bd36d0c8109d3ca2b699fce8d082bf313f5d2ae249bb275b6b6e91e0fcd9262f4bb0000";
+    // console.log("Checker test: ", sha256(checker));
 
     const type_input = ["bytes", "bytes32", "bytes32"];
     let proofBytes = new AbiCoder().encode(type_input, [seal, imageId, journal]);
