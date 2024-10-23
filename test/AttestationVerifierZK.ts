@@ -44,7 +44,7 @@ describe.only("Attestation verifier for RISC0, testing", () => {
     const type_input = ["bytes", "bytes32", "bytes32"];
     let proofBytes = new AbiCoder().encode(type_input, [seal, imageId, journal]);
     console.log("proofBytes ", proofBytes);
-    let attestation_object = attestation; // TODO: this attestation imported seems to be wrong(enclave pubkey is 4400 long, which is not possible, also PCRs seems wrong)
+    let attestation_object = attestation;
     const types = [
       "bytes",
       "tuple(bytes enclavePubKey, bytes PCR0, bytes PCR1, bytes PCR2, uint256 timestampInMilliseconds)"
