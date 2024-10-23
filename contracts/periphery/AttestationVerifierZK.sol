@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
-import "lib/risc0-ethereum/contracts/src/groth16/RiscZeroGroth16Verifier.sol";
+import "../periphery/risc0/RiscZeroGroth16Verifier.sol";
 
 
 contract AttestationVerifierZK is
@@ -64,17 +64,7 @@ contract AttestationVerifierZK is
         __UUPSUpgradeable_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-
-        for (uint i = 0; i < enclaveKeys.length; i++) {
-            bytes32 imageId = _whitelistEnclaveImage(images[i]);
-            _whitelistEnclaveKey(enclaveKeys[i], imageId);
-        }
     }
-
-    //-------------------------------- Initializer start --------------------------------//
-
-    //-------------------------------- Declarations start --------------------------------//
-
     struct EnclaveImage {
         bytes PCR0;
         bytes PCR1;
@@ -82,12 +72,8 @@ contract AttestationVerifierZK is
     }
 
     RiscZeroGroth16Verifier public immutable RISC0_VERIFIER;
-    // ImageId -> image details
-    mapping(bytes32 => EnclaveImage) public whitelistedImages;
-    // enclaveKey -> ImageId
-    mapping(address => bytes32) public verifiedKeys;
 
-    uint256[48] private __gap_1;
+    uint256[50] private __gap_1;
 
     //-------------------------------- Declarations end --------------------------------//
 
@@ -107,68 +93,6 @@ contract AttestationVerifierZK is
     event EnclaveKeyRevoked(bytes indexed enclavePubKey);
     event EnclaveKeyVerified(bytes indexed enclavePubKey, bytes32 indexed imageId);
 
-    function _pubKeyToAddress(bytes memory pubKey) internal pure returns (address) {
-        if (!(pubKey.length == 64)) revert AttestationVerifierPubkeyLengthInvalid();
-
-        bytes32 hash = keccak256(pubKey);
-        return address(uint160(uint256(hash)));
-    }
-
-    function pubKeyToAddress(bytes memory pubKey) public pure returns (address) {
-        return _pubKeyToAddress(pubKey);
-    }
-
-    function _whitelistEnclaveImage(EnclaveImage memory image) internal returns (bytes32) {
-        if (!(image.PCR0.length == 48 && image.PCR1.length == 48 && image.PCR2.length == 48))
-            revert AttestationVerifierPCRsInvalid();
-
-        bytes32 imageId = keccak256(abi.encodePacked(image.PCR0, image.PCR1, image.PCR2));
-        if (!(whitelistedImages[imageId].PCR0.length == 0)) revert AttestationVerifierImageAlreadyWhitelisted();
-        whitelistedImages[imageId] = EnclaveImage(image.PCR0, image.PCR1, image.PCR2);
-        emit EnclaveImageWhitelisted(imageId, image.PCR0, image.PCR1, image.PCR2);
-        return imageId;
-    }
-
-    function _revokeEnclaveImage(bytes32 imageId) internal {
-        if (!(whitelistedImages[imageId].PCR0.length != 0)) revert AttestationVerifierImageNotWhitelisted();
-        delete whitelistedImages[imageId];
-        emit EnclaveImageRevoked(imageId);
-    }
-
-    function _whitelistEnclaveKey(bytes memory enclavePubKey, bytes32 imageId) internal {
-        if (!(whitelistedImages[imageId].PCR0.length != 0)) revert AttestationVerifierImageNotWhitelisted();
-        address enclaveKey = _pubKeyToAddress(enclavePubKey);
-        if (!(verifiedKeys[enclaveKey] == bytes32(0))) revert AttestationVerifierKeyAlreadyVerified();
-        verifiedKeys[enclaveKey] = imageId;
-        emit EnclaveKeyWhitelisted(enclavePubKey, imageId);
-    }
-
-    function _revokeEnclaveKey(bytes memory enclavePubKey) internal {
-        address enclaveKey = _pubKeyToAddress(enclavePubKey);
-        if (!(verifiedKeys[enclaveKey] != bytes32(0))) revert AttestationVerifierKeyNotVerified();
-        delete verifiedKeys[enclaveKey];
-        emit EnclaveKeyRevoked(enclavePubKey);
-    }
-
-    function whitelistEnclaveImage(
-        bytes memory PCR0,
-        bytes memory PCR1,
-        bytes memory PCR2
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _whitelistEnclaveImage(EnclaveImage(PCR0, PCR1, PCR2));
-    }
-
-    function revokeEnclaveImage(bytes32 imageId) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        return _revokeEnclaveImage(imageId);
-    }
-
-    function whitelistEnclaveKey(bytes memory enclavePubKey, bytes32 imageId) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        return _whitelistEnclaveKey(enclavePubKey, imageId);
-    }
-
-    function revokeEnclaveKey(bytes memory enclavePubKey) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        return _revokeEnclaveKey(enclavePubKey);
-    }
 
     //-------------------------------- Admin methods end --------------------------------//
 
@@ -178,71 +102,25 @@ contract AttestationVerifierZK is
 
     error AttestationVerifierAttestationTooOld();
 
-    function _verifyEnclaveKey(bytes memory signature, IAttestationVerifier.Attestation memory attestation) internal {
-        if (!(attestation.timestampInMilliseconds / 1000 > block.timestamp - MAX_AGE))
-            revert AttestationVerifierAttestationTooOld();
-        bytes32 imageId = keccak256(abi.encodePacked(attestation.PCR0, attestation.PCR1, attestation.PCR2));
-        if (!(whitelistedImages[imageId].PCR0.length != 0)) revert AttestationVerifierImageNotWhitelisted();
+    function _verify(bytes memory proof, Attestation memory attestation) internal view {
+        // TODO
+        // Steps to do in verification
 
-        address enclaveKey = pubKeyToAddress(attestation.enclavePubKey);
-        if (!(verifiedKeys[enclaveKey] == bytes32(0))) revert AttestationVerifierKeyAlreadyVerified();
+        // 1. Receipt memory receipt = abi.decode(proof, (Receipt));
+        // 2. check if receipt and attestation belong to each other, else revert
+        // 3. Use RISC0_VERIFIER to check if the receipt is right, else revert
 
-        _verify(signature, attestation);
-
-        verifiedKeys[enclaveKey] = imageId;
-        emit EnclaveKeyVerified(attestation.enclavePubKey, imageId);
+        revert("TODO");
     }
 
-    function verifyEnclaveKey(bytes memory signature, Attestation memory attestation) external {
-        return _verifyEnclaveKey(signature, attestation);
-    }
-
-    //-------------------------------- Open methods end -------------------------------//
-
-    //-------------------------------- Read only methods start -------------------------------//
-
-    bytes32 private constant DOMAIN_SEPARATOR =
-        keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version)"),
-                keccak256("marlin.oyster.AttestationVerifier"),
-                keccak256("1")
-            )
-        );
-
-    bytes32 private constant ATTESTATION_TYPEHASH =
-        keccak256("Attestation(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)");
-
-    function _verify(bytes memory signature, Attestation memory attestation) internal view {
-        bytes32 hashStruct = keccak256(
-            abi.encode(
-                ATTESTATION_TYPEHASH,
-                keccak256(attestation.enclavePubKey),
-                keccak256(attestation.PCR0),
-                keccak256(attestation.PCR1),
-                keccak256(attestation.PCR2),
-                attestation.timestampInMilliseconds
-            )
-        );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashStruct));
-
-        address signer = ECDSA.recover(digest, signature);
-        bytes32 imageId = verifiedKeys[signer];
-
-        (bytes memory seal, bytes32 guestId, bytes32 journalDigest) = abi.decode(signature, (bytes, bytes32, bytes32));
-        RISC0_VERIFIER.verify(seal, guestId, journalDigest);
-
-        if (!(imageId != bytes32(0))) revert AttestationVerifierKeyNotVerified();
-        if (!(whitelistedImages[imageId].PCR0.length != 0)) revert AttestationVerifierImageNotWhitelisted();
-    }
-
-    function verify(bytes memory signature, Attestation memory attestation) external view {
-        _verify(signature, attestation);
+    // using bytes memory proof instead of Receipt memory receipt, because interface demands so
+    function verify(bytes memory proof, Attestation memory attestation) external view {
+        _verify(proof, attestation);
     }
 
     function verify(bytes memory data) external view {
-        (bytes memory signature, Attestation memory attestation) = abi.decode(data, (bytes, Attestation));
-        _verify(signature, attestation);
+        (bytes memory proof, Attestation memory attestation) = abi.decode(data, (bytes, Attestation));
+        _verify(proof, attestation);
     }
 
     //-------------------------------- Read only methods end -------------------------------//
