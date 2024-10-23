@@ -4,6 +4,8 @@
         "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
         "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
         "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+        "attestation_verifier_ZK": "0xbDB8F2Cc624625B80FCCaBEF04BC5420eF232dfB",
+        "RiscZeroGroth16Verifier": "0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF",
         "entity_registry": "0x002064F4d224EA4F90e9A74B5fE3f3812886c6DF",
         "generator_registry": "0x5ce3e1010028C4F5687356D721e3e2B6DcEA7C25",
         "dispute": "0x41fD92A4Bc74F8B9f46e1fA0825C40aeD5AFDb92",
