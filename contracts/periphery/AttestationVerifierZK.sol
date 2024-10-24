@@ -104,10 +104,10 @@ contract AttestationVerifierZK is
 
     function _verify(bytes memory proof, Attestation memory attestation) internal view {
         // Receipt memory receipt = abi.decode(proof, (Receipt));
-        (bytes memory seal, bytes32 imageId, bytes32 journal) = abi.decode(proof, (bytes, bytes32, bytes32));
+        (bytes memory seal, bytes32 imageId, bytes memory journal) = abi.decode(proof, (bytes, bytes32, bytes));
 
         // Use RISC0_VERIFIER to check if the receipt is right, else revert
-        RISC0_VERIFIER.verify(seal, imageId, journal);
+        RISC0_VERIFIER.verify(seal, imageId, sha256(journal));
 
         // check if receipt and attestation belong to each other, else revert
         bytes memory attestationBytes = abi.encode(
@@ -117,7 +117,7 @@ contract AttestationVerifierZK is
             attestation.PCR2,
             attestation.timestampInMilliseconds
         );
-        if(!(journal == sha256(attestationBytes))) revert AttestationVerifierAttestationTooOld();
+        if(!(sha256(journal) == sha256(attestationBytes))) revert AttestationVerifierAttestationTooOld();
     }
 
     // using bytes memory proof instead of Receipt memory receipt, because interface demands so
