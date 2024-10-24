@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
-import "../periphery/risc0/RiscZeroGroth16Verifier.sol";
+import "../periphery/risc0/interfaces/RiscZeroVerifierEmergencyStop.sol";
 
 
 contract AttestationVerifierZK is
@@ -27,7 +27,7 @@ contract AttestationVerifierZK is
     // disable all initializers and reinitializers
     // safeguard against takeover of the logic contract
     constructor(address _risc0Verifier) {
-        RISC0_VERIFIER = RiscZeroGroth16Verifier(_risc0Verifier);
+        RISC0_VERIFIER = RiscZeroVerifierEmergencyStop(_risc0Verifier);
         _disableInitializers();
     }
 
@@ -71,7 +71,7 @@ contract AttestationVerifierZK is
         bytes PCR2;
     }
 
-    RiscZeroGroth16Verifier public immutable RISC0_VERIFIER;
+    RiscZeroVerifierEmergencyStop public immutable RISC0_VERIFIER;
 
     uint256[50] private __gap_1;
 
@@ -100,24 +100,26 @@ contract AttestationVerifierZK is
 
     uint256 public constant MAX_AGE = 300;
 
-    error AttestationVerifierAttestationTooOld();
+    error AttestationVerifierAttestationTooOld(); 
 
     function _verify(bytes memory proof, Attestation memory attestation) internal view {
-        // Receipt memory receipt = abi.decode(proof, (Receipt));
         (bytes memory seal, bytes32 imageId, bytes memory journal) = abi.decode(proof, (bytes, bytes32, bytes));
 
         // Use RISC0_VERIFIER to check if the receipt is right, else revert
         RISC0_VERIFIER.verify(seal, imageId, sha256(journal));
 
-        // check if receipt and attestation belong to each other, else revert
-        bytes memory attestationBytes = abi.encode(
-            attestation.enclavePubKey,
-            attestation.PCR0,
-            attestation.PCR1,
-            attestation.PCR2,
-            attestation.timestampInMilliseconds
-        );
-        if(!(sha256(journal) == sha256(attestationBytes))) revert AttestationVerifierAttestationTooOld();
+        this._validateProofAndAttestation(journal, attestation);
+    }
+
+    function _validateProofAndAttestation(bytes calldata journal, Attestation memory attestation) public view {
+        if(!
+        (
+            (sha256(journal[8:56]) == sha256(attestation.PCR0)) && 
+            (sha256(journal[56:104]) == sha256(attestation.PCR1)) && 
+            (sha256(journal[104:152]) == sha256(attestation.PCR2)) && 
+            (sha256(journal[249:313]) == sha256(attestation.enclavePubKey))
+            )
+        ) revert AttestationVerifierAttestationTooOld();
     }
 
     // using bytes memory proof instead of Receipt memory receipt, because interface demands so
