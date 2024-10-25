@@ -518,7 +518,7 @@ contract GeneratorRegistry is
     /**
      * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE
      */
-    function slashGenerator(
+    function releaseGeneratorResources(
         address generatorAddress,
         uint256 marketId
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {

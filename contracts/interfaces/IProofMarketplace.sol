@@ -3,6 +3,9 @@
 pragma solidity ^0.8.0;
 
 interface IProofMarketplace {
+
+    function slashGenerator(uint256 askId) external;
+
     enum SecretType {
         NULL,
         CALLDATA,

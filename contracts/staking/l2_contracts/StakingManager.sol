@@ -10,7 +10,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /* Interfaces */
-import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
+import {IProofMarketplace} from "../../interfaces/IProofMarketplace.sol";
 // import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {IStakingPool} from "../../interfaces/staking/IStakingPool.sol";
@@ -43,7 +43,7 @@ contract StakingManager is
 
     EnumerableSet.AddressSet private stakingPoolSet;
 
-    address public jobManager;
+    address public proofMarketplace;
     address public symbioticStaking;
     // address public inflationRewardManager;
     address public feeToken;
@@ -62,8 +62,8 @@ contract StakingManager is
     /*=================================================== modifier ======================================================*/
     /*===================================================================================================================*/
 
-    modifier onlyJobManager() {
-        require(msg.sender == jobManager, "StakingManager: Only JobManager");
+    modifier onlyProofMarketplace() {
+        require(msg.sender == proofMarketplace, "StakingManager: Only ProofMarketplace");
         _;
     }
 
@@ -76,7 +76,7 @@ contract StakingManager is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeToken) public initializer {
+    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeToken) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -84,8 +84,8 @@ contract StakingManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_jobManager != address(0), "StakingManager: Invalid JobManager");
-        jobManager = _jobManager;
+        require(_proofMarketplace != address(0), "StakingManager: Invalid ProofMarketplace");
+        proofMarketplace = _proofMarketplace;
 
         require(_feeToken != address(0), "StakingManager: Invalid FeeToken");
         feeToken = _feeToken;
@@ -102,8 +102,8 @@ contract StakingManager is
     /*------------------------------------------------- Job Manager -----------------------------------------------------*/
 
     /// @notice lock stake for the job for all enabled pools
-    /// @dev called by JobManager contract when a job is created
-    function onJobCreation(uint256 _jobId, address _operator) external onlyJobManager {
+    /// @dev called by ProofMarketplace contract when a job is created
+    function onJobCreation(uint256 _jobId, address _operator) external onlyProofMarketplace {
         uint256 len = stakingPoolSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -115,7 +115,7 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyJobManager {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyProofMarketplace {
         // update pending inflation reward
         // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
 
@@ -142,9 +142,9 @@ contract StakingManager is
 
         // refund fee to the requester
         for(uint256 i = 0; i < _jobsSlashed.length; i++) {
-            // this can be done manually in the JobManager contract
+            // this can be done manually in the ProofMarketplace contract
             // refunds nothing if already refunded
-            IJobManager(jobManager).refundFee(_jobsSlashed[i].jobId);
+            IProofMarketplace(proofMarketplace).slashGenerator(_jobsSlashed[i].jobId);
         }
 
         uint256 len = stakingPoolSet.length();
@@ -198,10 +198,10 @@ contract StakingManager is
         emit StakingPoolRemoved(_stakingPool);
     }
 
-    function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        jobManager = _jobManager;
+    function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        proofMarketplace = _proofMarketplace;
 
-        emit JobManagerSet(_jobManager);
+        emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setSymbioticStaking(address _symbioticStaking) external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -32,7 +32,7 @@ interface IJobManager {
 
     function submitProofs(uint256[] calldata jobIds, bytes[] calldata proofs) external;
 
-    function refundFee(uint256 jobId) external;
+    // function refundFee(uint256 jobId) external;
 
     function operatorRewardShares(address _operator) external view returns (uint256);
 

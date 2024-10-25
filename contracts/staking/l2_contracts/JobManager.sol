@@ -170,7 +170,7 @@ contract JobManager is
     /// @notice Refund fee to the job requester
     /// @dev Can be called by the requester if the job is not completed by the deadline.
     /// @dev or when the job is slashed and the slash result is submitted in SymbioticStaking contract
-    function refundFee(uint256 _jobId) external nonReentrant {
+    function slashGenerator(uint256 _jobId) external nonReentrant {
         if (jobs[_jobId].feePaid > 0) {
             require(block.timestamp > jobs[_jobId].deadline, "Job not Expired");
 

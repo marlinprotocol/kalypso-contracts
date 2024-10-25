@@ -676,6 +676,7 @@ contract ProofMarketplace is
 
     /**
      * @notice Generator can discard assigned request if he choses to. This will however result in slashing
+        TODO: do we really require this?
      */
     function discardRequest(uint256 askId) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];
@@ -694,9 +695,12 @@ contract ProofMarketplace is
         askWithState.state = AskState.COMPLETE;
         uint256 marketId = askWithState.ask.marketId;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
-        emit ProofNotGenerated(askId);
-        GENERATOR_REGISTRY.slashGenerator(askWithState.generator, marketId);
+        if(askWithState.ask.reward != 0) {
+            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+            askWithState.ask.reward = 0;
+            emit ProofNotGenerated(askId);
+            GENERATOR_REGISTRY.releaseGeneratorResources(askWithState.generator, marketId);
+        }
     }
 
     function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
