@@ -15,6 +15,7 @@ import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 import "./ProofMarketplace.sol";
 import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
+import "./interfaces/IGeneratorRegistry.sol";
 
 contract GeneratorRegistry is
     Initializable,
@@ -22,7 +23,8 @@ contract GeneratorRegistry is
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    IGeneratorRegistry
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -105,30 +107,7 @@ contract GeneratorRegistry is
 
     //-------------------------------- State variables end --------------------------------//
 
-    //-------------------------------- Events end --------------------------------//
-
-    event RegisteredGenerator(address indexed generator, uint256 initialCompute);
-    event DeregisteredGenerator(address indexed generator);
-
-    event ChangedGeneratorRewardAddress(address indexed generator, address newRewardAddress);
-
-    event JoinedMarketplace(address indexed generator, uint256 indexed marketId, uint256 computeAllocation);
-    event RequestExitMarketplace(address indexed generator, uint256 indexed marketId);
-    event LeftMarketplace(address indexed generator, uint256 indexed marketId);
-
-    event AddIvsKey(uint256 indexed marketId, address indexed signer);
-
-    event IncreasedCompute(address indexed generator, uint256 compute);
-    event RequestComputeDecrease(address indexed generator, uint256 intendedUtilization);
-    event DecreaseCompute(address indexed generator, uint256 compute);
-
-    event ComputeLockImposed(address indexed generator, uint256 stake);
-
-    event ComputeLockReleased(address indexed generator, uint256 stake);
-
-    //-------------------------------- Events end --------------------------------//
-
-    function initialize(address _admin, address _proofMarketplace) public initializer {
+    function initialize(address _admin, address _proofMarketplace, address _stakingManager) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -137,6 +116,7 @@ contract GeneratorRegistry is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(PROOF_MARKET_PLACE_ROLE, _proofMarketplace);
         proofMarketplace = ProofMarketplace(_proofMarketplace);
+        stakingManager = _stakingManager;
     }
 
     /**

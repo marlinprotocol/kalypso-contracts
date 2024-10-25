@@ -17,6 +17,7 @@ import "./interfaces/IVerifier.sol";
 import "./EntityKeyRegistry.sol";
 import "./GeneratorRegistry.sol";
 import "./lib/Error.sol";
+import "./interfaces/IProofMarketplace.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -27,7 +28,8 @@ contract ProofMarketplace is
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    IProofMarketplace
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -146,12 +148,6 @@ contract ProofMarketplace is
         DEADLINE_CROSSED
     }
 
-    enum SecretType {
-        NULL,
-        CALLDATA,
-        EXTERNAL
-    }
-
     struct Ask {
         uint256 marketId;
         uint256 reward;
@@ -171,34 +167,6 @@ contract ProofMarketplace is
     }
 
     //-------------------------------- State variables end --------------------------------//
-
-    //-------------------------------- Events start --------------------------------//
-
-    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
-    event TaskCreated(uint256 indexed askId, address indexed generator, bytes new_acl);
-    // TODO: add ask ID also
-    event ProofCreated(uint256 indexed askId, bytes proof);
-    event ProofNotGenerated(uint256 indexed askId);
-
-    event InvalidInputsDetected(uint256 indexed askId);
-
-    event MarketplaceCreated(uint256 indexed marketId);
-
-    event AskCancelled(uint256 indexed askId);
-
-    event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
-    event UpdateMinProvingTime(SecretType indexed secretType, uint256 newProvingTime);
-    event AddExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
-    event AddExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
-    event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
-    event RemoveExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
-
-    event OperatorRewardShareSet(address indexed operator, uint256 rewardShare);
-    event OperatorFeeRewardAdded(address indexed operator, uint256 feeRewardAmount);
-
-    event TransmitterFeeRewardAdded(address indexed transmitter, uint256 feeRewardAmount);
-
-    //-------------------------------- Events end --------------------------------//
 
     function initialize(address _admin) public initializer {
         __Context_init_unchained();
