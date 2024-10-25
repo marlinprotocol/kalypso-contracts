@@ -11,7 +11,7 @@ import {
   AttestationVerifierZK__factory,
 } from "../typechain-types";
 
-describe.only("Attestation verifier for RISC0, testing", () => {
+describe("Attestation verifier for RISC0, testing", () => {
   let signers: Signer[];
   let admin: Signer;
 

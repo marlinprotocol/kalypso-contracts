@@ -32,7 +32,7 @@ import {
 } from "../helpers";
 import * as attestation from "../helpers/sample/risc0/attestation.json";
 
-describe.only("Proof Market Place for Attestation Verifier", () => {
+describe("Proof Market Place for Attestation Verifier", () => {
   let proofMarketplace: ProofMarketplace;
   let generatorRegistry: GeneratorRegistry;
   let tokenToUse: MockToken;
