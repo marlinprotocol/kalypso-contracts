@@ -395,21 +395,19 @@ contract SymbioticStaking is
         internal
         view
     {
+        bytes32 mask;
+        if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
+        else if (_type == SLASH_RESULT_TYPE) mask = SLASH_RESULT_MASK;
+        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Completed Submission");
+
+        require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
         require(_numOfTxs > 0, "Invalid length");
 
         // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
         require(_captureTimestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
         require(_captureTimestamp <= block.timestamp, "Invalid timestamp");
 
-        Struct.SnapshotTxCountInfo memory snapshot = txCountInfo[_captureTimestamp][_type];
-        require(_index == snapshot.idxToSubmit, "Invalid index");
-        require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
-
-        bytes32 mask;
-        if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
-        else if (_type == SLASH_RESULT_TYPE) mask = SLASH_RESULT_MASK;
-        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Already submitted");
-
+        require(_index == txCountInfo[_captureTimestamp][_type].idxToSubmit, "Not idxToSubmit");
     }
 
     function _verifySignature(
