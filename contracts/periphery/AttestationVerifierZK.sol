@@ -111,7 +111,7 @@ contract AttestationVerifierZK is
         this._validateProofAndAttestation(journal, attestation);
     }
 
-    function _validateProofAndAttestation(bytes calldata journal, Attestation memory attestation) public view {
+    function _validateProofAndAttestation(bytes calldata journal, Attestation memory attestation) public pure {
         if(!
         (
             (sha256(journal[8:56]) == sha256(attestation.PCR0)) && 

@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 
 import "../interfaces/IVerifier.sol";
 
-import "hardhat/console.sol";
-
 interface i_zksync_verifier {
     function verify(uint256[] calldata, uint256[] calldata, uint256[] calldata) external view returns (bool);
 }
