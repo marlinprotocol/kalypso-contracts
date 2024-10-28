@@ -11,7 +11,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "../periphery/risc0/interfaces/RiscZeroVerifierEmergencyStop.sol";
 
-
 contract AttestationVerifierZK is
     Initializable, // initializer
     ContextUpgradeable, // _msgSender, _msgData
@@ -50,6 +49,7 @@ contract AttestationVerifierZK is
     error AttestationVerifierNoImageProvided();
     error AttestationVerifierInitLengthMismatch();
     error AttestationVerifierInvalidAdmin();
+    error AttestationVerifierNotImplemented();
 
     function initialize(EnclaveImage[] memory images, bytes[] memory enclaveKeys, address _admin) external initializer {
         // The images and their enclave keys are whitelisted without verification that enclave keys are created within
@@ -102,7 +102,7 @@ contract AttestationVerifierZK is
 
     error AttestationVerifierAttestationTooOld(); 
 
-    function _verify(bytes memory proof, Attestation memory attestation) internal view {
+    function _verify(bytes memory proof, bytes memory attestation) internal view {
         (bytes memory seal, bytes32 imageId, bytes memory journal) = abi.decode(proof, (bytes, bytes32, bytes));
 
         // Use RISC0_VERIFIER to check if the receipt is right, else revert
@@ -111,24 +111,26 @@ contract AttestationVerifierZK is
         this._validateProofAndAttestation(journal, attestation);
     }
 
-    function _validateProofAndAttestation(bytes calldata journal, Attestation memory attestation) public pure {
+    function _validateProofAndAttestation(bytes calldata journal, bytes calldata attestation) public pure {
         if(!
         (
-            (sha256(journal[8:56]) == sha256(attestation.PCR0)) && 
-            (sha256(journal[56:104]) == sha256(attestation.PCR1)) && 
-            (sha256(journal[104:152]) == sha256(attestation.PCR2)) && 
-            (sha256(journal[249:313]) == sha256(attestation.enclavePubKey))
+            (sha256(journal[:8]) == sha256(attestation[87:95])) && // Checking timestamp
+            (sha256(journal[8:56]) == sha256(attestation[104:152])) && // Checking PCR0
+            (sha256(journal[56:104]) == sha256(attestation[155:203])) && // Checking PCR1
+            (sha256(journal[104:152]) == sha256(attestation[206:254])) && // Checking PCR2
+            (sha256(journal[152:249]) == sha256(attestation[1835:1932])) && // Checking certificate root key
+            (sha256(journal[249:313]) == sha256(attestation[4353:4417])) // Checking enclave public key
             )
         ) revert AttestationVerifierAttestationTooOld();
     }
 
     // using bytes memory proof instead of Receipt memory receipt, because interface demands so
     function verify(bytes memory proof, Attestation memory attestation) external view {
-        _verify(proof, attestation);
+        revert AttestationVerifierNotImplemented();
     }
 
     function verify(bytes memory data) external view {
-        (bytes memory proof, Attestation memory attestation) = abi.decode(data, (bytes, Attestation));
+        (bytes memory proof, bytes memory attestation) = abi.decode(data, (bytes, bytes));
         _verify(proof, attestation);
     }
 
