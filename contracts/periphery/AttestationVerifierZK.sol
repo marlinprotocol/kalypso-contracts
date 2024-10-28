@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "../periphery/risc0/interfaces/RiscZeroVerifierEmergencyStop.sol";
-import "hardhat/console.sol";
 
 
 contract AttestationVerifierZK is
@@ -114,8 +113,6 @@ contract AttestationVerifierZK is
     }
 
     function _validateProofAndAttestation(bytes calldata journal, bytes calldata attestation) public pure {
-        console.logBytes(journal[:8]);
-        console.logBytes(attestation[87:95]);
         if(!
         (
             (sha256(journal[:8]) == sha256(attestation[87:95])) && // Checking timestamp

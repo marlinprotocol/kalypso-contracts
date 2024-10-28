@@ -83,9 +83,7 @@ describe("Proof Market Place for Attestation Verifier", () => {
   const type_input = ["bytes", "bytes32", "bytes"];
   let proofBytes = new AbiCoder().encode(type_input, [seal, imageId, journal_bytes]);
 
-  let attestation_object = attestation.attestation;
-  const types = ["bytes"];
-  let inputBytes = new AbiCoder().encode(types, [attestation_object]);
+  let inputBytes = attestation.attestation;
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -173,6 +171,7 @@ describe("Proof Market Place for Attestation Verifier", () => {
     let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
+    console.log("Trying to create ask");
     const askId = await setup.createAsk(
       prover,
       tokenHolder,
@@ -195,6 +194,7 @@ describe("Proof Market Place for Attestation Verifier", () => {
       },
       1,
     );
+    console.log("createAsk done");
 
     await setup.createTask(
       matchingEngineEnclave,
@@ -210,6 +210,7 @@ describe("Proof Market Place for Attestation Verifier", () => {
       askId,
       generator,
     );
+    console.log("createTask done");
     await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
   });
 });
