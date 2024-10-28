@@ -14,9 +14,7 @@
     "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
     "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
     "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
-    "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91",
-    "attestation_zk_verifier": "0x976CC2BE1B580d8032DD3Ab5B703ba785b296257",
-    "attestation_zk_verifier_wrapper": "0xea6567E6582f7F3dc063A48983c47EC15CFeADf0"
+    "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91"
   },
   "implementation": {
     "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
