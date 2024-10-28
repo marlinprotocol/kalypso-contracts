@@ -73,7 +73,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       arbSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`,
-      holesky: `${process.env.HOLESKY_API_KEY}`,
+      holesky: `${process.env.ETHERSCAN_API_KEY}`,
     },
     customChains: [
       {
