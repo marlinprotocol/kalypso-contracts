@@ -126,7 +126,7 @@ contract AttestationVerifierZK is
     }
 
     // using bytes memory proof instead of Receipt memory receipt, because interface demands so
-    function verify(bytes memory, Attestation memory) external view {
+    function verify(bytes memory, Attestation memory) external pure {
         revert AttestationVerifierNotImplemented();
     }
 
