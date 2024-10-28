@@ -30,7 +30,8 @@ import {
   setup,
   skipBlocks,
 } from "../helpers";
-import * as attestation from "../helpers/sample/risc0/attestation_struct.json";
+// import * as attestation from "../helpers/sample/risc0/attestation_struct.json";
+import * as attestation from "../helpers/sample/risc0/attestation.json";
 
 describe("Proof Market Place for Attestation Verifier", () => {
   let proofMarketplace: ProofMarketplace;
@@ -82,8 +83,8 @@ describe("Proof Market Place for Attestation Verifier", () => {
   const type_input = ["bytes", "bytes32", "bytes"];
   let proofBytes = new AbiCoder().encode(type_input, [seal, imageId, journal_bytes]);
 
-  let attestation_object = attestation;
-  const types = ["tuple(bytes enclavePubKey, bytes PCR0, bytes PCR1, bytes PCR2, uint256 timestampInMilliseconds)"];
+  let attestation_object = attestation.attestation;
+  const types = ["bytes"];
   let inputBytes = new AbiCoder().encode(types, [attestation_object]);
 
   beforeEach(async () => {
