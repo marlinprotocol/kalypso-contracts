@@ -635,9 +635,7 @@ abstract contract BaseUltraVerifier {
                 let root_2 := mulmod(beta, 0x0c, p_clone)
                 // @note 0x05 + 0x07 == 0x0c == external coset generator
 
-                for {
-
-                } lt(public_inputs_ptr, endpoint_ptr) {
+                for {} lt(public_inputs_ptr, endpoint_ptr) {
                     public_inputs_ptr := add(public_inputs_ptr, 0x20)
                 } {
                     /**
@@ -681,9 +679,7 @@ abstract contract BaseUltraVerifier {
                 {
                     let exponent := mload(N_LOC)
                     let count := 1
-                    for {
-
-                    } lt(count, exponent) {
+                    for {} lt(count, exponent) {
                         count := add(count, count)
                     } {
                         delta_numerator := mulmod(delta_numerator, delta_numerator, p)
@@ -728,9 +724,7 @@ abstract contract BaseUltraVerifier {
                     // pow_small
                     let exponent := mload(N_LOC)
                     let count := 1
-                    for {
-
-                    } lt(count, exponent) {
+                    for {} lt(count, exponent) {
                         count := add(count, count)
                     } {
                         vanishing_numerator := mulmod(vanishing_numerator, vanishing_numerator, p)
