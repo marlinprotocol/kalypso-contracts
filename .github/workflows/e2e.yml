@@ -1,0 +1,64 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    env:
+      NODE_ENV: development
+      COIN_MARKET_CAP: "not required"
+      SEPOLIA_RPC_URL: "just a placeholder"
+      SEPOLIA_ADMIN: "0x1234567812345678123456781234567812345678123456781234567812345678"
+      SEPOLIA_TOKEN_HOLDER: "0x9876543298765432987654329876543298765432987654329876543298765432"
+      SEPOLIA_TREASURY: "0xabcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01"
+      SEPOLIA_MARKET_CREATOR: "0xef012345ef012345ef012345ef012345ef012345ef012345ef012345ef012345"
+      SEPOLIA_GENERATOR: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      SEPOLIA_MATCHING_ENGINE: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34ce"
+      SEPOLIA_PROOF_REQUESTOR: "0x22ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      ARB_SEPOLIA_RPC_URL: "just a place holder"
+      ETHERSCAN_API_KEY: "just a place holder"
+      NOVA_ADMIN: "0x1234567812345678123456781234567812345678123456781234567812345678"
+      NOVA_TOKEN_HOLDER: "0x9876543298765432987654329876543298765432987654329876543298765432"
+      NOVA_TREASURY: "0xabcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01"
+      NOVA_MARKET_CREATOR: "0xef012345ef012345ef012345ef012345ef012345ef012345ef012345ef012345"
+      NOVA_GENERATOR: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      NOVA_MATCHING_ENGINE: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34ce"
+      NOVA_PROOF_REQUESTOR: "0x22ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      NOVA_RPC_URL: "just a placeholder"
+      ARB_SEPOLIA_API_KEY: "just a place holder"
+      ZKSYNC_URL: "just a place holder"
+      ZKSYNC_ADMIN: "0x1234567812345678123456781234567812345678123456781234567812345678"
+      ZKSYNC_TOKEN_HOLDER: "0x9876543298765432987654329876543298765432987654329876543298765432"
+      ZKSYNC_TREASURY: "0xabcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01abcdef01"
+      ZKSYNC_MARKET_CREATOR: "0xef012345ef012345ef012345ef012345ef012345ef012345ef012345ef012345"
+      ZKSYNC_GENERATOR: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      ZKSYNC_MATCHING_ENGINE: "0x12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34ce"
+      ZKSYNC_PROOF_REQUESTOR: "0x22ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd12ab34cd"
+      KALYPSO_RPC_URL: "just a placeholder"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm run test
+        
