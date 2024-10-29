@@ -180,7 +180,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        _verifyProof(_imageId, _index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _proof);
+        _verifyProof(_imageId, STAKE_SNAPSHOT_TYPE, _index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _proof);
 
         // update Vault and Operator stake amount
         // update rewardPerToken for each vault and operator in SymbioticStakingReward
@@ -216,7 +216,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        _verifyProof(_imageId, _index, _numOfTxs, _captureTimestamp, _SlashResultData, _proof);
+        _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _SlashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
@@ -441,6 +441,7 @@ contract SymbioticStaking is
     */
     function _verifyProof(
         bytes32 _imageId,
+        bytes32 _type,
         uint256 _index,
         uint256 _numOfTxs,
         uint256 _captureTimestamp,
@@ -448,7 +449,7 @@ contract SymbioticStaking is
         bytes memory _proof
     ) internal view {
         require(enclaveImages[_imageId].PCR0.length != 0, "Image not found");
-        bytes memory dataToSign = abi.encode(_index, _numOfTxs, _captureTimestamp, _data);
+        bytes memory dataToSign = abi.encode(_type, _index, _numOfTxs, _captureTimestamp, _data);
         (bytes memory _signature, bytes memory _attestationData) = abi.decode(_proof, (bytes, bytes));
         require(_signature.length == SIGNATURE_LENGTH, "M:VP-Signature length mismatch");
         address _enclaveKey = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(dataToSign)), _signature);
