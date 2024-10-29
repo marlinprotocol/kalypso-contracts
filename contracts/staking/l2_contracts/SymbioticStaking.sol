@@ -14,12 +14,15 @@ import {JobManager} from "./JobManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
+import {IAttestationVerifier} from "../../periphery/interfaces/IAttestationVerifier.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /* Libraries */
 import {Struct} from "../../lib/staking/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -36,12 +39,22 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    struct EnclaveImage {
+        bytes PCR0;
+        bytes PCR1;
+        bytes PCR2;
+    }
+
     bytes32 public constant STAKE_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
     bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
     bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
+
+    bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
+
+    uint256 public constant SIGNATURE_LENGTH = 65;
 
     /*===================================================================================================================*/
     /*================================================ state variable ===================================================*/
@@ -62,6 +75,7 @@ contract SymbioticStaking is
     address public stakingManager;
     address public jobManager;
     address public rewardDistributor;
+    address public attestationVerifier;
 
     /* RewardToken */
     address public feeRewardToken;
@@ -99,6 +113,8 @@ contract SymbioticStaking is
     mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
+
+    mapping(bytes32 imageId => EnclaveImage) public enclaveImages;
 
     /*===================================================================================================================*/
     /*=================================================== modifier ======================================================*/
@@ -154,8 +170,9 @@ contract SymbioticStaking is
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
+        bytes32 _imageId,
         bytes calldata _vaultSnapshotData,
-        bytes calldata _signature
+        bytes calldata _proof
     ) external {
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
@@ -163,7 +180,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _signature);
+        _verifyProof(_imageId, _index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _proof);
 
         // update Vault and Operator stake amount
         // update rewardPerToken for each vault and operator in SymbioticStakingReward
@@ -176,15 +193,16 @@ contract SymbioticStaking is
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
 
-        emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _vaultSnapshotData, _signature);
+        emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
     }
 
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
+        bytes32 _imageId,
         bytes memory _SlashResultData,
-        bytes memory _signature
+        bytes memory _proof
     ) external {
         Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
 
@@ -198,7 +216,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        _verifySignature(_index, _numOfTxs, _captureTimestamp, _SlashResultData, _signature);
+        _verifyProof(_imageId, _index, _numOfTxs, _captureTimestamp, _SlashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
@@ -208,7 +226,7 @@ contract SymbioticStaking is
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter
-        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _SlashResultData, _signature);
+        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _SlashResultData, _proof);
 
         // when all chunks of Snapshots are submitted
         if (_index == _numOfTxs - 1) {
@@ -410,15 +428,75 @@ contract SymbioticStaking is
         require(_index == txCountInfo[_captureTimestamp][_type].idxToSubmit, "Not idxToSubmit");
     }
 
-    function _verifySignature(
+    /**
+    * @dev Internal function to verify the proof.
+    * The function performs the following steps:
+    * - Decodes the proof into the signature and attestation data.
+    * - Verifies the signature over the provided data using the enclave key.
+    * - Verifies the attestation to ensure the enclave key is valid.
+    * - Ensures the enclave key used to sign the data matches the one in the attestation.
+    * @param _data The parameters used for slashing.
+    * @param _proof  The proof that contains the signature on the parameters used for slashing and 
+        attestation data which proves that the key used for signing is securely generated within the enclave.
+    */
+    function _verifyProof(
+        bytes32 _imageId,
         uint256 _index,
         uint256 _numOfTxs,
         uint256 _captureTimestamp,
         bytes memory _data,
-        bytes memory _signature
-    ) internal {
-        // TODO: Verify the signature
-        // TODO: "signature" should be from the enclave key that is verified against the PCR values of the bridge enclave image
+        bytes memory _proof
+    ) internal view {
+        require(enclaveImages[_imageId].PCR0.length != 0, "Image not found");
+        bytes memory dataToSign = abi.encode(_index, _numOfTxs, _captureTimestamp, _data);
+        (bytes memory _signature, bytes memory _attestationData) = abi.decode(_proof, (bytes, bytes));
+        require(_signature.length == SIGNATURE_LENGTH, "M:VP-Signature length mismatch");
+        address _enclaveKey = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(dataToSign)), _signature);
+
+        (bytes memory attestationSig, IAttestationVerifier.Attestation memory attestation) = abi.decode(
+            _attestationData, 
+            (bytes, IAttestationVerifier.Attestation)
+        );
+        IAttestationVerifier(attestationVerifier).verify(attestationSig, attestation);
+
+        address _verifiedKey = _pubKeyToAddress(attestation.enclavePubKey);
+        require(_verifiedKey == _enclaveKey, "M:VP-Enclave key mismatch");
+        require(getImageId(attestation.PCR0, attestation.PCR1, attestation.PCR2) == _imageId, "M:VP-Invalid image");
+    }
+
+    function _pubKeyToAddress(bytes memory _pubKey) internal pure returns (address) {
+        require(_pubKey.length == 64, "M:VP-Invalid public key length");
+        return address(uint160(uint256(keccak256(_pubKey))));
+    }
+
+    function _addEnclaveImage(bytes memory _PCRs) internal {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
+        bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
+        require(enclaveImages[imageId].PCR0.length == 0, "Image already exists");
+
+        require(PCR0.length == 48, "Invalid PCR0 length");
+        require(PCR1.length == 48, "Invalid PCR1 length");
+        require(PCR2.length == 48, "Invalid PCR2 length");
+
+        EnclaveImage memory enclaveImage = EnclaveImage(PCR0, PCR1, PCR2);
+        enclaveImages[imageId] = enclaveImage;
+
+        emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
+    }
+
+    function _removeEnclaveImage(bytes32 _imageId) internal {
+        delete enclaveImages[_imageId];
+
+        emit EnclaveImageRemoved(_imageId);
+    }
+
+    function _setAttestationVerifier(address _attestationVerifier) internal {
+        attestationVerifier = _attestationVerifier;
+        emit AttestationVerifierUpdated(_attestationVerifier);
+    }
+
+    function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
+        return keccak256(abi.encode(PCR0, PCR1, PCR2));
     }
 
     function _isCompleteStatus(uint256 _captureTimestamp) internal view returns (bool) {
@@ -586,6 +664,26 @@ contract SymbioticStaking is
         require(_to != address(0), "zero to address");
 
         IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
+    }
+
+    /*===================================================================================================================*/
+    /*========================================= BRIDGE ENCLAVE UPDATES ==================================================*/
+    /*===================================================================================================================*/
+
+    function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _addEnclaveImage(abi.encode(PCR0, PCR1, PCR2));
+    }
+
+    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _addEnclaveImage(PCRs);
+    }
+
+    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _removeEnclaveImage(_imageId);
+    }
+
+    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _setAttestationVerifier(_attestationVerifier);
     }
 
     /*===================================================================================================================*/

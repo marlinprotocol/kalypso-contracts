@@ -676,7 +676,6 @@ contract ProofMarketplace is
 
     /**
      * @notice Generator can discard assigned request if he choses to. This will however result in slashing
-        TODO: do we really require this?
      */
     function discardRequest(uint256 askId) external nonReentrant {
         AskWithState memory askWithState = listOfAsk[askId];

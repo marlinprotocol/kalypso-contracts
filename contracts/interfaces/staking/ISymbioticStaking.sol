@@ -10,12 +10,12 @@ interface ISymbioticStaking is IStakingPool {
 
     // TODO: temporary
     event VaultSnapshotSubmitted(
-        address indexed transmitter, uint256 index, uint256 numOfTxs, bytes vaultSnapshotData, bytes signature
+        address indexed transmitter, uint256 indexed index, uint256 numOfTxs, bytes32 indexed imageId, bytes vaultSnapshotData, bytes proof
     );
 
     // TODO: temporary
     event SlashResultSubmitted(
-        address indexed transmitter, uint256 index, uint256 numOfTxs, bytes slashResultData, bytes signature
+        address indexed transmitter, uint256 indexed index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
     );
 
     event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
@@ -28,22 +28,30 @@ interface ISymbioticStaking is IStakingPool {
 
     event RewardDistributorSet(address rewardDistributor);
 
+    event EnclaveImageAdded(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
+
+    event EnclaveImageRemoved(bytes32 indexed imageId);
+
+    event AttestationVerifierUpdated(address attestationVerifier);
+
     /*===================================================== functions =====================================================*/
 
     function submitVaultSnapshot(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
+        bytes32 _imageId,
         bytes calldata _vaultSnapshotData,
-        bytes calldata _signature
+        bytes calldata _proof
     ) external;
 
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
+        bytes32 _imageId,
         bytes calldata _slashResultData,
-        bytes calldata _signature
+        bytes calldata _proof
     ) external;
 
     function lockInfo(uint256 _jobId) external view returns (address stakeToken, uint256 amount);

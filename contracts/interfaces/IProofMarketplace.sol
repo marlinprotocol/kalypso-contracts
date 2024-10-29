@@ -16,7 +16,6 @@ interface IProofMarketplace {
 
     event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
     event TaskCreated(uint256 indexed askId, address indexed generator, bytes new_acl);
-    // TODO: add ask ID also
     event ProofCreated(uint256 indexed askId, bytes proof);
     event ProofNotGenerated(uint256 indexed askId);
 
