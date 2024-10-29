@@ -6,6 +6,4 @@ import "../EntityKeyRegistry.sol";
 import "../GeneratorRegistry.sol";
 import "../ProofMarketplace.sol";
 
-contract BindginMatchingEngine {
-    
-}
+contract BindginMatchingEngine {}

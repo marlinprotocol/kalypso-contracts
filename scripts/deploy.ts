@@ -8,9 +8,6 @@ import {
   MockToken__factory,
   PriorityLog__factory,
   EntityKeyRegistry__factory,
-  TransferVerifier__factory,
-  Transfer_verifier_wrapper__factory,
-  ZkbVerifier__factory,
   AttestationVerifier__factory,
   Dispute__factory,
 } from "../typechain-types";
