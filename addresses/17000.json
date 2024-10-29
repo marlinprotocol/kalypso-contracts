@@ -1,0 +1,10 @@
+{
+    "proxy": {
+        "attestation_verifier": "0xDcD2846DCA523Db1C8F3c842a41A58099dE26A0A",
+        "middleware": "0xe43EFeA7f40a885f4B35a149CAB5FC3fE01564C6"
+    },
+    "implementation": {
+        "attestation_verifier": "0xDE3b133f588903e50598985253C6F86a070b2f04",
+        "middleware": "0x450b3C0BdD75BEb3761F3a226e7F81048A8F376d"
+    }
+}
