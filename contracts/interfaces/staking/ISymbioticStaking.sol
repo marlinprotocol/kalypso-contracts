@@ -24,7 +24,7 @@ interface ISymbioticStaking is IStakingPool {
 
     event BaseTransmitterComissionRateSet(uint256 rate);
 
-    event JobManagerSet(address jobManager);
+    event ProofMarketplaceSet(address proofMarketplace);
 
     event RewardDistributorSet(address rewardDistributor);
 

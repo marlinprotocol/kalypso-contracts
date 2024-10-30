@@ -7,7 +7,7 @@ import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intro
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {JobManager} from "./JobManager.sol";
+import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
 // import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
@@ -27,6 +27,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import {console} from "hardhat/console.sol";
 
 contract SymbioticStaking is
     ContextUpgradeable,
@@ -73,7 +74,7 @@ contract SymbioticStaking is
 
     /* Contracts */
     address public stakingManager;
-    address public jobManager;
+    address public proofMarketplace;
     address public rewardDistributor;
     address public attestationVerifier;
 
@@ -131,7 +132,7 @@ contract SymbioticStaking is
 
     function initialize(
         address _admin,
-        address _jobManager,
+        address _proofMarketplace,
         address _stakingManager,
         address _rewardDistributor,
         address _feeRewardToken
@@ -148,9 +149,10 @@ contract SymbioticStaking is
         stakingManager = _stakingManager;
         emit StakingManagerSet(_stakingManager);
 
-        require(_jobManager != address(0), "SymbioticStaking: jobManager is zero");
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
+        require(_proofMarketplace != address(0), "SymbioticStaking: proofMarketplace is zero");
+        proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
+
         require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
         rewardDistributor = _rewardDistributor;
         emit RewardDistributorSet(_rewardDistributor);
@@ -204,7 +206,11 @@ contract SymbioticStaking is
         bytes memory _SlashResultData,
         bytes memory _proof
     ) external {
-        Struct.JobSlashed[] memory _jobSlashed = abi.decode(_SlashResultData, (Struct.JobSlashed[]));
+
+        Struct.JobSlashed[] memory _jobSlashed;
+        if (_slashResultData.length > 0) {
+            _jobSlashed = abi.decode(_slashResultData, (Struct.JobSlashed[]));
+        }
 
         // Vault Snapshot should be submitted before Slash Result
         require(
@@ -259,7 +265,7 @@ contract SymbioticStaking is
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
             // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
-            JobManager(jobManager).distributeTransmitterFeeReward(
+            ProofMarketplace(proofMarketplace).distributeTransmitterFeeReward(
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
 
@@ -643,9 +649,9 @@ contract SymbioticStaking is
     }
 
     function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        jobManager = _jobManager;
+        proofMarketplace = _jobManager;
 
-        emit JobManagerSet(_jobManager);
+        emit ProofMarketplaceSet(_jobManager);
     }
 
     function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -32,11 +32,19 @@ import {
   IVerifier,
   IVerifier__factory,
   MockToken,
+  NativeStaking,
+  POND,
   PriorityLog,
   ProofMarketplace,
+  StakingManager,
+  SymbioticStaking,
+  SymbioticStakingReward,
   Transfer_verifier_wrapper__factory,
   TransferVerifier__factory,
+  USDC,
+  WETH,
 } from '../typechain-types';
+import { generatorSelfStake, stakingContractConfig, stakingSetup, submistVaultSnapshot, VaultSnapshotData } from '../helpers/setup';
 
 describe("Checking Generator's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
@@ -47,12 +55,23 @@ describe("Checking Generator's multiple compute", () => {
   let entityKeyRegistry: EntityKeyRegistry;
   let iverifier: IVerifier;
 
+  let stakingManager: StakingManager;
+  let nativeStaking: NativeStaking;
+  let symbioticStaking: SymbioticStaking;
+  let symbioticStakingReward: SymbioticStakingReward;
+
+  let POND: POND;
+  let WETH: WETH;
+  let USDC: USDC;
+
   let signers: Signer[];
   let admin: Signer;
   let tokenHolder: Signer;
   let treasury: Signer;
   let prover: Signer;
   let generator: Signer;
+  let vault1: Signer;
+  let vault2: Signer;
 
   let marketCreator: Signer;
   let marketSetupData: MarketData;
@@ -177,13 +196,46 @@ describe("Checking Generator's multiple compute", () => {
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
 
+    /* Staking Contracts */
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
+
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   };
+
   beforeEach(async () => {
     await refreshSetup();
+
+    vault1 = signers[6];
+    vault2 = signers[7];
+    ({ POND, WETH, USDC } = await stakingSetup(admin, stakingManager, nativeStaking, symbioticStaking, symbioticStakingReward));
+
+    await generatorSelfStake(nativeStaking, admin, generator, POND, new BigNumber(10).pow(18).multipliedBy(10000));
+
+    /* Submitting Vault Snapshots */
+    const snapshotData: VaultSnapshotData[] = [
+      // vault1 -> generator (10000 POND)
+      {
+        operator: await generator.getAddress(),
+        vault: await vault1.getAddress(),
+        stakeToken: await POND.getAddress(),
+        stakeAmount: new BigNumber(10).pow(18).multipliedBy(10000).toFixed(0),
+      },
+      // vault2 -> generator (10000 WETH)
+      {
+        operator: await generator.getAddress(),
+        vault: await vault2.getAddress(),
+        stakeToken: await WETH.getAddress(),
+        stakeAmount: new BigNumber(10).pow(18).multipliedBy(10000).toFixed(0),
+      },
+    ];
+
+    await submistVaultSnapshot(generator, symbioticStaking, snapshotData);
   });
 
   it("Using Simple Transfer Verifier", async () => {
@@ -226,6 +278,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
     );
@@ -240,6 +296,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       askId,
       generator,
@@ -303,6 +363,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
     );
@@ -317,6 +381,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       askId,
       generator,
@@ -411,6 +479,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           1,
         );
@@ -425,6 +497,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           askId,
           generator,
@@ -475,6 +551,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
     );
@@ -489,6 +569,10 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       askId,
       generator,
@@ -584,6 +668,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           1,
         );
@@ -598,6 +686,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           askId,
           generator,
@@ -676,6 +768,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           1,
         );
@@ -690,6 +786,10 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            stakingManager,
+            nativeStaking,
+            symbioticStaking,
+            symbioticStakingReward,
           },
           askId,
           generator,

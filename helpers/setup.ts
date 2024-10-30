@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
 import {
+  BigNumberish,
+  BytesLike,
   Provider,
   Signer,
 } from 'ethers';
@@ -18,19 +20,30 @@ import {
   IVerifier,
   MockToken,
   MockToken__factory,
+  NativeStaking,
   NativeStaking__factory,
+  POND,
+  POND__factory,
   PriorityLog,
   PriorityLog__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
+  StakingManager,
   StakingManager__factory,
+  SymbioticStaking,
   SymbioticStaking__factory,
+  SymbioticStakingReward,
   SymbioticStakingReward__factory,
+  USDC,
+  USDC__factory,
+  WETH,
+  WETH__factory,
 } from '../typechain-types';
 import {
   GodEnclavePCRS,
   MockEnclave,
 } from './';
+import { expect } from "chai";
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -39,11 +52,19 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   errorLibrary: Error;
   entityKeyRegistry: EntityKeyRegistry;
+
+  /* Staking Contracts */
+  stakingManager: StakingManager;
+  nativeStaking: NativeStaking;
+  symbioticStaking: SymbioticStaking;
+  symbioticStakingReward: SymbioticStakingReward;
 }
 
 export const stakingContractConfig = {
   WITHDRAWAL_DURATION: new BigNumber(60 * 60 * 2), // 2 hours
 };
+
+export const exponent = new BigNumber(10).pow(18);
 
 export const createTask = async (
   matchingEngineEnclave: MockEnclave,
@@ -229,6 +250,8 @@ export const rawSetup = async (
     await mockToken.getAddress(), // address _feeRewardToken
   );
 
+  await proofMarketplace.grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
+
   // Grant `GENERATOR_REGISTRY_ROLE` to StakingManager
   await stakingManager.grantRole(await stakingManager.GENERATOR_REGISTRY_ROLE(), await generatorRegistry.getAddress());
 
@@ -314,5 +337,167 @@ export const rawSetup = async (
     priorityLog,
     errorLibrary,
     entityKeyRegistry,
+    /* Staking Contracts */
+    stakingManager,
+    nativeStaking,
+    symbioticStaking,
+    symbioticStakingReward,
   };
 };
+
+interface StakingTokens {
+  POND: POND;
+  WETH: WETH;
+  USDC: USDC;
+}
+
+export const stakingSetup = async (
+  admin: Signer,
+  stakingManager: StakingManager,
+  nativeStaking: NativeStaking,
+  symbioticStaking: SymbioticStaking,
+  symbioticStakingReward: SymbioticStakingReward,
+): Promise<StakingTokens> => {
+
+  /*-------------------------------- Constants  --------------------------------*/
+  const percent = (amount: BigNumber.Value) => {
+    const exponent = new BigNumber(10).pow(18);
+    return BigNumber(amount).multipliedBy(exponent).dividedBy(100).toFixed(0);
+  };
+
+  const TWENTY_PERCENT = percent(20);
+  const SIXTY_PERCENT = percent(60);
+  const FORTY_PERCENT = percent(40);
+  const HUNDRED_PERCENT = percent(100);
+
+  /*-------------------------------- StakingTokens Deployment --------------------------------*/
+
+  const POND = await new POND__factory(admin).deploy(await admin.getAddress());
+  const WETH = await new WETH__factory(admin).deploy(await admin.getAddress());
+  const USDC = await new USDC__factory(admin).deploy(await admin.getAddress());
+
+  /*-------------------------------- StakingManager Config --------------------------------*/
+
+  // Add StakingPools
+  await stakingManager.connect(admin).addStakingPool(await symbioticStaking.getAddress());
+  await stakingManager.connect(admin).addStakingPool(await nativeStaking.getAddress());
+
+  // NativeStaking 0%, SymbioticStaking 100%
+  const nativeStakingShare = new BigNumber(10).pow(18).multipliedBy(0); // 0 %
+  const symbioticStakingShare = new BigNumber(10).pow(18).multipliedBy(1); // 100%
+  await stakingManager.connect(admin).setPoolRewardShare(
+    [await nativeStaking.getAddress(), await symbioticStaking.getAddress()],
+    [nativeStakingShare.toFixed(0), symbioticStakingShare.toFixed(0)],
+  );
+
+  // Enable pools
+  await stakingManager.connect(admin).setEnabledPool(
+    await nativeStaking.getAddress(),
+    true
+  )
+  await stakingManager.connect(admin).setEnabledPool(
+    await symbioticStaking.getAddress(),
+    true
+  )
+
+  /*-------------------------------- NativeStaking Config --------------------------------*/
+
+  // Add POND to NativeStaking
+  await nativeStaking.connect(admin).addStakeToken(
+    await POND.getAddress(),
+    HUNDRED_PERCENT, // 100% weight for selection
+  );
+  // Amount to lock
+  await nativeStaking.connect(admin).setAmountToLock(
+    await POND.getAddress(),
+    new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
+  );
+
+  /*-------------------------------- SymbioticStaking Config --------------------------------*/
+  
+  // Stake Tokens and weights
+  await symbioticStaking.connect(admin).addStakeToken(
+    await POND.getAddress(),
+    SIXTY_PERCENT, // 60% weight for selection
+  );
+  await symbioticStaking.connect(admin).addStakeToken(
+    await WETH.getAddress(),
+    FORTY_PERCENT, // 40% weight for selection
+  );
+
+  // Set base transmitter comission rate and submission cooldown
+  await symbioticStaking.connect(admin).setBaseTransmitterComissionRate(TWENTY_PERCENT);
+  await symbioticStaking.connect(admin).setSubmissionCooldown(60 * 60 * 12); // 12 hours
+
+  // amount to lock
+  await symbioticStaking.connect(admin).setAmountToLock(
+    await POND.getAddress(),
+    new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
+  );
+  await symbioticStaking.connect(admin).setAmountToLock(
+    await WETH.getAddress(),
+    new BigNumber(10).pow(18).multipliedBy(0.2).toFixed(0), // 0.2 WETH locked per job creation
+  );
+
+  /*-------------------------------- SymbioticStakingReward Config --------------------------------*/
+  
+  return {
+    POND,
+    WETH,
+    USDC,
+  };
+};
+
+export const generatorSelfStake = async (
+  nativeStaking: NativeStaking,
+  admin: Signer,
+  generator: Signer,
+  stakeToken: POND,
+  amount: BigNumber
+) => {
+  await stakeToken.connect(admin).transfer(await generator.getAddress(), amount.toFixed(0));
+  await stakeToken.connect(generator).approve(await nativeStaking.getAddress(), amount.toFixed(0));
+
+  await nativeStaking.connect(generator).stake(
+    await stakeToken.getAddress(),
+    await generator.getAddress(),
+    amount.toFixed(0)
+  );
+}
+
+export interface VaultSnapshotData {
+  operator: string;
+  vault: string;
+  stakeToken: string;
+  stakeAmount: BigNumberish;
+}
+
+export const submistVaultSnapshot = async(
+  transmitter: Signer,
+  symbioticStaking: SymbioticStaking,
+  snapshotData: VaultSnapshotData[],
+) => {
+  const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
+
+  // submit snapshot
+  await symbioticStaking.connect(transmitter).submitVaultSnapshot(
+    0,
+    1,
+    timestamp,
+    new ethers.AbiCoder().encode(
+      [
+        "tuple(address operator, address vault, address stakeToken, uint256 stakeAmount)[]"
+      ],
+      [snapshotData]
+    ),
+    "0x"
+  );
+
+  await symbioticStaking.connect(transmitter).submitSlashResult(
+    0,
+    1,
+    timestamp,
+    "0x",
+    "0x"
+  );
+}
