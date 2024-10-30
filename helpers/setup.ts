@@ -1,24 +1,36 @@
-import { ethers, upgrades } from "hardhat";
-import { Provider, Signer } from "ethers";
+import BigNumber from 'bignumber.js';
+import {
+  Provider,
+  Signer,
+} from 'ethers';
+import {
+  ethers,
+  upgrades,
+} from 'hardhat';
 
 import {
-  MockToken,
-  ProofMarketplace,
-  MockToken__factory,
-  ProofMarketplace__factory,
-  GeneratorRegistry,
-  GeneratorRegistry__factory,
-  IVerifier,
-  PriorityLog,
-  PriorityLog__factory,
+  EntityKeyRegistry,
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
-  EntityKeyRegistry,
-} from "../typechain-types";
-import BigNumber from "bignumber.js";
-
-import { GodEnclavePCRS, MockEnclave } from ".";
+  GeneratorRegistry,
+  GeneratorRegistry__factory,
+  IVerifier,
+  MockToken,
+  MockToken__factory,
+  NativeStaking__factory,
+  PriorityLog,
+  PriorityLog__factory,
+  ProofMarketplace,
+  ProofMarketplace__factory,
+  StakingManager__factory,
+  SymbioticStaking__factory,
+  SymbioticStakingReward__factory,
+} from '../typechain-types';
+import {
+  GodEnclavePCRS,
+  MockEnclave,
+} from './';
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -28,6 +40,10 @@ interface SetupTemplate {
   errorLibrary: Error;
   entityKeyRegistry: EntityKeyRegistry;
 }
+
+export const stakingContractConfig = {
+  WITHDRAWAL_DURATION: new BigNumber(60 * 60 * 2), // 2 hours
+};
 
 export const createTask = async (
   matchingEngineEnclave: MockEnclave,
@@ -79,6 +95,9 @@ export const rawSetup = async (
   computeToNewMarket: BigNumber,
   godEnclave?: MockEnclave,
 ): Promise<SetupTemplate> => {
+  //-------------------------------- Contract Deployment --------------------------------//
+
+  // PaymentToken
   const mockToken = await new MockToken__factory(admin).deploy(
     await tokenHolder.getAddress(),
     totalTokenSupply.toFixed(),
@@ -90,6 +109,7 @@ export const rawSetup = async (
     godEnclave = new MockEnclave(GodEnclavePCRS);
   }
 
+  // AttestationVerifier
   const AttestationVerifierContract = await ethers.getContractFactory("AttestationVerifier");
   const attestationVerifier = await upgrades.deployProxy(
     AttestationVerifierContract,
@@ -100,6 +120,7 @@ export const rawSetup = async (
     },
   );
 
+  // EntityKeyRegistry
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
   const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
     kind: "uups",
@@ -107,6 +128,7 @@ export const rawSetup = async (
   });
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
+  // GeneratorRegistry
   const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
   const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
     kind: "uups",
@@ -115,6 +137,7 @@ export const rawSetup = async (
   });
   const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
 
+  // ProofMarketplace
   const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
   const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
     kind: "uups",
@@ -129,16 +152,94 @@ export const rawSetup = async (
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
 
-  await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress());
+  // StakingManager
+  const StakingManagerContract = await ethers.getContractFactory("StakingManager");
+  const stakingManagerProxy = await upgrades.deployProxy(StakingManagerContract, [], {
+    kind: "uups",
+    constructorArgs: [],
+    initializer: false,
+  });
+  const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
+
+  // NativeStaking
+  const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
+  const nativeStakingProxy = await upgrades.deployProxy(NativeStakingContract, [], {
+    kind: "uups",
+    constructorArgs: [],
+    initializer: false,
+  });
+  const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
+
+  // SmybioticStaking
+  const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
+  const symbioticStakingProxy = await upgrades.deployProxy(SymbioticStakingContract, [], {
+    kind: "uups",
+    constructorArgs: [],
+    initializer: false,
+  });
+  const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
+
+  // SymbioticStakingReward
+  const SymbioticStakingRewardContract = await ethers.getContractFactory("SymbioticStakingReward");
+  const symbioticStakingRewardProxy = await upgrades.deployProxy(SymbioticStakingRewardContract, [], {
+    kind: "uups",
+    constructorArgs: [],
+    initializer: false,
+  });
+  const symbioticStakingReward = SymbioticStakingReward__factory.connect(await symbioticStakingRewardProxy.getAddress(), admin);
+
+  //-------------------------------- Contract Init --------------------------------//
+
+  // Initialize GeneratorRegistry
+  await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress()); // TODO
+
+  // Initialize ProofMarketplace
   await proofMarketplace.initialize(await admin.getAddress());
 
-  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
+  // Initialize StakingManager
+  await stakingManager.initialize(
+    await admin.getAddress(),
+    await proofMarketplace.getAddress(),
+    await symbioticStaking.getAddress(),
+    await mockToken.getAddress(),
+  );
 
+  // Initialize NativeStaking
+  await nativeStaking.initialize(
+    await admin.getAddress(),
+    await stakingManager.getAddress(),
+    stakingContractConfig.WITHDRAWAL_DURATION.toFixed(),
+    await mockToken.getAddress(),
+  );
+
+  // Initialize SymbioticStaking
+  await symbioticStaking.initialize(
+    await admin.getAddress(),
+    await proofMarketplace.getAddress(),
+    await stakingManager.getAddress(),
+    await symbioticStakingReward.getAddress(),
+    await mockToken.getAddress(),
+  );
+
+  // Initialize SymbioticStakingReward
+  await symbioticStakingReward.initialize(
+    await admin.getAddress(), // address _admin
+    await proofMarketplace.getAddress(), // address _jobManager
+    await symbioticStaking.getAddress(), // address _symbioticStaking
+    await mockToken.getAddress(), // address _feeRewardToken
+  );
+
+  // Grant `GENERATOR_REGISTRY_ROLE` to StakingManager
+  await stakingManager.grantRole(await stakingManager.GENERATOR_REGISTRY_ROLE(), await generatorRegistry.getAddress());
+
+  // Grant `KEY_REGISTER_ROLE` to GeneratorRegistry, ProofMarketplace
+  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
   await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
   await entityKeyRegistry.grantRole(register_role, await proofMarketplace.getAddress());
 
+  // Transfer marketCreationCost to ProofMarketplace
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
-
+  // Approve marketCreationCost for ProofMarketplace
   await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
 
   let matchingEngineAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(godEnclave);
@@ -171,9 +272,12 @@ export const rawSetup = async (
 
   const marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
+  // await generatorRegistry
+  //   .connect(generator)
+  //   .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorStakingAmount.toFixed(0), generatorData);
   await generatorRegistry
     .connect(generator)
-    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorStakingAmount.toFixed(0), generatorData);
+    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), /*  generatorStakingAmount.toFixed(0),  */ generatorData);
 
   {
     let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);

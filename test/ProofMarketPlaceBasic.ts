@@ -1,8 +1,28 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
 import {
+  ethers,
+  upgrades,
+} from 'hardhat';
+
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
+
+import {
+  bytesToHexString,
+  generateRandomBytes,
+  GodEnclavePCRS,
+  matchingEngineFamilyId,
+  MockEnclave,
+  MockGeneratorPCRS,
+  MockIVSPCRS,
+  MockMEPCRS,
+  skipBlocks,
+} from '../helpers';
+import {
+  Dispute__factory,
+  EntityKeyRegistry,
+  EntityKeyRegistry__factory,
   Error,
   Error__factory,
   GeneratorRegistry,
@@ -14,32 +34,15 @@ import {
   MockVerifier__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
-  EntityKeyRegistry__factory,
-  Dispute__factory,
-  EntityKeyRegistry,
   StakingManager,
-  SymbioticStaking,
-  SymbioticStakingReward,
   StakingManager__factory,
+  SymbioticStaking,
   SymbioticStaking__factory,
+  SymbioticStakingReward,
   SymbioticStakingReward__factory,
-} from "../typechain-types";
+} from '../typechain-types';
 
-import {
-  GodEnclavePCRS,
-  MockEnclave,
-  MockGeneratorPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  bytesToHexString,
-  generateRandomBytes,
-  matchingEngineFamilyId,
-  skipBlocks,
-} from "../helpers";
-
-import { mine } from "@nomicfoundation/hardhat-network-helpers";
-
-describe.only("Proof market place", () => {
+describe("Proof market place", () => {
   let signers: Signer[];
   let admin: Signer;
   let tokenHolder: Signer;
@@ -90,22 +93,22 @@ describe.only("Proof market place", () => {
 
     const SymbioticStaking = await ethers.getContractFactory("SymbioticStaking");
     const _symbioticStaking = await upgrades.deployProxy(SymbioticStaking, [], {
-      kind: 'uups',
-      initializer: false
+      kind: "uups",
+      initializer: false,
     });
     symbioticStaking = SymbioticStaking__factory.connect(await _symbioticStaking.getAddress(), admin);
 
     const SymbioticStakingReward = await ethers.getContractFactory("SymbioticStakingReward");
     const _symbioticStakingReward = await upgrades.deployProxy(SymbioticStakingReward, [], {
-      kind: 'uups',
-      initializer: false
+      kind: "uups",
+      initializer: false,
     });
     symbioticStakingReward = SymbioticStakingReward__factory.connect(await _symbioticStakingReward.getAddress(), admin);
 
     const StakingManager = await ethers.getContractFactory("StakingManager");
     const _stakingManager = await upgrades.deployProxy(StakingManager, [], {
-      kind: 'uups',
-      initializer: false
+      kind: "uups",
+      initializer: false,
     });
     stakingManager = StakingManager__factory.connect(await _stakingManager.getAddress(), admin);
 
@@ -142,9 +145,26 @@ describe.only("Proof market place", () => {
 
     const dispute = await new Dispute__factory(admin).deploy(await entityRegistry.getAddress());
 
-    await stakingManager.initialize(await admin.getAddress(), await generatorRegistry.getAddress(), await symbioticStaking.getAddress(), await mockToken.getAddress());
-    await symbioticStaking.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress(), await symbioticStakingReward.getAddress(), await mockToken.getAddress());
-    await symbioticStakingReward.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await symbioticStaking.getAddress(), await mockToken.getAddress());
+    await stakingManager.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await symbioticStaking.getAddress(),
+      await mockToken.getAddress(),
+    );
+    await stakingManager.grantRole(await stakingManager.GENERATOR_REGISTRY_ROLE(), await generatorRegistry.getAddress());
+    await symbioticStaking.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await stakingManager.getAddress(),
+      await symbioticStakingReward.getAddress(),
+      await mockToken.getAddress(),
+    );
+    await symbioticStakingReward.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await symbioticStaking.getAddress(),
+      await mockToken.getAddress(),
+    );
     await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress());
     await proofMarketplace.initialize(await admin.getAddress());
 
@@ -157,7 +177,9 @@ describe.only("Proof market place", () => {
 
     await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
     await proofMarketplace.connect(admin).grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
-    await proofMarketplace.connect(admin).grantRole(await proofMarketplace.SYMBIOTIC_STAKING_REWARD_ROLE(), await symbioticStakingReward.getAddress());
+    await proofMarketplace
+      .connect(admin)
+      .grantRole(await proofMarketplace.SYMBIOTIC_STAKING_REWARD_ROLE(), await symbioticStakingReward.getAddress());
   });
 
   it("Create Market", async () => {
@@ -520,11 +542,7 @@ describe.only("Proof market place", () => {
       });
 
       it("Check generator data", async () => {
-        await expect(
-          generatorRegistry
-            .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData),
-        )
+        await expect(generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData))
           .to.emit(generatorRegistry, "RegisteredGenerator")
           .withArgs(await generator.getAddress(), computeUnitsRequired);
 
@@ -552,9 +570,7 @@ describe.only("Proof market place", () => {
       });
 
       it("request for market place exit", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await generatorRegistry
           .connect(generator)
@@ -568,9 +584,7 @@ describe.only("Proof market place", () => {
       });
 
       it("request for market place exit: array", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await generatorRegistry
           .connect(generator)
@@ -582,9 +596,7 @@ describe.only("Proof market place", () => {
       });
 
       it("leave market place", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await generatorRegistry
           .connect(generator)
@@ -596,9 +608,7 @@ describe.only("Proof market place", () => {
       });
 
       it("leave multiple markets", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await generatorRegistry
           .connect(generator)
@@ -610,9 +620,7 @@ describe.only("Proof market place", () => {
       });
 
       it("Can't de-register if generator is active part of proof market", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await generatorRegistry
           .connect(generator)
@@ -625,9 +633,7 @@ describe.only("Proof market place", () => {
       });
 
       it("Deregister generator data", async () => {
-        await generatorRegistry
-          .connect(generator)
-          .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+        await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
         await expect(generatorRegistry.connect(generator).deregister())
           .to.emit(generatorRegistry, "DeregisteredGenerator")
@@ -652,9 +658,7 @@ describe.only("Proof market place", () => {
       describe("Generator After Staking", () => {
         const extraStash = "112987298347983";
         beforeEach(async () => {
-          await generatorRegistry
-            .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+          await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
           await mockToken.connect(tokenHolder).approve(await generatorRegistry.getAddress(), extraStash);
 
@@ -788,9 +792,7 @@ describe.only("Proof market place", () => {
             "0x",
           );
 
-          await generatorRegistry
-            .connect(generator)
-            .register(await generator.getAddress(), computeUnitsRequired, generatorData);
+          await generatorRegistry.connect(generator).register(await generator.getAddress(), computeUnitsRequired, generatorData);
 
           await generatorRegistry
             .connect(generator)
