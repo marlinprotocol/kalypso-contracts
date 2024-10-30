@@ -79,9 +79,6 @@ contract DeployArbitrumSepolia is Script {
         // bytes[] memory GOD_ENCLAVE_KEYS = new bytes[](1);
         // GOD_ENCLAVE_KEYS[0] = bytes(hex"6bf5eaebfb44393f4b39351e8dd7bf49e2adfe0c6b639126783132b871bf164d049b27ad2d0ba4206a0e82be1c4bdfe38f853a99b13361cf7b42b68a4dd4530f");
 
-
-
-
         vm.startBroadcast(admin_key);
 
         /* deploy tokens */
