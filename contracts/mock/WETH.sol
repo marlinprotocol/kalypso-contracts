@@ -11,4 +11,8 @@ contract WETH is ERC20 {
     constructor(address admin) ERC20("WETH", "WETH") {
         _mint(admin, INITIAL_SUPPLY);
     }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }

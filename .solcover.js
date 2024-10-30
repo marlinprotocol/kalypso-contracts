@@ -25,5 +25,6 @@ module.exports = {
     "../contracts/verifierWrappers/transfer_verifier_wrapper.sol",
     "../contracts/verifierWrappers/xor2_verifier_wrapper.sol",
     "../contracts/verifierWrappers/zksync_verifier_wrapper.sol",
+    "./scripts/foundry/DeployArbitrumSepolia.s.sol"
   ],
 };

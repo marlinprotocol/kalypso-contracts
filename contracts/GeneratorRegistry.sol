@@ -30,8 +30,7 @@ contract GeneratorRegistry is
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20Upgradeable _stakingToken, EntityKeyRegistry _entityRegistry) initializer {
-        STAKING_TOKEN = _stakingToken;
+    constructor(EntityKeyRegistry _entityRegistry) initializer {
         ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
@@ -62,8 +61,6 @@ contract GeneratorRegistry is
     uint256 internal constant EXPONENT = 10 ** 18;
     uint256 internal constant REDUCTION_REQUEST_BLOCK_GAP = 1;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20Upgradeable public immutable STAKING_TOKEN;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
@@ -283,6 +280,7 @@ contract GeneratorRegistry is
         // generator here is _msgSender()
         _updateEncryptionKey(_msgSender(), marketId, attestationData, enclaveSignature);
     }
+
 
     function _updateEncryptionKey(
         address generatorAddress,
