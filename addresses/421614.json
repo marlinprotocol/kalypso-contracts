@@ -1,24 +1,26 @@
 {
-  "proxy": {
-    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-    "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
-    "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
-    "attestation_verifier_ZK": "0xbDB8F2Cc624625B80FCCaBEF04BC5420eF232dfB",
-    "RiscZeroGroth16Verifier": "0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF",
-    "entity_registry": "0x002064F4d224EA4F90e9A74B5fE3f3812886c6DF",
-    "generator_registry": "0x5ce3e1010028C4F5687356D721e3e2B6DcEA7C25",
-    "dispute": "0x41fD92A4Bc74F8B9f46e1fA0825C40aeD5AFDb92",
-    "proof_market_place": "0x0b6340a893B944BDc3B4F012e934b724c83abF97",
-    "priority_list": "0xfd94a9Aed9d5f8f00b70A1908378fcc1C4a04B4E",
-    "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
-    "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
-    "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
-    "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91"
-  },
-  "implementation": {
-    "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
-    "generator_registry": "0x571Bd65B8804B381EfcAf695309C1f43550256bE",
-    "proof_market_place": "0xA64665EdC5d17Be1Bf6ec7EA9D28c9AB09254D12"
-  }
+    "proxy": {
+        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+        "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
+        "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+        "attestation_verifier_ZK": "0xbDB8F2Cc624625B80FCCaBEF04BC5420eF232dfB",
+        "RiscZeroGroth16Verifier": "0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF",
+        "entity_registry": "0x002064F4d224EA4F90e9A74B5fE3f3812886c6DF",
+        "generator_registry": "0x5ce3e1010028C4F5687356D721e3e2B6DcEA7C25",
+        "dispute": "0x41fD92A4Bc74F8B9f46e1fA0825C40aeD5AFDb92",
+        "proof_market_place": "0x0b6340a893B944BDc3B4F012e934b724c83abF97",
+        "priority_list": "0xfd94a9Aed9d5f8f00b70A1908378fcc1C4a04B4E",
+        "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
+        "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
+        "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
+        "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91",
+        "attestation_zk_verifier": "0x6A5028A61387C7a7085f758f3A93bd19E0Dae249",
+        "attestation_zk_verifier_wrapper": "0x0f6E3E50d2da4cb9a29aB045158810ed1F447a0b"
+    },
+    "implementation": {
+        "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
+        "generator_registry": "0x571Bd65B8804B381EfcAf695309C1f43550256bE",
+        "proof_market_place": "0xA64665EdC5d17Be1Bf6ec7EA9D28c9AB09254D12"
+    }
 }
