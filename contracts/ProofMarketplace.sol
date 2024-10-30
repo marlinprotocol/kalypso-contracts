@@ -168,7 +168,7 @@ contract ProofMarketplace is
 
     //-------------------------------- State variables end --------------------------------//
 
-    function initialize(address _admin) public initializer {
+    function initialize(address _admin) external initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -418,7 +418,7 @@ contract ProofMarketplace is
     /**
      * @notice Update Cost for inputs
      */
-    function updateCostPerBytes(SecretType secretType, uint256 costPerByte) public onlyRole(UPDATER_ROLE) {
+    function updateCostPerBytes(SecretType secretType, uint256 costPerByte) external onlyRole(UPDATER_ROLE) {
         costPerInputBytes[secretType] = costPerByte;
 
         emit UpdateCostPerBytes(secretType, costPerByte);
@@ -427,7 +427,7 @@ contract ProofMarketplace is
     /**
      * @notice Update Min Proving Time
      */
-    function updateMinProvingTime(SecretType secretType, uint256 newProvingTime) public onlyRole(UPDATER_ROLE) {
+    function updateMinProvingTime(SecretType secretType, uint256 newProvingTime) external onlyRole(UPDATER_ROLE) {
         minProvingTime[secretType] = newProvingTime;
 
         emit UpdateMinProvingTime(secretType, newProvingTime);
@@ -488,10 +488,11 @@ contract ProofMarketplace is
     /**
      * @notice Assign Tasks for Generators directly if ME signer has the gas
      */
-    function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
-        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
-        _assignTask(askId, generator, new_acl);
-    }
+    // TODO: add this function back(commented due to size)
+    // function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
+    //     ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
+    //     _assignTask(askId, generator, new_acl);
+    // }
 
     function _assignTask(uint256 askId, address generator, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
@@ -607,19 +608,20 @@ contract ProofMarketplace is
     /**
      * @notice Submit Multiple proofs in single transaction
      */
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        if (taskIds.length != proofs.length) {
-            revert Error.ArityMismatch();
-        }
-        for (uint256 index = 0; index < taskIds.length; index++) {
-            _submitProof(taskIds[index], proofs[index]);
-        }
-    }
+    // TODO: add this function back(commented due to size)
+    // function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
+    //     if (taskIds.length != proofs.length) {
+    //         revert Error.ArityMismatch();
+    //     }
+    //     for (uint256 index = 0; index < taskIds.length; index++) {
+    //         _submitProof(taskIds[index], proofs[index]);
+    //     }
+    // }
 
     /**
      * @notice Submit Single Proof
      */
-    function submitProof(uint256 askId, bytes calldata proof) public nonReentrant {
+    function submitProof(uint256 askId, bytes calldata proof) external nonReentrant {
         _submitProof(askId, proof);
     }
 
@@ -706,7 +708,7 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
-    function flush(address _address) public {
+    function flush(address _address) external {
         uint256 amount = claimableAmount[_address];
         if (amount != 0) {
             PAYMENT_TOKEN.safeTransfer(_address, amount);
@@ -739,13 +741,15 @@ contract ProofMarketplace is
         return true;
     }
 
-    function askCounter() public view returns (uint256) {
-        return listOfAsk.length;
-    }
+    // TODO: add this function back(commented due to size)
+    // function askCounter() external view returns (uint256) {
+    //     return listOfAsk.length;
+    // }
 
-    function marketCounter() public view returns (uint256) {
-        return marketData.length;
-    }
+    // TODO: add this function back(commented due to size)
+    // function marketCounter() external view returns (uint256) {
+    //     return marketData.length;
+    // }
 
     function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
         operatorRewardShares[_operator] = _rewardShare;
