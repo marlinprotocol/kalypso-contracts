@@ -751,7 +751,7 @@ contract ProofMarketplace is
     //     return marketData.length;
     // }
 
-    function setOperatorRewardShare(address _operator, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setOperatorRewardShare(address _operator, uint256 _rewardShare) external {
         operatorRewardShares[_operator] = _rewardShare;
         emit OperatorRewardShareSet(_operator, _rewardShare);
     }

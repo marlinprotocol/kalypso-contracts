@@ -32,7 +32,7 @@ interface ISymbioticStaking is IStakingPool {
 
     event EnclaveImageRemoved(bytes32 indexed imageId);
 
-    event AttestationVerifierUpdated(address attestationVerifier);
+    event AttestationVerifierSet(address attestationVerifier);
 
     /*===================================================== functions =====================================================*/
 

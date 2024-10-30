@@ -132,6 +132,7 @@ contract SymbioticStaking is
 
     function initialize(
         address _admin,
+        address _attestationVerifier,
         address _proofMarketplace,
         address _stakingManager,
         address _rewardDistributor,
@@ -144,6 +145,10 @@ contract SymbioticStaking is
         __ReentrancyGuard_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        require(_attestationVerifier != address(0), "SymbioticStaking: attestationVerifier is zero");
+        attestationVerifier = _attestationVerifier;
+        emit AttestationVerifierSet(_attestationVerifier);
 
         require(_stakingManager != address(0), "SymbioticStaking: stakingManager is zero");
         stakingManager = _stakingManager;
@@ -225,8 +230,6 @@ contract SymbioticStaking is
         _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _slashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
-
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][STAKE_SNAPSHOT_TYPE];
 
         // there could be no operator slashed
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
@@ -499,7 +502,7 @@ contract SymbioticStaking is
 
     function _setAttestationVerifier(address _attestationVerifier) internal {
         attestationVerifier = _attestationVerifier;
-        emit AttestationVerifierUpdated(_attestationVerifier);
+        emit AttestationVerifierSet(_attestationVerifier);
     }
 
     function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
