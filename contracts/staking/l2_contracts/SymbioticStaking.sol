@@ -203,7 +203,7 @@ contract SymbioticStaking is
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
         bytes32 _imageId,
-        bytes memory _SlashResultData,
+        bytes memory _slashResultData,
         bytes memory _proof
     ) external {
 
@@ -222,7 +222,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _SlashResultData, _proof);
+        _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _slashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
@@ -232,7 +232,7 @@ contract SymbioticStaking is
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter
-        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _SlashResultData, _proof);
+        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _slashResultData, _proof);
 
         // when all chunks of Snapshots are submitted
         if (_index == _numOfTxs - 1) {

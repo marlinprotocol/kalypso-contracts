@@ -19,6 +19,7 @@ import {NativeStaking} from "../../contracts/staking/l2_contracts/NativeStaking.
 import {SymbioticStaking} from "../../contracts/staking/l2_contracts/SymbioticStaking.sol";
 import {SymbioticStakingReward} from "../../contracts/staking/l2_contracts/SymbioticStakingReward.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /* Interfaces */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -26,7 +27,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract DeployArbitrumSepolia is Script {
     uint256 public constant INFLATION_REWARD_EPOCH_SIZE = 1 hours; // 60*60 seconds
     uint256 public constant INFLATION_REWARD_PER_EPOCH = 100 ether; // 100 POND
-    uint256 public constant SUBMISSION_COOLDOWN = 12 hours; // snapshot submission cooldown delay
+    uint256 public constant SUBMISSION_COOLDOWN = 5 minutes; // snapshot submission cooldown delay
+    address public constant ATTESTATION_VERIFIER = 0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b;
+
+    uint256 constant public FIFTEEN_PERCENT = 15;
+    uint256 constant public TWENTY_PERCENT = 20;
+    uint256 constant public THIRTY_PERCENT = 30;
+    uint256 constant public FORTY_PERCENT = 40;
+    uint256 constant public FIFTY_PERCENT = 50;
+    uint256 constant public SIXTY_PERCENT = 60;
+    uint256 constant public HUNDRED_PERCENT = 100;
 
     uint256 admin_key = vm.envUint("ARBITRUM_SEPOLIA_ADMIN_KEY");
 
@@ -36,7 +46,7 @@ contract DeployArbitrumSepolia is Script {
     address weth;
 
     /* Contract Implementations */
-    address attestationVerifierImpl;
+    // address attestationVerifierImpl;
     address proofMarketplaceImpl;
     address entityKeyRegistryImpl;
     address generatorRegistryImpl;
@@ -46,7 +56,7 @@ contract DeployArbitrumSepolia is Script {
     address symbioticStakingRewardImpl;
 
     /* Proxies */
-    address attestationVerifier;
+    // address attestationVerifier;
     address proofMarketplace;
     address entityKeyRegistry;
     address generatorRegistry;
@@ -59,15 +69,18 @@ contract DeployArbitrumSepolia is Script {
     function run() public {
         address admin = 0x7C046645E21B811780Cf420021E6701A9E66935C;
         /* God Enclave PCRS */
-        AttestationVerifier.EnclaveImage[] memory GOD_ENCLAVE = new AttestationVerifier.EnclaveImage[](1);
-        GOD_ENCLAVE[0] = AttestationVerifier.EnclaveImage({
-            PCR0: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065"),
-            PCR1: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000036"),
-            PCR2: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000093")
-        });
+        // AttestationVerifier.EnclaveImage[] memory GOD_ENCLAVE = new AttestationVerifier.EnclaveImage[](1);
+        // GOD_ENCLAVE[0] = AttestationVerifier.EnclaveImage({
+        //     PCR0: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065"),
+        //     PCR1: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000036"),
+        //     PCR2: bytes(hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000093")
+        // });
 
-        bytes[] memory GOD_ENCLAVE_KEYS = new bytes[](1);
-        GOD_ENCLAVE_KEYS[0] = bytes(hex"6bf5eaebfb44393f4b39351e8dd7bf49e2adfe0c6b639126783132b871bf164d049b27ad2d0ba4206a0e82be1c4bdfe38f853a99b13361cf7b42b68a4dd4530f");
+        // bytes[] memory GOD_ENCLAVE_KEYS = new bytes[](1);
+        // GOD_ENCLAVE_KEYS[0] = bytes(hex"6bf5eaebfb44393f4b39351e8dd7bf49e2adfe0c6b639126783132b871bf164d049b27ad2d0ba4206a0e82be1c4bdfe38f853a99b13361cf7b42b68a4dd4530f");
+
+
+
 
         vm.startBroadcast(admin_key);
 
@@ -92,11 +105,11 @@ contract DeployArbitrumSepolia is Script {
         symbioticStakingReward = address(new ERC1967Proxy(symbioticStakingRewardImpl, ""));
 
         // AttestationVerifier
-        attestationVerifierImpl = address(new AttestationVerifier());
-        attestationVerifier = address(new ERC1967Proxy(attestationVerifierImpl, ""));
+        // attestationVerifierImpl = address(new AttestationVerifier());
+        // attestationVerifier = address(new ERC1967Proxy(attestationVerifierImpl, ""));
 
         // EntityKeyRegistry
-        entityKeyRegistryImpl = address(new EntityKeyRegistry(AttestationVerifier(attestationVerifier)));
+        entityKeyRegistryImpl = address(new EntityKeyRegistry(AttestationVerifier(ATTESTATION_VERIFIER)));
         entityKeyRegistry = address(new ERC1967Proxy(entityKeyRegistryImpl, ""));
 
         // GeneratorRegistry
@@ -120,8 +133,8 @@ contract DeployArbitrumSepolia is Script {
         // ProofMarketplace
         ProofMarketplace(address(proofMarketplace)).initialize(admin);
 
-        // AttestationVerifier
-        AttestationVerifier(address(attestationVerifier)).initialize(GOD_ENCLAVE, GOD_ENCLAVE_KEYS, admin);
+        // ATTESTATION_VERIFIER
+        // AttestationVerifier(address(attestationVerifier)).initialize(GOD_ENCLAVE, GOD_ENCLAVE_KEYS, admin);
 
         // EntityKeyRegistry
         EntityKeyRegistry.EnclaveImage[] memory initWhitelistImages;
@@ -165,13 +178,58 @@ contract DeployArbitrumSepolia is Script {
 
         // Grant `UPDATER_ROLE` to admin
         ProofMarketplace(address(proofMarketplace)).grantRole(ProofMarketplace(address(proofMarketplace)).UPDATER_ROLE(), admin);
+
+
+        /*==================== Config & Setup ====================*/
+
+        /*-------------------------------- StakingManager Config --------------------------------*/
+        // Add NativeStaking, SymbioticStaking
+        StakingManager(stakingManager).addStakingPool(nativeStaking);
+        StakingManager(stakingManager).addStakingPool(symbioticStaking);
+
+        // Set reward shares
+        address[] memory pools = new address[](2);
+        pools[0] = nativeStaking;
+        pools[1] = symbioticStaking;
+        uint256[] memory shares = new uint256[](2);
+        shares[0] = 0;
+        shares[1] = _calculatePercent(HUNDRED_PERCENT);
+        StakingManager(stakingManager).setPoolRewardShare(pools, shares);
+
+        // Enable pools 
+        StakingManager(stakingManager).setEnabledPool(nativeStaking, true);
+        StakingManager(stakingManager).setEnabledPool(symbioticStaking, true);
+
+        /*-------------------------------- NativeStaking Config --------------------------------*/
+        NativeStaking(nativeStaking).addStakeToken(pond, _calculatePercent(HUNDRED_PERCENT));
+        NativeStaking(nativeStaking).setAmountToLock(pond, 1 ether);
+        console.log("Native Staking: AmountToLock per job: 1 POND");
+        console.log("");
+
+        /*-------------------------------- SymbioticStaking Config --------------------------------*/
+        SymbioticStaking(symbioticStaking).addStakeToken(pond, _calculatePercent(SIXTY_PERCENT));
+        console.log("Symbiotic Staking: POND selection weight: 60%");
+        SymbioticStaking(symbioticStaking).addStakeToken(weth, _calculatePercent(FORTY_PERCENT));
+        console.log("Symbiotic Staking: WETH selection weight: 40%");
+        /* amount to lock */
+        SymbioticStaking(symbioticStaking).setAmountToLock(pond, 2 ether);
+        console.log("Symbiotic Staking: POND amount to lock (per job): 2 POND");
+        SymbioticStaking(symbioticStaking).setAmountToLock(weth, 2 ether);
+        console.log("Symbiotic Staking: WETH amount to lock (per job): 2 WETH");
+        SymbioticStaking(symbioticStaking).setBaseTransmitterComissionRate(_calculatePercent(TWENTY_PERCENT));
+        console.log("Symbiotic Staking: Base Transmitter Comission Rate: 20%");    
+        SymbioticStaking(symbioticStaking).setSubmissionCooldown(SUBMISSION_COOLDOWN);
+        console.log("Symbiotic Staking: Submission Cooldown: 5 minutes");
+        console.log("");
+
         vm.stopBroadcast();
 
-        console.log("admin: ", admin);
+        console.log("admin: \t\t\t", admin);
+        console.log("ATTESTATION_VERIFIER: \t", ATTESTATION_VERIFIER);
         console.log("");
 
         console.log("< Impls Deployed >\n");
-        console.log("attestationVerifierImpl: \t", address(attestationVerifierImpl));
+        // console.log("attestationVerifierImpl: \t", address(attestationVerifierImpl));
         console.log("entityKeyRegistryImpl: \t", address(entityKeyRegistryImpl));
         console.log("generatorRegistryImpl: \t", address(generatorRegistryImpl));
         console.log("stakingManagerImpl: \t\t", address(stakingManagerImpl));
@@ -183,7 +241,7 @@ contract DeployArbitrumSepolia is Script {
         console.log("< Proxies Deployed >\n");
 
         console.log("proofMarketplace: \t\t", address(proofMarketplace));
-        console.log("attestationVerifier: \t\t", address(attestationVerifier));
+        // console.log("attestationVerifier: \t\t", address(attestationVerifier));
         console.log("entityKeyRegistry: \t\t", address(entityKeyRegistry));
         console.log("generatorRegistry: \t\t", address(generatorRegistry));
         console.log("stakingManager: \t\t", address(stakingManager));
@@ -197,5 +255,9 @@ contract DeployArbitrumSepolia is Script {
         console.log("USDC (feeToken): \t\t", usdc);
         console.log("POND: \t\t\t", pond);
         console.log("WETH: \t\t\t", weth);
+    }
+
+    function _calculatePercent(uint256 percent) internal pure returns (uint256) {
+        return Math.mulDiv(percent, 1e18, 100);
     }
 }
