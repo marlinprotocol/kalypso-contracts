@@ -3,6 +3,7 @@ import '@openzeppelin/hardhat-upgrades';
 import '@nomicfoundation/hardhat-chai-matchers';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
+import 'hardhat-tracer'
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';
