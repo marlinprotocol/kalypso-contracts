@@ -27,6 +27,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import "../../interfaces/IGeneratorCallbacks.sol";
+
 import {console} from "hardhat/console.sol";
 
 contract SymbioticStaking is
@@ -39,6 +41,11 @@ contract SymbioticStaking is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
+
+    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
+    constructor(IGeneratorCallbacks _generator_callback) {
+        I_GENERATOR_CALLBACK = _generator_callback;
+    }
 
     struct EnclaveImage {
         bytes PCR0;
@@ -252,6 +259,8 @@ contract SymbioticStaking is
         operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
 
         emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
+        
+        I_GENERATOR_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
     }
 
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
@@ -278,6 +287,8 @@ contract SymbioticStaking is
         operatorLockedAmounts[lock.stakeToken][_operator] -= amountToLock[lock.stakeToken];
 
         emit StakeUnlocked(_jobId, _operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+
+        I_GENERATOR_CALLBACK.stakeLockReleasedCallback(_operator, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
     /*------------------------------------- slash ------------------------------------*/
@@ -295,6 +306,8 @@ contract SymbioticStaking is
             delete lockInfo[_slashedJobs[i].jobId];
 
             emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+
+            I_GENERATOR_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -351,6 +364,8 @@ contract SymbioticStaking is
         confirmedTimestamps.push(confirmedTimestamp);
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
+
+        I_GENERATOR_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
     }
 
     /*===================================================================================================================*/
