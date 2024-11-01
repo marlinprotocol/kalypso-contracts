@@ -17,6 +17,9 @@ import "./ProofMarketplace.sol";
 import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 import "./interfaces/IGeneratorRegistry.sol";
 
+import "./interfaces/IGeneratorCallbacks.sol";
+import "./staking/l2_contracts/StakingManager.sol";
+
 contract GeneratorRegistry is
     Initializable,
     ContextUpgradeable,
@@ -24,14 +27,16 @@ contract GeneratorRegistry is
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    IGeneratorRegistry
+    IGeneratorRegistry,
+    IGeneratorCallbacks
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EntityKeyRegistry _entityRegistry) initializer {
+    constructor(EntityKeyRegistry _entityRegistry, StakingManager _stakingManager) initializer {
         ENTITY_KEY_REGISTRY = _entityRegistry;
+        STAKING_MANAGER = _stakingManager;
     }
 
     using HELPER for bytes;
@@ -64,6 +69,8 @@ contract GeneratorRegistry is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
+
+    StakingManager public immutable STAKING_MANAGER;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -514,7 +521,7 @@ contract GeneratorRegistry is
     }
 
     /**
-     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE
+     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when generators is about to be slashed
      */
     function releaseGeneratorResources(
         address generatorAddress,
@@ -534,6 +541,7 @@ contract GeneratorRegistry is
         info.activeRequests--;
 
         generator.computeConsumed -= info.computePerRequestRequired;
+        emit ComputeLockReleased(generatorAddress, info.computePerRequestRequired);
     }
 
     function assignGeneratorTask(
@@ -621,6 +629,62 @@ contract GeneratorRegistry is
         }
 
         emit RequestStakeDecrease(generatorAddress, token, amount);
+    }
+    
+    function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit RemovedStake(generatorAddress, token, amount);
+    }
+
+    function stakeLockImposedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeLockImposed(generatorAddress, token, amount);
+    }
+
+    function stakeLockReleasedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeLockReleased(generatorAddress, token, amount);
+    }
+
+    function stakeSlashedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeSlashed(generatorAddress, token, amount);
+    }
+
+    function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit SymbioticCompleteSnapshot(captureTimestamp);
+    }
+
+    function addStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit AddedStake(generatorAddress, token, amount);
+    }
+
+    function intendToReduceStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit IntendToReduceStake(generatorAddress, token, amount);
     }
     
     function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
