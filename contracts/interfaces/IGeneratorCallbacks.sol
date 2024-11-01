@@ -5,7 +5,7 @@ interface IGeneratorCallbacks {
     event AddedStake(address indexed generatorAddress, address indexed token, uint256 amount);
     function addStakeCallback(address generatorAddress, address token, uint256 amount) external;
 
-    event IntendToReduceStake(address indexed generatorAddress, address indexed token, uint256 amount);
+    event RequestStakeDecrease(address indexed generatorAddress, address indexed token, uint256 amount);
     function intendToReduceStakeCallback(address generatorAddress, address token, uint256 amount) external;
 
     event RemovedStake(address indexed generatorAddress, address indexed token, uint256 amount);

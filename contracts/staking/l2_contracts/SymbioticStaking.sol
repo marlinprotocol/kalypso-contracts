@@ -394,6 +394,11 @@ contract SymbioticStaking is
         return operatorStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_operator];
     }
 
+    function getOperatorStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address _operator) public view returns (uint256) {
+        return operatorStakeAmounts[_captureTimestamp][_stakeToken][_operator];
+    }
+
+
     function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
         uint256 operatorStakeAmount = getOperatorStakeAmount(_stakeToken, _operator);
         uint256 operatorLockedAmount = operatorLockedAmounts[_stakeToken][_operator];

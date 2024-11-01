@@ -628,7 +628,7 @@ contract GeneratorRegistry is
             revert Error.InvalidContractAddress();
         }
 
-        emit IntendToReduceStake(generatorAddress, token, amount);
+        emit RequestStakeDecrease(generatorAddress, token, amount);
     }
     
     function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
