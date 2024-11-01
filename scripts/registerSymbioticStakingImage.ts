@@ -4,37 +4,37 @@ import * as fs from "fs";
 import { SymbioticStaking__factory } from "../typechain-types";
 import { expect } from "chai";
 import { BytesLike } from "ethers";
+import { config } from "./config";
+
+
 
 async function main() {
-  const chainId = (await ethers.provider.getNetwork()).chainId.toString();
-  console.log("deploying on chain id:", chainId);
 
-  const signers = await ethers.getSigners();
-  console.log("available signers", signers.length);
+  const { chainId, signers, addresses } = await config();
 
-  console.log(signers);
   const admin = signers[0];
 
-  const path = `./addresses/${chainId}.json`;
-  const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-
-  // Grant `BRIDGE_ENCLAVE_UPDATES_ROLE` to admin
+  // Symbiotic Staking contract
   const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbiotic_staking, admin);
-  let tx = await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), admin.address);
-  tx.wait();
-  expect(await symbioticStaking.hasRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), admin.address)).to.be.true;
 
-  // Register Image
-  const PCR0 = "0x47c52d4a55b4c2a82f6d99b56fe54107c2eb2c6c70ad12435d568d08593a13d7ae452cbf9a31d83838c9f8ec3d099621" as BytesLike;
-  const PCR1 = "0xbcdf05fefccaa8e55bf2c8d6dee9e79bbff31e34bf28a99aa19e6b29c37ee80b214a414b7607236edf26fcb78654e63f" as BytesLike;
-  const PCR2 = "0xd0ec892e99dce4cd7b4f461b61d2826bf9b0d7da11a276b5d5632be439bc0c417fced1bd7b80adabafbbd588186a5f53" as BytesLike;
+  /* Remove Image */
 
-  // tx = await symbioticStaking.addEnclaveImage(PCR0, PCR1, PCR2);
-  // tx.wait();
-  
-  tx = await symbioticStaking.setAttestationVerifier(addresses.proxy.attestation_verifier);
+  // Remove Image
+  const OLD_PCR0 = "0xe74b4ac0423dea145795651690c7fae34179e15ceaad26cf4664ccbe0dc6faf1740ee81a5431182bd2e5514c9215aba9" as BytesLike;
+  const OLD_PCR1 = "0xbcdf05fefccaa8e55bf2c8d6dee9e79bbff31e34bf28a99aa19e6b29c37ee80b214a414b7607236edf26fcb78654e63f" as BytesLike;
+  const OLD_PCR2 = "0x3c753e19f2c242ff601df40dad9ebd5913752133d570faa653e5d8e3118ffe0460cfa43d98b1169c051002a8385e1162" as BytesLike;
+
+  let tx = await symbioticStaking.removeEnclaveImage(await symbioticStaking.getImageId(OLD_PCR0, OLD_PCR1, OLD_PCR2));
   tx.wait();
-  console.log("Attestation verifier set: ", addresses.proxy.attestation_verifier);
+
+  /* Add New Image */
+  const NEW_PCR0 = "0x3030f7cec2ac000c4ef4513d8b6bf627c246dfdb7d9771595946ab7401fc2a9c8558f15790fb64d0877d189774cafa57" as BytesLike;
+  const NEW_PCR1 = "0xbcdf05fefccaa8e55bf2c8d6dee9e79bbff31e34bf28a99aa19e6b29c37ee80b214a414b7607236edf26fcb78654e63f" as BytesLike;
+  const NEW_PCR2 = "0xa72f37d921d94868ffeb4e36f77c15032b5e148b0fa17b08fb1db942850e6d4ec5c012e322a0810aba24fb2d1b2cb0c8" as BytesLike;
+
+  tx = await symbioticStaking.addEnclaveImage(NEW_PCR0, NEW_PCR1, NEW_PCR2);
+  tx.wait();
+  console.log("Enclave image added");
 
   // const configPath = `./config/${chainId}.json`;
   // const configurationExists = checkFileExists(configPath);

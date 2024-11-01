@@ -154,9 +154,9 @@ contract DeployArbitrumSepolia is Script {
         );
 
         // SymbioticStaking
-        SymbioticStaking(address(symbioticStaking)).initialize(
-            admin, address(proofMarketplace), address(symbioticStaking), address(symbioticStakingReward), feeToken
-        );
+        // SymbioticStaking(address(symbioticStaking)).initialize(
+        //     admin, address(proofMarketplace), address(symbioticStaking), address(symbioticStakingReward), feeToken
+        // );
 
         // SymbioticStakingReward
         SymbioticStakingReward(address(symbioticStakingReward)).initialize(
