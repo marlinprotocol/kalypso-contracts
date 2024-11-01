@@ -607,6 +607,62 @@ contract GeneratorRegistry is
         return (generator.rewardAddress, info.proofGenerationCost);
     }
 
+    function addStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit AddedStake(generatorAddress, token, amount);
+    }
+
+    function intendToReduceStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit RequestStakeDecrease(generatorAddress, token, amount);
+    }
+    
+    function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit RemovedStake(generatorAddress, token, amount);
+    }
+
+    function stakeLockImposedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeLockImposed(generatorAddress, token, amount);
+    }
+
+    function stakeLockReleasedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeLockReleased(generatorAddress, token, amount);
+    }
+
+    function stakeSlashedCallback(address generatorAddress, address token, uint256 amount) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit StakeSlashed(generatorAddress, token, amount);
+    }
+
+    function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external override {
+        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
+            revert Error.InvalidContractAddress();
+        }
+
+        emit SymbioticCompleteSnapshot(captureTimestamp);
+    }
+
     // for further increase
     uint256[50] private __gap1_0;
 }

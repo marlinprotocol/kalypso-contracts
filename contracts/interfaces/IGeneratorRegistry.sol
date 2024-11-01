@@ -20,9 +20,9 @@ contract IGeneratorRegistry {
     event RequestComputeDecrease(address indexed generator, uint256 intendedUtilization);
     event DecreaseCompute(address indexed generator, uint256 compute);
 
-    event ComputeLockImposed(address indexed generator, uint256 stake);
+    event ComputeLockImposed(address indexed generator, uint256 compute);
 
-    event ComputeLockReleased(address indexed generator, uint256 stake);
+    event ComputeLockReleased(address indexed generator, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
 }
