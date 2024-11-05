@@ -38,7 +38,13 @@ async function main(): Promise<string> {
 
   const AttestationVerifierZK = await ethers.getContractFactory("AttestationVerifierZK");
 
-  await upgrades.upgradeProxy(attestation_zk_verifier, AttestationVerifierZK);
+  const attestationVerifierZk = AttestationVerifierZK__factory.connect(attestation_zk_verifier, admin);
+
+  // using same old verifier patches in attestationVerifierZk
+  await upgrades.upgradeProxy(attestation_zk_verifier, AttestationVerifierZK, {
+    kind: "uups",
+    constructorArgs: [await attestationVerifierZk.RISC0_VERIFIER()],
+  });
 
   return "Upgraded AttestationVerifierZK";
 }
