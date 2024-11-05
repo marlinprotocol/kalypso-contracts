@@ -69,7 +69,8 @@ errors = [
     "InferredImageIdIsDifferent()",
     "ECDSAInvalidSignature()",
     "ECDSAInvalidSignatureLength(uint256)",
-    "ECDSAInvalidSignatureS(bytes32)"
+    "ECDSAInvalidSignatureS(bytes32)",
+    "AttestationVerifierAttestationTooOld()"
 ]
 
 # Calculate the hash for each error signature and get the first 4 bytes
