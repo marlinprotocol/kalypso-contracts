@@ -171,7 +171,6 @@ describe("Proof Market Place for Attestation Verifier", () => {
     let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
-    console.log("Trying to create ask");
     const askId = await setup.createAsk(
       prover,
       tokenHolder,

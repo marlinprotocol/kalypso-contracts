@@ -244,7 +244,6 @@ describe("Checking Case where generator and ivs image is same", () => {
     const updateIvsKey = async (ivsEnclave: MockEnclave) => {
       // use any enclave here as AV is mocked
       let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(godEnclave); // means ivs should get verified attestation from noUseEnclave
-      console.log("Attestation bytes: ", ivsAttestationBytes);
 
       let types = ["bytes", "address"];
       let values = [ivsAttestationBytes, await generator.getAddress()];

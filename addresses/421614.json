@@ -15,7 +15,12 @@
     "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
     "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
     "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91",
+<<<<<<< HEAD
     "mock_verifier": "0x4B8d302A982D11d946255cA091F9C242491cDD31"
+=======
+    "attestation_zk_verifier": "0x6A5028A61387C7a7085f758f3A93bd19E0Dae249",
+    "attestation_zk_verifier_wrapper": "0x0f6E3E50d2da4cb9a29aB045158810ed1F447a0b"
+>>>>>>> kalpita/risc0
   },
   "implementation": {
     "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",

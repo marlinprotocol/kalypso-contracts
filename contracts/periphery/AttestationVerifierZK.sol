@@ -11,7 +11,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "../periphery/risc0/interfaces/RiscZeroVerifierEmergencyStop.sol";
 
-
 contract AttestationVerifierZK is
     Initializable, // initializer
     ContextUpgradeable, // _msgSender, _msgData
@@ -120,7 +119,7 @@ contract AttestationVerifierZK is
             (sha256(journal[56:104]) == sha256(attestation[155:203])) && // Checking PCR1
             (sha256(journal[104:152]) == sha256(attestation[206:254])) && // Checking PCR2
             (sha256(journal[152:249]) == sha256(attestation[1835:1932])) && // Checking certificate root key
-            (sha256(journal[249:313]) == sha256(attestation[4353:4417])) // Checking enclave public key
+            (sha256(journal[249:313]) == sha256(attestation[4353:4417]) || sha256(journal[249:313]) == sha256(attestation[4354:4418])) // Checking enclave public key
             )
         ) revert AttestationVerifierAttestationTooOld();
     }
