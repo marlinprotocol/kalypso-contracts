@@ -81,8 +81,7 @@ describe("Attestation verifier for RISC0, testing", () => {
     let verification_bytes = new AbiCoder().encode(types, [proofBytes, attestation_object]);
     // console.log({ verification_bytes });
 
-    // await expect(attestationVerifierZK["verify(bytes)"](verification_bytes)).to.not.reverted;
-    await attestationVerifierZK["verify(bytes)"](verification_bytes);
+    await expect(attestationVerifierZK["verify(bytes)"](verification_bytes)).to.not.reverted;
     // await expect(riscZeroVerifierEmergencyStop.verify(seal, imageId, journal_digest)).to.not.reverted;
   });
 
