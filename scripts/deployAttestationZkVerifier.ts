@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { ethers, run, upgrades } from "hardhat";
 import * as fs from "fs";
 
 import {
@@ -59,16 +59,16 @@ async function main(): Promise<string> {
     );
     await riscZeroVerifierEmergencyStop.deploymentTransaction()?.wait(2);
 
-    const attestationVerifierZK = await new AttestationVerifierZK__factory(admin).deploy(await riscZeroVerifierEmergencyStop.getAddress());
-    await riscZeroVerifierEmergencyStop.deploymentTransaction()?.wait(2);
-
-    addresses.proxy.attestation_zk_verifier = await attestationVerifierZK.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-
-    await run("verify:verify", {
-      address: await attestationVerifierZK.getAddress(),
-      constructorArguments: [await riscZeroVerifierEmergencyStop.getAddress()],
+    const attestationVerifierZkFactory = await ethers.getContractFactory("AttestationVerifierZK");
+    const attestationVerifierZkProxy = await upgrades.deployProxy(attestationVerifierZkFactory, [[], [], await admin.getAddress()], {
+      kind: "uups",
+      constructorArgs: [await riscZeroVerifierEmergencyStop.getAddress()],
     });
+
+    await attestationVerifierZkProxy.deploymentTransaction()?.wait(2);
+
+    addresses.proxy.attestation_zk_verifier = await attestationVerifierZkProxy.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   if (!addresses.proxy.attestation_zk_verifier_wrapper) {
