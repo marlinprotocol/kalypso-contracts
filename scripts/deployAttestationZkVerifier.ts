@@ -46,7 +46,7 @@ async function main(): Promise<string> {
   let inputBytes = attestation.attestation;
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.attestation_zk_verifier) {
+  if (!addresses.proxy.risc0_verifier) {
     const riscZeroVerifier = await new RiscZeroGroth16Verifier__factory(admin).deploy(
       "0x8b6dcf11d463ac455361b41fb3ed053febb817491bdea00fdb340e45013b852e",
       "0x05a022e1db38457fb510bc347b30eb8f8cf3eda95587653d0eac19e1f10d164e",
@@ -58,11 +58,15 @@ async function main(): Promise<string> {
       await admin.getAddress(),
     );
     await riscZeroVerifierEmergencyStop.deploymentTransaction()?.wait(2);
+    addresses.proxy.risc0_verifier = await riscZeroVerifierEmergencyStop.getAddress();
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  }
 
+  if (!addresses.proxy.attestation_zk_verifier) {
     const attestationVerifierZkFactory = await ethers.getContractFactory("AttestationVerifierZK");
-    const attestationVerifierZkProxy = await upgrades.deployProxy(attestationVerifierZkFactory, [[], [], await admin.getAddress()], {
+    const attestationVerifierZkProxy = await upgrades.deployProxy(attestationVerifierZkFactory, [await admin.getAddress()], {
       kind: "uups",
-      constructorArgs: [await riscZeroVerifierEmergencyStop.getAddress()],
+      constructorArgs: [addresses.proxy.risc0_verifier],
     });
 
     await attestationVerifierZkProxy.deploymentTransaction()?.wait(2);

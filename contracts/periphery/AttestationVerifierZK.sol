@@ -51,11 +51,7 @@ contract AttestationVerifierZK is
     error AttestationVerifierInvalidAdmin();
     error AttestationVerifierNotImplemented();
 
-    function initialize(EnclaveImage[] memory images, bytes[] memory enclaveKeys, address _admin) external initializer {
-        // The images and their enclave keys are whitelisted without verification that enclave keys are created within
-        // the enclave. This is to initialize chain of trust and will be replaced with a more robust solution.
-        if (!(images.length != 0)) revert AttestationVerifierNoImageProvided();
-        if (!(images.length == enclaveKeys.length)) revert AttestationVerifierInitLengthMismatch();
+    function initialize(address _admin) external initializer {
         if (!(_admin != address(0))) revert AttestationVerifierInvalidAdmin();
 
         __Context_init_unchained();
@@ -65,12 +61,8 @@ contract AttestationVerifierZK is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
-    struct EnclaveImage {
-        bytes PCR0;
-        bytes PCR1;
-        bytes PCR2;
-    }
-
+    
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     RiscZeroVerifierEmergencyStop public immutable RISC0_VERIFIER;
 
     uint256[50] private __gap_1;
@@ -87,8 +79,6 @@ contract AttestationVerifierZK is
     error AttestationVerifierKeyNotVerified();
     error AttestationVerifierKeyAlreadyVerified();
 
-    event EnclaveImageWhitelisted(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
-    event EnclaveImageRevoked(bytes32 indexed imageId);
     event EnclaveKeyWhitelisted(bytes indexed enclavePubKey, bytes32 indexed imageId);
     event EnclaveKeyRevoked(bytes indexed enclavePubKey);
     event EnclaveKeyVerified(bytes indexed enclavePubKey, bytes32 indexed imageId);
@@ -122,7 +112,7 @@ contract AttestationVerifierZK is
             (
                 sha256(journal[249:313]) == sha256(attestation[4353:4417]) || 
                 sha256(journal[249:313]) == sha256(attestation[4354:4418]) || 
-                sha256(journal[249:313]) == sha256(attestation[4354:4420])) // Checking enclave public key, but not proper
+                sha256(journal[249:313]) == sha256(attestation[4356:4420])) // Checking enclave public key, but not proper
             )
         ) revert AttestationVerifierAttestationTooOld();
     }
