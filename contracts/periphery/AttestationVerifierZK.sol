@@ -107,16 +107,7 @@ contract AttestationVerifierZK is
             (sha256(journal[:8]) == sha256(attestation[87:95])) && // Checking timestamp
             (sha256(journal[8:56]) == sha256(attestation[104:152])) && // Checking PCR0
             (sha256(journal[56:104]) == sha256(attestation[155:203])) && // Checking PCR1
-            (sha256(journal[104:152]) == sha256(attestation[206:254])) && // Checking PCR2
-            (
-                sha256(journal[152:249]) == sha256(attestation[1835:1932]) ||
-                sha256(journal[152:249]) == sha256(attestation[1836:1933])
-            ) // Checking certificate root key
-            && 
-            (
-                sha256(journal[249:313]) == sha256(attestation[4353:4417]) || 
-                sha256(journal[249:313]) == sha256(attestation[4354:4418]) || 
-                sha256(journal[249:313]) == sha256(attestation[4356:4420])) // Checking enclave public key, but not proper
+            (sha256(journal[104:152]) == sha256(attestation[206:254])) // Checking PCR2
             )
         ) revert AttestationVerifierAttestationTooOld();
     }
