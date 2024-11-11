@@ -628,62 +628,6 @@ contract GeneratorRegistry is
             revert Error.InvalidContractAddress();
         }
 
-        emit RequestStakeDecrease(generatorAddress, token, amount);
-    }
-    
-    function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit RemovedStake(generatorAddress, token, amount);
-    }
-
-    function stakeLockImposedCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockImposed(generatorAddress, token, amount);
-    }
-
-    function stakeLockReleasedCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockReleased(generatorAddress, token, amount);
-    }
-
-    function stakeSlashedCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeSlashed(generatorAddress, token, amount);
-    }
-
-    function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit SymbioticCompleteSnapshot(captureTimestamp);
-    }
-
-    function addStakeCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit AddedStake(generatorAddress, token, amount);
-    }
-
-    function intendToReduceStakeCallback(address generatorAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
         emit IntendToReduceStake(generatorAddress, token, amount);
     }
     

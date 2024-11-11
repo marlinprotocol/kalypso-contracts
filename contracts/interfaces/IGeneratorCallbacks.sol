@@ -22,4 +22,6 @@ interface IGeneratorCallbacks {
 
     event SymbioticCompleteSnapshot(uint256 indexed captureTimestamp);
     function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external;
+
+    event RequestStakeDecrease(address indexed generatorAddress, address indexed token, uint256 amount);
 }
