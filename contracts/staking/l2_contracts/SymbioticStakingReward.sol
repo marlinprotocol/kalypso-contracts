@@ -10,7 +10,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {JobManager} from "./JobManager.sol";
+import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
 import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
@@ -157,7 +157,7 @@ contract SymbioticStakingReward is
         // transfer fee reward to the vault
         uint256 feeRewardAmount = rewardAccrued[feeRewardToken][_msgSender()];
         if (feeRewardAmount > 0) {
-            JobManager(jobManager).transferFeeToken(_msgSender(), feeRewardAmount);
+            ProofMarketplace(jobManager).transferFeeToken(_msgSender(), feeRewardAmount);
             rewardAccrued[feeRewardToken][_msgSender()] = 0;
         }
 
