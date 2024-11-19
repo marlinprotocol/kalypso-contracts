@@ -222,7 +222,7 @@ contract GeneratorRegistry is
         generator.intendedComputeUtilization = newUtilization;
 
         // block number after which this intent which execute
-        reduceComputeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
+        reduceComputeRequestBlock[_generatorAddress] = HELPER.blockNumber() + REDUCTION_REQUEST_BLOCK_GAP;
         emit RequestComputeDecrease(_generatorAddress, newUtilization);
     }
 
@@ -256,7 +256,7 @@ contract GeneratorRegistry is
         generator.declaredCompute = newTotalCompute;
         generator.intendedComputeUtilization = EXPONENT;
 
-        if (!(block.number >= reduceComputeRequestBlock[generatorAddress] && reduceComputeRequestBlock[generatorAddress] != 0)) {
+        if (!(HELPER.blockNumber() >= reduceComputeRequestBlock[generatorAddress] && reduceComputeRequestBlock[generatorAddress] != 0)) {
             revert Error.ReductionRequestNotValid();
         }
 

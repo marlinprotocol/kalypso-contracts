@@ -223,7 +223,7 @@ contract ProofMarketplace is
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 _penalty,
-                block.number + MARKET_ACTIVATION_DELAY,
+                HELPER.blockNumber() + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 _msgSender,
                 _marketmetadata
@@ -353,7 +353,7 @@ contract ProofMarketplace is
         if (ask.reward == 0 || ask.proverData.length == 0) {
             revert Error.CannotBeZero();
         }
-        if (ask.expiry <= block.number + minProvingTime[secretType]) {
+        if (ask.expiry <= HELPER.blockNumber() + minProvingTime[secretType]) {
             revert Error.CannotAssignExpiredTasks();
         }
 
@@ -363,7 +363,7 @@ contract ProofMarketplace is
         }
 
         Market memory market = marketData[ask.marketId];
-        if (block.number < market.activationBlock) {
+        if (HELPER.blockNumber() < market.activationBlock) {
             revert Error.InactiveMarket();
         }
 
@@ -441,7 +441,7 @@ contract ProofMarketplace is
 
         // time before which matching engine should assign the task to generator
         if (askWithState.state == AskState.CREATE) {
-            if (askWithState.ask.expiry > block.number) {
+            if (askWithState.ask.expiry > HELPER.blockNumber()) {
                 return askWithState.state;
             }
 
@@ -450,7 +450,7 @@ contract ProofMarketplace is
 
         // time before which generator should submit the proof
         if (askWithState.state == AskState.ASSIGNED) {
-            if (askWithState.ask.deadline < block.number) {
+            if (askWithState.ask.deadline < HELPER.blockNumber()) {
                 return AskState.DEADLINE_CROSSED;
             }
 
@@ -517,7 +517,7 @@ contract ProofMarketplace is
         }
 
         askWithState.state = AskState.ASSIGNED;
-        askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
+        askWithState.ask.deadline = HELPER.blockNumber() + askWithState.ask.timeTakenForProofGeneration;
         askWithState.generator = generator;
 
         GENERATOR_REGISTRY.assignGeneratorTask(askId, generator, askWithState.ask.marketId);

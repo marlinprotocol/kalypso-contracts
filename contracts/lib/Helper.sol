@@ -100,4 +100,17 @@ library HELPER {
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;
 
     uint256 internal constant ACCEPTABLE_ATTESTATION_DELAY = 60000; // 60 seconds, 60,000 milliseconds
+    
+    function blockNumber() internal view returns (uint256) {
+        return ArbSys(address(100)).arbBlockNumber();
+        // return block.number;
+    }
+}
+
+interface ArbSys {
+    /**
+     * @notice Get Arbitrum block number (distinct from L1 block number; Arbitrum genesis block has block number 0)
+     * @return block number as int
+     */
+    function arbBlockNumber() external view returns (uint256);
 }
