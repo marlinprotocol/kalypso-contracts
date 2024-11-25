@@ -34,7 +34,10 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IGeneratorCallbacks _generator_callback) {
         I_GENERATOR_CALLBACK = _generator_callback;
     }

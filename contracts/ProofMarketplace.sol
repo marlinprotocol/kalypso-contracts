@@ -747,9 +747,9 @@ contract ProofMarketplace is
     // }
 
     // TODO: add this function back(commented due to size)
-    // function marketCounter() external view returns (uint256) {
-    //     return marketData.length;
-    // }
+    function marketCounter() external view returns (uint256) {
+        return marketData.length;
+    }
 
     function setOperatorRewardShare(address _operator, uint256 _rewardShare) external {
         operatorRewardShares[_operator] = _rewardShare;
