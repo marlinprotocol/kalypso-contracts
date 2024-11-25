@@ -50,11 +50,11 @@
 //     // gaps in case we new vars in same file
 //     uint256[500] private __gap_1;
 
-//     // last epoch when operator completed a job
-//     mapping(address operator => uint256 lastJobCompletionEpoch) lastJobCompletionEpochs;
+//     // last epoch when prover completed a job
+//     mapping(address prover => uint256 lastJobCompletionEpoch) lastJobCompletionEpochs;
 
-//     // count of jobs done by operator in an epoch
-//     mapping(uint256 epoch => mapping(address operator => uint256 count)) operatorJobCountsPerEpoch;
+//     // count of jobs done by prover in an epoch
+//     mapping(uint256 epoch => mapping(address prover => uint256 count)) proverJobCountsPerEpoch;
 //     // total count of jobs done in an epoch
 //     mapping(uint256 epoch => uint256 totalCount) totalJobCountsPerEpoch;
 //     // timestampIdx of the latestConfirmedTimestamp at the time of job completion or snapshot submission
@@ -117,41 +117,41 @@
 
 //     /*===================================================== external ====================================================*/
 
-//     /// @notice update pending inflation reward for given operator
-//     /// @dev called by JobManager when job is completed or by RewardDistributor when operator is slashed
-//     function updatePendingInflationReward(address _operator) external returns (uint256 timestampIdx, uint256 pendingInflationReward) {
+//     /// @notice update pending inflation reward for given prover
+//     /// @dev called by JobManager when job is completed or by RewardDistributor when prover is slashed
+//     function updatePendingInflationReward(address _prover) external returns (uint256 timestampIdx, uint256 pendingInflationReward) {
 //         uint256 currentEpoch = (block.timestamp - startTime) / inflationRewardEpochSize;
-//         uint256 operatorLastEpoch = lastJobCompletionEpochs[_operator];
+//         uint256 proverLastEpoch = lastJobCompletionEpochs[_prover];
 
 //         // no need to update and distribute pending inflation reward
-//         if (operatorLastEpoch == currentEpoch) {
+//         if (proverLastEpoch == currentEpoch) {
 //             // return address(0) as the transmitter value will not be used
 //             return (0, 0);
 //         }
 
 //         // when job is completed, increase job count
 //         if(msg.sender == stakingManager) {
-//             _increaseJobCount(_operator, currentEpoch);
+//             _increaseJobCount(_prover, currentEpoch);
 //         }
 
-//         uint256 operatorLastEpochJobCount = operatorJobCountsPerEpoch[operatorLastEpoch][_operator];
-//         uint256 operatorCurrentEpochJobCount = operatorJobCountsPerEpoch[currentEpoch][_operator];
+//         uint256 proverLastEpochJobCount = proverJobCountsPerEpoch[proverLastEpoch][_prover];
+//         uint256 proverCurrentEpochJobCount = proverJobCountsPerEpoch[currentEpoch][_prover];
 
-//         // if operator has not completed any job
-//         if(operatorLastEpochJobCount == 0 && operatorCurrentEpochJobCount == 0) {
+//         // if prover has not completed any job
+//         if(proverLastEpochJobCount == 0 && proverCurrentEpochJobCount == 0) {
 //             // return address(0) as the transmitter value will not be used
 //             return (0, 0);
 //         }
 
-//         timestampIdx = epochTimestampIdx[operatorLastEpoch];
+//         timestampIdx = epochTimestampIdx[proverLastEpoch];
 
-//         // when operator has done job in last epoch, distribute inflation reward
+//         // when prover has done job in last epoch, distribute inflation reward
 //         // if 0, it means pendingInflationReward was updated and no job has been done
-//         if(operatorLastEpochJobCount > 0) {
-//             uint256 lastEpochTotalJobCount = totalJobCountsPerEpoch[operatorLastEpoch];
+//         if(proverLastEpochJobCount > 0) {
+//             uint256 lastEpochTotalJobCount = totalJobCountsPerEpoch[proverLastEpoch];
 
 //             pendingInflationReward = Math.mulDiv(
-//                 inflationRewardPerEpoch, operatorLastEpochJobCount, lastEpochTotalJobCount
+//                 inflationRewardPerEpoch, proverLastEpochJobCount, lastEpochTotalJobCount
 //             );
 
 //             // TODO: check logic
@@ -159,23 +159,23 @@
 //                 pendingInflationReward = IERC20(inflationRewardToken).balanceOf(address(this));
 //             }
 
-//             // operator deducts comission from inflation reward
-//             uint256 operatorComission  = Math.mulDiv(
-//                 pendingInflationReward, IJobManager(jobManager).operatorRewardShares(_operator), 1e18
+//             // prover deducts comission from inflation reward
+//             uint256 proverComission  = Math.mulDiv(
+//                 pendingInflationReward, IJobManager(jobManager).proverRewardShares(_prover), 1e18
 //             );
 
-//             IERC20(inflationRewardToken).safeTransfer(_operator, operatorComission);
+//             IERC20(inflationRewardToken).safeTransfer(_prover, proverComission);
 
-//             pendingInflationReward -= operatorComission;
+//             pendingInflationReward -= proverComission;
 //         }
 
 //         // when job is completed, inflation reward with distributed by JobManager along with fee reward
 //         if(msg.sender != stakingManager && pendingInflationReward > 0) {
 //             // staking manager will distribute inflation reward based on each pool's share
-//             IStakingManager(stakingManager).distributeInflationReward(_operator, pendingInflationReward, timestampIdx);
+//             IStakingManager(stakingManager).distributeInflationReward(_prover, pendingInflationReward, timestampIdx);
 //         }
 
-//         lastJobCompletionEpochs[_operator] = currentEpoch;
+//         lastJobCompletionEpochs[_prover] = currentEpoch;
 //     }
 
 //     /// @notice update when snapshot submission is completed, or when a job is completed
@@ -190,8 +190,8 @@
 
 //     /*===================================================== internal ====================================================*/
 
-//     function _increaseJobCount(address _operator, uint256 _epoch) internal {
-//         operatorJobCountsPerEpoch[_epoch][_operator]++;
+//     function _increaseJobCount(address _prover, uint256 _epoch) internal {
+//         proverJobCountsPerEpoch[_epoch][_prover]++;
 //         totalJobCountsPerEpoch[_epoch]++;
 //     }
 

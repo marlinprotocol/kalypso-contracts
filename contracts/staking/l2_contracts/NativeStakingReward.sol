@@ -22,8 +22,8 @@
 //     //-------------------------------- Staking start --------------------------------//
 
 
-//     function _getUserStakeAmount(address account, address token, address operator) internal view returns (uint256) {
-//         // return INativeStaking(stakingPool).getUserStakeAmount(account, token, operator);
+//     function _getUserStakeAmount(address account, address token, address prover) internal view returns (uint256) {
+//         // return INativeStaking(stakingPool).getUserStakeAmount(account, token, prover);
 //     }
 
 

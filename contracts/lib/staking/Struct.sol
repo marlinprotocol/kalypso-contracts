@@ -6,7 +6,7 @@ library Struct {
     /*=========================== Job Manager =============================*/
     struct JobInfo {
         address requester;
-        address operator;
+        address prover;
         uint256 feePaid;
         uint256 deadline;
     }
@@ -35,7 +35,7 @@ library Struct {
 
     struct JobSlashed {
         uint256 jobId;
-        address operator;
+        address prover;
         address rewardAddress;
     }
 
@@ -48,7 +48,7 @@ library Struct {
     /*========================= Symbiotic Staking =========================*/
 
     struct VaultSnapshot {
-        address operator;
+        address prover;
         address vault;
         address stakeToken;
         uint256 stakeAmount;

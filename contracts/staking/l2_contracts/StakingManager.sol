@@ -102,21 +102,21 @@ contract StakingManager is
 
     /// @notice lock stake for the job for all enabled pools
     /// @dev called by ProofMarketplace contract when a job is created
-    function onJobCreation(uint256 _jobId, address _operator) external onlyRole(PROVER_REGISTRY_ROLE) {
+    function onJobCreation(uint256 _jobId, address _prover) external onlyRole(PROVER_REGISTRY_ROLE) {
         uint256 len = stakingPoolSet.length();
 
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             if (!isEnabledPool(pool)) continue; // skip if the pool is not enabled
 
-            IStakingPool(pool).lockStake(_jobId, _operator);
+            IStakingPool(pool).lockStake(_jobId, _prover);
         }
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
+    function onJobCompletion(uint256 _jobId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
         // update pending inflation reward
-        // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
+        // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_prover);    
 
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
@@ -126,7 +126,7 @@ contract StakingManager is
 
             uint256 poolFeeRewardAmount = _calcFeeRewardAmount(pool, _feeRewardAmount);
 
-            IStakingPool(pool).onJobCompletion(_jobId, _operator, poolFeeRewardAmount);
+            IStakingPool(pool).onJobCompletion(_jobId, _prover, poolFeeRewardAmount);
         }
 
         // TODO: emit event

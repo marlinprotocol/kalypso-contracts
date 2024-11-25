@@ -126,8 +126,8 @@ contract ProofMarketplace is
 
     mapping(address => uint256) public claimableAmount;
 
-    // operator deducts comission from inflation reward
-    mapping(address operator => uint256 rewardShare) public operatorRewardShares; // 1e18 == 100%
+    // prover deducts comission from inflation reward
+    mapping(address prover => uint256 rewardShare) public proverRewardShares; // 1e18 == 100%
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -577,7 +577,7 @@ contract ProofMarketplace is
         uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeOperatorFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
 
         // transfer the amount to treasury collection
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
@@ -658,7 +658,7 @@ contract ProofMarketplace is
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeOperatorFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
@@ -713,7 +713,7 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
-    // TODO: change name to "claimRewards" (operator / prover)
+    // TODO: change name to "claimRewards"
     function flush(address _address) external {
         uint256 amount = claimableAmount[_address];
         if (amount != 0) {
@@ -758,20 +758,20 @@ contract ProofMarketplace is
     // }
 
     // TODO: Access Control
-    function setOperatorRewardShare(address _operator, uint256 _rewardShare) external {
-        operatorRewardShares[_operator] = _rewardShare;
-        emit OperatorRewardShareSet(_operator, _rewardShare);
+    function setProverRewardShare(address _prover, uint256 _rewardShare) external {
+        proverRewardShares[_prover] = _rewardShare;
+        emit ProverRewardShareSet(_prover, _rewardShare);
     }
 
-    function _distributeOperatorFeeReward(address _operator, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
-        // calculate operator fee reward
-        uint256 operatorFeeReward = Math.mulDiv(_feePaid, operatorRewardShares[_operator], 1e18);
-        feeRewardRemaining = _feePaid - operatorFeeReward;
+    function _distributeProverFeeReward(address _prover, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
+        // calculate prover fee reward
+        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverRewardShares[_prover], 1e18);
+        feeRewardRemaining = _feePaid - proverFeeReward;
 
-        // update operator fee reward
-        _increaseClaimableAmount(_operator, operatorFeeReward);
+        // update prover fee reward
+        _increaseClaimableAmount(_prover, proverFeeReward);
 
-        emit OperatorFeeRewardAdded(_operator, operatorFeeReward);
+        emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
 
     /// @dev updated by SymbioticStaking contract when job is completed

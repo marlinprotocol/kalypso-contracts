@@ -42,20 +42,20 @@
 
 //     // mapping(address stakeToken => uint256 share) public inflationRewardShare; // 1e18 = 100%
 
-//     // reward is accrued per operator
-//     mapping(address stakeToken => mapping(address operator => mapping(address rewardToken => uint256 rewardAmount)))
+//     // reward is accrued per prover
+//     mapping(address stakeToken => mapping(address prover => mapping(address rewardToken => uint256 rewardAmount)))
 //         rewards;
 //     // rewardTokens amount per stakeToken
 //     mapping(
 //         address stakeToken
-//             => mapping(address operator => mapping(address rewardToken => uint256 rewardPerToken))
+//             => mapping(address prover => mapping(address rewardToken => uint256 rewardPerToken))
 //     ) rewardPerTokenStored;
 
 //     mapping(
 //         address account
 //             => mapping(
 //                 address stakeToken
-//                     => mapping(address operator => mapping(address rewardToken => uint256 rewardPerTokenPaid))
+//                     => mapping(address prover => mapping(address rewardToken => uint256 rewardPerTokenPaid))
 //             )
 //     ) rewardPerTokenPaids;
 
@@ -98,9 +98,9 @@
 //     /*======================================== external functions ========================================*/
 
 //     /// @notice called when fee reward is generated
-//     function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount) external onlyStakingPool {
-//         rewards[_stakeToken][_operator][feeRewardToken] += _rewardAmount;
-//         rewardPerTokenStored[_stakeToken][_operator][feeRewardToken] += _rewardAmount.mulDiv(1e18, _getOperatorStakeAmount(_operator, _stakeToken));
+//     function updateFeeReward(address _stakeToken, address _prover, uint256 _rewardAmount) external onlyStakingPool {
+//         rewards[_stakeToken][_prover][feeRewardToken] += _rewardAmount;
+//         rewardPerTokenStored[_stakeToken][_prover][feeRewardToken] += _rewardAmount.mulDiv(1e18, _getProverStakeAmount(_prover, _stakeToken));
 //     }
 
 //     /// @notice called when inflation reward is generated

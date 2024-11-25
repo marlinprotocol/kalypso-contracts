@@ -32,8 +32,8 @@ interface IProofMarketplace {
     event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
     event RemoveExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
 
-    event OperatorRewardShareSet(address indexed operator, uint256 rewardShare);
-    event OperatorFeeRewardAdded(address indexed operator, uint256 feeRewardAmount);
+    event ProverRewardShareSet(address indexed prover, uint256 rewardShare);
+    event ProverFeeRewardAdded(address indexed prover, uint256 feeRewardAmount);
 
     event TransmitterFeeRewardAdded(address indexed transmitter, uint256 feeRewardAmount);
 

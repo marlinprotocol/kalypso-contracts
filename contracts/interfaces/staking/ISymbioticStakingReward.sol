@@ -8,9 +8,9 @@ interface ISymbioticStakingReward {
 
     /*====================================================== events =======================================================*/
 
-    event RewardDistributed(address indexed stakeToken, address indexed operator, uint256 amount);
+    event RewardDistributed(address indexed stakeToken, address indexed prover, uint256 amount);
 
-    event RewardClaimed(address indexed operator, uint256 amount);
+    event RewardClaimed(address indexed prover, uint256 amount);
 
     event StakingPoolSet(address indexed stakingPool);
 
@@ -22,19 +22,19 @@ interface ISymbioticStakingReward {
 
     event RewardAccrued(address indexed rewardToken, address indexed vault, uint256 amount);
 
-    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed operator, uint256 rewardPerTokenStoredUpdated, uint256 rewardPerTokenAdded);
+    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed prover, uint256 rewardPerTokenStoredUpdated, uint256 rewardPerTokenAdded);
 
     /*===================================================== functions =====================================================*/
 
-    function rewardPerTokenPaid(address _stakeToken, address _rewardToken, address _vault, address _operator) external view returns (uint256);
+    function rewardPerTokenPaid(address _stakeToken, address _rewardToken, address _vault, address _prover) external view returns (uint256);
 
-    function rewardPerTokenStored(address _stakeToken, address _rewardToken, address _operator) external view returns (uint256);
+    function rewardPerTokenStored(address _stakeToken, address _rewardToken, address _prover) external view returns (uint256);
 
     function rewardAccrued(address _rewardToken, address _vault) external view returns (uint256);
 
-    function claimReward(address _operator) external;
+    function claimReward(address _prover) external;
 
-    function updateFeeReward(address _stakeToken, address _operator, uint256 _amount) external;
+    function updateFeeReward(address _stakeToken, address _prover, uint256 _amount) external;
 
-    function onSnapshotSubmission(address _vault, address _operator) external;
+    function onSnapshotSubmission(address _vault, address _prover) external;
 }

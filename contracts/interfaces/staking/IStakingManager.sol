@@ -23,9 +23,9 @@ interface IStakingManager {
 
     /*===================================================== functions =====================================================*/
 
-    function onJobCreation(uint256 jobId, address operator) external;
+    function onJobCreation(uint256 jobId, address prover) external;
 
-    function onJobCompletion(uint256 jobId, address operator, uint256 feePaid) external;
+    function onJobCompletion(uint256 jobId, address prover, uint256 feePaid) external;
 
     function onSlashResult(Struct.JobSlashed[] calldata slashedJobs) external;
 

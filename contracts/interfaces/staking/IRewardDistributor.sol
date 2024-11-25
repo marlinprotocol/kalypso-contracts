@@ -3,13 +3,13 @@
 pragma solidity ^0.8.26;
 
 interface IRewardDistributor {
-    function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount) external;
+    function updateFeeReward(address _stakeToken, address _prover, uint256 _rewardAmount) external;
 
-    function updateInflationReward(address _operator, uint256 _rewardAmount) external;
+    function updateInflationReward(address _prover, uint256 _rewardAmount) external;
 
-    function onStakeUpdate(address _account, address _stakeToken, address _operator) external;
+    function onStakeUpdate(address _account, address _stakeToken, address _prover) external;
 
-    function onClaimReward(address _account, address _operator) external;
+    function onClaimReward(address _account, address _prover) external;
 
     function onSlash() external;
 

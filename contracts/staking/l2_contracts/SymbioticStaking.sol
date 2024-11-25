@@ -108,17 +108,17 @@ contract SymbioticStaking is
     // to track if all partial txs are received
     mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
 
-    // staked amount for each operator
-    mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address operator => uint256 stakeAmount)))
-        operatorStakeAmounts;
+    // staked amount for each prover
+    mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address prover => uint256 stakeAmount)))
+        proverStakeAmounts;
     // staked amount for each vault
     mapping(
         uint256 captureTimestamp
-            => mapping(address stakeToken => mapping(address vault => mapping(address operator => uint256 stakeAmount)))
+            => mapping(address stakeToken => mapping(address vault => mapping(address prover => uint256 stakeAmount)))
     ) vaultStakeAmounts;
 
     mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
-    mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
+    mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
@@ -196,8 +196,8 @@ contract SymbioticStaking is
 
         _verifyProof(_imageId, STAKE_SNAPSHOT_TYPE, _index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _proof);
 
-        // update Vault and Operator stake amount
-        // update rewardPerToken for each vault and operator in SymbioticStakingReward
+        // update Vault and Prover stake amount
+        // update rewardPerToken for each vault and prover in SymbioticStakingReward
         _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
@@ -238,7 +238,7 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        // there could be no operator slashed
+        // there could be no prover slashed
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter
@@ -253,20 +253,20 @@ contract SymbioticStaking is
 
     /*--------------------------- stake lock/unlock for job --------------------------*/
 
-    function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _stakeToken = _selectStakeToken(_operator);
+    function lockStake(uint256 _jobId, address _prover) external onlyStakingManager {
+        address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getOperatorActiveStakeAmount(_stakeToken, _operator) >= _amountToLock, "Insufficient stake amount");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake amount");
 
         lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
-        operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
+        proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);    
+        emit StakeLocked(_jobId, _prover, _stakeToken, _amountToLock);    
         
-        I_PROVER_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
+        I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
+    function onJobCompletion(uint256 _jobId, address _prover, uint256 _feeRewardAmount) external onlyStakingManager {
         Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
 
         // distribute fee reward
@@ -282,16 +282,16 @@ contract SymbioticStaking is
             );
 
             // distribute the remaining fee reward
-            ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
+            ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _prover, feeRewardRemaining);
         }
 
         // unlock the stake locked during job creation
         delete lockInfo[_jobId];
-        operatorLockedAmounts[lock.stakeToken][_operator] -= amountToLock[lock.stakeToken];
+        proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
-        emit StakeUnlocked(_jobId, _operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+        emit StakeUnlocked(_jobId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
 
-        I_PROVER_CALLBACK.stakeLockReleasedCallback(_operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+        I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
     /*------------------------------------- slash ------------------------------------*/
@@ -305,12 +305,12 @@ contract SymbioticStaking is
             uint256 lockedAmount = lock.amount;
 
             // unlock the stake locked during job creation
-            operatorLockedAmounts[lock.stakeToken][_slashedJobs[i].operator] -= lockedAmount;
+            proverLockedAmounts[lock.stakeToken][_slashedJobs[i].prover] -= lockedAmount;
             delete lockInfo[_slashedJobs[i].jobId];
 
-            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].prover, lock.stakeToken, lockedAmount);
 
-            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].prover, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -347,14 +347,14 @@ contract SymbioticStaking is
 
             // update vault staked amount
             vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot
-                .operator] = _vaultSnapshot.stakeAmount;
+                .prover] = _vaultSnapshot.stakeAmount;
 
-            // update operator staked amount
-            operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.operator] +=
+            // update prover staked amount
+            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
                 _vaultSnapshot.stakeAmount;
 
             ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(
-                _vaultSnapshot.vault, _vaultSnapshot.operator
+                _vaultSnapshot.vault, _vaultSnapshot.prover
             );
         }
     }
@@ -393,23 +393,23 @@ contract SymbioticStaking is
         return len > 0 ? len - 1 : 0;
     }
 
-    function getOperatorStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_operator];
+    function getProverStakeAmount(address _stakeToken, address prover) public view returns (uint256) {
+        return proverStakeAmounts[latestConfirmedTimestamp()][_stakeToken][prover];
     }
 
     /// @notice this can return 0 if nothing was submitted at the timestamp
-    function getOperatorStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorStakeAmounts[_captureTimestamp][_stakeToken][_operator];
+    function getProverStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address prover) public view returns (uint256) {
+        return proverStakeAmounts[_captureTimestamp][_stakeToken][prover];
     }
 
-    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        uint256 operatorStakeAmount = getOperatorStakeAmount(_stakeToken, _operator);
-        uint256 operatorLockedAmount = operatorLockedAmounts[_stakeToken][_operator];
-        return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
+    function getProverActiveStakeAmount(address _stakeToken, address prover) public view returns (uint256) {
+        uint256 proverStakeAmount = getProverStakeAmount(_stakeToken, prover);
+        uint256 proverLockedAmount = proverLockedAmounts[_stakeToken][prover];
+        return proverStakeAmount > proverLockedAmount ? proverStakeAmount - proverLockedAmount : 0;
     }
 
-    function getStakeAmount(address _stakeToken, address _vault, address _operator) external view returns (uint256) {
-        return vaultStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_vault][_operator];
+    function getStakeAmount(address _stakeToken, address _vault, address prover) external view returns (uint256) {
+        return vaultStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_vault][prover];
     }
 
     function getStakeTokenList() external view returns (address[] memory) {
@@ -544,7 +544,7 @@ contract SymbioticStaking is
 
     /*-------------------------------------- Job -------------------------------------*/
 
-    function _selectStakeToken(address _operator) internal view returns (address) {
+    function _selectStakeToken(address _prover) internal view returns (address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -589,7 +589,7 @@ contract SymbioticStaking is
             }
 
             // check if the selected token has enough active stake amount
-            if (getOperatorActiveStakeAmount(selectedToken, _operator) >= amountToLock[selectedToken]) {
+            if (getProverActiveStakeAmount(selectedToken, _prover) >= amountToLock[selectedToken]) {
                 return selectedToken;
             }
 

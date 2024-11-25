@@ -8,11 +8,11 @@ interface IStakingPool {
 
     /* Job */
 
-    event StakeLocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event StakeLocked(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
 
-    event StakeUnlocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event StakeUnlocked(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
 
-    event JobSlashed(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event JobSlashed(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
     
     /* Stake Token */
 
@@ -33,9 +33,9 @@ interface IStakingPool {
 
     /*===================================================== functions =====================================================*/
 
-    function lockStake(uint256 jobId, address operator) external;
+    function lockStake(uint256 jobId, address prover) external;
 
-    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount) external;
+    function onJobCompletion(uint256 jobId, address prover, uint256 feeRewardAmount) external;
 
     function slash(Struct.JobSlashed[] calldata slashedJobs) external;
 
@@ -49,10 +49,10 @@ interface IStakingPool {
 
     function isSupportedStakeToken(address stakeToken) external view returns (bool);
 
-    function getOperatorStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    function getProverStakeAmount(address stakeToken, address prover) external view returns (uint256);
     
-    function getStakeAmount(address stakeToken, address staker, address operator) external view returns (uint256);
+    function getStakeAmount(address stakeToken, address staker, address prover) external view returns (uint256);
 
-    function getOperatorActiveStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    function getProverActiveStakeAmount(address stakeToken, address prover) external view returns (uint256);
 
 }
