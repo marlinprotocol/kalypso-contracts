@@ -682,7 +682,6 @@ contract ProofMarketplace is
     /**
      * @notice Prover can discard assigned request if he choses to. This will however result in slashing
      */
-    // TODO: what's this?
     function discardRequest(uint256 bidId) external nonReentrant {
         BidWithState memory bidWithState = listOfBid[bidId];
         if (bidWithState.prover != _msgSender()) {
