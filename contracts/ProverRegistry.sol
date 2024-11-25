@@ -70,7 +70,7 @@ contract ProverRegistry is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     StakingManager public immutable STAKING_MANAGER;
     //-------------------------------- Constants and Immutable start --------------------------------//
 

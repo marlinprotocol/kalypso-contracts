@@ -42,9 +42,12 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    IProverCallbacks public immutable I_PROVER_CALLBACK;
-    constructor(IProverCallbacks _prover_callback) {
-        I_PROVER_CALLBACK = _prover_callback;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor    
+    constructor(IGeneratorCallbacks _generator_callback) {
+        I_GENERATOR_CALLBACK = _generator_callback;
     }
 
     struct EnclaveImage {

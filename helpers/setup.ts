@@ -186,7 +186,7 @@ export const rawSetup = async (
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
   const nativeStakingProxy = await upgrades.deployProxy(NativeStakingContract, [], {
     kind: "uups",
-    constructorArgs: [],
+    constructorArgs: [await generatorRegistry.getAddress()],
     initializer: false,
   });
   const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
@@ -195,7 +195,7 @@ export const rawSetup = async (
   const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
   const symbioticStakingProxy = await upgrades.deployProxy(SymbioticStakingContract, [], {
     kind: "uups",
-    constructorArgs: [],
+    constructorArgs: [await generatorRegistry.getAddress()],
     initializer: false,
   });
   const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
@@ -236,6 +236,7 @@ export const rawSetup = async (
   // Initialize SymbioticStaking
   await symbioticStaking.initialize(
     await admin.getAddress(),
+    await attestationVerifier.getAddress(),
     await proofMarketplace.getAddress(),
     await stakingManager.getAddress(),
     await symbioticStakingReward.getAddress(),
