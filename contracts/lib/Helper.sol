@@ -89,8 +89,8 @@ library HELPER {
         return keccak256(abi.encode(roleId));
     }
 
-    function GENERATOR_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
-        return keccak256(abi.encode("gen", marketId));
+    function PROVER_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
+        return keccak256(abi.encode("prov", marketId));
     }
 
     function IVS_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {

@@ -15,7 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "./interfaces/IVerifier.sol";
 
 import "./EntityKeyRegistry.sol";
-import "./GeneratorRegistry.sol";
+import "./ProverRegistry.sol";
 import "./lib/Error.sol";
 import "./interfaces/IProofMarketplace.sol";
 
@@ -39,13 +39,13 @@ contract ProofMarketplace is
         IERC20Upgradeable _paymentToken,
         uint256 _marketCreationCost,
         address _treasury,
-        GeneratorRegistry _generatorRegistry,
+        ProverRegistry _proverRegistry,
         EntityKeyRegistry _entityRegistry
     ) initializer {
         PAYMENT_TOKEN = _paymentToken;
         MARKET_CREATION_COST = _marketCreationCost;
         TREASURY = _treasury;
-        GENERATOR_REGISTRY = _generatorRegistry;
+        PROVER_REGISTRY = _proverRegistry;
         ENTITY_KEY_REGISTRY = _entityRegistry;
     }
 
@@ -105,7 +105,7 @@ contract ProofMarketplace is
     address immutable TREASURY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    GeneratorRegistry public immutable GENERATOR_REGISTRY;
+    ProverRegistry public immutable PROVER_REGISTRY;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
@@ -163,7 +163,7 @@ contract ProofMarketplace is
         Bid bid;
         BidState state;
         address requester;
-        address generator;
+        address prover;
     }
 
     //-------------------------------- State variables end --------------------------------//
@@ -213,7 +213,7 @@ contract ProofMarketplace is
         // Helps skip whitelisting for public provers
         // TODO: understand this logic
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
-            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs);
+            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.PROVER_FAMILY_ID(), _proverPcrs);
         }
 
         // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
@@ -253,13 +253,13 @@ contract ProofMarketplace is
             }
 
             for (uint256 index = 0; index < _proverPcrs.length; index++) {
-                bytes32 familyId = marketId.GENERATOR_FAMILY_ID();
-                bytes32 generatorImageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
-                if (ENTITY_KEY_REGISTRY.isImageInFamily(generatorImageId, familyId)) {
-                    revert Error.ImageAlreadyInFamily(generatorImageId, familyId);
+                bytes32 familyId = marketId.PROVER_FAMILY_ID();
+                bytes32 proverImageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
+                if (ENTITY_KEY_REGISTRY.isImageInFamily(proverImageId, familyId)) {
+                    revert Error.ImageAlreadyInFamily(proverImageId, familyId);
                 }
                 ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
-                emit AddExtraProverImage(marketId, generatorImageId);
+                emit AddExtraProverImage(marketId, proverImageId);
             }
         }
 
@@ -297,7 +297,7 @@ contract ProofMarketplace is
                 if (imageId == market.proverImageId) {
                     revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
                 }
-                ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.GENERATOR_FAMILY_ID());
+                ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.PROVER_FAMILY_ID());
                 emit RemoveExtraProverImage(marketId, imageId);
             }
         }
@@ -442,7 +442,7 @@ contract ProofMarketplace is
     function getBidState(uint256 bidId) public view returns (BidState) {
         BidWithState memory bidWithState = listOfBid[bidId];
 
-        // time before which matching engine should assign the task to generator
+        // time before which matching engine should assign the task to prover
         if (bidWithState.state == BidState.CREATE) {
             if (bidWithState.bid.expiry > block.number) {
                 return bidWithState.state;
@@ -451,7 +451,7 @@ contract ProofMarketplace is
             return BidState.UNASSIGNED;
         }
 
-        // time before which generator should submit the proof
+        // time before which prover should submit the proof
         if (bidWithState.state == BidState.ASSIGNED) {
             if (bidWithState.bid.deadline < block.number) {
                 return BidState.DEADLINE_CROSSED;
@@ -464,19 +464,19 @@ contract ProofMarketplace is
     }
 
     /**
-     * @notice Assign Tasks for Generators. Only Matching Engine Image can call
+     * @notice Assign Tasks for Provers. Only Matching Engine Image can call
      */
     function relayBatchAssignTasks(
         uint256[] memory bidIds,
-        address[] memory generators,
+        address[] memory provers,
         bytes[] calldata newAcls,
         bytes calldata signature
     ) external nonReentrant {
-        if (bidIds.length != generators.length || generators.length != newAcls.length) {
+        if (bidIds.length != provers.length || provers.length != newAcls.length) {
             revert Error.ArityMismatch();
         }
 
-        bytes32 messageHash = keccak256(abi.encode(bidIds, generators, newAcls));
+        bytes32 messageHash = keccak256(abi.encode(bidIds, provers, newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
@@ -484,28 +484,28 @@ contract ProofMarketplace is
         ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
 
         for (uint256 index = 0; index < bidIds.length; index++) {
-            _assignTask(bidIds[index], generators[index], newAcls[index]);
+            _assignTask(bidIds[index], provers[index], newAcls[index]);
         }
     }
 
     /**
-     * @notice Assign Tasks for Generators directly if ME signer has the gas
+     * @notice Assign Tasks for Provers directly if ME signer has the gas
      */
     // TODO: add this function back(commented due to size)
-    // function assignTask(uint256 askId, address generator, bytes calldata new_acl) external nonReentrant {
+    // function assignTask(uint256 askId, address prover, bytes calldata new_acl) external nonReentrant {
     //     ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
-    //     _assignTask(askId, generator, new_acl);
+    //     _assignTask(askId, prover, new_acl);
     // }
 
-    function _assignTask(uint256 bidId, address generator, bytes memory new_acl) internal {
+    function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
         if (getBidState(bidId) != BidState.CREATE) {
             revert Error.ShouldBeInCreateState();
         }
 
         BidWithState storage bidWithState = listOfBid[bidId];
-        (uint256 proofGenerationCost, uint256 generatorProposedTime) = GENERATOR_REGISTRY.getGeneratorAssignmentDetails(
-            generator,
+        (uint256 proofGenerationCost, uint256 proverProposedTime) = PROVER_REGISTRY.getProverAssignmentDetails(
+            prover,
             bidWithState.bid.marketId
         );
 
@@ -515,16 +515,16 @@ contract ProofMarketplace is
         }
 
         // Can not assign task if time mismatch happens
-        if (bidWithState.bid.timeTakenForProofGeneration < generatorProposedTime) {
+        if (bidWithState.bid.timeTakenForProofGeneration < proverProposedTime) {
             revert Error.ProofTimeMismatch(bidId);
         }
 
         bidWithState.state = BidState.ASSIGNED;
         bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
-        bidWithState.generator = generator;
+        bidWithState.prover = prover;
 
-        GENERATOR_REGISTRY.assignGeneratorTask(bidId, generator, bidWithState.bid.marketId);
-        emit TaskCreated(bidId, generator, new_acl);
+        PROVER_REGISTRY.assignProverTask(bidId, prover, bidWithState.bid.marketId);
+        emit TaskCreated(bidId, prover, new_acl);
     }
 
     /**
@@ -544,12 +544,12 @@ contract ProofMarketplace is
     }
 
     function _verifyAndGetData(uint256 bidId, BidWithState memory bidWithState) internal view returns (uint256, address) {
-        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            bidWithState.generator,
+        (address proverRewardAddress, uint256 minRewardForProver) = PROVER_REGISTRY.getProverRewardDetails(
+            bidWithState.prover,
             bidWithState.bid.marketId
         );
 
-        if (generatorRewardAddress == address(0)) {
+        if (proverRewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
@@ -557,14 +557,14 @@ contract ProofMarketplace is
             revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
 
-        return (minRewardForGenerator, generatorRewardAddress);
+        return (minRewardForProver, proverRewardAddress);
     }
 
     function _completeProofForInvalidRequests(
         uint256 bidId,
         BidWithState memory bidWithState,
-        uint256 minRewardForGenerator,
-        address generatorRewardAddress,
+        uint256 minRewardForProver,
+        address proverRewardAddress,
         uint256 marketId
     ) internal {
         // Only assigned requests can be proved
@@ -574,15 +574,15 @@ contract ProofMarketplace is
         listOfBid[bidId].state = BidState.COMPLETE;
 
         // tokens related to incorrect request will be sen't to treasury
-        uint256 toTreasury = bidWithState.bid.reward - minRewardForGenerator;
+        uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
 
-        // transfer the reward to generator
-        uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
+        // transfer the reward to prover
+        uint256 feeRewardRemaining = _distributeOperatorFeeReward(proverRewardAddress, minRewardForProver);
 
         // transfer the amount to treasury collection
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
 
-        GENERATOR_REGISTRY.completeGeneratorTask(bidId, bidWithState.generator, marketId, feeRewardRemaining);
+        PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit InvalidInputsDetected(bidId);
     }
 
@@ -593,7 +593,7 @@ contract ProofMarketplace is
         BidWithState memory bidWithState = listOfBid[bidId];
         uint256 marketId = bidWithState.bid.marketId;
 
-        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(bidId, bidWithState);
+        (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(bidId, bidWithState);
 
         if (!_checkDisputeUsingSignature(bidId, bidWithState.bid.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
             revert Error.CannotSlashUsingValidInputs(bidId);
@@ -602,8 +602,8 @@ contract ProofMarketplace is
         _completeProofForInvalidRequests(
             bidId,
             bidWithState,
-            minRewardForGenerator,
-            generatorRewardAddress,
+            minRewardForProver,
+            proverRewardAddress,
             marketId
         );
     }
@@ -633,12 +633,12 @@ contract ProofMarketplace is
 
         uint256 marketId = bidWithState.bid.marketId;
 
-        (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            bidWithState.generator,
+        (address proverRewardAddress, uint256 minRewardForProver) = PROVER_REGISTRY.getProverRewardDetails(
+            bidWithState.prover,
             bidWithState.bid.marketId
         );
 
-        if (generatorRewardAddress == address(0)) {
+        if (proverRewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
@@ -655,33 +655,33 @@ contract ProofMarketplace is
         }
         listOfBid[bidId].state = BidState.COMPLETE;
 
-        uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForGenerator;
+        uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
-        // reward to generator
-        uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
+        // reward to prover
+        uint256 feeRewardRemaining = _distributeOperatorFeeReward(proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
         // TODO: consider setting slashingPenalty per market
-        // uint256 generatorAmountToRelease = _slashingPenalty(marketId);
-        GENERATOR_REGISTRY.completeGeneratorTask(bidId, bidWithState.generator, marketId, feeRewardRemaining);
+        // uint256 proverAmountToRelease = _slashingPenalty(marketId);
+        PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit ProofCreated(bidId, proof);
     }
 
     /**
-     * @notice Slash Generator for deadline crossed requests
+     * @notice Slash Prover for deadline crossed requests
      */
     // TODO: fix logic of this function
-    function slashGenerator(uint256 bidId) external nonReentrant {
+    function slashProver(uint256 bidId) external nonReentrant {
         if (getBidState(bidId) != BidState.DEADLINE_CROSSED) {
             revert Error.ShouldBeInCrossedDeadlineState(bidId);
         }
-        _slashGenerator(bidId);
+        _slashProver(bidId);
     }
 
     /**
-     * @notice Generator can discard assigned request if he choses to. This will however result in slashing
+     * @notice Prover can discard assigned request if he choses to. This will however result in slashing
      */
     // TODO: what's this?
     function discardRequest(uint256 bidId) external nonReentrant {
@@ -689,13 +689,13 @@ contract ProofMarketplace is
         if (getBidState(bidId) != BidState.ASSIGNED) {
             revert Error.ShouldBeInAssignedState(bidId);
         }
-        if (bidWithState.generator != _msgSender()) {
-            revert Error.OnlyGeneratorCanDiscardRequest(bidId);
+        if (bidWithState.prover != _msgSender()) {
+            revert Error.OnlyProverCanDiscardRequest(bidId);
         }
-        _slashGenerator(bidId);
+        _slashProver(bidId);
     }
 
-    function _slashGenerator(uint256 bidId) internal {
+    function _slashProver(uint256 bidId) internal {
         BidWithState storage bidWithState = listOfBid[bidId];
 
         bidWithState.state = BidState.COMPLETE;
@@ -705,7 +705,7 @@ contract ProofMarketplace is
             PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
             bidWithState.bid.reward = 0;
             emit ProofNotGenerated(bidId);
-            GENERATOR_REGISTRY.releaseGeneratorResources(bidWithState.generator, marketId);
+            PROVER_REGISTRY.releaseProverResources(bidWithState.prover, marketId);
         }
     }
 
@@ -713,7 +713,7 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
-    // TODO: change name to "claimRewards" (operator / generator)
+    // TODO: change name to "claimRewards" (operator / prover)
     function flush(address _address) external {
         uint256 amount = claimableAmount[_address];
         if (amount != 0) {

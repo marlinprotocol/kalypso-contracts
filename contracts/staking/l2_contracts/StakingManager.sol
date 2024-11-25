@@ -36,7 +36,7 @@ contract StakingManager is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    bytes32 public constant GENERATOR_REGISTRY_ROLE = keccak256("GENERATOR_REGISTRY");
+    bytes32 public constant PROVER_REGISTRY_ROLE = keccak256("PROVER_REGISTRY");
 
     /*===================================================================================================================*/
     /*================================================ state variable ===================================================*/
@@ -102,7 +102,7 @@ contract StakingManager is
 
     /// @notice lock stake for the job for all enabled pools
     /// @dev called by ProofMarketplace contract when a job is created
-    function onJobCreation(uint256 _jobId, address _operator) external onlyRole(GENERATOR_REGISTRY_ROLE) {
+    function onJobCreation(uint256 _jobId, address _operator) external onlyRole(PROVER_REGISTRY_ROLE) {
         uint256 len = stakingPoolSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -114,7 +114,7 @@ contract StakingManager is
     }
 
     // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyRole(GENERATOR_REGISTRY_ROLE) {
+    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
         // update pending inflation reward
         // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_operator);    
 
@@ -143,7 +143,7 @@ contract StakingManager is
         for(uint256 i = 0; i < _jobsSlashed.length; i++) {
             // this can be done manually in the ProofMarketplace contract
             // refunds nothing if already refunded
-            IProofMarketplace(proofMarketplace).slashGenerator(_jobsSlashed[i].jobId);
+            IProofMarketplace(proofMarketplace).slashProver(_jobsSlashed[i].jobId);
         }
 
         uint256 len = stakingPoolSet.length();

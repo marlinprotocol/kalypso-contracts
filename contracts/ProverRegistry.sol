@@ -15,20 +15,21 @@ import "./EntityKeyRegistry.sol";
 import "./lib/Error.sol";
 import "./ProofMarketplace.sol";
 import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
-import "./interfaces/IGeneratorRegistry.sol";
+import {IVerifier} from "./interfaces/IVerifier.sol";
+import "./interfaces/IProverRegistry.sol";
 
-import "./interfaces/IGeneratorCallbacks.sol";
+import "./interfaces/IProverCallbacks.sol";
 import "./staking/l2_contracts/StakingManager.sol";
 
-contract GeneratorRegistry is
+contract ProverRegistry is
     Initializable,
     ContextUpgradeable,
     ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    IGeneratorRegistry,
-    IGeneratorCallbacks
+    IProverRegistry,
+    IProverCallbacks
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
@@ -74,8 +75,8 @@ contract GeneratorRegistry is
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    mapping(address => Generator) public generatorRegistry;
-    mapping(address => mapping(uint256 => GeneratorInfoPerMarket)) public generatorInfoPerMarket;
+    mapping(address => Prover) public proverRegistry;
+    mapping(address => mapping(uint256 => ProverInfoPerMarket)) public proverInfoPerMarket;
 
     mapping(address => uint256) reduceComputeRequestBlock;
 
@@ -83,7 +84,7 @@ contract GeneratorRegistry is
 
     address public stakingManager;
 
-    enum GeneratorState {
+    enum ProverState {
         NULL,
         JOINED,
         NO_COMPUTE_AVAILABLE,
@@ -91,18 +92,18 @@ contract GeneratorRegistry is
         REQUESTED_FOR_EXIT
     }
 
-    struct Generator {
+    struct Prover {
         address rewardAddress;
         uint256 sumOfComputeAllocations;
         uint256 computeConsumed;
         uint256 activeMarketplaces;
         uint256 declaredCompute;
         uint256 intendedComputeUtilization;
-        bytes generatorData;
+        bytes proverData;
     }
 
-    struct GeneratorInfoPerMarket {
-        GeneratorState state;
+    struct ProverInfoPerMarket {
+        ProverState state;
         uint256 computePerRequestRequired;
         uint256 proofGenerationCost;
         uint256 proposedTime;
@@ -124,67 +125,67 @@ contract GeneratorRegistry is
     }
 
     /**
-     * @notice Register Generator
+     * @notice Register Prover
      */
     function register(
         address rewardAddress,
         uint256 declaredCompute,
-        bytes memory generatorData
+        bytes memory proverData
     ) external nonReentrant {
-        address _generatorAddress = _msgSender();
-        Generator memory generator = generatorRegistry[_generatorAddress];
+        address _proverAddress = _msgSender();
+        Prover memory prover = proverRegistry[_proverAddress];
 
-        if (generatorData.length == 0 || rewardAddress == address(0) || declaredCompute == 0) {
+        if (proverData.length == 0 || rewardAddress == address(0) || declaredCompute == 0) {
             revert Error.CannotBeZero();
         }
 
         // prevents registering multiple times, unless deregistered
-        if (generator.rewardAddress != address(0)) {
-            revert Error.GeneratorAlreadyExists();
+        if (prover.rewardAddress != address(0)) {
+            revert Error.ProverAlreadyExists();
         }
 
-        generatorRegistry[_generatorAddress] = Generator(
+        proverRegistry[_proverAddress] = Prover(
             rewardAddress,
             0,
             0,
             0,
             declaredCompute,
             EXPONENT,
-            generatorData
+            proverData
         );
 
-        emit RegisteredGenerator(_generatorAddress, declaredCompute);
+        emit RegisteredProver(_proverAddress, declaredCompute);
     }
 
     /**
-     * @notice Change Generator's reward address
+     * @notice Change Prover's reward address
      */
     function changeRewardAddress(address newRewardAddress) external {
-        address _generatorAddress = _msgSender();
-        Generator storage generator = generatorRegistry[_generatorAddress];
-        if (newRewardAddress == address(0) || generator.rewardAddress == address(0)) {
+        address _proverAddress = _msgSender();
+        Prover storage prover = proverRegistry[_proverAddress];
+        if (newRewardAddress == address(0) || prover.rewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
-        generator.rewardAddress = newRewardAddress;
+        prover.rewardAddress = newRewardAddress;
 
-        emit ChangedGeneratorRewardAddress(_generatorAddress, newRewardAddress);
+        emit ChangedProverRewardAddress(_proverAddress, newRewardAddress);
     }
 
     /**
-     * @notice Increase generator's compute
+     * @notice Increase prover's compute
      */
     function increaseDeclaredCompute(uint256 computeToIncrease) external {
-        address _generatorAddress = _msgSender();
-        Generator storage generator = generatorRegistry[_generatorAddress];
+        address _proverAddress = _msgSender();
+        Prover storage prover = proverRegistry[_proverAddress];
 
-        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0) {
+        if (prover.rewardAddress == address(0) || prover.proverData.length == 0) {
             revert Error.CannotBeZero();
         }
 
-        generator.declaredCompute += computeToIncrease;
+        prover.declaredCompute += computeToIncrease;
 
-        emit IncreasedCompute(_generatorAddress, computeToIncrease);
+        emit IncreasedCompute(_proverAddress, computeToIncrease);
     }
 
     /**
@@ -192,132 +193,132 @@ contract GeneratorRegistry is
      * @param computeToReduce Compute To Reduce
      */
     function intendToReduceCompute(uint256 computeToReduce) external {
-        address _generatorAddress = _msgSender();
-        Generator storage generator = generatorRegistry[_generatorAddress];
+        address _proverAddress = _msgSender();
+        Prover storage prover = proverRegistry[_proverAddress];
 
-        if (generator.rewardAddress == address(0) || generator.generatorData.length == 0 || computeToReduce == 0) {
+        if (prover.rewardAddress == address(0) || prover.proverData.length == 0 || computeToReduce == 0) {
             revert Error.CannotBeZero();
         }
 
         // if request is already in place, this will ICU will be less than EXP (as per design)
-        if (generator.intendedComputeUtilization != EXPONENT) {
+        if (prover.intendedComputeUtilization != EXPONENT) {
             revert Error.RequestAlreadyInPlace();
         }
 
         // new utilization after update
-        uint256 newTotalCompute = generator.declaredCompute - computeToReduce;
+        uint256 newTotalCompute = prover.declaredCompute - computeToReduce;
 
         // this is min compute requires for atleast 1 request from each supported market
-        if (newTotalCompute <= generator.sumOfComputeAllocations) {
+        if (newTotalCompute <= prover.sumOfComputeAllocations) {
             revert Error.ExceedsAcceptableRange();
         }
 
-        uint256 newUtilization = (newTotalCompute * EXPONENT) / generator.declaredCompute;
+        uint256 newUtilization = (newTotalCompute * EXPONENT) / prover.declaredCompute;
         // new utilization should be always less than EXP
         if (newUtilization >= EXPONENT) {
             revert Error.ExceedsAcceptableRange();
         }
 
         // temporary value to store the new utilization
-        generator.intendedComputeUtilization = newUtilization;
+        prover.intendedComputeUtilization = newUtilization;
 
         // block number after which this intent which execute
-        reduceComputeRequestBlock[_generatorAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
-        emit RequestComputeDecrease(_generatorAddress, newUtilization);
+        reduceComputeRequestBlock[_proverAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
+        emit RequestComputeDecrease(_proverAddress, newUtilization);
     }
 
     /**
      * @notice Free up the unused compute. intendToReduceCompute must have been called before this function
      */
     function decreaseDeclaredCompute() external {
-        address generatorAddress = _msgSender();
+        address _proverAddress = _msgSender();
 
-        Generator storage generator = generatorRegistry[generatorAddress];
+        Prover storage prover = proverRegistry[_proverAddress];
 
-        if (generator.generatorData.length == 0 || generator.rewardAddress == address(0)) {
-            revert Error.InvalidGenerator();
+        if (prover.proverData.length == 0 || prover.rewardAddress == address(0)) {
+            revert Error.InvalidProver();
         }
 
-        if (generator.intendedComputeUtilization == EXPONENT) {
+        if (prover.intendedComputeUtilization == EXPONENT) {
             revert Error.ReduceComputeRequestNotInPlace();
         }
 
-        uint256 newTotalCompute = (generator.intendedComputeUtilization * generator.declaredCompute) / EXPONENT;
-        uint256 computeToRelease = generator.declaredCompute - newTotalCompute;
+        uint256 newTotalCompute = (prover.intendedComputeUtilization * prover.declaredCompute) / EXPONENT;
+        uint256 computeToRelease = prover.declaredCompute - newTotalCompute;
 
-        if (newTotalCompute < generator.computeConsumed) {
-            revert Error.InsufficientGeneratorComputeAvailable();
+        if (newTotalCompute < prover.computeConsumed) {
+            revert Error.InsufficientProverComputeAvailable();
         }
 
-        if (newTotalCompute < generator.sumOfComputeAllocations) {
-            revert Error.InsufficientGeneratorComputeAvailable();
+        if (newTotalCompute < prover.sumOfComputeAllocations) {
+            revert Error.InsufficientProverComputeAvailable();
         }
 
-        generator.declaredCompute = newTotalCompute;
-        generator.intendedComputeUtilization = EXPONENT;
+        prover.declaredCompute = newTotalCompute;
+        prover.intendedComputeUtilization = EXPONENT;
 
-        if (!(block.number >= reduceComputeRequestBlock[generatorAddress] && reduceComputeRequestBlock[generatorAddress] != 0)) {
+        if (!(block.number >= reduceComputeRequestBlock[_proverAddress] && reduceComputeRequestBlock[_proverAddress] != 0)) {
             revert Error.ReductionRequestNotValid();
         }
 
-        delete reduceComputeRequestBlock[generatorAddress];
-        emit DecreaseCompute(generatorAddress, computeToRelease);
+        delete reduceComputeRequestBlock[_proverAddress];
+        emit DecreaseCompute(_proverAddress, computeToRelease);
     }
 
     /**
-     * @notice Deregister the generator
+     * @notice Deregister the prover
      */
     function deregister() external nonReentrant {
-        address _generatorAddress = _msgSender();
-        Generator memory generator = generatorRegistry[_generatorAddress];
+        address _proverAddress = _msgSender();
+        Prover memory prover = proverRegistry[_proverAddress];
 
-        if (generator.sumOfComputeAllocations != 0) {
+        if (prover.sumOfComputeAllocations != 0) {
             revert Error.CannotLeaveWithActiveMarket();
         }
 
-        delete generatorRegistry[_generatorAddress];
+        delete proverRegistry[_proverAddress];
 
-        emit DeregisteredGenerator(_generatorAddress);
+        emit DeregisteredProver(_proverAddress);
     }
 
     /**
      * @notice update the encryption key
      */
     function updateEncryptionKey(uint256 marketId, bytes memory attestationData, bytes calldata enclaveSignature) external {
-        // generator here is _msgSender()
+        // prover here is _msgSender()
         _updateEncryptionKey(_msgSender(), marketId, attestationData, enclaveSignature);
     }
 
 
     function _updateEncryptionKey(
-        address generatorAddress,
+        address proverAddress,
         uint256 marketId,
         bytes memory attestationData,
         bytes calldata enclaveSignature
     ) internal {
-        Generator memory generator = generatorRegistry[generatorAddress];
+        Prover memory prover = proverRegistry[proverAddress];
 
         // just an extra check to prevent spam
-        if (generator.rewardAddress == address(0)) {
+        if (prover.rewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
         // only for knowing if the given market is private or public
-        (, bytes32 generatorImageId) = _readMarketData(marketId);
-        if (!generatorImageId.IS_ENCLAVE()) {
+        (, bytes32 proverImageId) = _readMarketData(marketId);
+        if (!proverImageId.IS_ENCLAVE()) {
             revert Error.PublicMarketsDontNeedKey();
         }
 
-        if (!ENTITY_KEY_REGISTRY.isImageInFamily(attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), marketId.GENERATOR_FAMILY_ID())) {
+        if (!ENTITY_KEY_REGISTRY.isImageInFamily(attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), marketId.PROVER_FAMILY_ID())) {
             revert Error.IncorrectImageId();
         }
 
         bytes memory pubkey = attestationData.GET_PUBKEY();
 
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, generatorAddress);
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(enclaveSignature, proverAddress);
 
         // don't whitelist, because same imageId must be used to update the key
-        ENTITY_KEY_REGISTRY.updatePubkey(generatorAddress, marketId, pubkey, attestationData);
+        ENTITY_KEY_REGISTRY.updatePubkey(proverAddress, marketId, pubkey, attestationData);
     }
 
     /**
@@ -338,10 +339,10 @@ contract GeneratorRegistry is
     }
 
     /**
-     * @notice Remove generator's encryption key
+     * @notice Remove prover's encryption key
      */
     function removeEncryptionKey(uint256 marketId) external {
-        // generatorAddress = _msgSender();
+        // proverAddress = _msgSender();
         ENTITY_KEY_REGISTRY.removePubkey(_msgSender(), marketId);
     }
 
@@ -354,14 +355,14 @@ contract GeneratorRegistry is
         bytes memory attestationData, // verification ignored if updateMarketDedicatedKey==false
         bytes calldata enclaveSignature // ignored if updateMarketDedicatedKey==false
     ) external {
-        address generatorAddress = _msgSender();
+        address proverAddress = _msgSender();
 
-        Generator storage generator = generatorRegistry[generatorAddress];
-        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+        Prover storage prover = proverRegistry[proverAddress];
+        ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][marketId];
 
         // proof generation time can't be zero.
         // compute required per proof can't be zero
-        if (generator.rewardAddress == address(0) || proposedTime == 0 || computePerRequestRequired == 0) {
+        if (prover.rewardAddress == address(0) || proposedTime == 0 || computePerRequestRequired == 0) {
             revert Error.CannotBeZero();
         }
 
@@ -372,24 +373,24 @@ contract GeneratorRegistry is
         }
 
         // prevents re-joining
-        if (info.state != GeneratorState.NULL) {
+        if (info.state != ProverState.NULL) {
             revert Error.AlreadyJoinedMarket();
         }
 
         // sum of compute allocation of all supported markets
-        generator.sumOfComputeAllocations += computePerRequestRequired;
+        prover.sumOfComputeAllocations += computePerRequestRequired;
 
-        // ensures that generator will support atleast 1 request for every market
-        if (generator.sumOfComputeAllocations > generator.declaredCompute) {
+        // ensures that prover will support atleast 1 request for every market
+        if (prover.sumOfComputeAllocations > prover.declaredCompute) {
             revert Error.CannotBeMoreThanDeclaredCompute();
         }
 
         // increment the number of active market places supported
-        generator.activeMarketplaces++;
+        prover.activeMarketplaces++;
 
-        // update market specific info for the generator
-        generatorInfoPerMarket[generatorAddress][marketId] = GeneratorInfoPerMarket(
-            GeneratorState.JOINED,
+        // update market specific info for the prover
+        proverInfoPerMarket[proverAddress][marketId] = ProverInfoPerMarket(
+            ProverState.JOINED,
             computePerRequestRequired,
             proofGenerationCost,
             proposedTime,
@@ -397,102 +398,102 @@ contract GeneratorRegistry is
         );
 
         if (updateMarketDedicatedKey) {
-            _updateEncryptionKey(generatorAddress, marketId, attestationData, enclaveSignature);
+            _updateEncryptionKey(proverAddress, marketId, attestationData, enclaveSignature);
         }
-        emit JoinedMarketplace(generatorAddress, marketId, computePerRequestRequired);
+        emit JoinedMarketplace(proverAddress, marketId, computePerRequestRequired);
     }
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (IVerifier _verifier, bytes32 generatorImageId, , , , , ) = proofMarketplace.marketData(marketId);
+        (IVerifier _verifier, bytes32 proverImageId, , , , , ) = proofMarketplace.marketData(marketId);
 
-        return (address(_verifier), generatorImageId);
+        return (address(_verifier), proverImageId);
     }
 
-    function getGeneratorState(address generatorAddress, uint256 marketId) public view returns (GeneratorState, uint256) {
-        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
-        Generator memory generator = generatorRegistry[generatorAddress];
+    function getProverState(address proverAddress, uint256 marketId) public view returns (ProverState, uint256) {
+        ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][marketId];
+        Prover memory prover = proverRegistry[proverAddress];
 
-        if (info.state == GeneratorState.NULL) {
-            return (GeneratorState.NULL, 0);
+        if (info.state == ProverState.NULL) {
+            return (ProverState.NULL, 0);
         }
 
-        if (info.state == GeneratorState.REQUESTED_FOR_EXIT) {
-            return (GeneratorState.REQUESTED_FOR_EXIT, 0);
+        if (info.state == ProverState.REQUESTED_FOR_EXIT) {
+            return (ProverState.REQUESTED_FOR_EXIT, 0);
         }
 
-        uint256 idleCapacity = _maxReducableCompute(generatorAddress);
+        uint256 idleCapacity = _maxReducableCompute(proverAddress);
 
-        if (info.state != GeneratorState.NULL && idleCapacity == 0) {
-            return (GeneratorState.NO_COMPUTE_AVAILABLE, 0);
+        if (info.state != ProverState.NULL && idleCapacity == 0) {
+            return (ProverState.NO_COMPUTE_AVAILABLE, 0);
         }
 
-        if (idleCapacity == generator.declaredCompute) {
-            return (GeneratorState.JOINED, idleCapacity);
+        if (idleCapacity == prover.declaredCompute) {
+            return (ProverState.JOINED, idleCapacity);
         }
 
-        if (idleCapacity != 0 && idleCapacity < generator.declaredCompute) {
-            return (GeneratorState.WIP, idleCapacity);
+        if (idleCapacity != 0 && idleCapacity < prover.declaredCompute) {
+            return (ProverState.WIP, idleCapacity);
         }
-        return (GeneratorState.NULL, 0);
+        return (ProverState.NULL, 0);
     }
 
-    function _maxReducableCompute(address generatorAddress) internal view returns (uint256) {
-        Generator memory generator = generatorRegistry[generatorAddress];
+    function _maxReducableCompute(address proverAddress) internal view returns (uint256) {
+        Prover memory prover = proverRegistry[proverAddress];
 
-        uint256 maxUsableCompute = (generator.declaredCompute * generator.intendedComputeUtilization) / EXPONENT;
+        uint256 maxUsableCompute = (prover.declaredCompute * prover.intendedComputeUtilization) / EXPONENT;
 
-        if (maxUsableCompute < generator.computeConsumed) {
+        if (maxUsableCompute < prover.computeConsumed) {
             return 0;
         }
 
-        return maxUsableCompute - generator.computeConsumed;
+        return maxUsableCompute - prover.computeConsumed;
     }
 
     function leaveMarketplaces(uint256[] calldata marketIds) external {
         for (uint256 index = 0; index < marketIds.length; index++) {
-            // generatorAddress = _msgSender();
+            // proverAddress = _msgSender();
             _leaveMarketplace(_msgSender(), marketIds[index]);
         }
     }
 
     function leaveMarketplace(uint256 marketId) external {
-        // generatorAddress = _msgSender();
+        // proverAddress = _msgSender();
         _leaveMarketplace(_msgSender(), marketId);
     }
 
     function requestForExitMarketplaces(uint256[] calldata marketIds) external {
         for (uint256 index = 0; index < marketIds.length; index++) {
-            // generatorAddress = _msgSender();
+            // proverAddress = _msgSender();
             _requestForExitMarketplace(_msgSender(), marketIds[index]);
         }
     }
 
     function requestForExitMarketplace(uint256 marketId) external {
-        // generatorAddress = _msgSender();
+        // proverAddress = _msgSender();
         _requestForExitMarketplace(_msgSender(), marketId);
     }
 
-    function _requestForExitMarketplace(address generatorAddress, uint256 marketId) internal {
-        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+    function _requestForExitMarketplace(address proverAddress, uint256 marketId) internal {
+        (ProverState state, ) = getProverState(proverAddress, marketId);
 
-        // only valid generators can exit the market
-        if (!(state != GeneratorState.NULL && state != GeneratorState.REQUESTED_FOR_EXIT)) {
-            revert Error.OnlyValidGeneratorsCanRequestExit();
+        // only valid provers can exit the market
+        if (!(state != ProverState.NULL && state != ProverState.REQUESTED_FOR_EXIT)) {
+            revert Error.OnlyValidProversCanRequestExit();
         }
-        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+        ProverInfoPerMarket storage info = proverInfoPerMarket[proverAddress][marketId];
 
-        info.state = GeneratorState.REQUESTED_FOR_EXIT;
+        info.state = ProverState.REQUESTED_FOR_EXIT;
 
         // alerts matching engine to stop assinging the requests of given market
-        emit RequestExitMarketplace(generatorAddress, marketId);
+        emit RequestExitMarketplace(proverAddress, marketId);
 
         // if there are no active requests, proceed to leave market plaes
         if (info.activeRequests == 0) {
-            _leaveMarketplace(generatorAddress, marketId);
+            _leaveMarketplace(proverAddress, marketId);
         }
     }
 
-    function _leaveMarketplace(address generatorAddress, uint256 marketId) internal {
+    function _leaveMarketplace(address proverAddress, uint256 marketId) internal {
         (IVerifier marketVerifier, , , , , , ) = proofMarketplace.marketData(marketId);
 
         // check if market is valid
@@ -500,10 +501,10 @@ contract GeneratorRegistry is
             revert Error.InvalidMarket();
         }
 
-        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+        ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][marketId];
 
-        if (info.state == GeneratorState.NULL) {
-            revert Error.InvalidGeneratorStatePerMarket();
+        if (info.state == ProverState.NULL) {
+            revert Error.InvalidProverStatePerMarket();
         }
 
         // check if there are any active requestsw
@@ -511,156 +512,156 @@ contract GeneratorRegistry is
             revert Error.CannotLeaveMarketWithActiveRequest();
         }
 
-        Generator storage generator = generatorRegistry[generatorAddress];
+        Prover storage prover = proverRegistry[proverAddress];
 
-        generator.sumOfComputeAllocations -= info.computePerRequestRequired;
-        generator.activeMarketplaces -= 1;
+        prover.sumOfComputeAllocations -= info.computePerRequestRequired;
+        prover.activeMarketplaces -= 1;
 
-        delete generatorInfoPerMarket[generatorAddress][marketId];
-        emit LeftMarketplace(generatorAddress, marketId);
+        delete proverInfoPerMarket[proverAddress][marketId];
+        emit LeftMarketplace(proverAddress, marketId);
     }
 
     /**
-     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when generators is about to be slashed
+     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when provers is about to be slashed
      */
-    function releaseGeneratorResources(
-        address generatorAddress,
+    function releaseProverResources(
+        address proverAddress,
         uint256 marketId
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
-        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+        (ProverState state, ) = getProverState(proverAddress, marketId);
 
         // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
-        // only generators in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
-        if (state == GeneratorState.NULL || state == GeneratorState.JOINED) {
+        // only provers in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
+        if (state == ProverState.NULL || state == ProverState.JOINED) {
             revert Error.CannotBeSlashed();
         }
 
-        Generator storage generator = generatorRegistry[generatorAddress];
-        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+        Prover storage prover = proverRegistry[proverAddress];
+        ProverInfoPerMarket storage info = proverInfoPerMarket[proverAddress][marketId];
 
         info.activeRequests--;
 
-        generator.computeConsumed -= info.computePerRequestRequired;
-        emit ComputeLockReleased(generatorAddress, info.computePerRequestRequired);
+        prover.computeConsumed -= info.computePerRequestRequired;
+        emit ComputeLockReleased(proverAddress, info.computePerRequestRequired);
     }
 
-    function assignGeneratorTask(
+    function assignProverTask(
         uint256 askId,
-        address generatorAddress,
+        address proverAddress,
         uint256 marketId
     ) external nonReentrant onlyRole(PROOF_MARKET_PLACE_ROLE) {
-        (GeneratorState state, uint256 idleCapacity) = getGeneratorState(generatorAddress, marketId);
+        (ProverState state, uint256 idleCapacity) = getProverState(proverAddress, marketId);
 
-        if (!(state == GeneratorState.JOINED || state == GeneratorState.WIP)) {
-            revert Error.AssignOnlyToIdleGenerators();
+        if (!(state == ProverState.JOINED || state == ProverState.WIP)) {
+            revert Error.AssignOnlyToIdleProvers();
         }
 
-        Generator storage generator = generatorRegistry[generatorAddress];
-        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+        Prover storage prover = proverRegistry[proverAddress];
+        ProverInfoPerMarket storage info = proverInfoPerMarket[proverAddress][marketId];
 
         // requiredCompute <= idleCapacity
         if (info.computePerRequestRequired > idleCapacity) {
-            revert Error.InsufficientGeneratorComputeAvailable();
+            revert Error.InsufficientProverComputeAvailable();
         }
         if (info.activeRequests > PARALLEL_REQUESTS_UPPER_LIMIT) {
             revert Error.MaxParallelRequestsPerMarketExceeded();
         }
 
         uint256 computeConsumed = info.computePerRequestRequired;
-        generator.computeConsumed += computeConsumed;
+        prover.computeConsumed += computeConsumed;
 
-        IStakingManager(stakingManager).onJobCreation(askId, generatorAddress);
+        IStakingManager(stakingManager).onJobCreation(askId, proverAddress);
 
-        emit ComputeLockImposed(generatorAddress, computeConsumed);
+        emit ComputeLockImposed(proverAddress, computeConsumed);
         info.activeRequests++;
     }
 
-    function completeGeneratorTask(
+    function completeProverTask(
         uint256 askId,
-        address generatorAddress,
+        address proverAddress,
         uint256 marketId,
         uint256 stakeToRelease
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
-        (GeneratorState state, ) = getGeneratorState(generatorAddress, marketId);
+        (ProverState state, ) = getProverState(proverAddress, marketId);
 
         // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
-        // only generators in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
-        if (state == GeneratorState.NULL || state == GeneratorState.JOINED) {
-            revert Error.OnlyWorkingGenerators();
+        // only provers in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
+        if (state == ProverState.NULL || state == ProverState.JOINED) {
+            revert Error.OnlyWorkingProvers();
         }
 
-        Generator storage generator = generatorRegistry[generatorAddress];
-        GeneratorInfoPerMarket storage info = generatorInfoPerMarket[generatorAddress][marketId];
+        Prover storage prover = proverRegistry[proverAddress];
+        ProverInfoPerMarket storage info = proverInfoPerMarket[proverAddress][marketId];
 
         uint256 computeReleased = info.computePerRequestRequired;
-        generator.computeConsumed -= computeReleased;
+        prover.computeConsumed -= computeReleased;
 
-        IStakingManager(stakingManager).onJobCompletion(askId, generatorAddress, stakeToRelease);
+        IStakingManager(stakingManager).onJobCompletion(askId, proverAddress, stakeToRelease);
 
-        emit ComputeLockReleased(generatorAddress, computeReleased);
+        emit ComputeLockReleased(proverAddress, computeReleased);
 
         info.activeRequests--;
     }
 
-    function getGeneratorAssignmentDetails(address generatorAddress, uint256 marketId) public view returns (uint256, uint256) {
-        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
+    function getProverAssignmentDetails(address proverAddress, uint256 marketId) public view returns (uint256, uint256) {
+        ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][marketId];
 
         return (info.proofGenerationCost, info.proposedTime);
     }
 
-    function getGeneratorRewardDetails(address generatorAddress, uint256 marketId) public view returns (address, uint256) {
-        GeneratorInfoPerMarket memory info = generatorInfoPerMarket[generatorAddress][marketId];
-        Generator memory generator = generatorRegistry[generatorAddress];
+    function getProverRewardDetails(address proverAddress, uint256 marketId) public view returns (address, uint256) {
+        ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][marketId];
+        Prover memory prover = proverRegistry[proverAddress];
 
-        return (generator.rewardAddress, info.proofGenerationCost);
+        return (prover.rewardAddress, info.proofGenerationCost);
     }
 
-    function addStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+    function addStakeCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit AddedStake(generatorAddress, token, amount);
+        emit AddedStake(proverAddress, token, amount);
     }
 
-    function intendToReduceStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+    function intendToReduceStakeCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit IntendToReduceStake(generatorAddress, token, amount);
+        emit IntendToReduceStake(proverAddress, token, amount);
     }
     
-    function removeStakeCallback(address generatorAddress, address token, uint256 amount) external override {
+    function removeStakeCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit RemovedStake(generatorAddress, token, amount);
+        emit RemovedStake(proverAddress, token, amount);
     }
 
-    function stakeLockImposedCallback(address generatorAddress, address token, uint256 amount) external override {
+    function stakeLockImposedCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit StakeLockImposed(generatorAddress, token, amount);
+        emit StakeLockImposed(proverAddress, token, amount);
     }
 
-    function stakeLockReleasedCallback(address generatorAddress, address token, uint256 amount) external override {
+    function stakeLockReleasedCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit StakeLockReleased(generatorAddress, token, amount);
+        emit StakeLockReleased(proverAddress, token, amount);
     }
 
-    function stakeSlashedCallback(address generatorAddress, address token, uint256 amount) external override {
+    function stakeSlashedCallback(address proverAddress, address token, uint256 amount) external override {
         if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
             revert Error.InvalidContractAddress();
         }
 
-        emit StakeSlashed(generatorAddress, token, amount);
+        emit StakeSlashed(proverAddress, token, amount);
     }
 
     function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external override {

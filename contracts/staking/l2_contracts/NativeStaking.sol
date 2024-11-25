@@ -21,7 +21,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "../../interfaces/IGeneratorCallbacks.sol";
+import "../../interfaces/IProverCallbacks.sol";
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -33,10 +33,10 @@ contract NativeStaking is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
-
-    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
-    constructor(IGeneratorCallbacks _generator_callback) {
-        I_GENERATOR_CALLBACK = _generator_callback;
+    
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
     }
 
     /*===================================================================================================================*/
@@ -146,7 +146,7 @@ contract NativeStaking is
 
         emit Staked(msg.sender, _operator, _stakeToken, _amount);
 
-        I_GENERATOR_CALLBACK.addStakeCallback(_operator, _stakeToken, _amount);
+        I_PROVER_CALLBACK.addStakeCallback(_operator, _stakeToken, _amount);
     }
 
     // TODO
@@ -164,7 +164,7 @@ contract NativeStaking is
 
         emit StakeWithdrawalRequested(msg.sender, _operator, _stakeToken, index, _amount);
 
-        I_GENERATOR_CALLBACK.intendToReduceStakeCallback(_operator, _stakeToken, _amount);
+        I_PROVER_CALLBACK.intendToReduceStakeCallback(_operator, _stakeToken, _amount);
     }
 
     function withdrawStake(address _operator, uint256[] calldata _index) external nonReentrant {
@@ -184,7 +184,7 @@ contract NativeStaking is
 
             emit StakeWithdrawn(msg.sender, _operator, request.stakeToken, _index[i], request.amount);
 
-            I_GENERATOR_CALLBACK.removeStakeCallback(_operator, request.stakeToken, request.amount);
+            I_PROVER_CALLBACK.removeStakeCallback(_operator, request.stakeToken, request.amount);
         }
     }
 
@@ -201,7 +201,7 @@ contract NativeStaking is
 
         emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
 
-        I_GENERATOR_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
+        I_PROVER_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
     }
 
     /// @notice unlock stake and distribute reward
@@ -219,7 +219,7 @@ contract NativeStaking is
 
         emit StakeUnlocked(_jobId, _operator, lock.token, lock.amount);
 
-        I_GENERATOR_CALLBACK.stakeLockReleasedCallback(_operator, lock.token, lock.amount);
+        I_PROVER_CALLBACK.stakeLockReleasedCallback(_operator, lock.token, lock.amount);
     }
 
     function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
@@ -235,7 +235,7 @@ contract NativeStaking is
         
             emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
 
-            I_GENERATOR_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.token, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.token, lockedAmount);
         }
     }
 

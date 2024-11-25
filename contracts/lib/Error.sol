@@ -25,16 +25,16 @@ library Error {
     error InferredImageIdIsDifferent();
     error ImageAlreadyInFamily(bytes32 imageId, bytes32 familyId);
 
-    // Generator-related Errors
-    error GeneratorAlreadyExists();
-    error InvalidGenerator();
+    // Prover-related Errors
+    error ProverAlreadyExists();
+    error InvalidProver();
     error CannotLeaveWithActiveMarket();
-    error AssignOnlyToIdleGenerators();
-    error InsufficientGeneratorComputeAvailable();
-    error OnlyWorkingGenerators();
+    error AssignOnlyToIdleProvers();
+    error InsufficientProverComputeAvailable();
+    error OnlyWorkingProvers();
     error InvalidEnclaveKey();
-    error OnlyValidGeneratorsCanRequestExit();
-    error InvalidGeneratorStatePerMarket();
+    error OnlyValidProversCanRequestExit();
+    error InvalidProverStatePerMarket();
     error UnstakeRequestNotInPlace();
     error ReduceComputeRequestNotInPlace();
     error MaxParallelRequestsPerMarketExceeded();
@@ -70,5 +70,5 @@ library Error {
     error InvalidProof(uint256 bidId);
     error ShouldBeInCrossedDeadlineState(uint256 bidId);
     error ShouldBeInAssignedState(uint256 bidId);
-    error OnlyGeneratorCanDiscardRequest(uint256 bidId);
+    error OnlyProverCanDiscardRequest(uint256 bidId);
 }

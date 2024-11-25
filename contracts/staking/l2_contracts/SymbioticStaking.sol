@@ -27,7 +27,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "../../interfaces/IGeneratorCallbacks.sol";
+import "../../interfaces/IProverCallbacks.sol";
 
 import {console} from "hardhat/console.sol";
 
@@ -42,9 +42,9 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
-    constructor(IGeneratorCallbacks _generator_callback) {
-        I_GENERATOR_CALLBACK = _generator_callback;
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
     }
 
     struct EnclaveImage {
@@ -261,9 +261,9 @@ contract SymbioticStaking is
         lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
 
-        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
+        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);    
         
-        I_GENERATOR_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
+        I_PROVER_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
     }
 
     function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
@@ -291,7 +291,7 @@ contract SymbioticStaking is
 
         emit StakeUnlocked(_jobId, _operator, lock.stakeToken, amountToLock[lock.stakeToken]);
 
-        I_GENERATOR_CALLBACK.stakeLockReleasedCallback(_operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+        I_PROVER_CALLBACK.stakeLockReleasedCallback(_operator, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
     /*------------------------------------- slash ------------------------------------*/
@@ -310,7 +310,7 @@ contract SymbioticStaking is
 
             emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.stakeToken, lockedAmount);
 
-            I_GENERATOR_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -368,7 +368,7 @@ contract SymbioticStaking is
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
 
-        I_GENERATOR_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
+        I_PROVER_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
     }
 
     /*===================================================================================================================*/
