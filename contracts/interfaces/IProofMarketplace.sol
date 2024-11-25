@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 interface IProofMarketplace {
 
-    function slashGenerator(uint256 askId) external;
+    function slashGenerator(uint256 bidId) external;
 
     enum SecretType {
         NULL,
@@ -14,16 +14,16 @@ interface IProofMarketplace {
 
     //-------------------------------- Events start --------------------------------//
 
-    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
-    event TaskCreated(uint256 indexed askId, address indexed generator, bytes new_acl);
-    event ProofCreated(uint256 indexed askId, bytes proof);
-    event ProofNotGenerated(uint256 indexed askId);
+    event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event TaskCreated(uint256 indexed bidId, address indexed generator, bytes new_acl);
+    event ProofCreated(uint256 indexed bidId, bytes proof);
+    event ProofNotGenerated(uint256 indexed bidId);
 
-    event InvalidInputsDetected(uint256 indexed askId);
+    event InvalidInputsDetected(uint256 indexed bidId);
 
     event MarketplaceCreated(uint256 indexed marketId);
 
-    event AskCancelled(uint256 indexed askId);
+    event BidCancelled(uint256 indexed bidId);
 
     event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
     event UpdateMinProvingTime(SecretType indexed secretType, uint256 newProvingTime);

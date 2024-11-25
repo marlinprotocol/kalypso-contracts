@@ -59,16 +59,16 @@ library Error {
     error ArityMismatch();
     error OnlyMatchingEngineCanAssign();
     error RequestAlreadyInPlace();
-    error CannotSlashUsingValidInputs(uint256 askId);
+    error CannotSlashUsingValidInputs(uint256 bidId);
 
     // Proof and State Errors
     error ShouldBeInCreateState();
-    error ProofPriceMismatch(uint256 askId);
-    error ProofTimeMismatch(uint256 askId);
-    error OnlyExpiredAsksCanBeCancelled(uint256 askId);
-    error OnlyAssignedAsksCanBeProved(uint256 askId);
-    error InvalidProof(uint256 askId);
-    error ShouldBeInCrossedDeadlineState(uint256 askId);
-    error ShouldBeInAssignedState(uint256 askId);
-    error OnlyGeneratorCanDiscardRequest(uint256 askId);
+    error ProofPriceMismatch(uint256 bidId);
+    error ProofTimeMismatch(uint256 bidId);
+    error OnlyExpiredBidsCanBeCancelled(uint256 bidId);
+    error OnlyAssignedBidsCanBeProved(uint256 bidId);
+    error InvalidProof(uint256 bidId);
+    error ShouldBeInCrossedDeadlineState(uint256 bidId);
+    error ShouldBeInAssignedState(uint256 bidId);
+    error OnlyGeneratorCanDiscardRequest(uint256 bidId);
 }

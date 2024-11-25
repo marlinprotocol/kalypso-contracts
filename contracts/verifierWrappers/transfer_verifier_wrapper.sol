@@ -28,22 +28,22 @@ contract transfer_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Ask calldata ask,
+        ProofMarketplace.Bid calldata bid,
         ProofMarketplace.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
-            ask.marketId,
-            ask.reward,
-            ask.expiry,
-            ask.timeTakenForProofGeneration,
-            ask.deadline,
-            ask.refundAddress,
-            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        ProofMarketplace.Bid memory newBid = ProofMarketplace.Bid(
+            bid.marketId,
+            bid.reward,
+            bid.expiry,
+            bid.timeTakenForProofGeneration,
+            bid.deadline,
+            bid.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint256[5] memory) {

@@ -117,7 +117,7 @@ contract ProofMarketplace is
     //-------------------------------- State variables start --------------------------------//
     Market[] public marketData;
 
-    AskWithState[] public listOfAsk;
+    BidWithState[] public listOfBid;
 
     // cost for inputs
     mapping(SecretType => uint256) public costPerInputBytes;
@@ -139,7 +139,7 @@ contract ProofMarketplace is
         bytes marketmetadata;
     }
 
-    enum AskState {
+    enum BidState {
         NULL,
         CREATE,
         UNASSIGNED,
@@ -148,10 +148,10 @@ contract ProofMarketplace is
         DEADLINE_CROSSED
     }
 
-    struct Ask {
+    struct Bid {
         uint256 marketId;
         uint256 reward;
-        // the block number by which the ask should be assigned by matching engine
+        // the block number by which the bid should be assigned by matching engine
         uint256 expiry;
         uint256 timeTakenForProofGeneration;
         uint256 deadline;
@@ -159,9 +159,9 @@ contract ProofMarketplace is
         bytes proverData;
     }
 
-    struct AskWithState {
-        Ask ask;
-        AskState state;
+    struct BidWithState {
+        Bid bid;
+        BidState state;
         address requester;
         address generator;
     }
@@ -211,11 +211,13 @@ contract ProofMarketplace is
         uint256 marketId = marketData.length;
 
         // Helps skip whitelisting for public provers
+        // TODO: understand this logic
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.GENERATOR_FAMILY_ID(), _proverPcrs);
         }
 
         // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
+        // TODO: understand this logic
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
 
         marketData.push(
@@ -323,37 +325,38 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
+        // TODO: why doing this way?
         delete marketData[marketId].creator;
     }
 
     /**
      * @notice Create requests. Can be paused to prevent temporary escrowing of unwanted amount
-     * @param ask: Details of the ASK request
+     * @param bid: Details of the BID request
      * @param secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
      * @param privateInputs: Private Inputs to the circuit.
      * @param acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
      */
-    function createAsk(
-        Ask calldata ask,
         // TODO: Check if this needs to be removed during review
+    function createBid(
+        Bid calldata bid,
         SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
     ) external whenNotPaused nonReentrant {
-        _createAsk(ask, msg.sender, secretType, privateInputs, acl);
+        _createBid(bid, msg.sender, secretType, privateInputs, acl);
     }
 
-    function _createAsk(
-        Ask calldata ask,
+    function _createBid(
+        Bid calldata bid,
         address payFrom,
         SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
     ) internal {
-        if (ask.reward == 0 || ask.proverData.length == 0) {
+        if (bid.reward == 0 || bid.proverData.length == 0) {
             revert Error.CannotBeZero();
         }
-        if (ask.expiry <= block.number + minProvingTime[secretType]) {
+        if (bid.expiry <= block.number + minProvingTime[secretType]) {
             revert Error.CannotAssignExpiredTasks();
         }
 
@@ -362,55 +365,55 @@ contract ProofMarketplace is
             revert Error.InvalidECIESACL();
         }
 
-        Market memory market = marketData[ask.marketId];
+        Market memory market = marketData[bid.marketId];
         if (block.number < market.activationBlock) {
             revert Error.InactiveMarket();
         }
 
-        uint256 platformFee = getPlatformFee(secretType, ask, privateInputs, acl);
+        uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
 
-        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), ask.reward + platformFee);
+        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), bid.reward + platformFee);
         PAYMENT_TOKEN.safeTransfer(TREASURY, platformFee);
 
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
         }
 
-        uint256 askId = listOfAsk.length;
-        AskWithState memory askRequest = AskWithState(ask, AskState.CREATE, msg.sender, address(0));
-        listOfAsk.push(askRequest);
+        uint256 bidId = listOfBid.length;
+        BidWithState memory bidRequest = BidWithState(bid, BidState.CREATE, msg.sender, address(0));
+        listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
 
-        if (!inputVerifier.verifyInputs(ask.proverData)) {
+        if (!inputVerifier.verifyInputs(bid.proverData)) {
             revert Error.InvalidInputs();
         }
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit AskCreated(askId, true, privateInputs, acl);
+            emit BidCreated(bidId, true, privateInputs, acl);
         } else {
             // ACL is not emitted if not private
-            emit AskCreated(askId, false, "", "");
+            emit BidCreated(bidId, false, "", "");
         }
     }
 
     /**
      * @notice Different secret might have different fee. Hence fee is different
      * @param secretType: Secret Type
-     * @param ask: Details of the ask
+     * @param bid: Details of the bid
      * @param privateInputs: Private Inputs to the circuit
      * @param acl: Access control Data
      */
     function getPlatformFee(
         SecretType secretType,
-        Ask calldata ask,
+        Bid calldata bid,
         bytes calldata privateInputs,
         bytes calldata acl
     ) public view returns (uint256) {
         uint256 costperByte = costPerInputBytes[secretType];
         if (costperByte != 0) {
-            return (ask.proverData.length + privateInputs.length + acl.length) * costperByte;
+            return (bid.proverData.length + privateInputs.length + acl.length) * costperByte;
         }
         return 0;
     }
@@ -436,52 +439,52 @@ contract ProofMarketplace is
     /**
      @notice Possible States: NULL, CREATE, UNASSIGNED, ASSIGNED, COMPLETE, DEADLINE_CROSSED
      */
-    function getAskState(uint256 askId) public view returns (AskState) {
-        AskWithState memory askWithState = listOfAsk[askId];
+    function getBidState(uint256 bidId) public view returns (BidState) {
+        BidWithState memory bidWithState = listOfBid[bidId];
 
         // time before which matching engine should assign the task to generator
-        if (askWithState.state == AskState.CREATE) {
-            if (askWithState.ask.expiry > block.number) {
-                return askWithState.state;
+        if (bidWithState.state == BidState.CREATE) {
+            if (bidWithState.bid.expiry > block.number) {
+                return bidWithState.state;
             }
 
-            return AskState.UNASSIGNED;
+            return BidState.UNASSIGNED;
         }
 
         // time before which generator should submit the proof
-        if (askWithState.state == AskState.ASSIGNED) {
-            if (askWithState.ask.deadline < block.number) {
-                return AskState.DEADLINE_CROSSED;
+        if (bidWithState.state == BidState.ASSIGNED) {
+            if (bidWithState.bid.deadline < block.number) {
+                return BidState.DEADLINE_CROSSED;
             }
 
-            return AskState.ASSIGNED;
+            return BidState.ASSIGNED;
         }
 
-        return askWithState.state;
+        return bidWithState.state;
     }
 
     /**
      * @notice Assign Tasks for Generators. Only Matching Engine Image can call
      */
     function relayBatchAssignTasks(
-        uint256[] memory askIds,
+        uint256[] memory bidIds,
         address[] memory generators,
         bytes[] calldata newAcls,
         bytes calldata signature
     ) external nonReentrant {
-        if (askIds.length != generators.length || generators.length != newAcls.length) {
+        if (bidIds.length != generators.length || generators.length != newAcls.length) {
             revert Error.ArityMismatch();
         }
 
-        bytes32 messageHash = keccak256(abi.encode(askIds, generators, newAcls));
+        bytes32 messageHash = keccak256(abi.encode(bidIds, generators, newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
         address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, signature);
 
         ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
 
-        for (uint256 index = 0; index < askIds.length; index++) {
-            _assignTask(askIds[index], generators[index], newAcls[index]);
+        for (uint256 index = 0; index < bidIds.length; index++) {
+            _assignTask(bidIds[index], generators[index], newAcls[index]);
         }
     }
 
@@ -494,84 +497,84 @@ contract ProofMarketplace is
     //     _assignTask(askId, generator, new_acl);
     // }
 
-    function _assignTask(uint256 askId, address generator, bytes memory new_acl) internal {
+    function _assignTask(uint256 bidId, address generator, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        if (getAskState(askId) != AskState.CREATE) {
+        if (getBidState(bidId) != BidState.CREATE) {
             revert Error.ShouldBeInCreateState();
         }
 
-        AskWithState storage askWithState = listOfAsk[askId];
+        BidWithState storage bidWithState = listOfBid[bidId];
         (uint256 proofGenerationCost, uint256 generatorProposedTime) = GENERATOR_REGISTRY.getGeneratorAssignmentDetails(
             generator,
-            askWithState.ask.marketId
+            bidWithState.bid.marketId
         );
 
         // Can not assign task if price mismatch happens
-        if (askWithState.ask.reward < proofGenerationCost) {
-            revert Error.ProofPriceMismatch(askId);
+        if (bidWithState.bid.reward < proofGenerationCost) {
+            revert Error.ProofPriceMismatch(bidId);
         }
 
         // Can not assign task if time mismatch happens
-        if (askWithState.ask.timeTakenForProofGeneration < generatorProposedTime) {
-            revert Error.ProofTimeMismatch(askId);
+        if (bidWithState.bid.timeTakenForProofGeneration < generatorProposedTime) {
+            revert Error.ProofTimeMismatch(bidId);
         }
 
-        askWithState.state = AskState.ASSIGNED;
-        askWithState.ask.deadline = block.number + askWithState.ask.timeTakenForProofGeneration;
-        askWithState.generator = generator;
+        bidWithState.state = BidState.ASSIGNED;
+        bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
+        bidWithState.generator = generator;
 
-        GENERATOR_REGISTRY.assignGeneratorTask(askId, generator, askWithState.ask.marketId);
-        emit TaskCreated(askId, generator, new_acl);
+        GENERATOR_REGISTRY.assignGeneratorTask(bidId, generator, bidWithState.bid.marketId);
+        emit TaskCreated(bidId, generator, new_acl);
     }
 
     /**
      * @notice Cancel the unassigned request. Refunds the proof fee back to the requestor
      */
-    function cancelAsk(uint256 askId) external nonReentrant {
+    function cancelBid(uint256 bidId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        if (getAskState(askId) != AskState.UNASSIGNED) {
-            revert Error.OnlyExpiredAsksCanBeCancelled(askId);
+        if (getBidState(bidId) != BidState.UNASSIGNED) {
+            revert Error.OnlyExpiredBidsCanBeCancelled(bidId);
         }
-        AskWithState storage askWithState = listOfAsk[askId];
-        askWithState.state = AskState.COMPLETE;
+        BidWithState storage bidWithState = listOfBid[bidId];
+        bidWithState.state = BidState.COMPLETE;
 
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
+        PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
 
-        emit AskCancelled(askId);
+        emit BidCancelled(bidId);
     }
 
-    function _verifyAndGetData(uint256 askId, AskWithState memory askWithState) internal view returns (uint256, address) {
+    function _verifyAndGetData(uint256 bidId, BidWithState memory bidWithState) internal view returns (uint256, address) {
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            askWithState.generator,
-            askWithState.ask.marketId
+            bidWithState.generator,
+            bidWithState.bid.marketId
         );
 
         if (generatorRewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
-        if (getAskState(askId) != AskState.ASSIGNED) {
-            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        if (getBidState(bidId) != BidState.ASSIGNED) {
+            revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
 
         return (minRewardForGenerator, generatorRewardAddress);
     }
 
     function _completeProofForInvalidRequests(
-        uint256 askId,
-        AskWithState memory askWithState,
+        uint256 bidId,
+        BidWithState memory bidWithState,
         uint256 minRewardForGenerator,
         address generatorRewardAddress,
         uint256 marketId
     ) internal {
         // Only assigned requests can be proved
-        if (getAskState(askId) != AskState.ASSIGNED) {
-            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        if (getBidState(bidId) != BidState.ASSIGNED) {
+            revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
-        listOfAsk[askId].state = AskState.COMPLETE;
+        listOfBid[bidId].state = BidState.COMPLETE;
 
         // tokens related to incorrect request will be sen't to treasury
-        uint256 toTreasury = askWithState.ask.reward - minRewardForGenerator;
+        uint256 toTreasury = bidWithState.bid.reward - minRewardForGenerator;
 
         // transfer the reward to generator
         uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
@@ -579,26 +582,26 @@ contract ProofMarketplace is
         // transfer the amount to treasury collection
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
 
-        GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
-        emit InvalidInputsDetected(askId);
+        GENERATOR_REGISTRY.completeGeneratorTask(bidId, bidWithState.generator, marketId, feeRewardRemaining);
+        emit InvalidInputsDetected(bidId);
     }
 
     /**
      * @notice Submit Attestation/Proof from the IVS signer that the given inputs are invalid
      */
-    function submitProofForInvalidInputs(uint256 askId, bytes calldata invalidProofSignature) external nonReentrant {
-        AskWithState memory askWithState = listOfAsk[askId];
-        uint256 marketId = askWithState.ask.marketId;
+    function submitProofForInvalidInputs(uint256 bidId, bytes calldata invalidProofSignature) external nonReentrant {
+        BidWithState memory bidWithState = listOfBid[bidId];
+        uint256 marketId = bidWithState.bid.marketId;
 
-        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(askId, askWithState);
+        (uint256 minRewardForGenerator, address generatorRewardAddress) = _verifyAndGetData(bidId, bidWithState);
 
-        if (!_checkDisputeUsingSignature(askId, askWithState.ask.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
-            revert Error.CannotSlashUsingValidInputs(askId);
+        if (!_checkDisputeUsingSignature(bidId, bidWithState.bid.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID())) {
+            revert Error.CannotSlashUsingValidInputs(bidId);
         }
 
         _completeProofForInvalidRequests(
-            askId,
-            askWithState,
+            bidId,
+            bidWithState,
             minRewardForGenerator,
             generatorRewardAddress,
             marketId
@@ -621,86 +624,88 @@ contract ProofMarketplace is
     /**
      * @notice Submit Single Proof
      */
-    function submitProof(uint256 askId, bytes calldata proof) external nonReentrant {
-        _submitProof(askId, proof);
+    function submitProof(uint256 bidId, bytes calldata proof) external nonReentrant {
+        _submitProof(bidId, proof);
     }
 
-    function _submitProof(uint256 askId, bytes calldata proof) internal {
-        AskWithState memory askWithState = listOfAsk[askId];
+    function _submitProof(uint256 bidId, bytes calldata proof) internal {
+        BidWithState memory bidWithState = listOfBid[bidId];
 
-        uint256 marketId = askWithState.ask.marketId;
+        uint256 marketId = bidWithState.bid.marketId;
 
         (address generatorRewardAddress, uint256 minRewardForGenerator) = GENERATOR_REGISTRY.getGeneratorRewardDetails(
-            askWithState.generator,
-            askWithState.ask.marketId
+            bidWithState.generator,
+            bidWithState.bid.marketId
         );
 
         if (generatorRewardAddress == address(0)) {
             revert Error.CannotBeZero();
         }
 
-        if (getAskState(askId) != AskState.ASSIGNED) {
-            revert Error.OnlyAssignedAsksCanBeProved(askId);
+        if (getBidState(bidId) != BidState.ASSIGNED) {
+            revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
-        // check what needs to be encoded from proof, ask and task for proof to be verified
+        // check what needs to be encoded from proof, bid and task for proof to be verified
 
-        bytes memory inputAndProof = abi.encode(askWithState.ask.proverData, proof);
+        bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, proof);
 
         // Verify input and proof against verifier
         if (!marketData[marketId].verifier.verify(inputAndProof)) {
-            revert Error.InvalidProof(askId);
+            revert Error.InvalidProof(bidId);
         }
-        listOfAsk[askId].state = AskState.COMPLETE;
+        listOfBid[bidId].state = BidState.COMPLETE;
 
-        uint256 toBackToRequestor = askWithState.ask.reward - minRewardForGenerator;
+        uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForGenerator;
 
         // reward to generator
         uint256 feeRewardRemaining = _distributeOperatorFeeReward(generatorRewardAddress, minRewardForGenerator);
 
         // fraction of amount back to requestor
-        PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, toBackToRequestor);
+        PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
         // TODO: consider setting slashingPenalty per market
         // uint256 generatorAmountToRelease = _slashingPenalty(marketId);
-        GENERATOR_REGISTRY.completeGeneratorTask(askId, askWithState.generator, marketId, feeRewardRemaining);
-        emit ProofCreated(askId, proof);
+        GENERATOR_REGISTRY.completeGeneratorTask(bidId, bidWithState.generator, marketId, feeRewardRemaining);
+        emit ProofCreated(bidId, proof);
     }
 
     /**
      * @notice Slash Generator for deadline crossed requests
      */
-    function slashGenerator(uint256 askId) external nonReentrant {
-        if (getAskState(askId) != AskState.DEADLINE_CROSSED) {
-            revert Error.ShouldBeInCrossedDeadlineState(askId);
+    // TODO: fix logic of this function
+    function slashGenerator(uint256 bidId) external nonReentrant {
+        if (getBidState(bidId) != BidState.DEADLINE_CROSSED) {
+            revert Error.ShouldBeInCrossedDeadlineState(bidId);
         }
-        _slashGenerator(askId);
+        _slashGenerator(bidId);
     }
 
     /**
      * @notice Generator can discard assigned request if he choses to. This will however result in slashing
      */
-    function discardRequest(uint256 askId) external nonReentrant {
-        AskWithState memory askWithState = listOfAsk[askId];
-        if (getAskState(askId) != AskState.ASSIGNED) {
-            revert Error.ShouldBeInAssignedState(askId);
+    // TODO: what's this?
+    function discardRequest(uint256 bidId) external nonReentrant {
+        BidWithState memory bidWithState = listOfBid[bidId];
+        if (getBidState(bidId) != BidState.ASSIGNED) {
+            revert Error.ShouldBeInAssignedState(bidId);
         }
-        if (askWithState.generator != _msgSender()) {
-            revert Error.OnlyGeneratorCanDiscardRequest(askId);
+        if (bidWithState.generator != _msgSender()) {
+            revert Error.OnlyGeneratorCanDiscardRequest(bidId);
         }
-        _slashGenerator(askId);
+        _slashGenerator(bidId);
     }
 
-    function _slashGenerator(uint256 askId) internal {
-        AskWithState storage askWithState = listOfAsk[askId];
+    function _slashGenerator(uint256 bidId) internal {
+        BidWithState storage bidWithState = listOfBid[bidId];
 
-        askWithState.state = AskState.COMPLETE;
-        uint256 marketId = askWithState.ask.marketId;
+        bidWithState.state = BidState.COMPLETE;
+        uint256 marketId = bidWithState.bid.marketId;
 
-        if(askWithState.ask.reward != 0) {
-            PAYMENT_TOKEN.safeTransfer(askWithState.ask.refundAddress, askWithState.ask.reward);
-            askWithState.ask.reward = 0;
-            emit ProofNotGenerated(askId);
-            GENERATOR_REGISTRY.releaseGeneratorResources(askWithState.generator, marketId);
+        if(bidWithState.bid.reward != 0) {
+            PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
+            bidWithState.bid.reward = 0;
+            emit ProofNotGenerated(bidId);
+            GENERATOR_REGISTRY.releaseGeneratorResources(bidWithState.generator, marketId);
         }
     }
 
@@ -708,6 +713,7 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
+    // TODO: change name to "claimRewards" (operator / generator)
     function flush(address _address) external {
         uint256 amount = claimableAmount[_address];
         if (amount != 0) {
@@ -723,12 +729,12 @@ contract ProofMarketplace is
     }
 
     function _checkDisputeUsingSignature(
-        uint256 askId,
+        uint256 bidId,
         bytes memory proverData,
         bytes memory invalidProofSignature,
         bytes32 familyId
     ) internal view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
+        bytes32 messageHash = keccak256(abi.encode(bidId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
@@ -742,8 +748,8 @@ contract ProofMarketplace is
     }
 
     // TODO: add this function back(commented due to size)
-    // function askCounter() external view returns (uint256) {
-    //     return listOfAsk.length;
+    // function bidCounter() external view returns (uint256) {
+    //     return listOfBid.length;
     // }
 
     // TODO: add this function back(commented due to size)
@@ -751,6 +757,7 @@ contract ProofMarketplace is
     //     return marketData.length;
     // }
 
+    // TODO: Access Control
     function setOperatorRewardShare(address _operator, uint256 _rewardShare) external {
         operatorRewardShares[_operator] = _rewardShare;
         emit OperatorRewardShareSet(_operator, _rewardShare);
