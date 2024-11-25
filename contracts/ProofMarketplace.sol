@@ -147,11 +147,13 @@ contract ProofMarketplace is
         uint256 marketId = marketData.length;
 
         // Helps skip whitelisting for public provers
+        // TODO: understand this logic
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.PROVER_FAMILY_ID(), _proverPcrs);
         }
 
         // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
+        // TODO: understand this logic
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
 
         marketData.push(
@@ -259,6 +261,7 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
+        // TODO: why doing this way?
         delete marketData[marketId].creator;
     }
 
