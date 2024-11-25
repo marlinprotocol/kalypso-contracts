@@ -52,6 +52,7 @@ library Error {
     error InactiveMarket();
     error OnlyMarketCreator();
     error CannotRemoveDefaultImageFromMarket(uint256 marketId, bytes32 imageId);
+    error NoRewardToClaim();
 
     // Task and Request Errors
     error CannotAssignExpiredTasks();

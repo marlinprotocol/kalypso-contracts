@@ -98,23 +98,23 @@ contract StakingManager is
     /*===================================================================================================================*/
     
 
-    /*------------------------------------------------- Job Manager -----------------------------------------------------*/
+    /*------------------------------------------------- ProofMarketplace -----------------------------------------------------*/
 
-    /// @notice lock stake for the job for all enabled pools
-    /// @dev called by ProofMarketplace contract when a job is created
-    function onJobCreation(uint256 _jobId, address _prover) external onlyRole(PROVER_REGISTRY_ROLE) {
+    /// @notice lock stake for the task for all enabled pools
+    /// @dev called by ProofMarketplace contract when a task is created
+    function onTaskAssignment(uint256 _bidId, address _prover) external onlyRole(PROVER_REGISTRY_ROLE) {
         uint256 len = stakingPoolSet.length();
 
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
             if (!isEnabledPool(pool)) continue; // skip if the pool is not enabled
 
-            IStakingPool(pool).lockStake(_jobId, _prover);
+            IStakingPool(pool).lockStake(_bidId, _prover);
         }
     }
 
-    // called when job is completed to unlock the locked stakes
-    function onJobCompletion(uint256 _jobId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
+    // called when task is completed to unlock the locked stakes
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
         // update pending inflation reward
         // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_prover);    
 
@@ -126,30 +126,29 @@ contract StakingManager is
 
             uint256 poolFeeRewardAmount = _calcFeeRewardAmount(pool, _feeRewardAmount);
 
-            IStakingPool(pool).onJobCompletion(_jobId, _prover, poolFeeRewardAmount);
+            IStakingPool(pool).onTaskCompletion(_bidId, _prover, poolFeeRewardAmount);
         }
-
         // TODO: emit event
     }
 
     /*---------------------------------------------- Symbiotic Staking --------------------------------------------------*/
 
     /// @notice called by SymbioticStaking contract when slash result is submitted
-    function onSlashResult(Struct.JobSlashed[] calldata _jobsSlashed) external onlySymbioticStaking {
+    function onSlashResult(Struct.TaskSlashed[] calldata _tasksSlashed) external onlySymbioticStaking {
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
 
         // refund fee to the requester
-        for(uint256 i = 0; i < _jobsSlashed.length; i++) {
+        for(uint256 i = 0; i < _tasksSlashed.length; i++) {
             // this can be done manually in the ProofMarketplace contract
             // refunds nothing if already refunded
-            IProofMarketplace(proofMarketplace).slashProver(_jobsSlashed[i].jobId);
+            IProofMarketplace(proofMarketplace).slashProver(_tasksSlashed[i].bidId);
         }
 
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
-            IStakingPool(pool).slash(_jobsSlashed);
+            IStakingPool(pool).slash(_tasksSlashed);
         }
     }
 
@@ -223,7 +222,7 @@ contract StakingManager is
         emit PoolEnabledSet(_pool, _enabled);
     }
 
-    // when job is closed, the reward will be distributed based on the share
+    // when task is completed, the reward will be distributed based on the share
     function setPoolRewardShare(address[] calldata _pools, uint256[] calldata _shares)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)

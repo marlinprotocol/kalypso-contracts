@@ -3,8 +3,8 @@ pragma solidity ^0.8.26;
 
 library Struct {
 
-    /*=========================== Job Manager =============================*/
-    struct JobInfo {
+    /*=========================== Proof Marketplace =============================*/
+    struct TaskInfo {
         address requester;
         address prover;
         uint256 feePaid;
@@ -33,8 +33,8 @@ library Struct {
         uint256 amount;
     }
 
-    struct JobSlashed {
-        uint256 jobId;
+    struct TaskSlashed {
+        uint256 bidId;
         address prover;
         address rewardAddress;
     }

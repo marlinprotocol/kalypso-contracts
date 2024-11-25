@@ -20,9 +20,8 @@ contract IProverRegistry {
     event RequestComputeDecrease(address indexed prover, uint256 intendedUtilization);
     event DecreaseCompute(address indexed prover, uint256 compute);
 
-    event ComputeLockImposed(address indexed prover, uint256 compute);
-
-    event ComputeLockReleased(address indexed prover, uint256 compute);
+    event ComputeLocked(address indexed prover, uint256 compute);
+    event ComputeReleased(address indexed prover, uint256 compute);
 
     //-------------------------------- Events end --------------------------------//
 }

@@ -66,7 +66,7 @@ contract NativeStaking is
     /*==================================================== mapping ======================================================*/
     /*===================================================================================================================*/
 
-    mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
+    mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each task assignment
     mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
 
     /* Stake */
@@ -80,7 +80,7 @@ contract NativeStaking is
         withdrawalRequests;
 
     /* Locked Stakes */
-    mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
+    mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
     /*===================================================================================================================*/
@@ -190,52 +190,52 @@ contract NativeStaking is
 
     /*----------------------------------------------- Staking Manager ---------------------------------------------------*/
 
-    function lockStake(uint256 _jobId, address _prover) external onlyStakingManager {
+    function lockStake(uint256 _bidId, address _prover) external onlyStakingManager {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
-        lockInfo[_jobId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
+        lockInfo[_bidId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_jobId, _prover, _stakeToken, _amountToLock);
+        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);
 
         I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
     /// @notice unlock stake and distribute reward
-    /// @dev called by StakingManager when job is completed
-    function onJobCompletion(
-        uint256 _jobId,
+    /// @dev called by StakingManager when assigned task is completed
+    function onTaskCompletion(
+        uint256 _bidId,
         address _prover,
         uint256 /* _feeRewardAmount */
     ) external onlyStakingManager {
-        Struct.NativeStakingLock memory lock = lockInfo[_jobId];
+        Struct.NativeStakingLock memory lock = lockInfo[_bidId];
 
         if (lock.amount == 0) return;
 
-        _unlockStake(_jobId, lock.token, _prover, lock.amount);
+        _unlockStake(_bidId, lock.token, _prover, lock.amount);
 
-        emit StakeUnlocked(_jobId, _prover, lock.token, lock.amount);
+        emit StakeUnlocked(_bidId, _prover, lock.token, lock.amount);
 
         I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.token, lock.amount);
     }
 
-    function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
-        uint256 len = _slashedJobs.length;
+    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyStakingManager {
+        uint256 len = _slashedTasks.length;
         for (uint256 i = 0; i < len; i++) {
-            Struct.NativeStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
+            Struct.NativeStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
             if (lockedAmount == 0) continue; // if already slashed
 
-            _unlockStake(_slashedJobs[i].jobId, lock.token, _slashedJobs[i].prover, lockedAmount);
-            IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
+            _unlockStake(_slashedTasks[i].bidId, lock.token, _slashedTasks[i].prover, lockedAmount);
+            IERC20(lock.token).safeTransfer(_slashedTasks[i].rewardAddress, lockedAmount);
         
-            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].prover, lock.token, lockedAmount);
+            emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.token, lockedAmount);
 
-            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].prover, lock.token, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.token, lockedAmount);
         }
     }
 
@@ -243,9 +243,9 @@ contract NativeStaking is
     /*===================================================== internal ====================================================*/
     /*===================================================================================================================*/
 
-    function _unlockStake(uint256 _jobId, address _stakeToken, address _prover, uint256 _amount) internal {
+    function _unlockStake(uint256 _bidId, address _stakeToken, address _prover, uint256 _amount) internal {
         proverLockedAmounts[_stakeToken][_prover] -= _amount;
-        delete lockInfo[_jobId];
+        delete lockInfo[_bidId];
     }
 
     /*===================================================================================================================*/

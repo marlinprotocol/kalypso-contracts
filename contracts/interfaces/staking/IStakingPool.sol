@@ -6,13 +6,13 @@ import {Struct} from "../../lib/staking/Struct.sol";
 interface IStakingPool {
     /*====================================================== events =======================================================*/
 
-    /* Job */
+    /* Task */
 
-    event StakeLocked(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
+    event StakeLocked(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
 
-    event StakeUnlocked(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
+    event StakeUnlocked(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
 
-    event JobSlashed(uint256 indexed jobId, address indexed prover, address indexed token, uint256 amount);
+    event TaskSlashed(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
     
     /* Stake Token */
 
@@ -33,11 +33,11 @@ interface IStakingPool {
 
     /*===================================================== functions =====================================================*/
 
-    function lockStake(uint256 jobId, address prover) external;
+    function lockStake(uint256 bidId, address prover) external;
 
-    function onJobCompletion(uint256 jobId, address prover, uint256 feeRewardAmount) external;
+    function onTaskCompletion(uint256 bidId, address prover, uint256 feeRewardAmount) external;
 
-    function slash(Struct.JobSlashed[] calldata slashedJobs) external;
+    function slash(Struct.TaskSlashed[] calldata slashedTasks) external;
 
     function rewardDistributor() external view returns (address);
 

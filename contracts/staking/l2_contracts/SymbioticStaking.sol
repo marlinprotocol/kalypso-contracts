@@ -117,7 +117,7 @@ contract SymbioticStaking is
             => mapping(address stakeToken => mapping(address vault => mapping(address prover => uint256 stakeAmount)))
     ) vaultStakeAmounts;
 
-    mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
+    mapping(uint256 bidId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
@@ -219,9 +219,9 @@ contract SymbioticStaking is
         bytes memory _proof
     ) external {
 
-        Struct.JobSlashed[] memory _jobSlashed;
+        Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
-            _jobSlashed = abi.decode(_slashResultData, (Struct.JobSlashed[]));
+            _taskSlashed = abi.decode(_slashResultData, (Struct.TaskSlashed[]));
         }
 
         // Vault Snapshot should be submitted before Slash Result
@@ -239,7 +239,7 @@ contract SymbioticStaking is
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
         // there could be no prover slashed
-        if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
+        if (_taskSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_taskSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter
         emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _slashResultData, _proof);
@@ -251,23 +251,23 @@ contract SymbioticStaking is
         }
     }
 
-    /*--------------------------- stake lock/unlock for job --------------------------*/
+    /*--------------------------- stake lock/unlock --------------------------*/
 
-    function lockStake(uint256 _jobId, address _prover) external onlyStakingManager {
+    function lockStake(uint256 _bidId, address _prover) external onlyStakingManager {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake amount");
 
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
+        lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_jobId, _prover, _stakeToken, _amountToLock);    
+        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);    
         
         I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
-    function onJobCompletion(uint256 _jobId, address _prover, uint256 _feeRewardAmount) external onlyStakingManager {
-        Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyStakingManager {
+        Struct.SymbioticStakingLock memory lock = lockInfo[_bidId];
 
         // distribute fee reward
         if (_feeRewardAmount > 0) {
@@ -276,7 +276,7 @@ contract SymbioticStaking is
                 Math.mulDiv(_feeRewardAmount, confirmedTimestamps[currentTimestampIdx].transmitterComissionRate, 1e18);
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
-            // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+            // reward the transmitter who created the latestConfirmedTimestamp at the time of task assignment
             ProofMarketplace(proofMarketplace).distributeTransmitterFeeReward(
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
@@ -285,11 +285,11 @@ contract SymbioticStaking is
             ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _prover, feeRewardRemaining);
         }
 
-        // unlock the stake locked during job creation
-        delete lockInfo[_jobId];
+        // unlock the stake locked during task assignment
+        delete lockInfo[_bidId];
         proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
-        emit StakeUnlocked(_jobId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
+        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
 
         I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
@@ -297,20 +297,20 @@ contract SymbioticStaking is
     /*------------------------------------- slash ------------------------------------*/
 
     // TODO: later
-    function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
-        uint256 len = _slashedJobs.length;
+    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyStakingManager {
+        uint256 len = _slashedTasks.length;
         for (uint256 i = 0; i < len; i++) {
-            Struct.SymbioticStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
+            Struct.SymbioticStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
 
-            // unlock the stake locked during job creation
-            proverLockedAmounts[lock.stakeToken][_slashedJobs[i].prover] -= lockedAmount;
-            delete lockInfo[_slashedJobs[i].jobId];
+            // unlock the stake locked during task assignment
+            proverLockedAmounts[lock.stakeToken][_slashedTasks[i].prover] -= lockedAmount;
+            delete lockInfo[_slashedTasks[i].bidId];
 
-            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].prover, lock.stakeToken, lockedAmount);
+            emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.stakeToken, lockedAmount);
 
-            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedJobs[i].prover, lock.stakeToken, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -542,7 +542,7 @@ contract SymbioticStaking is
         return confirmedTimestamps[latestConfirmedTimestampIdx()].transmitter;
     }
 
-    /*-------------------------------------- Job -------------------------------------*/
+    /*-------------------------------------- Task -------------------------------------*/
 
     function _selectStakeToken(address _prover) internal view returns (address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
@@ -671,10 +671,10 @@ contract SymbioticStaking is
         emit StakingManagerSet(_stakingManager);
     }
 
-    function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        proofMarketplace = _jobManager;
+    function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        proofMarketplace = _proofMarketplace;
 
-        emit ProofMarketplaceSet(_jobManager);
+        emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {

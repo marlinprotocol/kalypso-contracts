@@ -542,7 +542,7 @@ contract ProverRegistry is
         info.activeRequests--;
 
         prover.computeConsumed -= info.computePerRequestRequired;
-        emit ComputeLockReleased(proverAddress, info.computePerRequestRequired);
+        emit ComputeReleased(proverAddress, info.computePerRequestRequired);
     }
 
     function assignProverTask(
@@ -570,10 +570,10 @@ contract ProverRegistry is
         uint256 computeConsumed = info.computePerRequestRequired;
         prover.computeConsumed += computeConsumed;
 
-        IStakingManager(stakingManager).onJobCreation(bidId, proverAddress);
+        IStakingManager(stakingManager).onTaskAssignment(bidId, proverAddress);
 
-        emit ComputeLockImposed(proverAddress, computeConsumed);
         info.activeRequests++;
+        emit ComputeLocked(proverAddress, computeConsumed);
     }
 
     function completeProverTask(
@@ -596,11 +596,10 @@ contract ProverRegistry is
         uint256 computeReleased = info.computePerRequestRequired;
         prover.computeConsumed -= computeReleased;
 
-        IStakingManager(stakingManager).onJobCompletion(bidId, proverAddress, stakeToRelease);
-
-        emit ComputeLockReleased(proverAddress, computeReleased);
+        IStakingManager(stakingManager).onTaskCompletion(bidId, proverAddress, stakeToRelease);
 
         info.activeRequests--;
+        emit ComputeReleased(proverAddress, computeReleased);
     }
 
     function getProverAssignmentDetails(address proverAddress, uint256 marketId) public view returns (uint256, uint256) {

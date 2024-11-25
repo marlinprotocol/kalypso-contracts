@@ -123,11 +123,12 @@ contract ProofMarketplace is
     mapping(SecretType => uint256) public costPerInputBytes;
     // min proving time (in blocks) for each secret type.
     mapping(SecretType => uint256) public minProvingTime;
-
-    mapping(address => uint256) public claimableAmount;
-
-    // prover deducts comission from inflation reward
+    // deducted and distributed to prover once proof is submitted
     mapping(address prover => uint256 rewardShare) public proverRewardShares; // 1e18 == 100%
+
+    mapping(address => uint256) public proverClaimableFeeReward;
+    mapping(address => uint256) public transmitterClaimableFeeReward;
+
 
     struct Market {
         IVerifier verifier; // verifier address for the market place
@@ -211,13 +212,11 @@ contract ProofMarketplace is
         uint256 marketId = marketData.length;
 
         // Helps skip whitelisting for public provers
-        // TODO: understand this logic
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
             ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.PROVER_FAMILY_ID(), _proverPcrs);
         }
 
         // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
-        // TODO: understand this logic
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
 
         marketData.push(
@@ -686,11 +685,11 @@ contract ProofMarketplace is
     // TODO: what's this?
     function discardRequest(uint256 bidId) external nonReentrant {
         BidWithState memory bidWithState = listOfBid[bidId];
-        if (getBidState(bidId) != BidState.ASSIGNED) {
-            revert Error.ShouldBeInAssignedState(bidId);
-        }
         if (bidWithState.prover != _msgSender()) {
             revert Error.OnlyProverCanDiscardRequest(bidId);
+        }
+        if (getBidState(bidId) != BidState.ASSIGNED) {
+            revert Error.ShouldBeInAssignedState(bidId);
         }
         _slashProver(bidId);
     }
@@ -713,19 +712,24 @@ contract ProofMarketplace is
         return marketData[marketId].slashingPenalty;
     }
 
-    // TODO: change name to "claimRewards"
-    function flush(address _address) external {
-        uint256 amount = claimableAmount[_address];
-        if (amount != 0) {
-            PAYMENT_TOKEN.safeTransfer(_address, amount);
-            delete claimableAmount[_address];
+    function claimProverFeeReward() external {
+        uint256 amount = proverClaimableFeeReward[_msgSender()];
+        if (amount == 0) {
+            revert Error.NoRewardToClaim();
         }
+
+        PAYMENT_TOKEN.safeTransfer(_msgSender(), amount);
+        delete proverClaimableFeeReward[_msgSender()];
     }
 
-    function _increaseClaimableAmount(address _address, uint256 _amount) internal {
-        if (_amount != 0) {
-            claimableAmount[_address] += _amount;
+    function claimTransmitterFeeReward() external {
+        uint256 amount = transmitterClaimableFeeReward[_msgSender()];
+        if (amount == 0) {
+            revert Error.NoRewardToClaim();
         }
+
+        PAYMENT_TOKEN.safeTransfer(_msgSender(), amount);
+        delete transmitterClaimableFeeReward[_msgSender()];
     }
 
     function _checkDisputeUsingSignature(
@@ -748,19 +752,18 @@ contract ProofMarketplace is
     }
 
     // TODO: add this function back(commented due to size)
-    // function bidCounter() external view returns (uint256) {
-    //     return listOfBid.length;
-    // }
+    function bidCounter() external view returns (uint256) {
+        return listOfBid.length;
+    }
 
     // TODO: add this function back(commented due to size)
-    // function marketCounter() external view returns (uint256) {
-    //     return marketData.length;
-    // }
+    function marketCounter() external view returns (uint256) {
+        return marketData.length;
+    }
 
-    // TODO: Access Control
-    function setProverRewardShare(address _prover, uint256 _rewardShare) external {
-        proverRewardShares[_prover] = _rewardShare;
-        emit ProverRewardShareSet(_prover, _rewardShare);
+    function setProverRewardShare(uint256 _rewardShare) external {
+        proverRewardShares[_msgSender()] = _rewardShare;
+        emit ProverRewardShareSet(_msgSender(), _rewardShare);
     }
 
     function _distributeProverFeeReward(address _prover, uint256 _feePaid) internal returns (uint256 feeRewardRemaining) {
@@ -769,18 +772,18 @@ contract ProofMarketplace is
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward
-        _increaseClaimableAmount(_prover, proverFeeReward);
+        proverClaimableFeeReward[_prover] += proverFeeReward;
 
         emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
 
-    /// @dev updated by SymbioticStaking contract when job is completed
+    /// @notice Called when SymbioticStaking reward distributes fee rewards
     function distributeTransmitterFeeReward(address _transmitter, uint256 _feeRewardAmount) external onlyRole(SYMBIOTIC_STAKING_ROLE) {
-        _increaseClaimableAmount(_transmitter, _feeRewardAmount);
+        transmitterClaimableFeeReward[_transmitter] += _feeRewardAmount;
         emit TransmitterFeeRewardAdded(_transmitter, _feeRewardAmount);
     }
 
-    /// @dev Only SymbioticStakingReward can call this function
+    /// @notice Called when SymbioticStaking reward distributes fee rewards
     function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }

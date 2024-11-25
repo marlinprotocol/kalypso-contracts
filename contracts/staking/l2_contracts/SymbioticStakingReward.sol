@@ -13,7 +13,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
-import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -43,7 +42,7 @@ contract SymbioticStakingReward is
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
-    address public jobManager;
+    address public proofMarketplace;
     address public symbioticStaking;
 
     address public feeRewardToken;
@@ -82,7 +81,7 @@ contract SymbioticStakingReward is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeRewardToken)
+    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeRewardToken)
         public
         initializer
     {
@@ -95,9 +94,9 @@ contract SymbioticStakingReward is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_jobManager != address(0), "SymbioticStakingReward: jobManager address is zero");
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
+        require(_proofMarketplace != address(0), "SymbioticStakingReward: proofMarketplace address is zero");
+        proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
 
         require(_symbioticStaking != address(0), "SymbioticStakingReward: symbioticStaking address is zero");
         symbioticStaking = _symbioticStaking;
@@ -115,7 +114,7 @@ contract SymbioticStakingReward is
     /* ------------------------- reward update ------------------------- */
 
     /// @notice called when fee reward is generated
-    /// @dev triggered from JobManager when job is completed
+    /// @dev called by ProofMarketplace when task is completed
     function updateFeeReward(address _stakeToken, address _prover, uint256 _rewardAmount)
         external
         onlySymbioticStaking
@@ -156,7 +155,7 @@ contract SymbioticStakingReward is
         // transfer fee reward to the vault
         uint256 feeRewardAmount = rewardAccrued[feeRewardToken][_msgSender()];
         if (feeRewardAmount > 0) {
-            ProofMarketplace(jobManager).transferFeeToken(_msgSender(), feeRewardAmount);
+            ProofMarketplace(proofMarketplace).transferFeeToken(_msgSender(), feeRewardAmount);
             rewardAccrued[feeRewardToken][_msgSender()] = 0;
         }
 
@@ -226,9 +225,9 @@ contract SymbioticStakingReward is
     /*===================================================== admin =======================================================*/
     /*===================================================================================================================*/
 
-    function setJobManager(address _jobManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
+    function setProofMarketplace(address _proofMarketplace) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setSymbioticStaking(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {

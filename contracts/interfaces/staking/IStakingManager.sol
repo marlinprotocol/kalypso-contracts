@@ -23,11 +23,11 @@ interface IStakingManager {
 
     /*===================================================== functions =====================================================*/
 
-    function onJobCreation(uint256 jobId, address prover) external;
+    function onTaskAssignment(uint256 bidId, address prover) external;
 
-    function onJobCompletion(uint256 jobId, address prover, uint256 feePaid) external;
+    function onTaskCompletion(uint256 bidId, address prover, uint256 feePaid) external;
 
-    function onSlashResult(Struct.JobSlashed[] calldata slashedJobs) external;
+    function onSlashResult(Struct.TaskSlashed[] calldata slashedTasks) external;
 
     function getPoolConfig(address pool) external view returns (Struct.PoolConfig memory);
 }

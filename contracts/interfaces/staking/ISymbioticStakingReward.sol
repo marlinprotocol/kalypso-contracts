@@ -14,7 +14,7 @@ interface ISymbioticStakingReward {
 
     event StakingPoolSet(address indexed stakingPool);
 
-    event JobManagerSet(address indexed jobManager);
+    event ProofMarketplaceSet(address indexed proofMarketplace);
 
     event SymbioticStakingSet(address indexed symbioticStaking);
 
