@@ -35,11 +35,11 @@ contract NativeStaking is
     using SafeERC20 for IERC20;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IGeneratorCallbacks _generator_callback) {
-        I_GENERATOR_CALLBACK = _generator_callback;
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
     }
 
     /*===================================================================================================================*/
