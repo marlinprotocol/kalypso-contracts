@@ -492,9 +492,9 @@ contract ProofMarketplace is
      * @notice Assign Tasks for Provers directly if ME signer has the gas
      */
     // TODO: add this function back(commented due to size)
-    // function assignTask(uint256 askId, address prover, bytes calldata new_acl) external nonReentrant {
+    // function assignTask(uint256 bidId, address prover, bytes calldata new_acl) external nonReentrant {
     //     ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
-    //     _assignTask(askId, prover, new_acl);
+    //     _assignTask(bidId, prover, new_acl);
     // }
 
     function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {

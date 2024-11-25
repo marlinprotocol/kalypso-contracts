@@ -546,7 +546,7 @@ contract ProverRegistry is
     }
 
     function assignProverTask(
-        uint256 askId,
+        uint256 bidId,
         address proverAddress,
         uint256 marketId
     ) external nonReentrant onlyRole(PROOF_MARKET_PLACE_ROLE) {
@@ -570,14 +570,14 @@ contract ProverRegistry is
         uint256 computeConsumed = info.computePerRequestRequired;
         prover.computeConsumed += computeConsumed;
 
-        IStakingManager(stakingManager).onJobCreation(askId, proverAddress);
+        IStakingManager(stakingManager).onJobCreation(bidId, proverAddress);
 
         emit ComputeLockImposed(proverAddress, computeConsumed);
         info.activeRequests++;
     }
 
     function completeProverTask(
-        uint256 askId,
+        uint256 bidId,
         address proverAddress,
         uint256 marketId,
         uint256 stakeToRelease
@@ -596,7 +596,7 @@ contract ProverRegistry is
         uint256 computeReleased = info.computePerRequestRequired;
         prover.computeConsumed -= computeReleased;
 
-        IStakingManager(stakingManager).onJobCompletion(askId, proverAddress, stakeToRelease);
+        IStakingManager(stakingManager).onJobCompletion(bidId, proverAddress, stakeToRelease);
 
         emit ComputeLockReleased(proverAddress, computeReleased);
 
