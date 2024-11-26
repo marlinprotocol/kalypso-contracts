@@ -259,7 +259,6 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
-        // TODO: why doing this way?
         delete marketData[marketId].creator;
     }
 
