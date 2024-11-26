@@ -210,7 +210,7 @@ contract SymbioticStaking is
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
         }
 
-        emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
+        emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
     }
 
     function submitSlashResult(
@@ -245,7 +245,7 @@ contract SymbioticStaking is
         if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
 
         // TODO: unlock the selfStake and reward it to the transmitter
-        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _slashResultData, _proof);
+        emit SlashResultSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof);
 
         // when all chunks of Snapshots are submitted
         if (_index == _numOfTxs - 1) {

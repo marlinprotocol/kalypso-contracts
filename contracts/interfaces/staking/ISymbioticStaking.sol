@@ -8,14 +8,12 @@ import {Struct} from "../../lib/staking/Struct.sol";
 interface ISymbioticStaking is IStakingPool {
     /*====================================================== events =======================================================*/
 
-    // TODO: temporary
     event VaultSnapshotSubmitted(
-        address indexed transmitter, uint256 indexed index, uint256 numOfTxs, bytes32 indexed imageId, bytes vaultSnapshotData, bytes proof
+        address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes vaultSnapshotData, bytes proof
     );
 
-    // TODO: temporary
     event SlashResultSubmitted(
-        address indexed transmitter, uint256 indexed index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
+        address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
     );
 
     event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
