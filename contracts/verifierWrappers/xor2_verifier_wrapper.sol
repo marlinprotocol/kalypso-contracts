@@ -22,22 +22,22 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Ask calldata ask,
-        ProofMarketplace.SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
-            ask.marketId,
-            ask.reward,
-            ask.expiry,
-            ask.timeTakenForProofGeneration,
-            ask.deadline,
-            ask.refundAddress,
-            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        Struct.Bid memory newBid = Struct.Bid(
+            bid.marketId,
+            bid.reward,
+            bid.expiry,
+            bid.timeTakenForProofGeneration,
+            bid.deadline,
+            bid.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint[1] memory) {

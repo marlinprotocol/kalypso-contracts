@@ -19,12 +19,12 @@ contract Dispute {
     }
 
     function checkDisputeUsingSignature(
-        uint256 askId,
+        uint256 bidId,
         bytes calldata proverData,
         bytes memory invalidProofSignature,
         bytes32 familyId
     ) internal view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
+        bytes32 messageHash = keccak256(abi.encode(bidId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
@@ -38,11 +38,11 @@ contract Dispute {
     }
 
     function checkDispute(
-        uint256 askId,
+        uint256 bidId,
         bytes calldata proverData,
         bytes calldata invalidProofSignature,
         bytes32 expectedFamilyId
     ) public view returns (bool) {
-        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedFamilyId);
+        return checkDisputeUsingSignature(bidId, proverData, invalidProofSignature, expectedFamilyId);
     }
 }

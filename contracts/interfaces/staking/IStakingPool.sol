@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 interface IStakingPool {
     /*====================================================== events =======================================================*/
 
-    /* Job */
+    /* Task */
 
-    event StakeLocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event StakeLocked(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
 
-    event StakeUnlocked(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event StakeUnlocked(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
 
-    event JobSlashed(uint256 indexed jobId, address indexed operator, address indexed token, uint256 amount);
+    event TaskSlashed(uint256 indexed bidId, address indexed prover, address indexed token, uint256 amount);
     
     /* Stake Token */
 
@@ -33,11 +33,11 @@ interface IStakingPool {
 
     /*===================================================== functions =====================================================*/
 
-    function lockStake(uint256 jobId, address operator) external;
+    function lockStake(uint256 bidId, address prover) external;
 
-    function onJobCompletion(uint256 jobId, address operator, uint256 feeRewardAmount) external;
+    function onTaskCompletion(uint256 bidId, address prover, uint256 feeRewardAmount) external;
 
-    function slash(Struct.JobSlashed[] calldata slashedJobs) external;
+    function slash(Struct.TaskSlashed[] calldata slashedTasks) external;
 
     function rewardDistributor() external view returns (address);
 
@@ -49,10 +49,10 @@ interface IStakingPool {
 
     function isSupportedStakeToken(address stakeToken) external view returns (bool);
 
-    function getOperatorStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    function getProverStakeAmount(address stakeToken, address prover) external view returns (uint256);
     
-    function getStakeAmount(address stakeToken, address staker, address operator) external view returns (uint256);
+    function getStakeAmount(address stakeToken, address staker, address prover) external view returns (uint256);
 
-    function getOperatorActiveStakeAmount(address stakeToken, address operator) external view returns (uint256);
+    function getProverActiveStakeAmount(address stakeToken, address prover) external view returns (uint256);
 
 }

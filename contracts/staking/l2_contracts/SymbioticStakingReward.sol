@@ -13,13 +13,12 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
-import {IJobManager} from "../../interfaces/staking/IJobManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -43,7 +42,7 @@ contract SymbioticStakingReward is
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
-    address public jobManager;
+    address public proofMarketplace;
     address public symbioticStaking;
 
     address public feeRewardToken;
@@ -56,13 +55,13 @@ contract SymbioticStakingReward is
     /*===================================================================================================================*/
 
     // rewardTokens amount per stakeToken
-    mapping(address stakeToken => mapping(address rewardToken => mapping(address operator => uint256 rewardPerToken)))
+    mapping(address stakeToken => mapping(address rewardToken => mapping(address prover => uint256 rewardPerToken)))
         public rewardPerTokenStored;
 
     mapping(
         address stakeToken
             => mapping(
-                address rewardToken => mapping(address vault => mapping(address operator => uint256 rewardPerTokenPaid))
+                address rewardToken => mapping(address vault => mapping(address prover => uint256 rewardPerTokenPaid))
             )
     ) public rewardPerTokenPaid;
 
@@ -82,7 +81,7 @@ contract SymbioticStakingReward is
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
 
-    function initialize(address _admin, address _jobManager, address _symbioticStaking, address _feeRewardToken)
+    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeRewardToken)
         public
         initializer
     {
@@ -95,9 +94,9 @@ contract SymbioticStakingReward is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_jobManager != address(0), "SymbioticStakingReward: jobManager address is zero");
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
+        require(_proofMarketplace != address(0), "SymbioticStakingReward: proofMarketplace address is zero");
+        proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
 
         require(_symbioticStaking != address(0), "SymbioticStakingReward: symbioticStaking address is zero");
         symbioticStaking = _symbioticStaking;
@@ -115,41 +114,40 @@ contract SymbioticStakingReward is
     /* ------------------------- reward update ------------------------- */
 
     /// @notice called when fee reward is generated
-    /// @dev triggered from JobManager when job is completed
-    function updateFeeReward(address _stakeToken, address _operator, uint256 _rewardAmount)
+    /// @dev called by ProofMarketplace when task is completed
+    function updateFeeReward(address _stakeToken, address _prover, uint256 _rewardAmount)
         external
         onlySymbioticStaking
     {
-        uint256 operatorStakeAmount = _getOperatorStakeAmount(_stakeToken, _operator);
-        if (operatorStakeAmount > 0) {
-            uint256 rewardPerTokenAdded = Math.mulDiv(_rewardAmount, 1e18, operatorStakeAmount);
-            rewardPerTokenStored[_stakeToken][feeRewardToken][_operator] += rewardPerTokenAdded;
+        uint256 proverStakeAmount = _getProverStakeAmount(_stakeToken, _prover);
+        if (proverStakeAmount > 0) {
+            uint256 rewardPerTokenAdded = Math.mulDiv(_rewardAmount, 1e18, proverStakeAmount);
+            rewardPerTokenStored[_stakeToken][feeRewardToken][_prover] += rewardPerTokenAdded;
 
             
-
-            emit RewardDistributed(_stakeToken, _operator, _rewardAmount);
+            emit RewardDistributed(_stakeToken, _prover, _rewardAmount);
 
             emit RewardPerTokenUpdated(
                 _stakeToken,
                 feeRewardToken,
-                _operator,
-                rewardPerTokenStored[_stakeToken][feeRewardToken][_operator],
+                _prover,
+                rewardPerTokenStored[_stakeToken][feeRewardToken][_prover],
                 rewardPerTokenAdded
             );
         }
     }
 
-    function onSnapshotSubmission(address _vault, address _operator) external onlySymbioticStaking {
-        _updateVaultReward(_getStakeTokenList(), _vault, _operator);
+    function onSnapshotSubmission(address _vault, address _prover) external onlySymbioticStaking {
+        _updateVaultReward(_getStakeTokenList(), _vault, _prover);
     }
 
     /* ------------------------- reward claim ------------------------- */
 
     // TODO: Vault -> Claimer address
     /// @notice vault can claim reward calling this function
-    function claimReward(address _operator) external nonReentrant {
+    function claimReward(address _prover) external nonReentrant {
         // update rewardPerTokenPaid and rewardAccrued for each vault
-        _updateVaultReward(_getStakeTokenList(), _msgSender(), _operator);
+        _updateVaultReward(_getStakeTokenList(), _msgSender(), _prover);
 
         address[] memory stakeTokenList = _getStakeTokenList();
         for (uint256 i = 0; i < stakeTokenList.length; i++) {}
@@ -157,11 +155,11 @@ contract SymbioticStakingReward is
         // transfer fee reward to the vault
         uint256 feeRewardAmount = rewardAccrued[feeRewardToken][_msgSender()];
         if (feeRewardAmount > 0) {
-            ProofMarketplace(jobManager).transferFeeToken(_msgSender(), feeRewardAmount);
+            ProofMarketplace(proofMarketplace).transferFeeToken(_msgSender(), feeRewardAmount);
             rewardAccrued[feeRewardToken][_msgSender()] = 0;
         }
 
-        emit RewardClaimed(_operator, feeRewardAmount);
+        emit RewardClaimed(_prover, feeRewardAmount);
     }
 
     /*===================================================================================================================*/
@@ -177,24 +175,24 @@ contract SymbioticStakingReward is
     /*===================================================================================================================*/
 
     /// @dev update rewardPerToken and rewardAccrued for each vault
-    function _updateVaultReward(address[] memory _stakeTokenList, address _vault, address _operator) internal {
+    function _updateVaultReward(address[] memory _stakeTokenList, address _vault, address _prover) internal {
         uint256 rewardToAdd;
         for (uint256 i = 0; i < _stakeTokenList.length; i++) {
             address stakeToken = _stakeTokenList[i];
 
             /* fee reward */
-            uint256 operatorRewardPerTokenStored = rewardPerTokenStored[stakeToken][feeRewardToken][_operator];
-            uint256 vaultRewardPerTokenPaid = rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_operator];
+            uint256 proverRewardPerTokenStored = rewardPerTokenStored[stakeToken][feeRewardToken][_prover];
+            uint256 vaultRewardPerTokenPaid = rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_prover];
 
             // update reward accrued for the vault
             rewardToAdd += Math.mulDiv(
-                _getVaultStakeAmount(stakeToken, _vault, _operator),
-                operatorRewardPerTokenStored - vaultRewardPerTokenPaid,
+                _getVaultStakeAmount(stakeToken, _vault, _prover),
+                proverRewardPerTokenStored - vaultRewardPerTokenPaid,
                 1e18
             );
 
             // update rewardPerTokenPaid of the vault
-            rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_operator] = operatorRewardPerTokenStored;
+            rewardPerTokenPaid[stakeToken][feeRewardToken][_vault][_prover] = proverRewardPerTokenStored;
         }
 
         if (rewardToAdd > 0) {
@@ -211,25 +209,25 @@ contract SymbioticStakingReward is
         return ISymbioticStaking(symbioticStaking).getStakeTokenList();
     }
 
-    function _getOperatorStakeAmount(address _stakeToken, address _operator) internal view returns (uint256) {
-        return ISymbioticStaking(symbioticStaking).getOperatorStakeAmount(_stakeToken, _operator);
+    function _getProverStakeAmount(address _stakeToken, address _prover) internal view returns (uint256) {
+        return ISymbioticStaking(symbioticStaking).getProverStakeAmount(_stakeToken, _prover);
     }
 
-    function _getVaultStakeAmount(address _stakeToken, address _vault, address _operator)
+    function _getVaultStakeAmount(address _stakeToken, address _vault, address _prover)
         internal
         view
         returns (uint256)
     {
-        return ISymbioticStaking(symbioticStaking).getStakeAmount(_stakeToken, _vault, _operator);
+        return ISymbioticStaking(symbioticStaking).getStakeAmount(_stakeToken, _vault, _prover);
     }
 
     /*===================================================================================================================*/
     /*===================================================== admin =======================================================*/
     /*===================================================================================================================*/
 
-    function setJobManager(address _jobManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        jobManager = _jobManager;
-        emit JobManagerSet(_jobManager);
+    function setProofMarketplace(address _proofMarketplace) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setSymbioticStaking(address _symbioticStaking) public onlyRole(DEFAULT_ADMIN_ROLE) {
