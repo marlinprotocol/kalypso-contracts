@@ -193,7 +193,7 @@ contract SymbioticStaking is
             submissionStatus[_captureTimestamp][msg.sender] = Enum.SubmissionStatus.STAKE_SNAPSHOT_DONE;
         }
 
-        emit VaultSnapshotSubmitted(msg.sender, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
+        emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
     }
 
     function submitSlashResult(
