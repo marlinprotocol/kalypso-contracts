@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/SetPmp.sol";
-import "../interfaces/IVerifier.sol";
-
+import {SetPmp} from "../interfaces/SetPmp.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";
 interface i_transfer_verifier {
     function verifyProof(uint256[5] memory input, uint256[8] memory p) external view returns (bool);
 }
@@ -28,12 +29,12 @@ contract transfer_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Bid calldata bid,
-        ProofMarketplace.SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketplace.Bid memory newBid = ProofMarketplace.Bid(
+        Struct.Bid memory newBid = Struct.Bid(
             bid.marketId,
             bid.reward,
             bid.expiry,

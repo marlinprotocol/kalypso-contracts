@@ -15,7 +15,7 @@ import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol"
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -33,6 +33,8 @@ contract NativeStaking is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
+
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IProverCallbacks public immutable I_PROVER_CALLBACK;
@@ -92,11 +94,6 @@ contract NativeStaking is
 
     modifier onlySupportedToken(address _stakeToken) {
         require(stakeTokenSet.contains(_stakeToken), "Token not supported");
-        _;
-    }
-
-    modifier onlyStakingManager() {
-        require(msg.sender == stakingManager, "Only StakingManager");
         _;
     }
 
@@ -193,7 +190,7 @@ contract NativeStaking is
 
     /*----------------------------------------------- Staking Manager ---------------------------------------------------*/
 
-    function lockStake(uint256 _bidId, address _prover) external onlyStakingManager {
+    function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake to lock");
@@ -213,7 +210,7 @@ contract NativeStaking is
         uint256 _bidId,
         address _prover,
         uint256 /* _feeRewardAmount */
-    ) external onlyStakingManager {
+    ) external onlyRole(STAKING_MANAGER_ROLE) {
         Struct.NativeStakingLock memory lock = lockInfo[_bidId];
 
         if (lock.amount == 0) return;
@@ -225,7 +222,7 @@ contract NativeStaking is
         I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.token, lock.amount);
     }
 
-    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyStakingManager {
+    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyRole(STAKING_MANAGER_ROLE) {
         uint256 len = _slashedTasks.length;
         for (uint256 i = 0; i < len; i++) {
             Struct.NativeStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];

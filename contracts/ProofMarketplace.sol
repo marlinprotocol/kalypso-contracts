@@ -55,41 +55,10 @@ contract ProofMarketplace is
 
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    //-------------------------------- Overrides start --------------------------------//
-
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
-
-    /**
-     @notice Enforces PMP to use only one matching engine image
-     */
-    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
-    }
-
-    /**
-     * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
-     */
-    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
-        address _thisAddress = address(this);
-
-        // confirms that admin has access to enclave
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
-
-        // checks attestation and updates the key
-        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
-    }
-
-    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
-
-    //-------------------------------- Overrides end --------------------------------//
-
     //-------------------------------- Constants and Immutable start --------------------------------//
-    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
+    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
     bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
     bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE = keccak256("SYMBIOTIC_STAKING_REWARD_ROLE");
 
@@ -110,19 +79,17 @@ contract ProofMarketplace is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
 
-    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
-
-    //-------------------------------- Constants and Immutable start --------------------------------//
+    //-------------------------------- Constants and Immutable end --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-    Market[] public marketData;
+    Struct.Market[] public marketData;
 
-    BidWithState[] public listOfBid;
+    Struct.BidWithState[] public listOfBid;
 
     // cost for inputs
-    mapping(SecretType => uint256) public costPerInputBytes;
+    mapping(Enum.SecretType => uint256) public costPerInputBytes;
     // min proving time (in blocks) for each secret type.
-    mapping(SecretType => uint256) public minProvingTime;
+    mapping(Enum.SecretType => uint256) public minProvingTime;
     // deducted and distributed to prover once proof is submitted
     mapping(address prover => uint256 rewardShare) public proverRewardShares; // 1e18 == 100%
 
@@ -130,42 +97,6 @@ contract ProofMarketplace is
     mapping(address => uint256) public transmitterClaimableFeeReward;
 
 
-    struct Market {
-        IVerifier verifier; // verifier address for the market place
-        bytes32 proverImageId; // use bytes32(0) for public market
-        uint256 slashingPenalty;
-        uint256 activationBlock;
-        bytes32 ivsImageId;
-        address creator;
-        bytes marketmetadata;
-    }
-
-    enum BidState {
-        NULL,
-        CREATE,
-        UNASSIGNED,
-        ASSIGNED,
-        COMPLETE,
-        DEADLINE_CROSSED
-    }
-
-    struct Bid {
-        uint256 marketId;
-        uint256 reward;
-        // the block number by which the bid should be assigned by matching engine
-        uint256 expiry;
-        uint256 timeTakenForProofGeneration;
-        uint256 deadline;
-        address refundAddress;
-        bytes proverData;
-    }
-
-    struct BidWithState {
-        Bid bid;
-        BidState state;
-        address requester;
-        address prover;
-    }
 
     //-------------------------------- State variables end --------------------------------//
 
@@ -194,20 +125,20 @@ contract ProofMarketplace is
      */
     function createMarketplace(
         bytes calldata _marketmetadata,
-        IVerifier _verifier,
+        address _verifier,
         uint256 _penalty,
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
-        address _msgSender = _msgSender();
+        address msgSender = _msgSender();
         if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
 
-        if (!_verifier.checkSampleInputsAndProof()) {
+        if (!IVerifier(_verifier).checkSampleInputsAndProof()) {
             revert Error.InvalidInputs();
         }
-        PAYMENT_TOKEN.safeTransferFrom(_msgSender, TREASURY, MARKET_CREATION_COST);
+        PAYMENT_TOKEN.safeTransferFrom(msgSender, TREASURY, MARKET_CREATION_COST);
 
         uint256 marketId = marketData.length;
 
@@ -220,13 +151,13 @@ contract ProofMarketplace is
         ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
 
         marketData.push(
-            Market(
+            Struct.Market(
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 _penalty,
                 block.number + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
-                _msgSender,
+                msgSender,
                 _marketmetadata
             )
         );
@@ -237,7 +168,7 @@ contract ProofMarketplace is
      * @notice Feature for market creator to list new prover images and ivs images
      */
     function addExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Market memory market = marketData[marketId];
+        Struct.Market memory market = marketData[marketId];
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
         }
@@ -277,7 +208,7 @@ contract ProofMarketplace is
      * @notice Feature for market creator to remove extra provers
      */
     function removeExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Market memory market = marketData[marketId];
+        Struct.Market memory market = marketData[marketId];
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
         }
@@ -315,7 +246,7 @@ contract ProofMarketplace is
      * @notice Once called new images can't be added to market
      */
     function freezeMarket(uint256 marketId) external {
-        Market memory market = marketData[marketId];
+        Struct.Market memory market = marketData[marketId];
         if (market.marketmetadata.length == 0) {
             revert Error.InvalidMarket();
         }
@@ -324,7 +255,6 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
-        // TODO: why doing this way?
         delete marketData[marketId].creator;
     }
 
@@ -335,10 +265,9 @@ contract ProofMarketplace is
      * @param privateInputs: Private Inputs to the circuit.
      * @param acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
      */
-        // TODO: Check if this needs to be removed during review
     function createBid(
-        Bid calldata bid,
-        SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
     ) external whenNotPaused nonReentrant {
@@ -346,9 +275,9 @@ contract ProofMarketplace is
     }
 
     function _createBid(
-        Bid calldata bid,
+        Struct.Bid calldata bid,
         address payFrom,
-        SecretType secretType,
+        Enum.SecretType secretType,
         bytes calldata privateInputs,
         bytes calldata acl
     ) internal {
@@ -364,7 +293,7 @@ contract ProofMarketplace is
             revert Error.InvalidECIESACL();
         }
 
-        Market memory market = marketData[bid.marketId];
+        Struct.Market memory market = marketData[bid.marketId];
         if (block.number < market.activationBlock) {
             revert Error.InactiveMarket();
         }
@@ -379,7 +308,7 @@ contract ProofMarketplace is
         }
 
         uint256 bidId = listOfBid.length;
-        BidWithState memory bidRequest = BidWithState(bid, BidState.CREATE, msg.sender, address(0));
+        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATE, msg.sender, address(0));
         listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
@@ -405,8 +334,8 @@ contract ProofMarketplace is
      * @param acl: Access control Data
      */
     function getPlatformFee(
-        SecretType secretType,
-        Bid calldata bid,
+        Enum.SecretType secretType,
+        Struct.Bid calldata bid,
         bytes calldata privateInputs,
         bytes calldata acl
     ) public view returns (uint256) {
@@ -420,7 +349,7 @@ contract ProofMarketplace is
     /**
      * @notice Update Cost for inputs
      */
-    function updateCostPerBytes(SecretType secretType, uint256 costPerByte) external onlyRole(UPDATER_ROLE) {
+    function updateCostPerBytes(Enum.SecretType secretType, uint256 costPerByte) external onlyRole(UPDATER_ROLE) {
         costPerInputBytes[secretType] = costPerByte;
 
         emit UpdateCostPerBytes(secretType, costPerByte);
@@ -429,7 +358,7 @@ contract ProofMarketplace is
     /**
      * @notice Update Min Proving Time
      */
-    function updateMinProvingTime(SecretType secretType, uint256 newProvingTime) external onlyRole(UPDATER_ROLE) {
+    function updateMinProvingTime(Enum.SecretType secretType, uint256 newProvingTime) external onlyRole(UPDATER_ROLE) {
         minProvingTime[secretType] = newProvingTime;
 
         emit UpdateMinProvingTime(secretType, newProvingTime);
@@ -438,25 +367,25 @@ contract ProofMarketplace is
     /**
      @notice Possible States: NULL, CREATE, UNASSIGNED, ASSIGNED, COMPLETE, DEADLINE_CROSSED
      */
-    function getBidState(uint256 bidId) public view returns (BidState) {
-        BidWithState memory bidWithState = listOfBid[bidId];
+    function getBidState(uint256 bidId) public view returns (Enum.BidState) {
+        Struct.BidWithState memory bidWithState = listOfBid[bidId];
 
         // time before which matching engine should assign the task to prover
-        if (bidWithState.state == BidState.CREATE) {
+        if (bidWithState.state == Enum.BidState.CREATE) {
             if (bidWithState.bid.expiry > block.number) {
                 return bidWithState.state;
             }
 
-            return BidState.UNASSIGNED;
+            return Enum.BidState.UNASSIGNED;
         }
 
         // time before which prover should submit the proof
-        if (bidWithState.state == BidState.ASSIGNED) {
+        if (bidWithState.state == Enum.BidState.ASSIGNED) {
             if (bidWithState.bid.deadline < block.number) {
-                return BidState.DEADLINE_CROSSED;
+                return Enum.BidState.DEADLINE_CROSSED;
             }
 
-            return BidState.ASSIGNED;
+            return Enum.BidState.ASSIGNED;
         }
 
         return bidWithState.state;
@@ -498,11 +427,11 @@ contract ProofMarketplace is
 
     function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        if (getBidState(bidId) != BidState.CREATE) {
+        if (getBidState(bidId) != Enum.BidState.CREATE) {
             revert Error.ShouldBeInCreateState();
         }
 
-        BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[bidId];
         (uint256 proofGenerationCost, uint256 proverProposedTime) = PROVER_REGISTRY.getProverAssignmentDetails(
             prover,
             bidWithState.bid.marketId
@@ -518,7 +447,7 @@ contract ProofMarketplace is
             revert Error.ProofTimeMismatch(bidId);
         }
 
-        bidWithState.state = BidState.ASSIGNED;
+        bidWithState.state = Enum.BidState.ASSIGNED;
         bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
         bidWithState.prover = prover;
 
@@ -531,18 +460,18 @@ contract ProofMarketplace is
      */
     function cancelBid(uint256 bidId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        if (getBidState(bidId) != BidState.UNASSIGNED) {
+        if (getBidState(bidId) != Enum.BidState.UNASSIGNED) {
             revert Error.OnlyExpiredBidsCanBeCancelled(bidId);
         }
-        BidWithState storage bidWithState = listOfBid[bidId];
-        bidWithState.state = BidState.COMPLETE;
+        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+        bidWithState.state = Enum.BidState.COMPLETE;
 
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
 
         emit BidCancelled(bidId);
     }
 
-    function _verifyAndGetData(uint256 bidId, BidWithState memory bidWithState) internal view returns (uint256, address) {
+    function _verifyAndGetData(uint256 bidId, Struct.BidWithState memory bidWithState) internal view returns (uint256, address) {
         (address proverRewardAddress, uint256 minRewardForProver) = PROVER_REGISTRY.getProverRewardDetails(
             bidWithState.prover,
             bidWithState.bid.marketId
@@ -552,7 +481,7 @@ contract ProofMarketplace is
             revert Error.CannotBeZero();
         }
 
-        if (getBidState(bidId) != BidState.ASSIGNED) {
+        if (getBidState(bidId) != Enum.BidState.ASSIGNED) {
             revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
 
@@ -561,16 +490,16 @@ contract ProofMarketplace is
 
     function _completeProofForInvalidRequests(
         uint256 bidId,
-        BidWithState memory bidWithState,
+        Struct.BidWithState memory bidWithState,
         uint256 minRewardForProver,
         address proverRewardAddress,
         uint256 marketId
     ) internal {
         // Only assigned requests can be proved
-        if (getBidState(bidId) != BidState.ASSIGNED) {
+        if (getBidState(bidId) != Enum.BidState.ASSIGNED) {
             revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
-        listOfBid[bidId].state = BidState.COMPLETE;
+        listOfBid[bidId].state = Enum.BidState.COMPLETE;
 
         // tokens related to incorrect request will be sen't to treasury
         uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
@@ -589,7 +518,7 @@ contract ProofMarketplace is
      * @notice Submit Attestation/Proof from the IVS signer that the given inputs are invalid
      */
     function submitProofForInvalidInputs(uint256 bidId, bytes calldata invalidProofSignature) external nonReentrant {
-        BidWithState memory bidWithState = listOfBid[bidId];
+        Struct.BidWithState memory bidWithState = listOfBid[bidId];
         uint256 marketId = bidWithState.bid.marketId;
 
         (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(bidId, bidWithState);
@@ -628,7 +557,7 @@ contract ProofMarketplace is
     }
 
     function _submitProof(uint256 bidId, bytes calldata proof) internal {
-        BidWithState memory bidWithState = listOfBid[bidId];
+        Struct.BidWithState memory bidWithState = listOfBid[bidId];
 
         uint256 marketId = bidWithState.bid.marketId;
 
@@ -641,7 +570,7 @@ contract ProofMarketplace is
             revert Error.CannotBeZero();
         }
 
-        if (getBidState(bidId) != BidState.ASSIGNED) {
+        if (getBidState(bidId) != Enum.BidState.ASSIGNED) {
             revert Error.OnlyAssignedBidsCanBeProved(bidId);
         }
         // check what needs to be encoded from proof, bid and task for proof to be verified
@@ -649,10 +578,10 @@ contract ProofMarketplace is
         bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, proof);
 
         // Verify input and proof against verifier
-        if (!marketData[marketId].verifier.verify(inputAndProof)) {
+        if (!IVerifier(marketData[marketId].verifier).verify(inputAndProof)) {
             revert Error.InvalidProof(bidId);
         }
-        listOfBid[bidId].state = BidState.COMPLETE;
+        listOfBid[bidId].state = Enum.BidState.COMPLETE;
 
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
@@ -671,11 +600,14 @@ contract ProofMarketplace is
     /**
      * @notice Slash Prover for deadline crossed requests
      */
-    // TODO: fix logic of this function
     function slashProver(uint256 bidId) external nonReentrant {
-        if (getBidState(bidId) != BidState.DEADLINE_CROSSED) {
+        if (getBidState(bidId) != Enum.BidState.DEADLINE_CROSSED) {
             revert Error.ShouldBeInCrossedDeadlineState(bidId);
         }
+
+        // When called by SymbioticStaking, locked stake will be unlocked and fee will be refunded to requestor
+        // When called by Requestor or any other, fee will be refunded to requestor 
+        // and stake remains locked until SlashResult is submitted to SymbioticStaking
         _slashProver(bidId);
     }
 
@@ -683,27 +615,30 @@ contract ProofMarketplace is
      * @notice Prover can discard assigned request if he choses to. This will however result in slashing
      */
     function discardRequest(uint256 bidId) external nonReentrant {
-        BidWithState memory bidWithState = listOfBid[bidId];
+        Struct.BidWithState memory bidWithState = listOfBid[bidId];
         if (bidWithState.prover != _msgSender()) {
             revert Error.OnlyProverCanDiscardRequest(bidId);
         }
-        if (getBidState(bidId) != BidState.ASSIGNED) {
+        if (getBidState(bidId) != Enum.BidState.ASSIGNED) {
             revert Error.ShouldBeInAssignedState(bidId);
         }
         _slashProver(bidId);
     }
 
     function _slashProver(uint256 bidId) internal {
-        BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[bidId];
 
-        bidWithState.state = BidState.COMPLETE;
+        bidWithState.state = Enum.BidState.COMPLETE;
         uint256 marketId = bidWithState.bid.marketId;
 
+        // Locked Stake will be unlocked when SlashResult is submitted to SymbioticStaking
         if(bidWithState.bid.reward != 0) {
+            // refund fee to requestor
             PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
             bidWithState.bid.reward = 0;
+
+            PROVER_REGISTRY.releaseProverCompute(bidWithState.prover, marketId);
             emit ProofNotGenerated(bidId);
-            PROVER_REGISTRY.releaseProverResources(bidWithState.prover, marketId);
         }
     }
 
@@ -760,6 +695,8 @@ contract ProofMarketplace is
         return marketData.length;
     }
 
+    /// @notice Set the reward share for a prover
+    // TODO: check if this can frontrun bid
     function setProverRewardShare(uint256 _rewardShare) external {
         proverRewardShares[_msgSender()] = _rewardShare;
         emit ProverRewardShareSet(_msgSender(), _rewardShare);
@@ -782,10 +719,40 @@ contract ProofMarketplace is
         emit TransmitterFeeRewardAdded(_transmitter, _feeRewardAmount);
     }
 
-    /// @notice Called when SymbioticStaking reward distributes fee rewards
     function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
+
+    //-------------------------------- Overrides start --------------------------------//
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     @notice Enforces PMP to use only one matching engine image
+     */
+    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
+    }
+
+    /**
+     * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
+     */
+    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
+        address _thisAddress = address(this);
+
+        // confirms that admin has access to enclave
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
+
+        // checks attestation and updates the key
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
+    }
+
+    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    //-------------------------------- Overrides end --------------------------------//
 
     // for further increase
     uint256[50] private __gap1_0;

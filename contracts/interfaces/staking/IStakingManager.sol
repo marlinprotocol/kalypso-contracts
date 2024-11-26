@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 pragma solidity ^0.8.26;
 
@@ -27,7 +27,7 @@ interface IStakingManager {
 
     function onTaskCompletion(uint256 bidId, address prover, uint256 feePaid) external;
 
-    function onSlashResult(Struct.TaskSlashed[] calldata slashedTasks) external;
+    function onSlashResultSubmission(Struct.TaskSlashed[] calldata slashedTasks) external;
 
     function getPoolConfig(address pool) external view returns (Struct.PoolConfig memory);
 }

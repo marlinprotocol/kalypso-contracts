@@ -22,12 +22,12 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Bid calldata bid,
-        ProofMarketplace.SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketplace.Bid memory newBid = ProofMarketplace.Bid(
+        Struct.Bid memory newBid = Struct.Bid(
             bid.marketId,
             bid.reward,
             bid.expiry,

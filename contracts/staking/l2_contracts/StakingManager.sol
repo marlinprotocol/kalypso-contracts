@@ -19,7 +19,7 @@ import {IRewardDistributor} from "../../interfaces/staking/IRewardDistributor.so
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -37,6 +37,7 @@ contract StakingManager is
     using SafeERC20 for IERC20;
 
     bytes32 public constant PROVER_REGISTRY_ROLE = keccak256("PROVER_REGISTRY");
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING");
 
     /*===================================================================================================================*/
     /*================================================ state variable ===================================================*/
@@ -53,23 +54,13 @@ contract StakingManager is
     address public feeToken;
     // address public inflationRewardToken;
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_1; 
-
     /*===================================================================================================================*/
     /*==================================================== mapping ======================================================*/
     /*===================================================================================================================*/
-
     mapping(address pool => Struct.PoolConfig config) private poolConfig;
 
-    /*===================================================================================================================*/
-    /*=================================================== modifier ======================================================*/
-    /*===================================================================================================================*/
-
-    modifier onlySymbioticStaking() {
-        require(msg.sender == symbioticStaking, "StakingManager: Only SymbioticStaking");
-        _;
-    }
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1; 
 
     /*===================================================================================================================*/
     /*================================================== initializer ====================================================*/
@@ -128,13 +119,14 @@ contract StakingManager is
 
             IStakingPool(pool).onTaskCompletion(_bidId, _prover, poolFeeRewardAmount);
         }
-        // TODO: emit event
+        
+        // TODO: emit event?
     }
 
     /*---------------------------------------------- Symbiotic Staking --------------------------------------------------*/
 
     /// @notice called by SymbioticStaking contract when slash result is submitted
-    function onSlashResult(Struct.TaskSlashed[] calldata _tasksSlashed) external onlySymbioticStaking {
+    function onSlashResultSubmission(Struct.TaskSlashed[] calldata _tasksSlashed) external onlyRole(SYMBIOTIC_STAKING_ROLE) {
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), "StakingManager: Invalid Pool");
 

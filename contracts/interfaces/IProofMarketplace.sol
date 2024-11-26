@@ -2,15 +2,10 @@
 
 pragma solidity ^0.8.0;
 
+import {Enum} from "../lib/Enum.sol";
+
 interface IProofMarketplace {
-
     function slashProver(uint256 bidId) external;
-
-    enum SecretType {
-        NULL,
-        CALLDATA,
-        EXTERNAL
-    }
 
     //-------------------------------- Events start --------------------------------//
 
@@ -25,8 +20,8 @@ interface IProofMarketplace {
 
     event BidCancelled(uint256 indexed bidId);
 
-    event UpdateCostPerBytes(SecretType indexed secretType, uint256 costPerInputBytes);
-    event UpdateMinProvingTime(SecretType indexed secretType, uint256 newProvingTime);
+    event UpdateCostPerBytes(Enum.SecretType indexed secretType, uint256 costPerInputBytes);
+    event UpdateMinProvingTime(Enum.SecretType indexed secretType, uint256 newProvingTime);
     event AddExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);
     event AddExtraIVSImage(uint256 indexed marketId, bytes32 indexed imageId);
     event RemoveExtraProverImage(uint256 indexed marketId, bytes32 indexed imageId);

@@ -2,10 +2,11 @@
 pragma solidity ^0.8.26;
 
 import {IStakingPool} from "./IStakingPool.sol";
-
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
+import {Enum} from "../../lib/Enum.sol";
 
 interface ISymbioticStaking is IStakingPool {
+
     /*====================================================== events =======================================================*/
 
     // TODO: temporary
@@ -60,7 +61,7 @@ interface ISymbioticStaking is IStakingPool {
 
     function registeredTransmitters(uint256 captureTimestamp) external view returns (address);
 
-    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (bytes32);
+    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (Enum.SubmissionStatus);
 
     function confirmedTimestampInfo(uint256 idx) external view returns (Struct.ConfirmedTimestamp memory);
 
