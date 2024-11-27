@@ -143,3 +143,6 @@ artifacts
 addresses/31337.json
 
 *backup*
+
+venv
+venv/*
