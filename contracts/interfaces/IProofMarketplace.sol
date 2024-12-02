@@ -37,5 +37,7 @@ interface IProofMarketplace {
 
     event TransmitterFeeRewardAdded(address indexed transmitter, uint256 feeRewardAmount);
 
+    event MarketMetadataUpdated(uint256 indexed marketId, bytes metadata);
+
     //-------------------------------- Events end --------------------------------//
 }

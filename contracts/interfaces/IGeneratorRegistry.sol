@@ -24,5 +24,7 @@ contract IGeneratorRegistry {
 
     event ComputeLockReleased(address indexed generator, uint256 compute);
 
+    event GeneratorDataUpdated(address indexed generator, bytes generatorData);
+
     //-------------------------------- Events end --------------------------------//
 }

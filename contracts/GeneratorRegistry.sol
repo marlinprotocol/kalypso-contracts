@@ -671,6 +671,16 @@ contract GeneratorRegistry is
         emit SymbioticCompleteSnapshot(captureTimestamp);
     }
 
+    function updateGeneratorData(bytes memory generatorData) external {
+        if(generatorRegistry[_msgSender()].rewardAddress == address(0)){
+            revert Error.InvalidGenerator();
+        }
+
+        generatorRegistry[_msgSender()].generatorData = generatorData;
+
+        emit GeneratorDataUpdated(_msgSender(), generatorData);
+    }
+
     // for further increase
     uint256[50] private __gap1_0;
 }
