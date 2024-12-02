@@ -9,7 +9,10 @@ async function main() {
 
   const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbiotic_staking, signers[0]);
 
-  const tx = await symbioticStaking.setSubmissionCooldown(60*10);
+  const one_minute = 60;
+  const one_hour = one_minute * 60;
+
+  const tx = await symbioticStaking.setSubmissionCooldown(one_hour * 4);
   await tx.wait();
 
   return "Done";
