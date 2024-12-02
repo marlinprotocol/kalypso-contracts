@@ -727,6 +727,48 @@ contract ProofMarketplace is
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
 
+    function updateMarketMetadata(uint256 marketId, bytes memory metadata) external {
+        if (_msgSender() != marketData[marketId].creator) {
+            revert Error.OnlyMarketCreator();
+        }
+
+        marketData[marketId].marketmetadata = metadata;
+
+        emit MarketMetadataUpdated(marketId, metadata);
+    }
+
+
+    //-------------------------------- Overrides start --------------------------------//
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     @notice Enforces PMP to use only one matching engine image
+     */
+    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
+        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
+    }
+
+    /**
+     * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
+     */
+    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature) external onlyRole(UPDATER_ROLE) {
+        address _thisAddress = address(this);
+
+        // confirms that admin has access to enclave
+        attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
+
+        // checks attestation and updates the key
+        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
+    }
+
+    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    //-------------------------------- Overrides end --------------------------------//
+
 
     //-------------------------------- Overrides start --------------------------------//
     function supportsInterface(

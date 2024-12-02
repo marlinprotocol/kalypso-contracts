@@ -1,5 +1,3 @@
-import { BytesLike } from 'ethers';
-
 import { SymbioticStaking__factory } from '../typechain-types';
 import { config } from './helper';
 
