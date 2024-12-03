@@ -727,6 +727,7 @@ contract ProofMarketplace is
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
 
+
     function updateMarketMetadata(uint256 marketId, bytes memory metadata) external {
         if (_msgSender() != marketData[marketId].creator) {
             revert Error.OnlyMarketCreator();
