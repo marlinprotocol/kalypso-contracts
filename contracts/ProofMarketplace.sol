@@ -259,7 +259,6 @@ contract ProofMarketplace is
             revert Error.OnlyMarketCreator();
         }
 
-        // TODO: why doing this way?
         delete marketData[marketId].creator;
     }
 
@@ -727,6 +726,7 @@ contract ProofMarketplace is
     function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
         IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
     }
+
 
     //-------------------------------- Overrides start --------------------------------//
     function supportsInterface(
