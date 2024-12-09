@@ -13,5 +13,5 @@ interface IAttestationVerifier {
 
     function verify(bytes memory signature, Attestation memory attestation) external view;
 
-    function verify(bytes memory data) external view;
+    function verify(bytes memory data) external;
 }
