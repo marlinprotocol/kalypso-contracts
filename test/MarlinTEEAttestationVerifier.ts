@@ -13,7 +13,7 @@ import {
   Teefetch__factory,
 } from "../typechain-types";
 
-describe("Attestation verifier for RISC0, testing", () => {
+describe("Marlin TEE attestation verifier, testing", () => {
   let signers: Signer[];
   let admin: Signer;
 

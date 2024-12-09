@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 import "./Teefetch/Teefetch.sol";
-import "hardhat/console.sol";
 
 contract MarlinTEEAttestationVerifier is
     Initializable, // initializer
@@ -101,9 +100,6 @@ contract MarlinTEEAttestationVerifier is
     function verify(bytes memory data) external {
         (bytes memory _signerPubkey, bytes memory _seal, uint64 _timestampInMilliseconds) = abi.decode(data, (bytes, bytes, uint64));
         TEEFETCH_VERIFIER.enroll(_signerPubkey, _seal, _timestampInMilliseconds);
-        console.logBytes(_signerPubkey);
-        console.logBytes(_seal);
-        console.log("time: ", _timestampInMilliseconds);
         emit AttestationVerified(_signerPubkey, _seal);
     }
 

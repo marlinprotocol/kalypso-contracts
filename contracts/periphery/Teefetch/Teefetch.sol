@@ -36,13 +36,16 @@ contract Teefetch {
             _timestampInMilliseconds > block.timestamp * 1000 - 3600000,
             "too old"
         );
+
+        (bytes memory pcr0, bytes memory pcr1, bytes memory pcr2) = abi.decode(pcrs, (bytes, bytes, bytes));
+
         bytes32 _journalDigest = sha256(
             abi.encodePacked(
                 _timestampInMilliseconds,
-                pcrs,
+                pcr0,
+                pcr1,
+                pcr2,
                 rootKey,
-                // enforces pubkey length
-                uint8(64),
                 _signerPubkey,
                 uint16(0)
             )
