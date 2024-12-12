@@ -10,7 +10,7 @@ async function main() {
   const one_minute = 60;
   const one_hour = one_minute * 60;
 
-  const tx = await symbioticStaking.setSubmissionCooldown(one_minute * 4);
+  const tx = await symbioticStaking.setSubmissionCooldown(one_hour * 4);
   await tx.wait();
 
   return "Done";

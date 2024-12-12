@@ -223,8 +223,11 @@ contract SymbioticStaking is
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
-        // there could be no prover slashed
-        if (_taskSlashed.length > 0) IStakingManager(stakingManager).onSlashResultSubmission(_taskSlashed);
+        // there could be no operator slashed
+        if (_jobSlashed.length > 0) IStakingManager(stakingManager).onSlashResult(_jobSlashed);
+
+        // TODO: unlock the selfStake and reward it to the transmitter
+        emit SlashResultSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof);
 
         // when all chunks of Snapshots are submitted
         if (_index == _numOfTxs - 1) {
