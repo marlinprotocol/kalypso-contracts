@@ -2,12 +2,12 @@
 pragma solidity ^0.8.26;
 
 /* Contracts */
+import {ProofMarketplace} from "../../ProofMarketplace.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
 // import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
@@ -19,7 +19,8 @@ import {IAttestationVerifier} from "../../periphery/interfaces/IAttestationVerif
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
+import {Enum} from "../../lib/Enum.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -27,7 +28,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "../../interfaces/IGeneratorCallbacks.sol";
+import "../../interfaces/IProverCallbacks.sol";
 
 import {console} from "hardhat/console.sol";
 
@@ -43,26 +44,12 @@ contract SymbioticStaking is
     using SafeERC20 for IERC20;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
-
-    /// @custom:oz-upgrades-unsafe-allow constructor    
-    constructor(IGeneratorCallbacks _generator_callback) {
-        I_GENERATOR_CALLBACK = _generator_callback;
-    }
-
-    struct EnclaveImage {
-        bytes PCR0;
-        bytes PCR1;
-        bytes PCR2;
-    }
-
-    bytes32 public constant STAKE_SNAPSHOT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000001;
-    bytes32 public constant SLASH_RESULT_MASK = 0x0000000000000000000000000000000000000000000000000000000000000010;
-    bytes32 public constant COMPLETE_MASK = 0x0000000000000000000000000000000000000000000000000000000000000011;
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
 
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
     bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
 
     uint256 public constant SIGNATURE_LENGTH = 65;
@@ -93,9 +80,6 @@ contract SymbioticStaking is
 
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
-
     /*===================================================================================================================*/
     /*==================================================== mapping ======================================================*/
     /*===================================================================================================================*/
@@ -109,36 +93,35 @@ contract SymbioticStaking is
     mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot)) public
         txCountInfo;
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
+    mapping(uint256 captureTimestamp => mapping(address account => Enum.SubmissionStatus status)) public submissionStatus;
 
-    // staked amount for each operator
-    mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address operator => uint256 stakeAmount)))
-        operatorStakeAmounts;
+    // staked amount for each prover
+    mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address prover => uint256 stakeAmount)))
+        proverStakeAmounts;
     // staked amount for each vault
     mapping(
         uint256 captureTimestamp
-            => mapping(address stakeToken => mapping(address vault => mapping(address operator => uint256 stakeAmount)))
+            => mapping(address stakeToken => mapping(address vault => mapping(address prover => uint256 stakeAmount)))
     ) vaultStakeAmounts;
 
-    mapping(uint256 jobId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
-    mapping(address stakeToken => mapping(address operator => uint256 locked)) public operatorLockedAmounts;
+    mapping(uint256 bidId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
+    mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
     mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
 
-    mapping(bytes32 imageId => EnclaveImage) public enclaveImages;
+    mapping(bytes32 imageId => Struct.EnclaveImage) public enclaveImages;
 
-    /*===================================================================================================================*/
-    /*=================================================== modifier ======================================================*/
-    /*===================================================================================================================*/
-
-    modifier onlyStakingManager() {
-        require(msg.sender == stakingManager, "Only StakingManager");
-        _;
-    }
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_1;
 
     /*===================================================================================================================*/
     /*================================================== initializer ====================================================*/
     /*===================================================================================================================*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor    
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
+    }
 
     function initialize(
         address _admin,
@@ -199,15 +182,15 @@ contract SymbioticStaking is
 
         _verifyProof(_imageId, STAKE_SNAPSHOT_TYPE, _index, _numOfTxs, _captureTimestamp, _vaultSnapshotData, _proof);
 
-        // update Vault and Operator stake amount
-        // update rewardPerToken for each vault and operator in SymbioticStakingReward
+        // update Vault and Prover stake amount
+        // update rewardPerToken for each vault and prover in SymbioticStakingReward
         _submitVaultSnapshot(_captureTimestamp, _vaultSnapshots);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
         // when all chunks of VaultSnapshots are submitted
         if (_index == _numOfTxs - 1) {
-            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
+            submissionStatus[_captureTimestamp][msg.sender] = Enum.SubmissionStatus.STAKE_SNAPSHOT_DONE;
         }
 
         emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
@@ -221,15 +204,14 @@ contract SymbioticStaking is
         bytes memory _slashResultData,
         bytes memory _proof
     ) external {
-
-        Struct.JobSlashed[] memory _jobSlashed;
+        Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
-            _jobSlashed = abi.decode(_slashResultData, (Struct.JobSlashed[]));
+            _taskSlashed = abi.decode(_slashResultData, (Struct.TaskSlashed[]));
         }
 
         // Vault Snapshot should be submitted before Slash Result
         require(
-            submissionStatus[_captureTimestamp][msg.sender] & STAKE_SNAPSHOT_MASK == STAKE_SNAPSHOT_MASK,
+            submissionStatus[_captureTimestamp][msg.sender] ==  Enum.SubmissionStatus.STAKE_SNAPSHOT_DONE,
             "Vault Snapshot not submitted"
         );
 
@@ -249,28 +231,29 @@ contract SymbioticStaking is
 
         // when all chunks of Snapshots are submitted
         if (_index == _numOfTxs - 1) {
-            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_MASK;
             _completeSubmission(_captureTimestamp);
         }
+
+        emit SlashResultSubmitted(msg.sender, _index, _numOfTxs, _imageId, _slashResultData, _proof);
     }
 
-    /*--------------------------- stake lock/unlock for job --------------------------*/
+    /*--------------------------- stake lock/unlock start --------------------------*/
 
-    function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _stakeToken = _selectStakeToken(_operator);
+    function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
+        address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getOperatorActiveStakeAmount(_stakeToken, _operator) >= _amountToLock, "Insufficient stake amount");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake amount");
 
-        lockInfo[_jobId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
-        operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
+        lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
+        proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
+        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);    
         
-        I_GENERATOR_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
+        I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
-    function onJobCompletion(uint256 _jobId, address _operator, uint256 _feeRewardAmount) external onlyStakingManager {
-        Struct.SymbioticStakingLock memory lock = lockInfo[_jobId];
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(STAKING_MANAGER_ROLE) {
+        Struct.SymbioticStakingLock memory lock = lockInfo[_bidId];
 
         // distribute fee reward
         if (_feeRewardAmount > 0) {
@@ -279,41 +262,42 @@ contract SymbioticStaking is
                 Math.mulDiv(_feeRewardAmount, confirmedTimestamps[currentTimestampIdx].transmitterComissionRate, 1e18);
             uint256 feeRewardRemaining = _feeRewardAmount - transmitterComission;
 
-            // reward the transmitter who created the latestConfirmedTimestamp at the time of job creation
+            // reward the transmitter who created the latestConfirmedTimestamp at the time of task assignment
             ProofMarketplace(proofMarketplace).distributeTransmitterFeeReward(
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
 
             // distribute the remaining fee reward
-            ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _operator, feeRewardRemaining);
+            ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _prover, feeRewardRemaining);
         }
 
-        // unlock the stake locked during job creation
-        delete lockInfo[_jobId];
-        operatorLockedAmounts[lock.stakeToken][_operator] -= amountToLock[lock.stakeToken];
+        // unlock the stake locked during task assignment
+        delete lockInfo[_bidId];
+        proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
-        emit StakeUnlocked(_jobId, _operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
 
-        I_GENERATOR_CALLBACK.stakeLockReleasedCallback(_operator, lock.stakeToken, amountToLock[lock.stakeToken]);
+        I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
+
+    /*--------------------------- stake lock/unlock end --------------------------*/
 
     /*------------------------------------- slash ------------------------------------*/
 
-    // TODO: later
-    function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
-        uint256 len = _slashedJobs.length;
+    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyRole(STAKING_MANAGER_ROLE) {
+        uint256 len = _slashedTasks.length;
         for (uint256 i = 0; i < len; i++) {
-            Struct.SymbioticStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
+            Struct.SymbioticStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
 
-            // unlock the stake locked during job creation
-            operatorLockedAmounts[lock.stakeToken][_slashedJobs[i].operator] -= lockedAmount;
-            delete lockInfo[_slashedJobs[i].jobId];
+            // unlock the stake locked during task assignment
+            proverLockedAmounts[lock.stakeToken][_slashedTasks[i].prover] -= lockedAmount;
+            delete lockInfo[_slashedTasks[i].bidId];
 
-            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+            emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.stakeToken, lockedAmount);
 
-            I_GENERATOR_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.stakeToken, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -350,14 +334,14 @@ contract SymbioticStaking is
 
             // update vault staked amount
             vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot
-                .operator] = _vaultSnapshot.stakeAmount;
+                .prover] = _vaultSnapshot.stakeAmount;
 
-            // update operator staked amount
-            operatorStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.operator] +=
+            // update prover staked amount
+            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
                 _vaultSnapshot.stakeAmount;
 
             ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(
-                _vaultSnapshot.vault, _vaultSnapshot.operator
+                _vaultSnapshot.vault, _vaultSnapshot.prover
             );
         }
     }
@@ -369,9 +353,11 @@ contract SymbioticStaking is
             Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
 
+        submissionStatus[_captureTimestamp][msg.sender] = Enum.SubmissionStatus.COMPLETE;
+
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
 
-        I_GENERATOR_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
+        I_PROVER_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
     }
 
     /*===================================================================================================================*/
@@ -396,23 +382,23 @@ contract SymbioticStaking is
         return len > 0 ? len - 1 : 0;
     }
 
-    function getOperatorStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_operator];
+    function getProverStakeAmount(address _stakeToken, address prover) public view returns (uint256) {
+        return proverStakeAmounts[latestConfirmedTimestamp()][_stakeToken][prover];
     }
 
     /// @notice this can return 0 if nothing was submitted at the timestamp
-    function getOperatorStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorStakeAmounts[_captureTimestamp][_stakeToken][_operator];
+    function getProverStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address prover) public view returns (uint256) {
+        return proverStakeAmounts[_captureTimestamp][_stakeToken][prover];
     }
 
-    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        uint256 operatorStakeAmount = getOperatorStakeAmount(_stakeToken, _operator);
-        uint256 operatorLockedAmount = operatorLockedAmounts[_stakeToken][_operator];
-        return operatorStakeAmount > operatorLockedAmount ? operatorStakeAmount - operatorLockedAmount : 0;
+    function getProverActiveStakeAmount(address _stakeToken, address prover) public view returns (uint256) {
+        uint256 proverStakeAmount = getProverStakeAmount(_stakeToken, prover);
+        uint256 proverLockedAmount = proverLockedAmounts[_stakeToken][prover];
+        return proverStakeAmount > proverLockedAmount ? proverStakeAmount - proverLockedAmount : 0;
     }
 
-    function getStakeAmount(address _stakeToken, address _vault, address _operator) external view returns (uint256) {
-        return vaultStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_vault][_operator];
+    function getStakeAmount(address _stakeToken, address _vault, address prover) external view returns (uint256) {
+        return vaultStakeAmounts[latestConfirmedTimestamp()][_stakeToken][_vault][prover];
     }
 
     function getStakeTokenList() external view returns (address[] memory) {
@@ -431,7 +417,7 @@ contract SymbioticStaking is
         return stakeTokenSet.contains(_stakeToken);
     }
 
-    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32) {
+    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (Enum.SubmissionStatus) {
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 
@@ -445,10 +431,7 @@ contract SymbioticStaking is
         internal
         view
     {
-        bytes32 mask;
-        if (_type == STAKE_SNAPSHOT_TYPE) mask = STAKE_SNAPSHOT_MASK;
-        else if (_type == SLASH_RESULT_TYPE) mask = SLASH_RESULT_MASK;
-        require(submissionStatus[_captureTimestamp][msg.sender] & mask == 0, "Completed Submission");
+        require(submissionStatus[_captureTimestamp][msg.sender] != Enum.SubmissionStatus.COMPLETE, "Completed Submission");
 
         require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
         require(_numOfTxs > 0, "Invalid length");
@@ -511,7 +494,7 @@ contract SymbioticStaking is
         require(PCR1.length == 48, "Invalid PCR1 length");
         require(PCR2.length == 48, "Invalid PCR2 length");
 
-        EnclaveImage memory enclaveImage = EnclaveImage(PCR0, PCR1, PCR2);
+        Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
         enclaveImages[imageId] = enclaveImage;
 
         emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
@@ -532,11 +515,8 @@ contract SymbioticStaking is
         return keccak256(abi.encode(PCR0, PCR1, PCR2));
     }
 
-    function _isCompleteStatus(uint256 _captureTimestamp) internal view returns (bool) {
-        return submissionStatus[_captureTimestamp][msg.sender] == COMPLETE_MASK;
-    }
 
-    function _calcTransmitterComissionRate(uint256 _confirmedTimestamp) internal view returns (uint256) {
+    function _calcTransmitterComissionRate(uint256 /* _confirmedTimestamp */) internal view returns (uint256) {
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
         return baseTransmitterComissionRate;
     }
@@ -545,9 +525,9 @@ contract SymbioticStaking is
         return confirmedTimestamps[latestConfirmedTimestampIdx()].transmitter;
     }
 
-    /*-------------------------------------- Job -------------------------------------*/
+    /*-------------------------------------- Task -------------------------------------*/
 
-    function _selectStakeToken(address _operator) internal view returns (address) {
+    function _selectStakeToken(address _prover) internal view returns (address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -592,7 +572,7 @@ contract SymbioticStaking is
             }
 
             // check if the selected token has enough active stake amount
-            if (getOperatorActiveStakeAmount(selectedToken, _operator) >= amountToLock[selectedToken]) {
+            if (getProverActiveStakeAmount(selectedToken, _prover) >= amountToLock[selectedToken]) {
                 return selectedToken;
             }
 
@@ -606,11 +586,7 @@ contract SymbioticStaking is
         return address(0);
     }
 
-    function _getActiveStakeAmount(address _stakeToken) internal view returns (uint256) {
-        // TODO
-    }
-
-    function _transmitterComissionRate(uint256 _lastConfirmedTimestamp) internal view returns (uint256) {
+    function _transmitterComissionRate(uint256 /* _lastConfirmedTimestamp */) internal view returns (uint256) {
         // TODO: implement logic
         return baseTransmitterComissionRate;
     }
@@ -674,10 +650,10 @@ contract SymbioticStaking is
         emit StakingManagerSet(_stakingManager);
     }
 
-    function setJobManager(address _jobManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        proofMarketplace = _jobManager;
+    function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        proofMarketplace = _proofMarketplace;
 
-        emit ProofMarketplaceSet(_jobManager);
+        emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -15,13 +15,13 @@ import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol"
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "../../interfaces/IGeneratorCallbacks.sol";
+import "../../interfaces/IProverCallbacks.sol";
 
 contract NativeStaking is
     ContextUpgradeable,
@@ -34,12 +34,14 @@ contract NativeStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
+
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IGeneratorCallbacks public immutable I_GENERATOR_CALLBACK;
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IGeneratorCallbacks _generator_callback) {
-        I_GENERATOR_CALLBACK = _generator_callback;
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
     }
 
     /*===================================================================================================================*/
@@ -69,22 +71,22 @@ contract NativeStaking is
     /*==================================================== mapping ======================================================*/
     /*===================================================================================================================*/
 
-    mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each job creation
+    mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each task assignment
     mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
 
     /* Stake */
     // staked amount for each account
-    mapping(address stakeToken => mapping(address account => mapping(address operator => uint256 amount))) public
+    mapping(address stakeToken => mapping(address account => mapping(address prover => uint256 amount))) public
         stakeAmounts;
-    // total staked amounts for each operator
-    mapping(address stakeToken => mapping(address operator => uint256 amount)) public operatorstakeAmounts;
+    // total staked amounts for each prover
+    mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverstakeAmounts;
 
-    mapping(address account => mapping(address operator => Struct.WithdrawalRequest[] withdrawalRequest)) public
+    mapping(address account => mapping(address prover => Struct.WithdrawalRequest[] withdrawalRequest)) public
         withdrawalRequests;
 
     /* Locked Stakes */
-    mapping(uint256 jobId => Struct.NativeStakingLock lock) public lockInfo;
-    mapping(address stakeToken => mapping(address operator => uint256 amount)) public operatorLockedAmounts;
+    mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
+    mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
     /*===================================================================================================================*/
     /*=================================================== modifier ======================================================*/
@@ -92,11 +94,6 @@ contract NativeStaking is
 
     modifier onlySupportedToken(address _stakeToken) {
         require(stakeTokenSet.contains(_stakeToken), "Token not supported");
-        _;
-    }
-
-    modifier onlyStakingManager() {
-        require(msg.sender == stakingManager, "Only StakingManager");
         _;
     }
 
@@ -133,112 +130,112 @@ contract NativeStaking is
 
     /*------------------------------------------------ Native Staking ---------------------------------------------------*/
 
-    // Staker should be able to choose an Operator they want to stake into
-    function stake(address _stakeToken, address _operator, uint256 _amount)
+    // Staker should be able to choose an Prover they want to stake into
+    function stake(address _stakeToken, address _prover, uint256 _amount)
         external
         onlySupportedToken(_stakeToken)
         nonReentrant
     {
         // this check can be removed in the future to allow delegatedStake
-        require(msg.sender == _operator, "Only operator can stake");
+        require(msg.sender == _prover, "Only prover can stake");
 
         IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), _amount);
 
-        stakeAmounts[_stakeToken][msg.sender][_operator] += _amount;
-        operatorstakeAmounts[_stakeToken][_operator] += _amount;
+        stakeAmounts[_stakeToken][msg.sender][_prover] += _amount;
+        proverstakeAmounts[_stakeToken][_prover] += _amount;
 
-        emit Staked(msg.sender, _operator, _stakeToken, _amount);
+        emit Staked(msg.sender, _prover, _stakeToken, _amount);
 
-        I_GENERATOR_CALLBACK.addStakeCallback(_operator, _stakeToken, _amount);
+        I_PROVER_CALLBACK.addStakeCallback(_prover, _stakeToken, _amount);
     }
 
     // TODO
-    function requestStakeWithdrawal(address _operator, address _stakeToken, uint256 _amount) external nonReentrant {
-        require(getOperatorActiveStakeAmount(_stakeToken, _operator) >= _amount, "Insufficient stake");
+    function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external nonReentrant {
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, "Insufficient stake");
 
-        stakeAmounts[_stakeToken][msg.sender][_operator] -= _amount;
-        operatorstakeAmounts[_stakeToken][_operator] -= _amount;
+        stakeAmounts[_stakeToken][msg.sender][_prover] -= _amount;
+        proverstakeAmounts[_stakeToken][_prover] -= _amount;
 
-        withdrawalRequests[msg.sender][_operator].push(
+        withdrawalRequests[msg.sender][_prover].push(
             Struct.WithdrawalRequest(_stakeToken, _amount, block.timestamp + withdrawalDuration)
         );
 
-        uint256 index = withdrawalRequests[msg.sender][_operator].length - 1;
+        uint256 index = withdrawalRequests[msg.sender][_prover].length - 1;
 
-        emit StakeWithdrawalRequested(msg.sender, _operator, _stakeToken, index, _amount);
+        emit StakeWithdrawalRequested(msg.sender, _prover, _stakeToken, index, _amount);
 
-        I_GENERATOR_CALLBACK.intendToReduceStakeCallback(_operator, _stakeToken, _amount);
+        I_PROVER_CALLBACK.intendToReduceStakeCallback(_prover, _stakeToken, _amount);
     }
 
-    function withdrawStake(address _operator, uint256[] calldata _index) external nonReentrant {
-        require(msg.sender == _operator, "Only operator can withdraw stake");
+    function withdrawStake(address _prover, uint256[] calldata _index) external nonReentrant {
+        require(msg.sender == _prover, "Only prover can withdraw stake");
         require(_index.length > 0, "Invalid index length");
 
         for (uint256 i = 0; i < _index.length; i++) {
-            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_operator][_index[i]];
+            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_prover][_index[i]];
 
             require(request.withdrawalTime <= block.timestamp, "Withdrawal time not reached");
 
             require(request.amount > 0, "Invalid withdrawal request");
 
-            withdrawalRequests[msg.sender][_operator][_index[i]].amount = 0;
+            withdrawalRequests[msg.sender][_prover][_index[i]].amount = 0;
 
             IERC20(request.stakeToken).safeTransfer(msg.sender, request.amount);
 
-            emit StakeWithdrawn(msg.sender, _operator, request.stakeToken, _index[i], request.amount);
+            emit StakeWithdrawn(msg.sender, _prover, request.stakeToken, _index[i], request.amount);
 
-            I_GENERATOR_CALLBACK.removeStakeCallback(_operator, request.stakeToken, request.amount);
+            I_PROVER_CALLBACK.removeStakeCallback(_prover, request.stakeToken, request.amount);
         }
     }
 
     /*----------------------------------------------- Staking Manager ---------------------------------------------------*/
 
-    function lockStake(uint256 _jobId, address _operator) external onlyStakingManager {
-        address _stakeToken = _selectStakeToken(_operator);
+    function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
+        address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getOperatorActiveStakeAmount(_stakeToken, _operator) >= _amountToLock, "Insufficient stake to lock");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake to lock");
 
         // lock stake
-        lockInfo[_jobId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
-        operatorLockedAmounts[_stakeToken][_operator] += _amountToLock;
+        lockInfo[_bidId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
+        proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_jobId, _operator, _stakeToken, _amountToLock);
+        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);
 
-        I_GENERATOR_CALLBACK.stakeLockImposedCallback(_operator, _stakeToken, _amountToLock);
+        I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
     /// @notice unlock stake and distribute reward
-    /// @dev called by StakingManager when job is completed
-    function onJobCompletion(
-        uint256 _jobId,
-        address _operator,
+    /// @dev called by StakingManager when assigned task is completed
+    function onTaskCompletion(
+        uint256 _bidId,
+        address _prover,
         uint256 /* _feeRewardAmount */
-    ) external onlyStakingManager {
-        Struct.NativeStakingLock memory lock = lockInfo[_jobId];
+    ) external onlyRole(STAKING_MANAGER_ROLE) {
+        Struct.NativeStakingLock memory lock = lockInfo[_bidId];
 
         if (lock.amount == 0) return;
 
-        _unlockStake(_jobId, lock.token, _operator, lock.amount);
+        _unlockStake(_bidId, lock.token, _prover, lock.amount);
 
-        emit StakeUnlocked(_jobId, _operator, lock.token, lock.amount);
+        emit StakeUnlocked(_bidId, _prover, lock.token, lock.amount);
 
-        I_GENERATOR_CALLBACK.stakeLockReleasedCallback(_operator, lock.token, lock.amount);
+        I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.token, lock.amount);
     }
 
-    function slash(Struct.JobSlashed[] calldata _slashedJobs) external onlyStakingManager {
-        uint256 len = _slashedJobs.length;
+    function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyRole(STAKING_MANAGER_ROLE) {
+        uint256 len = _slashedTasks.length;
         for (uint256 i = 0; i < len; i++) {
-            Struct.NativeStakingLock memory lock = lockInfo[_slashedJobs[i].jobId];
+            Struct.NativeStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
             if (lockedAmount == 0) continue; // if already slashed
 
-            _unlockStake(_slashedJobs[i].jobId, lock.token, _slashedJobs[i].operator, lockedAmount);
-            IERC20(lock.token).safeTransfer(_slashedJobs[i].rewardAddress, lockedAmount);
+            _unlockStake(_slashedTasks[i].bidId, lock.token, _slashedTasks[i].prover, lockedAmount);
+            IERC20(lock.token).safeTransfer(_slashedTasks[i].rewardAddress, lockedAmount);
         
-            emit JobSlashed(_slashedJobs[i].jobId, _slashedJobs[i].operator, lock.token, lockedAmount);
+            emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.token, lockedAmount);
 
-            I_GENERATOR_CALLBACK.stakeSlashedCallback(_slashedJobs[i].operator, lock.token, lockedAmount);
+            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.token, lockedAmount);
         }
     }
 
@@ -246,26 +243,25 @@ contract NativeStaking is
     /*===================================================== internal ====================================================*/
     /*===================================================================================================================*/
 
-    function _unlockStake(uint256 _jobId, address _stakeToken, address _operator, uint256 _amount) internal {
-        operatorLockedAmounts[_stakeToken][_operator] -= _amount;
-        delete lockInfo[_jobId];
+    function _unlockStake(uint256 _bidId, address _stakeToken, address _prover, uint256 _amount) internal {
+        proverLockedAmounts[_stakeToken][_prover] -= _amount;
+        delete lockInfo[_bidId];
     }
-
 
     /*===================================================================================================================*/
     /*=================================================== public view ===================================================*/
     /*===================================================================================================================*/
 
-    function getOperatorStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorstakeAmounts[_stakeToken][_operator];
+    function getProverStakeAmount(address _stakeToken, address _prover) public view returns (uint256) {
+        return proverstakeAmounts[_stakeToken][_prover];
     }
 
-    function getOperatorLockedAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return operatorLockedAmounts[_stakeToken][_operator];
+    function getProverLockedAmount(address _stakeToken, address _prover) public view returns (uint256) {
+        return proverLockedAmounts[_stakeToken][_prover];
     }
 
-    function getOperatorActiveStakeAmount(address _stakeToken, address _operator) public view returns (uint256) {
-        return getOperatorStakeAmount(_stakeToken, _operator) - getOperatorLockedAmount(_stakeToken, _operator);
+    function getProverActiveStakeAmount(address _stakeToken, address _prover) public view returns (uint256) {
+        return getProverStakeAmount(_stakeToken, _prover) - getProverLockedAmount(_stakeToken, _prover);
     }
 
     /*===================================================================================================================*/
@@ -284,8 +280,8 @@ contract NativeStaking is
         return (stakeTokenSet.values(), weights);
     }
 
-    function getStakeAmount(address _stakeToken, address _account, address _operator) external view returns (uint256) {
-        return stakeAmounts[_stakeToken][_account][_operator];
+    function getStakeAmount(address _stakeToken, address _account, address _prover) external view returns (uint256) {
+        return stakeAmounts[_stakeToken][_account][_prover];
     }
 
     function isSupportedStakeToken(address _stakeToken) public view returns (bool) {
@@ -297,7 +293,7 @@ contract NativeStaking is
     /*================================================== internal view ==================================================*/
     /*===================================================================================================================*/
 
-    function _selectStakeToken(address _operator) internal view returns(address) {
+    function _selectStakeToken(address _prover) internal view returns(address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -339,7 +335,7 @@ contract NativeStaking is
             }
 
             // check if the selected token has enough active stake amount
-            if (getOperatorActiveStakeAmount(selectedToken, _operator) >= amountToLock[selectedToken]) {
+            if (getProverActiveStakeAmount(selectedToken, _prover) >= amountToLock[selectedToken]) {
                 return selectedToken;
             }
 

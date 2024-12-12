@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/SetPmp.sol";
-import "../interfaces/IVerifier.sol";
-
+import {SetPmp} from "../interfaces/SetPmp.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";
 interface i_transfer_verifier {
     function verifyProof(uint256[5] memory input, uint256[8] memory p) external view returns (bool);
 }
@@ -28,22 +29,22 @@ contract transfer_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Ask calldata ask,
-        ProofMarketplace.SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata secret_inputs,
         bytes calldata acl
     ) public {
-        ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
-            ask.marketId,
-            ask.reward,
-            ask.expiry,
-            ask.timeTakenForProofGeneration,
-            ask.deadline,
-            ask.refundAddress,
-            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        Struct.Bid memory newBid = Struct.Bid(
+            bid.marketId,
+            bid.reward,
+            bid.expiry,
+            bid.timeTakenForProofGeneration,
+            bid.deadline,
+            bid.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createAsk(newAsk, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl));
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint256[5] memory) {

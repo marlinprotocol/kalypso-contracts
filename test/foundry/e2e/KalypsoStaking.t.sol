@@ -20,7 +20,7 @@
 // import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // /* libraries */
-// import {Struct} from "../../../contracts/lib/staking/Struct.sol";
+// import {Struct} from "../../../contracts/lib/Struct.sol";
 // import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // contract KalypsoStakingTest is Test, TestSetup {

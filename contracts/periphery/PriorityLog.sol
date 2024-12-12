@@ -2,21 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-// import "./interfaces/IPriorityLog.sol";
+import {Enum} from "../lib/Enum.sol";
 
 /// Optional contract to be used by request creator where
 /// he can set on what priority his requests should be processed by matching engine
 contract PriorityLog {
-    enum Priority {
-        NONE,
-        COST,
-        TIME,
-        DEADLINE
-    }
+    mapping(address => Enum.Priority) public priorityStore;
 
-    mapping(address => Priority) public priorityStore;
-
-    function setPriority(Priority priority) external {
+    function setPriority(Enum.Priority priority) external {
         address _msgSender = msg.sender;
         priorityStore[_msgSender] = priority;
     }
