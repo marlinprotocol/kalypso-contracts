@@ -2,15 +2,12 @@
 pragma solidity 0.8.26;
 
 /* Contracts */
-import {ProofMarketplace} from "../../ProofMarketplace.sol";
-import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
 /* Interfaces */
-// import {IInflationRewardManager} from "../../interfaces/staking/IInflationRewardManager.sol";
 import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
@@ -19,22 +16,20 @@ import {IAttestationVerifier} from "../../periphery/interfaces/IAttestationVerif
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/Struct.sol";
-import {Enum} from "../../lib/Enum.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Enum} from "../../lib/Enum.sol";
+import {Error} from "../../lib/Error.sol";
+import {Struct} from "../../lib/Struct.sol";
 
-import "../../interfaces/IProverCallbacks.sol";
-
-import {console} from "hardhat/console.sol";
+// temporary
+import {IProverCallbacks} from "../../interfaces/IProverCallbacks.sol";
 
 contract SymbioticStaking is
-    ContextUpgradeable,
-    ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -43,20 +38,20 @@ contract SymbioticStaking is
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IProverCallbacks public immutable I_PROVER_CALLBACK;
+    //---------------------------------- Constant/Immutable start ----------------------------------//
 
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
-
     bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
     bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
-
     uint256 public constant SIGNATURE_LENGTH = 65;
+    
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
-    /*===================================================================================================================*/
-    /*================================================ state variable ===================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------- Constant/Immutable end ----------------------------------//
+
+    //---------------------------------- State Variable start ----------------------------------//
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
@@ -78,11 +73,13 @@ contract SymbioticStaking is
     /* RewardToken */
     address public feeRewardToken;
 
+    /* Submission */
+    uint256 public lastSlashResultBlock;
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
-    /*===================================================================================================================*/
-    /*==================================================== mapping ======================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------- State Variable end ----------------------------------//
+
+    //---------------------------------- Mapping start ----------------------------------//
 
     /* Config */
     mapping(address stakeToken => uint256 amount) public amountToLock;
@@ -111,12 +108,13 @@ contract SymbioticStaking is
 
     mapping(bytes32 imageId => Struct.EnclaveImage) public enclaveImages;
 
+    //---------------------------------- Mapping end ----------------------------------//
+
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
 
-    /*===================================================================================================================*/
-    /*================================================== initializer ====================================================*/
-    /*===================================================================================================================*/
+
+    //---------------------------------- Init start ----------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor    
     constructor(IProverCallbacks _prover_callback) {
@@ -131,40 +129,36 @@ contract SymbioticStaking is
         address _rewardDistributor,
         address _feeRewardToken
     ) public initializer {
-        __Context_init_unchained();
-        __ERC165_init_unchained();
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
         __ReentrancyGuard_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_attestationVerifier != address(0), "SymbioticStaking: attestationVerifier is zero");
+        require(_attestationVerifier != address(0), Error.CannotBeZero());
         attestationVerifier = _attestationVerifier;
         emit AttestationVerifierSet(_attestationVerifier);
 
-        require(_stakingManager != address(0), "SymbioticStaking: stakingManager is zero");
+        require(_stakingManager != address(0), Error.CannotBeZero());
         stakingManager = _stakingManager;
         emit StakingManagerSet(_stakingManager);
 
-        require(_proofMarketplace != address(0), "SymbioticStaking: proofMarketplace is zero");
+        require(_proofMarketplace != address(0), Error.CannotBeZero());
         proofMarketplace = _proofMarketplace;
         emit ProofMarketplaceSet(_proofMarketplace);
 
-        require(_rewardDistributor != address(0), "SymbioticStaking: rewardDistributor is zero");
+        require(_rewardDistributor != address(0), Error.CannotBeZero());
         rewardDistributor = _rewardDistributor;
         emit RewardDistributorSet(_rewardDistributor);
 
-        require(_feeRewardToken != address(0), "SymbioticStaking: feeRewardToken is zero");
+        require(_feeRewardToken != address(0), Error.CannotBeZero());
         feeRewardToken = _feeRewardToken;
         emit FeeRewardTokenSet(_feeRewardToken);
     }
 
-    /*===================================================================================================================*/
-    /*==================================================== external =====================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------- Init end ----------------------------------//
 
-    /*------------------------------ L1 to L2 submission -----------------------------*/
+    //---------------------------------- Submission start ----------------------------------//
 
     function submitVaultSnapshot(
         uint256 _index,
@@ -195,15 +189,22 @@ contract SymbioticStaking is
 
         emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
     }
-
+    
+    // TODO: should slash result submitted after snapshot submission?
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
         bytes32 _imageId,
-        bytes memory _slashResultData,
-        bytes memory _proof
+        uint256 _startBlock, // first block of the range
+        uint256 _endBlock, // last block of the range
+        bytes calldata _slashResultData,
+        bytes calldata _proof
     ) external {
+        require(_startBlock <= _endBlock, Error.EndBlockBeforeStartBlock());
+        require(_startBlock == lastSlashResultBlock + 1, Error.InvalidSlashResultBlockRange());
+        lastSlashResultBlock = _endBlock;
+
         Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
             _taskSlashed = abi.decode(_slashResultData, (Struct.TaskSlashed[]));
@@ -234,12 +235,14 @@ contract SymbioticStaking is
         emit SlashResultSubmitted(_msgSender(), _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof);
     }
 
-    /*--------------------------- stake lock/unlock start --------------------------*/
+    //---------------------------------- Submission end ----------------------------------//
+
+    //---------------------------------- Stake lock/unlock start ------------------------------------//
 
     function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake amount");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, Error.InsufficientStakeAmount());
 
         lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
@@ -277,9 +280,9 @@ contract SymbioticStaking is
         I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
-    /*--------------------------- stake lock/unlock end --------------------------*/
+    //------------------------------------- Stake lock/unlock end ------------------------------------//
 
-    /*------------------------------------- slash ------------------------------------*/
+    //----------------------------------------- Slash start ------------------------------------------//
 
     function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyRole(STAKING_MANAGER_ROLE) {
         uint256 len = _slashedTasks.length;
@@ -298,18 +301,14 @@ contract SymbioticStaking is
         }
     }
 
-    /*===================================================================================================================*/
-    /*===================================================== internal ====================================================*/
-    /*===================================================================================================================*/
-
-    /*------------------------------- Snapshot Submission ----------------------------*/
+    //------------------------------- Internal start ----------------------------//
 
     function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
         if (registeredTransmitters[_captureTimestamp] == address(0)) {
             // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
             registeredTransmitters[_captureTimestamp] = msg.sender;
         } else {
-            require(registeredTransmitters[_captureTimestamp] == msg.sender, "Not registered transmitter");
+            require(registeredTransmitters[_captureTimestamp] == msg.sender, Error.NotRegisteredTransmitter());
         }
     }
 
@@ -343,6 +342,8 @@ contract SymbioticStaking is
         }
     }
 
+    //------------------------------- Internal end ----------------------------//
+
     function _completeSubmission(uint256 _captureTimestamp) internal {
         uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
 
@@ -357,9 +358,7 @@ contract SymbioticStaking is
         I_PROVER_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
     }
 
-    /*===================================================================================================================*/
-    /*================================================== external view ==================================================*/
-    /*===================================================================================================================*/
+    //------------------------------- Getter start ----------------------------//
 
     function latestConfirmedTimestamp() public view returns (uint256) {
         uint256 len = confirmedTimestamps.length;
@@ -418,26 +417,24 @@ contract SymbioticStaking is
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 
-    /*===================================================================================================================*/
-    /*================================================== internal view ==================================================*/
-    /*===================================================================================================================*/
+    //------------------------------- Getter end ----------------------------//
 
-    /*------------------------------ Snapshot Submission -----------------------------*/
+    //------------------------------ Internal View start -----------------------------//
 
     function _checkValidity(uint256 _index, uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type)
         internal
         view
     {
-        require(submissionStatus[_captureTimestamp][msg.sender] != Enum.SubmissionStatus.COMPLETE, "Completed Submission");
+        require(submissionStatus[_captureTimestamp][msg.sender] != Enum.SubmissionStatus.COMPLETE, Error.SubmissionAlreadyCompleted());
 
-        require(_index < _numOfTxs, "Invalid index"); // here we assume enclave submis the correct data
-        require(_numOfTxs > 0, "Invalid length");
+        require(_index < _numOfTxs, Error.InvalidIndex()); // here we assume enclave submis the correct data
+        require(_numOfTxs > 0, Error.ZeroNumOfTxs());
 
         // snapshot cannot be submitted before the cooldown period from the last confirmed timestamp (completed snapshot submission)
-        require(_captureTimestamp >= (latestConfirmedTimestamp() + submissionCooldown), "Cooldown period not passed");
-        require(_captureTimestamp <= block.timestamp, "Invalid timestamp");
+        require(_captureTimestamp >= (latestConfirmedTimestamp() + submissionCooldown), Error.CooldownPeriodNotPassed());
+        require(_captureTimestamp <= block.timestamp, Error.InvalidCaptureTimestamp());
 
-        require(_index == txCountInfo[_captureTimestamp][_type].idxToSubmit, "Not idxToSubmit");
+        require(_index == txCountInfo[_captureTimestamp][_type].idxToSubmit, Error.NotIdxToSubmit());
     }
 
     /**
@@ -460,10 +457,10 @@ contract SymbioticStaking is
         bytes memory _data,
         bytes memory _proof
     ) internal view {
-        require(enclaveImages[_imageId].PCR0.length != 0, "Image not found");
+        require(enclaveImages[_imageId].PCR0.length != 0, Error.ImageNotFound());
         bytes memory dataToSign = abi.encode(_type, _index, _numOfTxs, _captureTimestamp, _data);
         (bytes memory _signature, bytes memory _attestationData) = abi.decode(_proof, (bytes, bytes));
-        require(_signature.length == SIGNATURE_LENGTH, "M:VP-Signature length mismatch");
+        require(_signature.length == SIGNATURE_LENGTH, Error.InvalidSignatureLength());
         address _enclaveKey = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(dataToSign)), _signature);
 
         (bytes memory attestationSig, IAttestationVerifier.Attestation memory attestation) = abi.decode(
@@ -473,23 +470,22 @@ contract SymbioticStaking is
         IAttestationVerifier(attestationVerifier).verify(attestationSig, attestation);
 
         address _verifiedKey = _pubKeyToAddress(attestation.enclavePubKey);
-        require(_verifiedKey == _enclaveKey, "M:VP-Enclave key mismatch");
-        require(getImageId(attestation.PCR0, attestation.PCR1, attestation.PCR2) == _imageId, "M:VP-Invalid image");
+        require(_verifiedKey == _enclaveKey, Error.EnclaveKeyMismatch());
+        require(getImageId(attestation.PCR0, attestation.PCR1, attestation.PCR2) == _imageId, Error.InvalidImage());
     }
 
     function _pubKeyToAddress(bytes memory _pubKey) internal pure returns (address) {
-        require(_pubKey.length == 64, "M:VP-Invalid public key length");
+        require(_pubKey.length == 64, Error.InvalidPublicKeyLength());
         return address(uint160(uint256(keccak256(_pubKey))));
     }
 
     function _addEnclaveImage(bytes memory _PCRs) internal {
         (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
         bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
-        require(enclaveImages[imageId].PCR0.length == 0, "Image already exists");
-
-        require(PCR0.length == 48, "Invalid PCR0 length");
-        require(PCR1.length == 48, "Invalid PCR1 length");
-        require(PCR2.length == 48, "Invalid PCR2 length");
+        require(enclaveImages[imageId].PCR0.length == 0, Error.ImageAlreadyExists());
+        require(PCR0.length == 48, Error.InvalidPCR0Length());
+        require(PCR1.length == 48, Error.InvalidPCR1Length());
+        require(PCR2.length == 48, Error.InvalidPCR2Length());
 
         Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
         enclaveImages[imageId] = enclaveImage;
@@ -522,11 +518,9 @@ contract SymbioticStaking is
         return confirmedTimestamps[latestConfirmedTimestampIdx()].transmitter;
     }
 
-    /*-------------------------------------- Task -------------------------------------*/
-
     function _selectStakeToken(address _prover) internal view returns (address) {
-        require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
-        require(stakeTokenSet.length() > 0, "No tokens available");
+        require(stakeTokenSelectionWeightSum > 0, Error.ZeroStakeTokenSelectionWeightSum());
+        require(stakeTokenSet.length() > 0, Error.NoStakeTokensAvailable());
 
         address[] memory tokens = new address[](stakeTokenSet.length());
         uint256[] memory weights = new uint256[](stakeTokenSet.length());
@@ -548,7 +542,7 @@ contract SymbioticStaking is
 
         // repeat until a valid token is selected
         while (true) {
-            require(idx > 0, "No stakeToken available to lock");
+            require(idx > 0, Error.NoStakeTokenAvailableToLock());
 
             // random number in range [0, weightSum - 1]
             uint256 random = uint256(
@@ -588,14 +582,31 @@ contract SymbioticStaking is
         return baseTransmitterComissionRate;
     }
 
-    /*------------------------------------ Reward ------------------------------------*/
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE start ----------------------------------//
 
-    /*===================================================================================================================*/
-    /*===================================================== admin =======================================================*/
-    /*===================================================================================================================*/
+
+    function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _addEnclaveImage(abi.encode(PCR0, PCR1, PCR2));
+    }
+
+    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _addEnclaveImage(PCRs);
+    }
+
+    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _removeEnclaveImage(_imageId);
+    }
+
+    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+        _setAttestationVerifier(_attestationVerifier);
+    }
+
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE end ----------------------------------//
+    
+    //---------------------------------- Admin start ----------------------------------//
 
     function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.add(_stakeToken), "Token already exists");
+        require(stakeTokenSet.add(_stakeToken), Error.TokenAlreadyExists());
 
         stakeTokenSelectionWeightSum += _weight;
         stakeTokenSelectionWeight[_stakeToken] = _weight;
@@ -604,7 +615,7 @@ contract SymbioticStaking is
     }
 
     function removeStakeToken(address _stakeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.remove(_stakeToken), "Token does not exist");
+        require(stakeTokenSet.remove(_stakeToken), Error.TokenDoesNotExist());
 
         stakeTokenSelectionWeightSum -= stakeTokenSelectionWeight[_stakeToken];
         delete stakeTokenSelectionWeight[_stakeToken];
@@ -634,7 +645,7 @@ contract SymbioticStaking is
 
     /// @dev base transmitter comission rate is in range [0, 1e18)
     function setBaseTransmitterComissionRate(uint256 _baseTransmitterComission) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_baseTransmitterComission < 1e18, "Invalid comission rate");
+        require(_baseTransmitterComission < 1e18, Error.InvalidComissionRate());
 
         baseTransmitterComissionRate = _baseTransmitterComission;
 
@@ -666,45 +677,28 @@ contract SymbioticStaking is
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_token != address(0), "zero token address");
-        require(_to != address(0), "zero to address");
+        require(_token != address(0), Error.ZeroTokenAddress());
+        require(_to != address(0), Error.ZeroAddress());
 
         IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
-    /*===================================================================================================================*/
-    /*========================================= BRIDGE ENCLAVE UPDATES ==================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------- Admin end ----------------------------------//
 
-    function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
-        _addEnclaveImage(abi.encode(PCR0, PCR1, PCR2));
-    }
 
-    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
-        _addEnclaveImage(PCRs);
-    }
-
-    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
-        _removeEnclaveImage(_imageId);
-    }
-
-    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
-        _setAttestationVerifier(_attestationVerifier);
-    }
-
-    /*===================================================================================================================*/
-    /*==================================================== override =====================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------- Override start ----------------------------------//
 
     function supportsInterface(bytes4 interfaceId)
         public
         view
         virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable)
+        override
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    //---------------------------------- Override end ----------------------------------//
 }

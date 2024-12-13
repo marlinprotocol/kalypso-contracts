@@ -12,25 +12,16 @@ interface ISymbioticStaking is IStakingPool {
     event VaultSnapshotSubmitted(
         address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes vaultSnapshotData, bytes proof
     );
-
     event SlashResultSubmitted(
         address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
     );
-
     event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
-
     event SubmissionCooldownSet(uint256 cooldown);
-
     event BaseTransmitterComissionRateSet(uint256 rate);
-
     event ProofMarketplaceSet(address proofMarketplace);
-
     event RewardDistributorSet(address rewardDistributor);
-
     event EnclaveImageAdded(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
-
     event EnclaveImageRemoved(bytes32 indexed imageId);
-
     event AttestationVerifierSet(address attestationVerifier);
 
     /*===================================================== functions =====================================================*/
@@ -49,6 +40,8 @@ interface ISymbioticStaking is IStakingPool {
         uint256 numOfTxs, // number of total transactions
         uint256 captureTimestamp,
         bytes32 imageId,
+        uint256 startBlock,
+        uint256 endBlock,
         bytes calldata slashResultData,
         bytes calldata proof
     ) external;

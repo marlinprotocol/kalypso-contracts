@@ -75,4 +75,33 @@ library Error {
 
     // ProofMarketplace
     error InvalidProverRewardShare();
+
+    // Symbiotic Staking
+    error InvalidSlashResultBlockRange();
+    error EndBlockBeforeStartBlock();
+    error InsufficientStakeAmount();
+    error NotRegisteredTransmitter();
+    error SubmissionAlreadyCompleted();
+    error InvalidIndex();
+    error ZeroNumOfTxs();
+    error InvalidCaptureTimestamp();
+    error CooldownPeriodNotPassed();
+    error NotIdxToSubmit();
+    error ImageNotFound();
+    error InvalidSignatureLength();
+    error EnclaveKeyMismatch();
+    error InvalidImage();
+    error InvalidPublicKeyLength();
+    error ImageAlreadyExists();
+    error InvalidPCR0Length();
+    error InvalidPCR1Length();
+    error InvalidPCR2Length();
+    error ZeroStakeTokenSelectionWeightSum();
+    error NoStakeTokensAvailable();
+    error NoStakeTokenAvailableToLock();
+    error TokenAlreadyExists();
+    error TokenDoesNotExist();
+    error InvalidComissionRate();
+    error ZeroTokenAddress();
+    error ZeroAddress();
 }
