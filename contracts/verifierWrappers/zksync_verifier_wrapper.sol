@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.26;
 
-import "../interfaces/IVerifier.sol";
-
-import "hardhat/console.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";
 
 interface i_zksync_verifier {
     function verify(uint256[] calldata, uint256[] calldata, uint256[] calldata) external view returns (bool);

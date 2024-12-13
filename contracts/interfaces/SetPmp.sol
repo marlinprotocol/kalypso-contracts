@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.26;
 
-import "../ProofMarketplace.sol";
+import {ProofMarketplace} from "../ProofMarketplace.sol";
 
 abstract contract SetPmp {
     ProofMarketplace public proofMarketplace;

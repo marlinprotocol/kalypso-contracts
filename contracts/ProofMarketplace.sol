@@ -18,7 +18,7 @@ import {ProverRegistry} from "./ProverRegistry.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Error} from "./lib/Error.sol";
-import {HELPER} from "./lib/HELPER.sol";
+import {HELPER} from "./lib/Helper.sol";
 import {Struct} from "./lib/Struct.sol";
 import {Enum} from "./lib/Enum.sol";
 

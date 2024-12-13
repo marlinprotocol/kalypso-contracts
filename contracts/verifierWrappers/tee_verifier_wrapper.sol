@@ -2,11 +2,15 @@
 
 pragma solidity 0.8.26;
 
-import "../interfaces/IVerifier.sol";
-import "../lib/Error.sol";
-import "../lib/Helper.sol";
-import "../periphery/AttestationAuther.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {IAttestationVerifier} from "../periphery/interfaces/IAttestationVerifier.sol";
+
+import {Error} from "../lib/Error.sol";
+import {HELPER} from "../lib/Helper.sol";
+import {AttestationAuther} from "../periphery/AttestationAuther.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";   
 
 contract tee_verifier_wrapper_factory {
     event TeeVerifierWrapperCreated(tee_verifier_wrapper a);

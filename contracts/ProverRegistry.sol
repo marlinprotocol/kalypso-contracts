@@ -3,13 +3,10 @@
 pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20 as IERC20Upgradeable} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20 as SafeERC20Upgradeable} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
 import {EntityKeyRegistry} from "./EntityKeyRegistry.sol";
 import {Error} from "./lib/Error.sol";
@@ -26,9 +23,6 @@ import "./interfaces/IProverCallbacks.sol";
 import "./staking/l2_contracts/StakingManager.sol";
 
 contract ProverRegistry is
-    Initializable,
-    ContextUpgradeable,
-    ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -54,7 +48,7 @@ contract ProverRegistry is
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override(ERC165Upgradeable, AccessControlUpgradeable) returns (bool) {
+    ) public view virtual override returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
