@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-import {ECDSA as ECDSAUpgradeable} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./Error.sol";
 
-pragma solidity 0.8.26;
+pragma solidity ^0.8.0;
 
 library HELPER {
     function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) internal pure returns (bytes32) {
@@ -79,7 +79,7 @@ library HELPER {
         bytes32 messageHash = keccak256(abi.encode(attestationData, addressToVerify));
         bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        address signer = ECDSA.recover(ethSignedMessageHash, enclaveSignature);
         if (signer != GET_ADDRESS(attestationData)) {
             revert Error.InvalidEnclaveSignature(signer);
         }
