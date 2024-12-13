@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
 library Error {
     // Administrative and Miscellaneous Errors
@@ -72,4 +72,7 @@ library Error {
     error ShouldBeInCrossedDeadlineState(uint256 bidId);
     error ShouldBeInAssignedState(uint256 bidId);
     error OnlyProverCanDiscardRequest(uint256 bidId);
+
+    // ProofMarketplace
+    error InvalidProverRewardShare();
 }

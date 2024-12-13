@@ -3,7 +3,7 @@
 import {ECDSA as ECDSAUpgradeable} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./Error.sol";
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
 library HELPER {
     function GET_IMAGE_ID_FROM_ATTESTATION(bytes memory data) internal pure returns (bytes32) {
