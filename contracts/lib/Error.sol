@@ -76,10 +76,21 @@ library Error {
     // ProofMarketplace
     error InvalidProverRewardShare();
 
+    // Staking
+    error InsufficientStakeAmount();
+    error NoStakeTokenAvailableToLock();
+    error ZeroTokenAddress();
+    error ZeroToAddress();
+
+    // StakingManager
+    error InvalidPool();
+    error PoolAlreadyExists();
+    error InvalidLength();
+    error InvalidShares();
+    
     // Symbiotic Staking
     error InvalidSlashResultBlockRange();
     error EndBlockBeforeStartBlock();
-    error InsufficientStakeAmount();
     error NotRegisteredTransmitter();
     error SubmissionAlreadyCompleted();
     error InvalidIndex();
@@ -98,10 +109,26 @@ library Error {
     error InvalidPCR2Length();
     error ZeroStakeTokenSelectionWeightSum();
     error NoStakeTokensAvailable();
-    error NoStakeTokenAvailableToLock();
     error TokenAlreadyExists();
     error TokenDoesNotExist();
     error InvalidComissionRate();
-    error ZeroTokenAddress();
-    error ZeroAddress();
+
+    // Native Staking
+    error OnlyProverCanStake();
+    error InsufficientStake();
+    error InvalidIndexLength();
+    error OnlyProverCanWithdrawStake();
+    error WithdrawalTimeNotReached();
+    error InvalidWithdrawalAmount();
+    error TokenNotSupported();
+
+    // SymbioticStakingReward
+    error OnlyStakingManager();
+    error ZeroProofMarketplaceAddress();
+    error ZeroSymbioticStakingAddress();
+
+    // Contract Address
+    error InvalidStakingManager();
+    error InvalidFeeToken();
+    error InvalidSymbioticStaking();
 }

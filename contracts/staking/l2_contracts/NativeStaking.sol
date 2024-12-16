@@ -2,8 +2,6 @@
 pragma solidity ^0.8.26;
 
 /* Contracts */
-import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -15,17 +13,16 @@ import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol"
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /* Libraries */
-import {Struct} from "../../lib/Struct.sol";
-
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Struct} from "../../lib/Struct.sol";
+import {Error} from "../../lib/Error.sol";
 
-import "../../interfaces/IProverCallbacks.sol";
+/* temporary */
+import {IProverCallbacks} from "../../interfaces/IProverCallbacks.sol";
 
 contract NativeStaking is
-    ContextUpgradeable,
-    ERC165Upgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -39,14 +36,7 @@ contract NativeStaking is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IProverCallbacks public immutable I_PROVER_CALLBACK;
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IProverCallbacks _prover_callback) {
-        I_PROVER_CALLBACK = _prover_callback;
-    }
-
-    /*===================================================================================================================*/
-    /*================================================ state variable ===================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- State Variable start ----------------------------------------//
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_0;
@@ -67,9 +57,9 @@ contract NativeStaking is
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
 
-    /*===================================================================================================================*/
-    /*==================================================== mapping ======================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- State Variable end ----------------------------------------//
+
+    //---------------------------------------- Mapping start ----------------------------------------//
 
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each task assignment
     mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
@@ -88,18 +78,23 @@ contract NativeStaking is
     mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
-    /*===================================================================================================================*/
-    /*=================================================== modifier ======================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- Mapping end ----------------------------------------//
+
+    //---------------------------------------- Modifier start ----------------------------------------//
 
     modifier onlySupportedToken(address _stakeToken) {
-        require(stakeTokenSet.contains(_stakeToken), "Token not supported");
+        require(stakeTokenSet.contains(_stakeToken), Error.TokenNotSupported());
         _;
     }
 
-    /*===================================================================================================================*/
-    /*================================================== initializer ====================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- Modifier end ----------------------------------------//
+
+    //---------------------------------------- Init start ----------------------------------------//
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(IProverCallbacks _prover_callback) {
+        I_PROVER_CALLBACK = _prover_callback;
+    }
 
     function initialize(
         address _admin,
@@ -114,86 +109,84 @@ contract NativeStaking is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_stakingManager != address(0), "NativeStaking: Invalid StakingManager");
+        require(_stakingManager != address(0), Error.InvalidStakingManager());
         stakingManager = _stakingManager;
         emit StakingManagerSet(_stakingManager);
 
         withdrawalDuration = _withdrawalDuration;
 
-        require(_feeToken != address(0), "NativeStaking: Invalid Fee Token");
+        require(_feeToken != address(0), Error.InvalidFeeToken());
         feeRewardToken = _feeToken;
     }
 
-    /*===================================================================================================================*/
-    /*==================================================== external =====================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- Init end ----------------------------------------//
 
-    /*------------------------------------------------ Native Staking ---------------------------------------------------*/
+    //---------------------------------------- Stake/Unstake start ----------------------------------------//
 
-    // Staker should be able to choose an Prover they want to stake into
     function stake(address _stakeToken, address _prover, uint256 _amount)
         external
         onlySupportedToken(_stakeToken)
         nonReentrant
     {
         // this check can be removed in the future to allow delegatedStake
-        require(msg.sender == _prover, "Only prover can stake");
+        require(_msgSender() == _prover, Error.OnlyProverCanStake());
 
-        IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(_stakeToken).safeTransferFrom(_msgSender(), address(this), _amount);
 
-        stakeAmounts[_stakeToken][msg.sender][_prover] += _amount;
+        stakeAmounts[_stakeToken][_msgSender()][_prover] += _amount;
         proverstakeAmounts[_stakeToken][_prover] += _amount;
 
-        emit Staked(msg.sender, _prover, _stakeToken, _amount);
+        emit Staked(_msgSender(), _prover, _stakeToken, _amount);
 
         I_PROVER_CALLBACK.addStakeCallback(_prover, _stakeToken, _amount);
     }
 
     // TODO
     function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external nonReentrant {
-        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, "Insufficient stake");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, Error.InsufficientStakeAmount());
 
-        stakeAmounts[_stakeToken][msg.sender][_prover] -= _amount;
+        stakeAmounts[_stakeToken][_msgSender()][_prover] -= _amount;
         proverstakeAmounts[_stakeToken][_prover] -= _amount;
 
-        withdrawalRequests[msg.sender][_prover].push(
+        withdrawalRequests[_msgSender()][_prover].push(
             Struct.WithdrawalRequest(_stakeToken, _amount, block.timestamp + withdrawalDuration)
         );
 
-        uint256 index = withdrawalRequests[msg.sender][_prover].length - 1;
+        uint256 index = withdrawalRequests[_msgSender()][_prover].length - 1;
 
-        emit StakeWithdrawalRequested(msg.sender, _prover, _stakeToken, index, _amount);
+        emit StakeWithdrawalRequested(_msgSender(), _prover, _stakeToken, index, _amount);
 
         I_PROVER_CALLBACK.intendToReduceStakeCallback(_prover, _stakeToken, _amount);
     }
 
     function withdrawStake(address _prover, uint256[] calldata _index) external nonReentrant {
-        require(msg.sender == _prover, "Only prover can withdraw stake");
-        require(_index.length > 0, "Invalid index length");
+        // TODO: _msgSender() should be claim address of the prover later
+        require(_msgSender() == _prover, Error.OnlyProverCanWithdrawStake());
+        require(_index.length > 0, Error.InvalidIndexLength());
 
         for (uint256 i = 0; i < _index.length; i++) {
-            Struct.WithdrawalRequest memory request = withdrawalRequests[msg.sender][_prover][_index[i]];
+            Struct.WithdrawalRequest memory request = withdrawalRequests[_msgSender()][_prover][_index[i]];
 
-            require(request.withdrawalTime <= block.timestamp, "Withdrawal time not reached");
+            require(request.withdrawalTime <= block.timestamp, Error.WithdrawalTimeNotReached());
 
-            require(request.amount > 0, "Invalid withdrawal request");
+            require(request.amount > 0, Error.InvalidWithdrawalAmount());
 
-            withdrawalRequests[msg.sender][_prover][_index[i]].amount = 0;
+            withdrawalRequests[_msgSender()][_prover][_index[i]].amount = 0;
 
-            IERC20(request.stakeToken).safeTransfer(msg.sender, request.amount);
+            IERC20(request.stakeToken).safeTransfer(_msgSender(), request.amount);
 
-            emit StakeWithdrawn(msg.sender, _prover, request.stakeToken, _index[i], request.amount);
+            emit StakeWithdrawn(_msgSender(), _prover, request.stakeToken, _index[i], request.amount);
 
             I_PROVER_CALLBACK.removeStakeCallback(_prover, request.stakeToken, request.amount);
         }
     }
 
-    /*----------------------------------------------- Staking Manager ---------------------------------------------------*/
+    //---------------------------------------- STAKING_MANAGER_ROLE start ----------------------------------------//
 
     function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, "Insufficient stake to lock");
+        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, Error.InsufficientStakeAmount());
 
         // lock stake
         lockInfo[_bidId] = Struct.NativeStakingLock(_stakeToken, _amountToLock);
@@ -239,18 +232,14 @@ contract NativeStaking is
         }
     }
 
-    /*===================================================================================================================*/
-    /*===================================================== internal ====================================================*/
-    /*===================================================================================================================*/
-
     function _unlockStake(uint256 _bidId, address _stakeToken, address _prover, uint256 _amount) internal {
         proverLockedAmounts[_stakeToken][_prover] -= _amount;
         delete lockInfo[_bidId];
     }
 
-    /*===================================================================================================================*/
-    /*=================================================== public view ===================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- STAKING_MANAGER_ROLE end ----------------------------------------//
+
+    //---------------------------------------- Getter start ----------------------------------------//
 
     function getProverStakeAmount(address _stakeToken, address _prover) public view returns (uint256) {
         return proverstakeAmounts[_stakeToken][_prover];
@@ -263,10 +252,6 @@ contract NativeStaking is
     function getProverActiveStakeAmount(address _stakeToken, address _prover) public view returns (uint256) {
         return getProverStakeAmount(_stakeToken, _prover) - getProverLockedAmount(_stakeToken, _prover);
     }
-
-    /*===================================================================================================================*/
-    /*================================================== external view ==================================================*/
-    /*===================================================================================================================*/
 
     function getStakeTokenList() external view returns (address[] memory) {
         return stakeTokenSet.values();
@@ -288,10 +273,9 @@ contract NativeStaking is
         return stakeTokenSet.contains(_stakeToken);
     }
 
+    //---------------------------------------- Getter end ----------------------------------------//
 
-    /*===================================================================================================================*/
-    /*================================================== internal view ==================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- Token Selection start ----------------------------------------//
 
     function _selectStakeToken(address _prover) internal view returns(address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
@@ -316,10 +300,10 @@ contract NativeStaking is
 
         // repeat until a valid token is selected
         while (true) {
-            require(idx > 0, "No stakeToken available to lock");
+            require(idx > 0, Error.NoStakeTokenAvailableToLock());
 
             // random number in range [0, weightSum - 1]
-            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), msg.sender))) % weightSum;
+            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), _msgSender()))) % weightSum;
 
             uint256 cumulativeWeight = 0;
             address selectedToken;
@@ -342,49 +326,42 @@ contract NativeStaking is
             weightSum -= weights[i];
             tokens[i] = tokens[idx - 1];
             weights[i] = weights[idx - 1];
-            idx--;  // 배열 크기를 줄임
+            idx--;  // reduce the array size
         }
 
         // this should be returned
         return address(0);  
     }
 
-    /*===================================================================================================================*/
-    /*===================================================== admin =======================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- Token Selection end ----------------------------------------//
+
+    //---------------------------------------- DEFAULT_ADMIN_ROLE start ----------------------------------------//
 
     function addStakeToken(address _token, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.add(_token), "Token already exists");
-        
+        require(stakeTokenSet.add(_token), Error.TokenAlreadyExists());
         stakeTokenSelectionWeight[_token] = _weight;
         stakeTokenSelectionWeightSum += _weight;
-
         emit StakeTokenAdded(_token, _weight);
     }
 
     function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeTokenSet.remove(_token), "Token does not exist");
-        
+        require(stakeTokenSet.remove(_token), Error.TokenDoesNotExist());
         delete stakeTokenSelectionWeight[_token];
-
         emit StakeTokenRemoved(_token);
     }
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingManager = _stakingManager;
-
         emit StakingManagerSet(_stakingManager);
     }
 
     function setFeeRewardToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeRewardToken = _token;
-
         emit FeeRewardTokenSet(_token);
     }
 
     function setWithdrawalDuration(uint256 _duration) external onlyRole(DEFAULT_ADMIN_ROLE) {
         withdrawalDuration = _duration;
-
         emit WithdrawalDurationSet(_duration);
     }
 
@@ -403,25 +380,27 @@ contract NativeStaking is
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_token != address(0), "zero token address");
-        require(_to != address(0), "zero to address");
+        require(_token != address(0), Error.ZeroTokenAddress());
+        require(_to != address(0), Error.ZeroToAddress());
 
         IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
 
-    /*===================================================================================================================*/
-    /*==================================================== override =====================================================*/
-    /*===================================================================================================================*/
+    //---------------------------------------- DEFAULT_ADMIN_ROLE end ----------------------------------------//
+
+    //---------------------------------------- Override start ----------------------------------------//
 
     function supportsInterface(bytes4 interfaceId)
         public
         view
         virtual
-        override(ERC165Upgradeable, AccessControlUpgradeable)
+        override
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    //---------------------------------------- Override end ----------------------------------------//
 }
