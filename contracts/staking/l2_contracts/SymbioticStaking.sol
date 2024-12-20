@@ -40,11 +40,21 @@ contract SymbioticStaking is
 
     //---------------------------------- Constant/Immutable start ----------------------------------//
 
+    /* Submission Type */
     bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
     bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
+
+    /* Submission Status */
+    bytes32 public constant STAKE_SNAPSHOT_DONE = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    bytes32 public constant SLASH_RESULT_DONE = 0x0000000000000000000000000000000000000000000000000000000000000010;
+    bytes32 public constant SUBMISSION_COMPLETE = 0x0000000000000000000000000000000000000000000000000000000000000011;
+
+    /* Roles */
     bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
     bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
+
     uint256 public constant SIGNATURE_LENGTH = 65;
+
     
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IProverCallbacks public immutable I_PROVER_CALLBACK;
@@ -90,7 +100,7 @@ contract SymbioticStaking is
     mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot)) public
         txCountInfo;
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => Enum.SubmissionStatus status)) public submissionStatus;
+    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
 
     // staked amount for each prover
     mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address prover => uint256 stakeAmount)))
@@ -112,7 +122,6 @@ contract SymbioticStaking is
 
     // gaps in case we new vars in same file
     uint256[500] private __gap_1;
-
 
     //---------------------------------- Init start ----------------------------------//
 
@@ -184,13 +193,17 @@ contract SymbioticStaking is
 
         // when all chunks of VaultSnapshots are submitted
         if (_index == _numOfTxs - 1) {
-            submissionStatus[_captureTimestamp][msg.sender] = Enum.SubmissionStatus.STAKE_SNAPSHOT_DONE;
+            submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_DONE;
         }
 
         emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
+
+        // when all chunks of Snapshots are submitted
+        if (submissionStatus[_captureTimestamp][msg.sender] == SUBMISSION_COMPLETE) {
+            _completeSubmission(_captureTimestamp);
+        }
     }
-    
-    // TODO: should slash result submitted after snapshot submission?
+
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
@@ -210,12 +223,6 @@ contract SymbioticStaking is
             _taskSlashed = abi.decode(_slashResultData, (Struct.TaskSlashed[]));
         }
 
-        // Vault Snapshot should be submitted before Slash Result
-        require(
-            submissionStatus[_captureTimestamp][msg.sender] ==  Enum.SubmissionStatus.STAKE_SNAPSHOT_DONE,
-            "Vault Snapshot not submitted"
-        );
-
         _checkTransmitterRegistration(_captureTimestamp);
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
@@ -227,12 +234,16 @@ contract SymbioticStaking is
         // there could be no operator slashed
         if (_taskSlashed.length > 0) IStakingManager(stakingManager).onSlashResultSubmission(_taskSlashed);
 
-        // when all chunks of Snapshots are submitted
-        if (_index == _numOfTxs - 1) {
-            _completeSubmission(_captureTimestamp);
+        if(_index == _numOfTxs - 1) {
+            submissionStatus[_captureTimestamp][msg.sender] |= SLASH_RESULT_DONE;
         }
 
         emit SlashResultSubmitted(_msgSender(), _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof);
+
+        // when all chunks of Snapshots are submitted
+        if (submissionStatus[_captureTimestamp][msg.sender] == SUBMISSION_COMPLETE) {
+            _completeSubmission(_captureTimestamp);
+        }
     }
 
     //---------------------------------- Submission end ----------------------------------//
@@ -413,7 +424,7 @@ contract SymbioticStaking is
         return stakeTokenSet.contains(_stakeToken);
     }
 
-    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (Enum.SubmissionStatus) {
+    function getSubmissionStatus(uint256 _captureTimestamp, address _transmitter) external view returns (bytes32) {
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 

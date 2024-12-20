@@ -52,7 +52,7 @@ interface ISymbioticStaking is IStakingPool {
 
     function registeredTransmitters(uint256 captureTimestamp) external view returns (address);
 
-    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (Enum.SubmissionStatus);
+    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (bytes32);
 
     function confirmedTimestampInfo(uint256 idx) external view returns (Struct.ConfirmedTimestamp memory);
 

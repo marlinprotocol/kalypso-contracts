@@ -27,12 +27,6 @@ library Enum {
         REQUESTED_FOR_EXIT
     }
 
-    /* Symbiotic Staking */
-    enum SubmissionStatus {
-        NONE,
-        STAKE_SNAPSHOT_DONE,
-        COMPLETE
-    }
 
     /* Priority Log */
     enum Priority {
