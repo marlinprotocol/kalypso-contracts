@@ -91,6 +91,7 @@ library Error {
     // Symbiotic Staking
     error InvalidSlashResultBlockRange();
     error EndBlockBeforeStartBlock();
+    error NotRegisteredBlockNumber();
     error NotRegisteredTransmitter();
     error SubmissionAlreadyCompleted();
     error InvalidIndex();
@@ -103,6 +104,7 @@ library Error {
     error EnclaveKeyMismatch();
     error InvalidImage();
     error InvalidPublicKeyLength();
+    error InvalidLastBlockNumber();
     error ImageAlreadyExists();
     error InvalidPCR0Length();
     error InvalidPCR1Length();

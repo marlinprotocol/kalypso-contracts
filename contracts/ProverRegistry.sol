@@ -553,7 +553,7 @@ contract ProverRegistry is
         uint256 bidId,
         address proverAddress,
         uint256 marketId,
-        uint256 stakeToRelease
+        uint256 feeReward
     ) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
         (Enum.ProverState state, ) = getProverState(proverAddress, marketId);
 
@@ -569,7 +569,7 @@ contract ProverRegistry is
         uint256 computeReleased = info.computePerRequestRequired;
         prover.computeConsumed -= computeReleased;
 
-        IStakingManager(stakingManager).onTaskCompletion(bidId, proverAddress, stakeToRelease);
+        IStakingManager(stakingManager).onTaskCompletion(bidId, proverAddress, feeReward);
 
         info.activeRequests--;
         emit ComputeReleased(proverAddress, computeReleased);

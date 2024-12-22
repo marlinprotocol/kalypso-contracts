@@ -39,9 +39,8 @@ interface ISymbioticStaking is IStakingPool {
         uint256 index,
         uint256 numOfTxs, // number of total transactions
         uint256 captureTimestamp,
+        uint256 lastBlockNumber,
         bytes32 imageId,
-        uint256 startBlock,
-        uint256 endBlock,
         bytes calldata slashResultData,
         bytes calldata proof
     ) external;
@@ -49,8 +48,6 @@ interface ISymbioticStaking is IStakingPool {
     function lockInfo(uint256 bidId) external view returns (address stakeToken, uint256 amount);
 
     function txCountInfo(uint256 captureTimestamp, bytes32 _txType) external view returns (uint256 idxToSubmit, uint256 numOfTxs);
-
-    function registeredTransmitters(uint256 captureTimestamp) external view returns (address);
 
     function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (bytes32);
 

@@ -107,8 +107,14 @@ library Struct {
         uint256 numOfTxs; // total number of txs for the snapshot
     }
 
+    struct CaptureTimestampInfo {
+        uint256 blockNumber; // L1 Block Number for parsing slash result
+        address transmitter;
+    }
+
     struct ConfirmedTimestamp {
         uint256 captureTimestamp;
+        uint256 blockNumber; // L1 Block Number for parsing slash result
         address transmitter;
         uint256 transmitterComissionRate;
     }

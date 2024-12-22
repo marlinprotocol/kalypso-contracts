@@ -100,7 +100,7 @@ contract SymbioticStaking is
     mapping(uint256 captureTimestamp => mapping(bytes32 submissionType => Struct.SnapshotTxCountInfo snapshot)) public
         txCountInfo;
     // to track if all partial txs are received
-    mapping(uint256 captureTimestamp => mapping(address account => bytes32 status)) public submissionStatus;
+    mapping(uint256 captureTimestamp => mapping(address transmitter => bytes32 status)) public submissionStatus;
 
     // staked amount for each prover
     mapping(uint256 captureTimestamp => mapping(address stakeToken => mapping(address prover => uint256 stakeAmount)))
@@ -114,7 +114,9 @@ contract SymbioticStaking is
     mapping(uint256 bidId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
-    mapping(uint256 captureTimestamp => address transmitter) public registeredTransmitters; // only one transmitter can submit the snapshot for the same capturetimestamp
+    // transmitter and block number
+    // once a certain captureTimestamp has been submitted, the transmitter and block number will be set and cannot be overwritten
+    mapping(uint256 captureTimestamp => Struct.CaptureTimestampInfo captureTimestampInfo) public captureTimestampInfo; 
 
     mapping(bytes32 imageId => Struct.EnclaveImage) public enclaveImages;
 
@@ -179,7 +181,7 @@ contract SymbioticStaking is
     ) external {
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
-        _checkTransmitterRegistration(_captureTimestamp);
+        _checkCaptureTimestampInfo(_captureTimestamp, msg.sender, 0);
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, STAKE_SNAPSHOT_TYPE);
 
@@ -208,22 +210,21 @@ contract SymbioticStaking is
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
+        // TODO: how to gaurantee this matches with given captureTimestamp
+        uint256 _lastBlockNumber, // last block number of the range
         bytes32 _imageId,
-        uint256 _startBlock, // first block of the range
-        uint256 _endBlock, // last block of the range
         bytes calldata _slashResultData,
         bytes calldata _proof
     ) external {
-        require(_startBlock <= _endBlock, Error.EndBlockBeforeStartBlock());
-        require(_startBlock == lastSlashResultBlock + 1, Error.InvalidSlashResultBlockRange());
-        lastSlashResultBlock = _endBlock;
+        require(_lastBlockNumber > 0, Error.CannotBeZero());
+        require(_lastBlockNumber >= captureTimestampInfo[_captureTimestamp].blockNumber + 1, Error.InvalidLastBlockNumber());
 
         Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
             _taskSlashed = abi.decode(_slashResultData, (Struct.TaskSlashed[]));
         }
 
-        _checkTransmitterRegistration(_captureTimestamp);
+        _checkCaptureTimestampInfo(_captureTimestamp, msg.sender, _lastBlockNumber);
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
@@ -314,12 +315,22 @@ contract SymbioticStaking is
 
     //------------------------------- Internal start ----------------------------//
 
-    function _checkTransmitterRegistration(uint256 _captureTimestamp) internal {
-        if (registeredTransmitters[_captureTimestamp] == address(0)) {
+    function _checkCaptureTimestampInfo(uint256 _captureTimestamp, address _transmitter, uint256 _blockNumber) internal {
+        address regiseredTransmitter = captureTimestampInfo[_captureTimestamp].transmitter;
+        if (captureTimestampInfo[_captureTimestamp].transmitter == address(0)) {
             // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
-            registeredTransmitters[_captureTimestamp] = msg.sender;
+            captureTimestampInfo[_captureTimestamp].transmitter = _transmitter;
         } else {
-            require(registeredTransmitters[_captureTimestamp] == msg.sender, Error.NotRegisteredTransmitter());
+            require(regiseredTransmitter == _transmitter, Error.NotRegisteredTransmitter());
+        }
+
+        if(_blockNumber != 0) {
+            uint256 registerdBlockNumber = captureTimestampInfo[_captureTimestamp].blockNumber;
+            if(registerdBlockNumber == 0) {
+                captureTimestampInfo[_captureTimestamp].blockNumber = _blockNumber;
+            } else {
+                require(registerdBlockNumber == _blockNumber, Error.NotRegisteredBlockNumber());
+            }
         }
     }
 
@@ -359,10 +370,8 @@ contract SymbioticStaking is
         uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
 
         Struct.ConfirmedTimestamp memory confirmedTimestamp =
-            Struct.ConfirmedTimestamp(_captureTimestamp, msg.sender, transmitterComission);
+            Struct.ConfirmedTimestamp(_captureTimestamp, captureTimestampInfo[_captureTimestamp].blockNumber, msg.sender, transmitterComission);
         confirmedTimestamps.push(confirmedTimestamp);
-
-        submissionStatus[_captureTimestamp][msg.sender] = Enum.SubmissionStatus.COMPLETE;
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
 
@@ -374,6 +383,10 @@ contract SymbioticStaking is
     function latestConfirmedTimestamp() public view returns (uint256) {
         uint256 len = confirmedTimestamps.length;
         return len > 0 ? confirmedTimestamps[len - 1].captureTimestamp : 0;
+    }
+
+    function latestConfirmedTimestampBlockNumber() public view returns (uint256) {
+        return confirmedTimestamps[latestConfirmedTimestampIdx()].blockNumber;
     }
 
     function latestConfirmedTimestampInfo() external view returns (Struct.ConfirmedTimestamp memory) {
@@ -436,7 +449,7 @@ contract SymbioticStaking is
         internal
         view
     {
-        require(submissionStatus[_captureTimestamp][msg.sender] != Enum.SubmissionStatus.COMPLETE, Error.SubmissionAlreadyCompleted());
+        require(submissionStatus[_captureTimestamp][msg.sender] != SUBMISSION_COMPLETE, Error.SubmissionAlreadyCompleted());
 
         require(_index < _numOfTxs, Error.InvalidIndex()); // here we assume enclave submis the correct data
         require(_numOfTxs > 0, Error.ZeroNumOfTxs());
@@ -689,7 +702,7 @@ contract SymbioticStaking is
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_token != address(0), Error.ZeroTokenAddress());
-        require(_to != address(0), Error.ZeroAddress());
+        require(_to != address(0), Error.ZeroToAddress());
 
         IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
     }
