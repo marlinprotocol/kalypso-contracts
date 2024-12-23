@@ -58,4 +58,42 @@ async function main(): Promise<string> {
     return "Added Middleware";
 }
 
+export async function upgrade() {
+    let chainId = parseInt((await ethers.provider.getNetwork()).chainId.toString());
+    console.log("Chain Id:", chainId);
+
+    const path = `./addresses/${chainId}.json`;
+
+    let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
+
+    if(addresses.proxy === undefined ||
+        addresses.proxy.middleware === undefined
+    ) {
+        console.log("Missing dependencies");
+        return;
+    }
+
+    let signers = await ethers.getSigners();
+    let addrs = await Promise.all(signers.map(a => a.getAddress()));
+
+    console.log("Signer addrs:", addrs);
+
+    let admin = signers[0];
+    const CF = await ethers.getContractFactory("Middleware", admin);
+    let c = await upgrades.upgradeProxy(addresses.proxy.middleware, CF, { 
+        kind: "uups",
+        constructorArgs: []
+    });
+    addresses.implementation.middleware = await upgrades.erc1967.getImplementationAddress(addresses.proxy.middleware);
+    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+
+    // verify the contract
+    await run("verify:verify", {
+        address: addresses.proxy.middleware,
+        constructorArguments: [],
+    });
+
+    console.log("Contract upgraded:", c.address);
+}
+
 main().then(console.log).catch(console.log);
