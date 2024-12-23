@@ -146,6 +146,7 @@ contract Middleware is Initializable,  // initializer
     mapping(address vault => VaultInfo) public vaultInfo;
     mapping(address vault => mapping(uint256 jobId => SlashInfo)) public slashInfo;
     address[] public vaults;
+    mapping(address operator => address delegate) delegates;
 
     uint256[500] private __gap_1;
 
@@ -173,6 +174,37 @@ contract Middleware is Initializable,  // initializer
      * @param rewardAddress The address to receive the reward for transmitting the slash to Symbiotic contracts.
      */
     event SlashProposed(uint256 indexed jobId, address indexed vault, address indexed operator, uint256 amount, uint256 captureTimestamp, address rewardAddress);
+
+    /**
+     * @dev Emitted when a delegate is set for an operator.
+     * @param operator The address of the operator.
+     * @param delegate The address of the delegate.
+     */
+    event DelegateSet(address indexed operator, address indexed delegate);
+
+    /**
+     * @dev Sets a delegate for an operator.
+     * @param _delegate The address of the delegate.
+     */
+    function setDelegate(address _delegate) external {
+        require(_delegate != address(0), "M:SD-Delegate cannot be zero address");
+        address _operator = _msgSender();
+        delegates[_operator] = _delegate;
+
+        emit DelegateSet(_operator, _delegate);
+    }
+
+    /**
+     * @dev Returns the delegate for an operator.
+     * @param _operator The address of the operator.
+     * @return The address of the delegate.
+     */
+    function getDelegate(address _operator) external view returns (address) {
+        if(delegates[_operator] == address(0)) {
+            return _operator;
+        }
+        return delegates[_operator];
+    }
 
     /**
      * @dev Configures a vault with the given slasher type. It is possible to override the existing configuration for a vault.

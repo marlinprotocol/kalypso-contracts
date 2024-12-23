@@ -530,4 +530,47 @@ describe("Middleware Contract Tests", function () {
             ).to.be.revertedWith("M:RS-Invalid amount");
         });
     });
+
+    describe("Delegates", function () {
+        let delegateAddress: string;
+        let operator: Signer;
+
+        beforeEach(async function () {
+            let delegate: Signer;
+            [,,,,,, delegate, operator] = await ethers.getSigners();
+            delegateAddress = await delegate.getAddress();
+        });
+
+        it("If no delegate is set, operator is the delegate", async function () {
+            const operatorAddress = await operator.getAddress();
+            expect(await middleware.getDelegate(operatorAddress)).to.equal(operatorAddress);
+        });
+
+        it("Anyone can add a delegate", async function () {
+            await middleware.connect(operator).setDelegate(delegateAddress);
+            const operatorAddress = await operator.getAddress();
+
+            expect(await middleware.getDelegate(operatorAddress)).to.equal(delegateAddress);
+        });
+
+        it("Should be possible to update delegate", async function () {
+            await middleware.connect(operator).setDelegate(delegateAddress);
+            const operatorAddress = await operator.getAddress();
+
+            await middleware.connect(operator).setDelegate(ethers.Wallet.createRandom().address);
+            expect(await middleware.getDelegate(operatorAddress)).to.not.equal(delegateAddress);
+        });
+
+        it("Should be possible to set delegate to operator address", async function () {
+            await middleware.connect(operator).setDelegate(delegateAddress);
+            const operatorAddress = await operator.getAddress();
+
+            await middleware.connect(operator).setDelegate(operatorAddress);
+            expect(await middleware.getDelegate(operatorAddress)).to.equal(operatorAddress);
+        });
+
+        it("Should prevent adding zero address as delegate", async function () {
+            await expect(middleware.connect(admin).setDelegate(ethers.ZeroAddress)).to.be.revertedWith("M:SD-Delegate cannot be zero address");
+        });
+    });
 });
