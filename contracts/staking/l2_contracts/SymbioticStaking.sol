@@ -26,9 +26,6 @@ import {Enum} from "../../lib/Enum.sol";
 import {Error} from "../../lib/Error.sol";
 import {Struct} from "../../lib/Struct.sol";
 
-// temporary
-import {IProverCallbacks} from "../../interfaces/IProverCallbacks.sol";
-
 contract SymbioticStaking is
     AccessControlUpgradeable,
     UUPSUpgradeable,
@@ -54,10 +51,6 @@ contract SymbioticStaking is
     bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
 
     uint256 public constant SIGNATURE_LENGTH = 65;
-
-    
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
     //---------------------------------- Constant/Immutable end ----------------------------------//
 
@@ -128,9 +121,7 @@ contract SymbioticStaking is
     //---------------------------------- Init start ----------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor    
-    constructor(IProverCallbacks _prover_callback) {
-        I_PROVER_CALLBACK = _prover_callback;
-    }
+    constructor() {}
 
     function initialize(
         address _admin,
@@ -259,9 +250,7 @@ contract SymbioticStaking is
         lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
-        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);    
-        
-        I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
+        emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);
     }
 
     function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(STAKING_MANAGER_ROLE) {
@@ -288,8 +277,6 @@ contract SymbioticStaking is
         proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
         emit StakeUnlocked(_bidId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
-
-        I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.stakeToken, amountToLock[lock.stakeToken]);
     }
 
     //------------------------------------- Stake lock/unlock end ------------------------------------//
@@ -308,8 +295,6 @@ contract SymbioticStaking is
             delete lockInfo[_slashedTasks[i].bidId];
 
             emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.stakeToken, lockedAmount);
-
-            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.stakeToken, lockedAmount);
         }
     }
 
@@ -374,8 +359,6 @@ contract SymbioticStaking is
         confirmedTimestamps.push(confirmedTimestamp);
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
-
-        I_PROVER_CALLBACK.symbioticCompleteSnapshotCallback(_captureTimestamp);
     }
 
     //------------------------------- Getter start ----------------------------//

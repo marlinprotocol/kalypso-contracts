@@ -18,24 +18,18 @@ import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
 import {IProverRegistry} from "./interfaces/IProverRegistry.sol";
 
-
-import "./interfaces/IProverCallbacks.sol";
-import "./staking/l2_contracts/StakingManager.sol";
-
 contract ProverRegistry is
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    IProverRegistry,
-    IProverCallbacks
+    IProverRegistry
 {
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EntityKeyRegistry _entityRegistry, StakingManager _stakingManager) initializer {
+    constructor(EntityKeyRegistry _entityRegistry) initializer {
         ENTITY_KEY_REGISTRY = _entityRegistry;
-        STAKING_MANAGER = _stakingManager;
     }
 
     using HELPER for bytes;
@@ -68,8 +62,6 @@ contract ProverRegistry is
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    StakingManager public immutable STAKING_MANAGER;
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
@@ -586,62 +578,6 @@ contract ProverRegistry is
         Struct.Prover memory prover = proverRegistry[proverAddress];
 
         return (prover.rewardAddress, info.proofGenerationCost);
-    }
-
-    function addStakeCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit AddedStake(proverAddress, token, amount);
-    }
-
-    function intendToReduceStakeCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit IntendToReduceStake(proverAddress, token, amount);
-    }
-    
-    function removeStakeCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit RemovedStake(proverAddress, token, amount);
-    }
-
-    function stakeLockImposedCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockImposed(proverAddress, token, amount);
-    }
-
-    function stakeLockReleasedCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockReleased(proverAddress, token, amount);
-    }
-
-    function stakeSlashedCallback(address proverAddress, address token, uint256 amount) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeSlashed(proverAddress, token, amount);
-    }
-
-    function symbioticCompleteSnapshotCallback(uint256 captureTimestamp) external override {
-        if(!STAKING_MANAGER.isEnabledPool(msg.sender)){
-            revert Error.InvalidContractAddress();
-        }
-
-        emit SymbioticCompleteSnapshot(captureTimestamp);
     }
 
     // for further increase

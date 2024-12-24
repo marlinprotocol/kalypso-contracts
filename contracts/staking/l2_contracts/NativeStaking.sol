@@ -19,9 +19,6 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Struct} from "../../lib/Struct.sol";
 import {Error} from "../../lib/Error.sol";
 
-/* temporary */
-import {IProverCallbacks} from "../../interfaces/IProverCallbacks.sol";
-
 contract NativeStaking is
     AccessControlUpgradeable,
     UUPSUpgradeable,
@@ -32,9 +29,6 @@ contract NativeStaking is
     using SafeERC20 for IERC20;
 
     bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IProverCallbacks public immutable I_PROVER_CALLBACK;
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
@@ -92,9 +86,7 @@ contract NativeStaking is
     //---------------------------------------- Init start ----------------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IProverCallbacks _prover_callback) {
-        I_PROVER_CALLBACK = _prover_callback;
-    }
+    constructor() {}
 
     function initialize(
         address _admin,
@@ -137,8 +129,6 @@ contract NativeStaking is
         proverstakeAmounts[_stakeToken][_prover] += _amount;
 
         emit Staked(_msgSender(), _prover, _stakeToken, _amount);
-
-        I_PROVER_CALLBACK.addStakeCallback(_prover, _stakeToken, _amount);
     }
 
     // TODO
@@ -155,8 +145,6 @@ contract NativeStaking is
         uint256 index = withdrawalRequests[_msgSender()][_prover].length - 1;
 
         emit StakeWithdrawalRequested(_msgSender(), _prover, _stakeToken, index, _amount);
-
-        I_PROVER_CALLBACK.intendToReduceStakeCallback(_prover, _stakeToken, _amount);
     }
 
     function withdrawStake(address _prover, uint256[] calldata _index) external nonReentrant {
@@ -176,8 +164,6 @@ contract NativeStaking is
             IERC20(request.stakeToken).safeTransfer(_msgSender(), request.amount);
 
             emit StakeWithdrawn(_msgSender(), _prover, request.stakeToken, _index[i], request.amount);
-
-            I_PROVER_CALLBACK.removeStakeCallback(_prover, request.stakeToken, request.amount);
         }
     }
 
@@ -193,8 +179,6 @@ contract NativeStaking is
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
 
         emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);
-
-        I_PROVER_CALLBACK.stakeLockImposedCallback(_prover, _stakeToken, _amountToLock);
     }
 
     /// @notice unlock stake and distribute reward
@@ -211,8 +195,6 @@ contract NativeStaking is
         _unlockStake(_bidId, lock.token, _prover, lock.amount);
 
         emit StakeUnlocked(_bidId, _prover, lock.token, lock.amount);
-
-        I_PROVER_CALLBACK.stakeLockReleasedCallback(_prover, lock.token, lock.amount);
     }
 
     function slash(Struct.TaskSlashed[] calldata _slashedTasks) external onlyRole(STAKING_MANAGER_ROLE) {
@@ -227,8 +209,6 @@ contract NativeStaking is
             IERC20(lock.token).safeTransfer(_slashedTasks[i].rewardAddress, lockedAmount);
         
             emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.token, lockedAmount);
-
-            I_PROVER_CALLBACK.stakeSlashedCallback(_slashedTasks[i].prover, lock.token, lockedAmount);
         }
     }
 
