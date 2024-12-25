@@ -10,7 +10,6 @@ library Struct {
         address verifier; // verifier address for the market place
         bytes32 proverImageId; // use bytes32(0) for public market
         uint256 slashingPenalty;
-        uint256 activationBlock;
         bytes32 ivsImageId;
         address creator;
         bytes marketmetadata;

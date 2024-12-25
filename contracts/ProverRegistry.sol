@@ -378,7 +378,7 @@ contract ProverRegistry is
     // TODO: Add methods to update prover commission for a market
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address _verifier, bytes32 proverImageId, , , , , ) = proofMarketplace.marketData(marketId);
+        (address _verifier, bytes32 proverImageId, , , , ) = proofMarketplace.marketData(marketId);
 
         return (_verifier, proverImageId);
     }
@@ -472,7 +472,7 @@ contract ProverRegistry is
     }
 
     function _leaveMarketplace(address proverAddress, uint256 marketId) internal {
-        (address marketVerifier, , , , , , ) = proofMarketplace.marketData(marketId);
+        (address marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
 
         // check if market is valid
         if (marketVerifier == address(0)) {

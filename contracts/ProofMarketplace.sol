@@ -40,7 +40,6 @@ contract ProofMarketplace is
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
-    uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
     bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
     bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
@@ -140,7 +139,6 @@ contract ProofMarketplace is
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 _penalty,
-                block.number + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 msgSender,
                 _marketmetadata
@@ -278,9 +276,6 @@ contract ProofMarketplace is
         }
 
         Struct.Market memory market = marketData[bid.marketId];
-        if (block.number < market.activationBlock) {
-            revert Error.InactiveMarket();
-        }
 
         uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
 
