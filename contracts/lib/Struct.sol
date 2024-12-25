@@ -54,6 +54,7 @@ library Struct {
     struct ProverInfoPerMarket {
         Enum.ProverState state;
         uint256 computePerRequestRequired;
+        uint256 commission;
         uint256 proofGenerationCost;
         uint256 proposedTime;
         uint256 activeRequests;

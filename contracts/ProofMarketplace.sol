@@ -67,7 +67,6 @@ contract ProofMarketplace is
     mapping(Enum.SecretType => uint256) public costPerInputBytes;
     // min proving time (in blocks) for each secret type.
     mapping(Enum.SecretType => uint256) public minProvingTime;
-    mapping(address prover => uint256 rewardShare) public proverRewardShares; // 1e18 == 100%
     mapping(address => uint256) public proverClaimableFeeReward;
     mapping(address => uint256) public transmitterClaimableFeeReward;
 
@@ -330,16 +329,6 @@ contract ProofMarketplace is
 
     //-------------------------------- Prover start --------------------------------//
 
-    /// @notice Set the reward share for a prover
-    function setProverRewardShare(uint256 _rewardShare) external {
-        require(_rewardShare <= 1e18, Error.InvalidProverRewardShare());
-
-        // TODO: replace with reward claiming address
-        proverRewardShares[_msgSender()] = _rewardShare;
-
-        emit ProverRewardShareSet(_msgSender(), _rewardShare);
-    }
-
     /**
      * @notice Submit Single Proof
      */
@@ -382,7 +371,7 @@ contract ProofMarketplace is
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
@@ -459,7 +448,7 @@ contract ProofMarketplace is
         uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
 
         // transfer the amount to treasury collection
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
@@ -468,12 +457,13 @@ contract ProofMarketplace is
         emit InvalidInputsDetected(bidId);
     }
 
-    function _distributeProverFeeReward(address _prover, uint256 _feePaid)
+    function _distributeProverFeeReward(uint256 _marketId, address _prover, uint256 _feePaid)
         internal
         returns (uint256 feeRewardRemaining)
     {
         // calculate prover fee reward
-        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverRewardShares[_prover], 1e18);
+        uint256 proverCommission = PROVER_REGISTRY.getProverCommission(_marketId, _prover);
+        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward

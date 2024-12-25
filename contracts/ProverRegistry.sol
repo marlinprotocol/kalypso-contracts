@@ -316,6 +316,7 @@ contract ProverRegistry is
         uint256 computePerRequestRequired,
         uint256 proofGenerationCost,
         uint256 proposedTime,
+        uint256 commission,
         bool updateMarketDedicatedKey, // false if not a private market
         bytes memory attestationData, // verification ignored if updateMarketDedicatedKey==false
         bytes calldata enclaveSignature // ignored if updateMarketDedicatedKey==false
@@ -329,6 +330,11 @@ contract ProverRegistry is
         // compute required per proof can't be zero
         if (prover.rewardAddress == address(0) || proposedTime == 0 || computePerRequestRequired == 0) {
             revert Error.CannotBeZero();
+        }
+
+        // commission can't be more than 1e18 (100%)
+        if (commission > 1e18) {
+            revert Error.InvalidProverCommission();
         }
 
         // only for checking if any market id valid or not
@@ -357,6 +363,7 @@ contract ProverRegistry is
         proverInfoPerMarket[proverAddress][marketId] = Struct.ProverInfoPerMarket(
             Enum.ProverState.JOINED,
             computePerRequestRequired,
+            commission,
             proofGenerationCost,
             proposedTime,
             0
@@ -365,8 +372,10 @@ contract ProverRegistry is
         if (updateMarketDedicatedKey) {
             _updateEncryptionKey(proverAddress, marketId, attestationData, enclaveSignature);
         }
-        emit ProverJoinedMarketplace(proverAddress, marketId, computePerRequestRequired);
+        emit ProverJoinedMarketplace(proverAddress, marketId, computePerRequestRequired, commission);
     }
+
+    // TODO: Add methods to update prover commission for a market
 
     function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
         (address _verifier, bytes32 proverImageId, , , , , ) = proofMarketplace.marketData(marketId);
@@ -400,6 +409,10 @@ contract ProverRegistry is
             return (Enum.ProverState.WIP, idleCapacity);
         }
         return (Enum.ProverState.NULL, 0);
+    }
+
+    function getProverCommission(uint256 marketId, address proverAddress) public view returns (uint256) {
+        return proverInfoPerMarket[proverAddress][marketId].commission;
     }
 
     function _maxReducableCompute(address proverAddress) internal view returns (uint256) {
