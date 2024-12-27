@@ -27,7 +27,8 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
         Struct.Bid calldata bid,
         Enum.SecretType secretType,
         bytes calldata secret_inputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extra_data
     ) public {
         Struct.Bid memory newBid = Struct.Bid(
             bid.marketId,
@@ -39,7 +40,7 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
             encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl), extra_data);
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint[1] memory) {

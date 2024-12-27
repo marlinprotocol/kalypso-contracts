@@ -30,7 +30,8 @@ contract plonk_verifier_wrapper is SetPmp, IVerifier {
         Struct.Bid calldata bid,
         Enum.SecretType secretType,
         bytes calldata secret_inputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extra_data
     ) public {
         Struct.Bid memory newBid = Struct.Bid(
             bid.marketId,
@@ -42,7 +43,7 @@ contract plonk_verifier_wrapper is SetPmp, IVerifier {
             encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createBid(newBid, secretType, secret_inputs, acl);
+        proofMarketplace.createBid(newBid, secretType, secret_inputs, acl, extra_data);
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (bytes32[] memory) {
