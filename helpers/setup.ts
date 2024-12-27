@@ -1,5 +1,5 @@
 import { ethers, upgrades } from "hardhat";
-import { Provider, Signer } from "ethers";
+import { BytesLike, Provider, Signer } from "ethers";
 
 import {
   MockToken,
@@ -46,13 +46,14 @@ export const createAsk = async (
   ask: ProofMarketplace.AskStruct,
   setupTemplate: SetupTemplate,
   secretType: number,
+  extraData: BytesLike = "0x",
 ): Promise<string> => {
   await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
   await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), ask.reward.toString());
 
   const askId = await setupTemplate.proofMarketplace.askCounter();
-  await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x");
+  await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x", extraData);
 
   return askId.toString();
 };

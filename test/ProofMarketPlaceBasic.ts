@@ -364,9 +364,9 @@ describe("Proof market place", () => {
         .connect(prover)
         .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
 
-      await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
+      await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo, "0x"))
         .to.emit(proofMarketplace, "AskCreated")
-        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
+        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21", "0x")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward));
 
@@ -435,9 +435,9 @@ describe("Proof market place", () => {
         .connect(prover)
         .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
 
-      await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
+      await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo, "0x"))
         .to.emit(proofMarketplace, "AskCreated")
-        .withArgs(askIdToBeGenerated, false, "0x", "0x")
+        .withArgs(askIdToBeGenerated, false, "0x", "0x", "0x")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward));
 
@@ -465,6 +465,7 @@ describe("Proof market place", () => {
             refundAddress: await prover.getAddress(),
           },
           0,
+          "0x",
           "0x",
           "0x",
         ),
@@ -751,6 +752,7 @@ describe("Proof market place", () => {
             0,
             "0x",
             "0x",
+            "0x",
           );
 
           await generatorRegistry
@@ -840,6 +842,7 @@ describe("Proof market place", () => {
               refundAddress: await prover.getAddress(),
             },
             0,
+            "0x",
             "0x",
             "0x",
           );

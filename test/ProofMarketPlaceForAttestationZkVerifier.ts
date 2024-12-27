@@ -85,6 +85,13 @@ describe("Proof Market Place for Attestation Verifier", () => {
 
   let inputBytes = attestation.attestation;
 
+  let extraData = Buffer.from(`Figure out some way to pass attestation in extra data, and only journal_bytes in public inputs.
+      Prover will then, fetch the attestation from the extra data, generate proof.
+      When submitProof() is called, prover_bytes, attestation_from_extra_data, and proof will be sent by user only.
+      Verification Contract needs to check the consistency here.
+      start looking from risc0_attestation_verifier_wrapper.sol#verify(bytes memory encodedData)
+    `);
+
   beforeEach(async () => {
     signers = await ethers.getSigners();
     admin = signers[0];
@@ -192,6 +199,7 @@ describe("Proof Market Place for Attestation Verifier", () => {
         entityKeyRegistry,
       },
       1,
+      extraData,
     );
 
     await setup.createTask(

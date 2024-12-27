@@ -28,7 +28,8 @@ contract plonk_verifier_wrapper is SetPmp, IVerifier {
         ProofMarketplace.Ask calldata ask,
         ProofMarketplace.SecretType secretType,
         bytes calldata secret_inputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) public {
         ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
             ask.marketId,
@@ -40,7 +41,7 @@ contract plonk_verifier_wrapper is SetPmp, IVerifier {
             encodeInputs(verifyAndDecodeInputs(ask.proverData))
         );
 
-        proofMarketplace.createAsk(newAsk, secretType, secret_inputs, acl);
+        proofMarketplace.createAsk(newAsk, secretType, secret_inputs, acl, extraData);
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (bytes32[] memory) {

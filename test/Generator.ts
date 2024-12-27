@@ -381,7 +381,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketplace.askCounter();
 
-        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
@@ -554,7 +554,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketplace.askCounter();
 
-        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
@@ -646,7 +646,7 @@ describe("Checking Generator's multiple compute", () => {
 
         const askId = await proofMarketplace.askCounter();
 
-        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x");
+        await proofMarketplace.connect(prover).createAsk(ask, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 

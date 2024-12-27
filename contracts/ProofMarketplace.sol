@@ -166,7 +166,7 @@ contract ProofMarketplace is
 
     //-------------------------------- Events start --------------------------------//
 
-    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event AskCreated(uint256 indexed askId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl, bytes extraData);
     event TaskCreated(uint256 indexed askId, address indexed generator, bytes new_acl);
     // TODO: add ask ID also
     event ProofCreated(uint256 indexed askId, bytes proof);
@@ -357,9 +357,10 @@ contract ProofMarketplace is
         // TODO: Check if this needs to be removed during review
         SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) external whenNotPaused nonReentrant {
-        _createAsk(ask, msg.sender, secretType, privateInputs, acl);
+        _createAsk(ask, msg.sender, secretType, privateInputs, acl, extraData);
     }
 
     function _createAsk(
@@ -367,7 +368,8 @@ contract ProofMarketplace is
         address payFrom,
         SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) internal {
         if (ask.reward == 0 || ask.proverData.length == 0) {
             revert Error.CannotBeZero();
@@ -407,10 +409,10 @@ contract ProofMarketplace is
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit AskCreated(askId, true, privateInputs, acl);
+            emit AskCreated(askId, true, privateInputs, acl, extraData);
         } else {
             // ACL is not emitted if not private
-            emit AskCreated(askId, false, "", "");
+            emit AskCreated(askId, false, "", "", extraData);
         }
     }
 
