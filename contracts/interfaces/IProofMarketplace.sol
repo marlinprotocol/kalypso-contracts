@@ -9,7 +9,7 @@ interface IProofMarketplace {
 
     //-------------------------------- Events start --------------------------------//
 
-    event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl, bytes extra_data);
     event TaskCreated(uint256 indexed bidId, address indexed prover, bytes new_acl);
     event ProofCreated(uint256 indexed bidId, bytes proof);
     event ProofNotGenerated(uint256 indexed bidId);

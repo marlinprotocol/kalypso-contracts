@@ -62,7 +62,7 @@ contract ProofMarketplace is
     Struct.Market[] public marketData;
     Struct.BidWithState[] public listOfBid;
 
-    // cost for inputs
+    // cost for inputs in payment token
     mapping(Enum.SecretType => uint256) public costPerInputBytes;
     // min proving time (in blocks) for each secret type.
     mapping(Enum.SecretType => uint256) public minProvingTime;
@@ -115,7 +115,8 @@ contract ProofMarketplace is
         bytes calldata _ivsPcrs
     ) external nonReentrant {
         address msgSender = _msgSender();
-        if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
+        // Note: _penalty can be set to 0, allowing operators to submit invalid proofs without consequences.
+        if (_marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
 
@@ -251,9 +252,10 @@ contract ProofMarketplace is
         Struct.Bid calldata bid,
         Enum.SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) external whenNotPaused nonReentrant {
-        _createBid(bid, msg.sender, secretType, privateInputs, acl);
+        _createBid(bid, msg.sender, secretType, privateInputs, acl, extraData);
     }
 
     function _createBid(
@@ -261,7 +263,8 @@ contract ProofMarketplace is
         address payFrom,
         Enum.SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) internal {
         if (bid.reward == 0 || bid.proverData.length == 0) {
             revert Error.CannotBeZero();
@@ -298,10 +301,10 @@ contract ProofMarketplace is
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit BidCreated(bidId, true, privateInputs, acl);
+            emit BidCreated(bidId, true, privateInputs, acl, extraData);
         } else {
             // ACL is not emitted if not private
-            emit BidCreated(bidId, false, "", "");
+            emit BidCreated(bidId, false, "", "", extraData);
         }
     }
 
