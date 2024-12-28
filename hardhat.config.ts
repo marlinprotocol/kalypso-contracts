@@ -3,7 +3,7 @@ import '@openzeppelin/hardhat-upgrades';
 import '@nomicfoundation/hardhat-chai-matchers';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
-import 'hardhat-tracer'
+import 'hardhat-tracer';
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';
@@ -104,7 +104,7 @@ const config: HardhatUserConfig = {
     //     `${process.env.SEPOLIA_TOKEN_HOLDER}`,
     //     `${process.env.SEPOLIA_TREASURY}`,
     //     `${process.env.SEPOLIA_MARKET_CREATOR}`,
-    //     `${process.env.SEPOLIA_GENERATOR}`,
+    //     `${process.env.SEPOLIA_PROVER}`,
     //     `${process.env.SEPOLIA_MATCHING_ENGINE}`,
     //     `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
     //   ],
@@ -116,7 +116,7 @@ const config: HardhatUserConfig = {
     //     `${process.env.SEPOLIA_TOKEN_HOLDER}`,
     //     `${process.env.SEPOLIA_TREASURY}`,
     //     `${process.env.SEPOLIA_MARKET_CREATOR}`,
-    //     `${process.env.SEPOLIA_GENERATOR}`,
+    //     `${process.env.SEPOLIA_PROVER}`,
     //     `${process.env.SEPOLIA_MATCHING_ENGINE}`,
     //     `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
     //   ],
@@ -128,7 +128,7 @@ const config: HardhatUserConfig = {
     //     `${process.env.NOVA_TOKEN_HOLDER}`,
     //     `${process.env.NOVA_TREASURY}`,
     //     `${process.env.NOVA_MARKET_CREATOR}`,
-    //     `${process.env.NOVA_GENERATOR}`,
+    //     `${process.env.NOVA_PROVER}`,
     //     `${process.env.NOVA_MATCHING_ENGINE}`,
     //     `${process.env.NOVA_PROOF_REQUESTOR}`,
     //   ],
@@ -140,7 +140,7 @@ const config: HardhatUserConfig = {
     //     `${process.env.ZKSYNC_TOKEN_HOLDER}`,
     //     `${process.env.ZKSYNC_TREASURY}`,
     //     `${process.env.ZKSYNC_MARKET_CREATOR}`,
-    //     `${process.env.ZKSYNC_GENERATOR}`,
+    //     `${process.env.ZKSYNC_PROVER}`,
     //     `${process.env.ZKSYNC_MATCHING_ENGINE}`,
     //     `${process.env.ZKSYNC_PROOF_REQUESTOR}`,
     //   ],
@@ -152,7 +152,7 @@ const config: HardhatUserConfig = {
     //     `${process.env.AMOY_TOKEN_HOLDER}`,
     //     `${process.env.AMOY_TREASURY}`,
     //     `${process.env.AMOY_MARKET_CREATOR}`,
-    //     `${process.env.AMOY_GENERATOR}`,
+    //     `${process.env.AMOY_PROVER}`,
     //     `${process.env.AMOY_MATCHING_ENGINE}`,
     //     `${process.env.AMOY_PROOF_REQUESTOR}`,
     //   ],

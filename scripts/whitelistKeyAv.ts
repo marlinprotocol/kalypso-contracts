@@ -1,8 +1,14 @@
-import { ethers } from "hardhat";
-import * as fs from "fs";
+import * as fs from 'fs';
+import { ethers } from 'hardhat';
 
-import { AttestationVerifier__factory } from "../typechain-types";
-import { GodEnclavePCRS, MockEnclave, MockGeneratorPCRS, MockIVSPCRS, checkFileExists } from "../helpers";
+import {
+  checkFileExists,
+  GodEnclavePCRS,
+  MockEnclave,
+  MockIVSPCRS,
+  MockProverPCRS,
+} from '../helpers';
+import { AttestationVerifier__factory } from '../typechain-types';
 
 async function main(): Promise<string> {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -33,9 +39,9 @@ async function main(): Promise<string> {
 
   const attestation_verifier = AttestationVerifier__factory.connect(addresses.proxy.attestation_verifier, admin);
 
-  const mockEnclave = new MockEnclave([MockGeneratorPCRS[2], GodEnclavePCRS[0], MockIVSPCRS[2]]);
+  const mockEnclave = new MockEnclave([MockProverPCRS[2], GodEnclavePCRS[0], MockIVSPCRS[2]]);
   try {
-    let tx = await attestation_verifier.whitelistImage(MockGeneratorPCRS[2], GodEnclavePCRS[0], MockIVSPCRS[2]);
+    let tx = await attestation_verifier.whitelistEnclaveImage(MockProverPCRS[2], GodEnclavePCRS[0], MockIVSPCRS[2]);
     let receipt = await tx.wait();
     console.log(receipt?.hash);
   } catch (ex) {
@@ -43,7 +49,7 @@ async function main(): Promise<string> {
   }
 
   try {
-    let tx = await attestation_verifier.whitelistEnclave(mockEnclave.getImageId(), address);
+    let tx = await attestation_verifier.whitelistEnclaveKey(mockEnclave.getImageId(), address);
     let receipt = await tx.wait();
     console.log(receipt?.hash);
   } catch (ex) {

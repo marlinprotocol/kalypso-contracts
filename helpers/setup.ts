@@ -9,8 +9,6 @@ import {
   upgrades,
 } from 'hardhat';
 
-import { Bid } from './structTypes';
-
 import {
   EntityKeyRegistry,
   EntityKeyRegistry__factory,
@@ -44,6 +42,7 @@ import {
   GodEnclavePCRS,
   MockEnclave,
 } from './';
+import { Bid } from './structTypes';
 
 interface SetupTemplate {
   mockToken: MockToken;
@@ -149,11 +148,20 @@ export const rawSetup = async (
   });
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
+  // StakingManager
+  const StakingManagerContract = await ethers.getContractFactory("StakingManager");
+  const stakingManagerProxy = await upgrades.deployProxy(StakingManagerContract, [], {
+    kind: "uups",
+    constructorArgs: [],
+    initializer: false,
+  });
+  const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
+
   // ProverRegistry
   const ProverRegistryContract = await ethers.getContractFactory("ProverRegistry");
   const proverProxy = await upgrades.deployProxy(ProverRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await mockToken.getAddress(), await entityKeyRegistry.getAddress()],
+    constructorArgs: [await entityKeyRegistry.getAddress(), await stakingManager.getAddress()],
     initializer: false,
   });
   const proverRegistry = ProverRegistry__factory.connect(await proverProxy.getAddress(), admin);
@@ -172,15 +180,6 @@ export const rawSetup = async (
     initializer: false,
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
-
-  // StakingManager
-  const StakingManagerContract = await ethers.getContractFactory("StakingManager");
-  const stakingManagerProxy = await upgrades.deployProxy(StakingManagerContract, [], {
-    kind: "uups",
-    constructorArgs: [],
-    initializer: false,
-  });
-  const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
 
   // NativeStaking
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
@@ -255,6 +254,9 @@ export const rawSetup = async (
 
   // Grant `PROVER_REGISTRY_ROLE` to StakingManager
   await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverRegistry.getAddress());
+
+  // Grant `STAKING_MANAGER_ROLE` to SymbioticStaking
+  await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
 
   // Grant `KEY_REGISTER_ROLE` to ProverRegistry, ProofMarketplace
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
@@ -463,8 +465,8 @@ export const proverSelfStake = async (
   );
 }
 
-export interface VaultSnapshotData {
-  operator: string;
+export interface VaultSnapshot {
+  prover: string;
   vault: string;
   stakeToken: string;
   stakeAmount: BigNumberish;
@@ -473,9 +475,10 @@ export interface VaultSnapshotData {
 export const submitVaultSnapshot = async(
   transmitter: Signer,
   symbioticStaking: SymbioticStaking,
-  snapshotData: VaultSnapshotData[],
+  snapshotData: VaultSnapshot[],
 ) => {
   const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
+  const blockNumber = (await ethers.provider.getBlock('latest'))?.number ?? 0;
 
   // submit snapshot
   await symbioticStaking.connect(transmitter).submitVaultSnapshot(
@@ -484,7 +487,7 @@ export const submitVaultSnapshot = async(
     timestamp,
     new ethers.AbiCoder().encode(
       [
-        "tuple(address operator, address vault, address stakeToken, uint256 stakeAmount)[]"
+        "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
       ],
       [snapshotData]
     ),

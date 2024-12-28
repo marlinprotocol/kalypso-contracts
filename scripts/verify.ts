@@ -1,6 +1,10 @@
-import { run, ethers } from "hardhat";
-import { checkFileExists } from "../helpers";
-import * as fs from "fs";
+import * as fs from 'fs';
+import {
+  ethers,
+  run,
+} from 'hardhat';
+
+import { checkFileExists } from '../helpers';
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
@@ -30,7 +34,7 @@ async function main() {
   let verificationResult;
 
   verificationResult = await run("verify:verify", {
-    address: addresses.implementation.generator_registry,
+    address: addresses.implementation.prover_registry,
     constructorArguments: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
   });
   console.log({ verificationResult });
@@ -41,7 +45,7 @@ async function main() {
       addresses.proxy.payment_token,
       config.marketCreationCost,
       await treasury.getAddress(),
-      addresses.proxy.generator_registry,
+      addresses.proxy.prover_registry,
       addresses.proxy.entity_registry,
     ],
   });
@@ -54,7 +58,7 @@ async function main() {
   console.log({ verificationResult });
 
   verificationResult = await run("verify:verify", {
-    address: addresses.proxy.generator_registry,
+    address: addresses.proxy.prover_registry,
   });
   console.log({ verificationResult });
 
