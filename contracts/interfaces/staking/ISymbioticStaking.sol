@@ -15,7 +15,7 @@ interface ISymbioticStaking is IStakingPool {
     event SlashResultSubmitted(
         address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
     );
-    event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
+    event SnapshotConfirmed(address indexed transmitter, uint256 indexed confirmedTimestamp);
     event SubmissionCooldownSet(uint256 cooldown);
     event BaseTransmitterComissionRateSet(uint256 rate);
     event ProofMarketplaceSet(address proofMarketplace);

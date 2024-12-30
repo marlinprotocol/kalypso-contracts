@@ -5,7 +5,7 @@ pragma solidity 0.8.26;
 import {Enum} from "../lib/Enum.sol";
 
 interface IProofMarketplace {
-    function slashProver(uint256 bidId) external;
+    function refundFees(uint256[] calldata bidIds) external;
 
     //-------------------------------- Events start --------------------------------//
 

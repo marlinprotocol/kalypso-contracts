@@ -41,10 +41,12 @@ contract ProofMarketplace is
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
-    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
-    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE");
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
-    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE = keccak256("SYMBIOTIC_STAKING_REWARD_ROLE");
+    bytes32 public constant UPDATER_ROLE = 0x73e573f9566d61418a34d5de3ff49360f9c51fec37f7486551670290f6285dab; // keccak256("UPDATER_ROLE")
+    bytes32 public constant MATCHING_ENGINE_ROLE = 0x080f5ea84ed1de4c8edb58be651c25581c355a0011b0f9360de5082becd64640; // keccak256("MATCHING_ENGINE_ROLE")
+    bytes32 public constant STAKING_MANAGER_ROLE = 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b; // keccak256("STAKING_MANAGER_ROLE")
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58; // keccak256("SYMBIOTIC_STAKING_ROLE")
+    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE =
+        0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb; // keccak256("SYMBIOTIC_STAKING_REWARD_ROLE")
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20 public immutable PAYMENT_TOKEN;
@@ -96,10 +98,12 @@ contract ProofMarketplace is
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
         __ReentrancyGuard_init_unchained();
-        __ReentrancyGuard_init_unchained();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
+
+        // push empty data for market id 0 so first market id starts with 1
+        marketData.push(Struct.Market(address(0), bytes32(0), 0, 0, bytes32(0), address(0), bytes("")));
     }
 
     //-------------------------------- Init end --------------------------------//
@@ -109,7 +113,7 @@ contract ProofMarketplace is
     /**
      * @notice Create a new market.
      */
-    function createMarketplace(
+    function createMarket(
         bytes calldata _marketmetadata,
         address _verifier,
         uint256 _penalty,
@@ -238,7 +242,7 @@ contract ProofMarketplace is
 
         emit MarketMetadataUpdated(marketId, metadata);
     }
-    
+
     //-------------------------------- Market end --------------------------------//
 
     //-------------------------------- Bid Start --------------------------------//
@@ -293,7 +297,7 @@ contract ProofMarketplace is
         }
 
         uint256 bidId = listOfBid.length;
-        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATE, msg.sender, address(0));
+        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATED, msg.sender, address(0));
         listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
@@ -319,7 +323,7 @@ contract ProofMarketplace is
         require(getBidState(bidId) == Enum.BidState.UNASSIGNED, Error.OnlyExpiredBidsCanBeCancelled(bidId));
 
         Struct.BidWithState storage bidWithState = listOfBid[bidId];
-        bidWithState.state = Enum.BidState.COMPLETE;
+        bidWithState.state = Enum.BidState.COMPLETED;
 
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
 
@@ -377,7 +381,7 @@ contract ProofMarketplace is
         // Verify input and proof against verifier
         require(IVerifier(marketData[marketId].verifier).verify(inputAndProof), Error.InvalidProof(bidId));
 
-        listOfBid[bidId].state = Enum.BidState.COMPLETE;
+        listOfBid[bidId].state = Enum.BidState.COMPLETED;
 
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
@@ -392,7 +396,6 @@ contract ProofMarketplace is
         PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit ProofCreated(bidId, proof);
     }
-
 
     /**
      * @notice Submit Attestation/Proof from the IVS signer that the given inputs are invalid
@@ -453,7 +456,7 @@ contract ProofMarketplace is
     ) internal {
         // Only assigned requests can be proved
         require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
-        listOfBid[bidId].state = Enum.BidState.COMPLETE;
+        listOfBid[bidId].state = Enum.BidState.COMPLETED;
 
         // tokens related to incorrect request will be sen't to treasury
         uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
@@ -489,8 +492,7 @@ contract ProofMarketplace is
         Struct.BidWithState memory bidWithState = listOfBid[bidId];
         require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(bidId));
         require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(bidId));
-
-        _slashProver(bidId);
+        _refundFee(bidId);
     }
 
     //-------------------------------- Prover end --------------------------------//
@@ -500,19 +502,26 @@ contract ProofMarketplace is
     /**
      * @notice Slash Prover for deadline crossed requests
      */
-    function slashProver(uint256 bidId) external nonReentrant {
-        require(getBidState(bidId) == Enum.BidState.DEADLINE_CROSSED, Error.ShouldBeInCrossedDeadlineState(bidId));
+    function refundFees(uint256[] calldata bidIds) external {
+        for (uint256 i = 0; i < bidIds.length; i++) {
+            Enum.BidState bidState = getBidState(bidIds[i]);
 
-        // When called by SymbioticStaking, locked stake will be unlocked and fee will be refunded to requestor
-        // When called by Requestor or any other, fee will be refunded to requestor
-        // and stake remains locked until SlashResult is submitted to SymbioticStaking
-        _slashProver(bidId);
+            if(bidState == Enum.BidState.DEADLINE_CROSSED) {
+                // if `refundFee` hasn't been called
+                _refundFee(bidIds[i]);
+            } else if (bidState == Enum.BidState.COMPLETED) {
+                // actual slashing be done by StakingManager
+                continue;
+            } else {
+                revert Error.NotSlashableBidId(bidIds[i]);  
+            }
+        }
     }
 
-    function _slashProver(uint256 bidId) internal {
+    function _refundFee(uint256 bidId) internal {
         Struct.BidWithState storage bidWithState = listOfBid[bidId];
 
-        bidWithState.state = Enum.BidState.COMPLETE;
+        bidWithState.state = Enum.BidState.COMPLETED;
         uint256 marketId = bidWithState.bid.marketId;
 
         // Locked Stake will be unlocked when SlashResult is submitted to SymbioticStaking
@@ -544,7 +553,7 @@ contract ProofMarketplace is
 
     function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        require(getBidState(bidId) == Enum.BidState.CREATE, Error.ShouldBeInCreateState());
+        require(getBidState(bidId) == Enum.BidState.CREATED, Error.ShouldBeInCreateState());
 
         Struct.BidWithState storage bidWithState = listOfBid[bidId];
         (uint256 proofGenerationCost, uint256 proverProposedTime) =
@@ -567,7 +576,6 @@ contract ProofMarketplace is
         PROVER_REGISTRY.assignProverTask(bidId, prover, bidWithState.bid.marketId);
         emit TaskCreated(bidId, prover, new_acl);
     }
-
 
     /**
      * @notice Assign Tasks for Provers. Only Matching Engine Image can call
@@ -612,9 +620,8 @@ contract ProofMarketplace is
         PAYMENT_TOKEN.safeTransfer(_msgSender(), amount);
         delete transmitterClaimableFeeReward[_msgSender()];
     }
-    
-    //-------------------------------- Reward Claim start --------------------------------//
 
+    //-------------------------------- Reward Claim start --------------------------------//
 
     //-------------------------------- SYMBIOTIC_STAKING_REWARD start --------------------------------//
 
@@ -683,7 +690,7 @@ contract ProofMarketplace is
     function unpause() external onlyRole(UPDATER_ROLE) {
         _unpause();
     }
-    
+
     //-------------------------------- UPDATER_ROLE end --------------------------------//
 
     //-------------------------------- Getter start --------------------------------//
@@ -715,7 +722,7 @@ contract ProofMarketplace is
         Struct.BidWithState memory bidWithState = listOfBid[bidId];
 
         // time before which matching engine should assign the task to prover
-        if (bidWithState.state == Enum.BidState.CREATE) {
+        if (bidWithState.state == Enum.BidState.CREATED) {
             if (bidWithState.bid.expiry > block.number) {
                 return bidWithState.state;
             }
@@ -747,13 +754,7 @@ contract ProofMarketplace is
 
     //-------------------------------- Overrides start --------------------------------//
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 

@@ -302,6 +302,7 @@ contract SymbioticStaking is
             Struct.SymbioticStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
+            if(lockedAmount == 0) continue; // if already slashed
 
             // unlock the stake locked during task assignment
             proverLockedAmounts[lock.stakeToken][_slashedTasks[i].prover] -= lockedAmount;
