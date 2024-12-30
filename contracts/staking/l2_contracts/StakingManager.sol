@@ -223,12 +223,12 @@ contract StakingManager is
             poolConfig[_pools[i]].share = _shares[i];
 
             sum += _shares[i];
+
+            emit PoolRewardShareSet(_pools[i], _shares[i]);
         }
 
         // as the weight is in percentage, the sum of the shares should be 1e18 (100%)
         require(sum == 1e18, Error.InvalidShares());
-
-        emit PoolRewardShareSet(_pools, _shares);
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {

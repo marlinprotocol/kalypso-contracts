@@ -147,8 +147,7 @@ contract SymbioticStakingReward is
                 _stakeToken,
                 feeRewardToken,
                 _prover,
-                rewardPerTokenStored[_stakeToken][feeRewardToken][_prover],
-                rewardPerTokenAdded
+                rewardPerTokenStored[_stakeToken][feeRewardToken][_prover]
             );
         }
     }

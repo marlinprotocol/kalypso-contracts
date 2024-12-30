@@ -9,11 +9,11 @@ interface INativeStaking is IStakingPool {
 
     event Staked(address indexed account, address indexed prover, address indexed token, uint256 amount);
 
-    event StakeWithdrawalRequested(address indexed account, address indexed prover, address indexed token, uint256 index, uint256 amount);
+    event StakeWithdrawalRequested(address indexed account, address indexed prover, address token, uint256 indexed index, uint256 amount);
 
-    event StakeWithdrawn(address indexed account, address indexed prover, address indexed token, uint256 index, uint256 amount);
+    event StakeWithdrawn(address indexed account, address indexed prover, address token, uint256 indexed index, uint256 amount);
 
-    event WithdrawalDurationSet(uint256 indexed duration);
+    event WithdrawalDurationSet(uint256 duration);
 
     /*===================================================== functions =====================================================*/
     function stake(address stakeToken, address prover, uint256 amount) external;
