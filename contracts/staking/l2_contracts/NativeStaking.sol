@@ -32,14 +32,9 @@ contract NativeStaking is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
-
     EnumerableSet.AddressSet private stakeTokenSet;
-
     address public stakingManager;
     address public rewardDistributor;
-
     address public feeRewardToken;
 
     // gaps in case we new vars in same file
@@ -47,9 +42,6 @@ contract NativeStaking is
     /* Config */
     uint256 public withdrawalDuration;
     uint256 public stakeTokenSelectionWeightSum;
-
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
 
     //---------------------------------------- State Variable end ----------------------------------------//
 
@@ -72,6 +64,9 @@ contract NativeStaking is
     mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
+    // gaps in case we new vars in same file
+    uint256[500] private __gap_0;
+
     //---------------------------------------- Mapping end ----------------------------------------//
 
     //---------------------------------------- Modifier start ----------------------------------------//
@@ -86,7 +81,9 @@ contract NativeStaking is
     //---------------------------------------- Init start ----------------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(
         address _admin,

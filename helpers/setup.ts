@@ -88,7 +88,7 @@ export const createBid = async (
   await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
 
   const bidId = await setupTemplate.proofMarketplace.bidCounter();
-  await setupTemplate.proofMarketplace.connect(prover).createBid(bid, secretType, "0x", "0x");
+  await setupTemplate.proofMarketplace.connect(prover).createBid(bid, secretType, "0x", "0x", "0x");
 
   return bidId.toString();
 };
@@ -161,7 +161,6 @@ export const rawSetup = async (
   const ProverRegistryContract = await ethers.getContractFactory("ProverRegistry");
   const proverProxy = await upgrades.deployProxy(ProverRegistryContract, [], {
     kind: "uups",
-    constructorArgs: [await entityKeyRegistry.getAddress(), await stakingManager.getAddress()],
     initializer: false,
   });
   const proverRegistry = ProverRegistry__factory.connect(await proverProxy.getAddress(), admin);
@@ -185,7 +184,6 @@ export const rawSetup = async (
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
   const nativeStakingProxy = await upgrades.deployProxy(NativeStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
@@ -194,7 +192,6 @@ export const rawSetup = async (
   const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
   const symbioticStakingProxy = await upgrades.deployProxy(SymbioticStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
@@ -211,7 +208,12 @@ export const rawSetup = async (
   //-------------------------------- Contract Init --------------------------------//
 
   // Initialize ProverRegistry
-  await proverRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress()); // TODO
+  await proverRegistry.initialize(
+    await admin.getAddress(),
+    await proofMarketplace.getAddress(),
+    await stakingManager.getAddress(),
+    await entityKeyRegistry.getAddress(),
+  );
 
   // Initialize ProofMarketplace
   await proofMarketplace.initialize(await admin.getAddress());
@@ -228,7 +230,7 @@ export const rawSetup = async (
   await nativeStaking.initialize(
     await admin.getAddress(),
     await stakingManager.getAddress(),
-    stakingContractConfig.WITHDRAWAL_DURATION.toFixed(),
+    stakingContractConfig.WITHDRAWAL_DURATION.toFixed(), // 2 hours
     await mockToken.getAddress(),
   );
 
@@ -284,7 +286,7 @@ export const rawSetup = async (
 
   await proofMarketplace
     .connect(marketCreator)
-    .createMarketplace(
+    .createMarket(
       marketSetupBytes,
       await iverifier.getAddress(),
       proverSlashingPenalty.toFixed(0),
@@ -321,6 +323,7 @@ export const rawSetup = async (
         computeToNewMarket.toFixed(0),
         minRewardForProver.toFixed(),
         100,
+        new BigNumber(10).pow(18).multipliedBy(0.1).toFixed(0), // 10%
         true,
         proverAttestationBytes,
         signature,
@@ -408,7 +411,7 @@ export const stakingSetup = async (
     HUNDRED_PERCENT, // 100% weight for selection
   );
   // Amount to lock
-  await nativeStaking.connect(admin).setAmountToLock(
+  await nativeStaking.connect(admin).setStakeAmountToLock(
     await POND.getAddress(),
     new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
   );
@@ -480,25 +483,26 @@ export const submitVaultSnapshot = async(
   const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
   const blockNumber = (await ethers.provider.getBlock('latest'))?.number ?? 0;
 
+  // TODO
   // submit snapshot
-  await symbioticStaking.connect(transmitter).submitVaultSnapshot(
-    0,
-    1,
-    timestamp,
-    new ethers.AbiCoder().encode(
-      [
-        "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
-      ],
-      [snapshotData]
-    ),
-    "0x"
-  );
+  // await symbioticStaking.connect(transmitter).submitVaultSnapshot(
+  //   0,
+  //   1,
+  //   timestamp,
+  //   new ethers.AbiCoder().encode(
+  //     [
+  //       "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
+  //     ],
+  //     [snapshotData]
+  //   ),
+  //   "0x"
+  // );
 
-  await symbioticStaking.connect(transmitter).submitSlashResult(
-    0,
-    1,
-    timestamp,
-    "0x",
-    "0x"
-  );
+  // await symbioticStaking.connect(transmitter).submitSlashResult(
+  //   0,
+  //   1,
+  //   timestamp,
+  //   "0x",
+  //   "0x"
+  // );
 }

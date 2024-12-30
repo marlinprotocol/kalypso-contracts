@@ -162,7 +162,7 @@ contract ProofMarketplace is
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
 
         if (_proverPcrs.length != 0) {
-            require(!market.proverImageId.IS_ENCLAVE(), Error.CannotModifyImagesForPublicMarkets());
+            require(market.proverImageId.IS_ENCLAVE(), Error.CannotModifyImagesForPublicMarkets());
 
             for (uint256 index = 0; index < _proverPcrs.length; index++) {
                 bytes32 familyId = marketId.PROVER_FAMILY_ID();
@@ -479,8 +479,8 @@ contract ProofMarketplace is
      */
     function discardRequest(uint256 bidId) external nonReentrant {
         Struct.BidWithState memory bidWithState = listOfBid[bidId];
-        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(bidId));
         require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(bidId));
+        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(bidId));
         _refundFee(bidId);
     }
 

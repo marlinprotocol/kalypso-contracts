@@ -121,7 +121,9 @@ contract SymbioticStaking is
     //---------------------------------- Init start ----------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor    
-    constructor() {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(
         address _admin,

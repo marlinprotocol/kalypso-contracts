@@ -1,10 +1,14 @@
-import { run, ethers } from "hardhat";
-import { checkFileExists } from "../helpers";
-import * as fs from "fs";
-import { GeneratorRegistry__factory, ProofMarketplace__factory, SymbioticStaking__factory, UUPSUpgradeable__factory } from "../typechain-types";
-import { expect } from "chai";
-import { BytesLike } from "ethers";
-import { config } from "./helper";
+import {
+  ethers,
+  run,
+} from 'hardhat';
+
+import {
+  ProofMarketplace__factory,
+  ProverRegistry__factory,
+  UUPSUpgradeable__factory,
+} from '../typechain-types';
+import { config } from './helper';
 
 async function main() {
   const { chainId, signers, addresses } = await config();
@@ -17,7 +21,7 @@ async function main() {
   console.log(    addresses.token.usdc,
     ethers.parseEther("100"),
     addresses.wallet.admin,
-    addresses.proxy.generator_registry,
+    addresses.proxy.prover_registry,
     addresses.proxy.entity_key_registry
   );
 
@@ -26,7 +30,7 @@ async function main() {
     addresses.token.usdc,
     ethers.parseEther("100"),
     addresses.wallet.admin,
-    addresses.proxy.generator_registry,
+    addresses.proxy.prover_registry,
     addresses.proxy.entity_key_registry
   );
   await newProofMarketplaceImpl.waitForDeployment();
@@ -37,20 +41,20 @@ async function main() {
 
   console.log("Proof Marketplace upgraded");
 
-  // Generator Registry Proxy
-  const generatorRegistryProxy = UUPSUpgradeable__factory.connect(addresses.proxy.generator_registry, admin);
+  // Prover Registry Proxy
+  const proverRegistryProxy = UUPSUpgradeable__factory.connect(addresses.proxy.prover_registry, admin);
 
-  // New Generator Registry Implementation
-  const newGeneratorRegistryImpl = await new GeneratorRegistry__factory(admin).deploy(
+  // New Prover Registry Implementation
+  const newProverRegistryImpl = await new ProverRegistry__factory(admin).deploy(
     addresses.proxy.entity_key_registry,
     addresses.proxy.staking_manager
   );
-  await newGeneratorRegistryImpl.waitForDeployment();
+  await newProverRegistryImpl.waitForDeployment();
 
-  console.log("Generator Registry upgraded");
+  console.log("Prover Registry upgraded");
 
-  // Upgrade Generator Registry
-  tx = await generatorRegistryProxy.upgradeToAndCall(await newGeneratorRegistryImpl.getAddress(), "0x");
+  // Upgrade Prover Registry
+  tx = await proverRegistryProxy.upgradeToAndCall(await newProverRegistryImpl.getAddress(), "0x");
   await tx.wait();
 
   let verificationResult = await run("verify:verify", {
@@ -59,14 +63,14 @@ async function main() {
       addresses.token.usdc,
       ethers.parseEther("100"),
       addresses.wallet.admin,
-      addresses.proxy.generator_registry,
+      addresses.proxy.prover_registry,
       addresses.proxy.entity_key_registry,
     ],
   });
   console.log({ verificationResult });
   
   verificationResult = await run("verify:verify", {
-    address: await newGeneratorRegistryImpl.getAddress(),
+    address: await newProverRegistryImpl.getAddress(),
     constructorArguments: [addresses.proxy.entity_key_registry, addresses.proxy.staking_manager],
   });
   console.log({ verificationResult });
