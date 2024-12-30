@@ -70,12 +70,17 @@ contract StakingManager is
 
         require(_proofMarketplace != address(0), Error.InvalidStakingManager());
         proofMarketplace = _proofMarketplace;
+        emit ProofMarketplaceSet(_proofMarketplace);
 
         require(_feeToken != address(0), Error.InvalidFeeToken());
         feeToken = _feeToken;
+        emit FeeTokenSet(_feeToken);
 
         require(_symbioticStaking != address(0), Error.InvalidSymbioticStaking());
         symbioticStaking = _symbioticStaking;
+        emit SymbioticStakingSet(_symbioticStaking);
+
+        // TODO: Add ROLE_SETTER role
     }
 
     //---------------------------------------- Init end ----------------------------------------//
@@ -95,11 +100,11 @@ contract StakingManager is
         }
     }
 
-    // called when task is completed to unlock the locked stakes
+    /**
+     * @notice  called when task is completed to unlock the locked stakes
+     * @dev     called by ProofMarketplace contract when a task is completed
+     */
     function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
-        // update pending inflation reward
-        // (uint256 timestampIdx, uint256 pendingInflationReward) = IInflationRewardManager(inflationRewardManager).updatePendingInflationReward(_prover);    
-
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
@@ -124,7 +129,7 @@ contract StakingManager is
 
     //---------------------------------------- PROVER_REGISTRY_ROLE end ----------------------------------------//
 
-    //---------------------------------------- SYMBIOTIC_STAKING_ROLE end ----------------------------------------//
+    //---------------------------------------- SYMBIOTIC_STAKING_ROLE start ----------------------------------------//
 
 
     /// @notice called by SymbioticStaking contract when slash result is submitted
@@ -132,16 +137,18 @@ contract StakingManager is
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), Error.InvalidPool());
 
-        // refund fee to the requester
+        uint256[] memory bidIds = new uint256[](_tasksSlashed.length);
         for(uint256 i = 0; i < _tasksSlashed.length; i++) {
-            // this can be done manually in the ProofMarketplace contract
-            // refunds nothing if already refunded
-            IProofMarketplace(proofMarketplace).slashProver(_tasksSlashed[i].bidId);
+            bidIds[i] = _tasksSlashed[i].bidId;
         }
+
+        // this will do nothing for bidIds that are already refunded
+        IProofMarketplace(proofMarketplace).refundFees(bidIds);
 
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
+            // this will do nothing for bidIds that are already slashed (if same data has been submitted before)
             IStakingPool(pool).slash(_tasksSlashed);
         }
     }

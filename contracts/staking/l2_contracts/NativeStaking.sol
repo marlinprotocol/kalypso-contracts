@@ -105,7 +105,9 @@ contract NativeStaking is
         stakingManager = _stakingManager;
         emit StakingManagerSet(_stakingManager);
 
+        require(_withdrawalDuration > 0, Error.InvalidWithdrawalDuration());
         withdrawalDuration = _withdrawalDuration;
+        emit WithdrawalDurationSet(_withdrawalDuration);
 
         require(_feeToken != address(0), Error.InvalidFeeToken());
         feeRewardToken = _feeToken;
@@ -131,7 +133,6 @@ contract NativeStaking is
         emit Staked(_msgSender(), _prover, _stakeToken, _amount);
     }
 
-    // TODO
     function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external nonReentrant {
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, Error.InsufficientStakeAmount());
 
@@ -353,7 +354,7 @@ contract NativeStaking is
         emit StakeTokenSelectionWeightSet(_token, _weight);
     }
 
-    function setAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setStakeAmountToLock(address _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         amountToLock[_token] = _amount;
 
         emit AmountToLockSet(_token, _amount);

@@ -3,42 +3,49 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
-  EntityKeyRegistry,
-  Error,
-  GeneratorRegistry,
+  ProverRegistry,
   IVerifier,
   IVerifier__factory,
   MockToken,
   PriorityLog,
   ProofMarketplace,
-  TransferVerifier__factory,
-  Transfer_verifier_wrapper__factory,
+  ZkSyncVerifier__factory,
+  Zksync_verifier_wrapper__factory,
+  Error,
+  EntityKeyRegistry,
+  SymbioticStakingReward,
+  SymbioticStaking,
+  NativeStaking,
+  StakingManager,
 } from "../typechain-types";
 
 import {
-  GeneratorData,
+  ProverData,
   GodEnclavePCRS,
   MarketData,
   MockEnclave,
-  MockGeneratorPCRS,
+  MockProverPCRS,
   MockIVSPCRS,
   MockMEPCRS,
-  generatorDataToBytes,
+  proverDataToBytes,
   marketDataToBytes,
   setup,
   skipBlocks,
 } from "../helpers";
 
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+import * as zksync_data from "../helpers/sample/zksync/data.json";
 
-describe("Proof Market Place for Transfer Verifier", () => {
+describe("Proof Market Place for zksync Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let generatorRegistry: GeneratorRegistry;
+  let proverRegistry: ProverRegistry;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let stakingManager: StakingManager;
+  let nativeStaking: NativeStaking;
+  let symbioticStaking: SymbioticStaking;
+  let symbioticStakingReward: SymbioticStakingReward;
 
   let signers: Signer[];
   let admin: Signer;
@@ -51,13 +58,13 @@ describe("Proof Market Place for Transfer Verifier", () => {
   let marketSetupData: MarketData;
   let marketId: string;
 
-  let generatorData: GeneratorData;
+  let proverData: ProverData;
 
   let iverifier: IVerifier;
 
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
-  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
+  const proverEnclave = new MockEnclave(MockProverPCRS);
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
@@ -81,7 +88,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
     generator = signers[5];
 
     marketSetupData = {
-      zkAppName: "transfer verifier",
+      zkAppName: "zksync verifier",
       proverCode: "url of the prover code",
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
@@ -89,49 +96,24 @@ describe("Proof Market Place for Transfer Verifier", () => {
       inputOuputVerifierUrl: "this should be nclave url",
     };
 
-    generatorData = {
+    proverData = {
       name: "some custom name for the generator",
     };
 
-    const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+    const zksyncVerifier = await new ZkSyncVerifier__factory(admin).deploy();
+
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
-        [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
-        ],
-      ],
-    );
+    let inputBytes = abiCoder.encode(["uint256[]"], [zksync_data.publicInputs]);
+    let proofBytes = abiCoder.encode(["uint256[]", "uint256[]"], [zksync_data.serializedProof, zksync_data.recursiveAggregationInput]);
 
-    let proofBytes = abiCoder.encode(
-      ["uint256[8]"],
-      [
-        [
-          transfer_verifier_proof.a[0],
-          transfer_verifier_proof.a[1],
-          transfer_verifier_proof.b[0][0],
-          transfer_verifier_proof.b[0][1],
-          transfer_verifier_proof.b[1][0],
-          transfer_verifier_proof.b[1][1],
-          transfer_verifier_proof.c[0],
-          transfer_verifier_proof.c[1],
-        ],
-      ],
-    );
-
-    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-      await transferVerifier.getAddress(),
+    const zksyncVerifierWrapper = await new Zksync_verifier_wrapper__factory(admin).deploy(
+      await zksyncVerifier.getAddress(),
       inputBytes,
       proofBytes,
     );
 
-    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+    iverifier = IVerifier__factory.connect(await zksyncVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     await treasury.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
@@ -149,69 +131,64 @@ describe("Proof Market Place for Transfer Verifier", () => {
       marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
-      generatorDataToBytes(generatorData),
+      proverDataToBytes(proverData),
       ivsEnclave,
       matchingEngineEnclave,
-      generatorEnclave,
+      proverEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    generatorRegistry = data.generatorRegistry;
+    proverRegistry = data.proverRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
-
-    await transferVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
-  it("Check transfer verifier", async () => {
+  it("Check zksync verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
-        [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
-        ],
-      ],
-    );
+    let inputBytes = abiCoder.encode(["uint256[]"], [zksync_data.publicInputs]);
     // console.log({ inputBytes });
     const latestBlock = await ethers.provider.getBlockNumber();
     let assignmentExpiry = 100; // in blocks
     let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
-    const askId = await setup.createAsk(
+    const bidId = await setup.createBid(
       prover,
       tokenHolder,
       {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
+        expiry: (assignmentExpiry + latestBlock).toString(),
+        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
+        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        proverRegistry,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
     );
@@ -222,30 +199,20 @@ describe("Proof Market Place for Transfer Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        proverRegistry,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager, 
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
-      askId,
+      bidId,
       generator,
     );
 
-    let proofBytes = abiCoder.encode(
-      ["uint256[8]"],
-      [
-        [
-          transfer_verifier_proof.a[0],
-          transfer_verifier_proof.a[1],
-          transfer_verifier_proof.b[0][0],
-          transfer_verifier_proof.b[0][1],
-          transfer_verifier_proof.b[1][0],
-          transfer_verifier_proof.b[1][1],
-          transfer_verifier_proof.c[0],
-          transfer_verifier_proof.c[1],
-        ],
-      ],
-    );
-    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
+    let proofBytes = abiCoder.encode(["uint256[]", "uint256[]"], [zksync_data.serializedProof, zksync_data.recursiveAggregationInput]);
+    await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
   });
 });

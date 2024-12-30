@@ -70,12 +70,22 @@ library Error {
     error OnlyExpiredBidsCanBeCancelled(uint256 bidId);
     error OnlyAssignedBidsCanBeProved(uint256 bidId);
     error InvalidProof(uint256 bidId);
-    error ShouldBeInCrossedDeadlineState(uint256 bidId);
+    error DeadlineNotCrossed(uint256 bidId);
     error ShouldBeInAssignedState(uint256 bidId);
     error OnlyProverCanDiscardRequest(uint256 bidId);
 
+    // ProverRegistry
+    error ZeroProverDataLength();
+    error ZeroComputeToIncrease();
+    error ZeroComputeToReduce();
+    error ZeroRewardAddress();
+    error ZeroDeclaredCompute();
+    error ZeroNewRewardAddress();
+    error ProverNotRegistered();
+    
     // ProofMarketplace
     error InvalidProverRewardShare();
+    error NotSlashableBidId(uint256 bidId);
 
     // Staking
     error InsufficientStakeAmount();
@@ -124,6 +134,7 @@ library Error {
     error WithdrawalTimeNotReached();
     error InvalidWithdrawalAmount();
     error TokenNotSupported();
+    error InvalidWithdrawalDuration();
 
     // SymbioticStakingReward
     error OnlyStakingManager();

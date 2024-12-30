@@ -1,7 +1,6 @@
 import BigNumber from 'bignumber.js';
 import {
   BigNumberish,
-  BytesLike,
   Provider,
   Signer,
 } from 'ethers';
@@ -15,8 +14,6 @@ import {
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
-  GeneratorRegistry,
-  GeneratorRegistry__factory,
   IVerifier,
   MockToken,
   MockToken__factory,
@@ -28,6 +25,8 @@ import {
   PriorityLog__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
+  ProverRegistry,
+  ProverRegistry__factory,
   StakingManager,
   StakingManager__factory,
   SymbioticStaking,
@@ -43,11 +42,11 @@ import {
   GodEnclavePCRS,
   MockEnclave,
 } from './';
-import { expect } from "chai";
+import { Bid } from './structTypes';
 
 interface SetupTemplate {
   mockToken: MockToken;
-  generatorRegistry: GeneratorRegistry;
+  proverRegistry: ProverRegistry;
   proofMarketplace: ProofMarketplace;
   priorityLog: PriorityLog;
   errorLibrary: Error;
@@ -71,47 +70,47 @@ export const createTask = async (
   provider: Provider | null,
   setupTemplate: SetupTemplate,
   askId: string,
-  generator: Signer,
+  prover: Signer,
 ) => {
   const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), provider);
-  await setupTemplate.proofMarketplace.connect(matchingEngine).assignTask(askId.toString(), await generator.getAddress(), "0x");
+  await setupTemplate.proofMarketplace.connect(matchingEngine).assignTask(askId.toString(), await prover.getAddress(), "0x");
 };
 
-export const createAsk = async (
+export const createBid = async (
   prover: Signer,
   tokenHolder: Signer,
-  ask: ProofMarketplace.AskStruct,
+  bid: Bid,
   setupTemplate: SetupTemplate,
   secretType: number,
 ): Promise<string> => {
-  await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+  await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
 
-  await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), ask.reward.toString());
+  await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
 
-  const askId = await setupTemplate.proofMarketplace.askCounter();
-  await setupTemplate.proofMarketplace.connect(prover).createAsk(ask, secretType, "0x", "0x");
+  const bidId = await setupTemplate.proofMarketplace.bidCounter();
+  await setupTemplate.proofMarketplace.connect(prover).createBid(bid, secretType, "0x", "0x");
 
-  return askId.toString();
+  return bidId.toString();
 };
 
 export const rawSetup = async (
   admin: Signer,
   tokenHolder: Signer,
   totalTokenSupply: BigNumber,
-  generatorStakingAmount: BigNumber,
-  generatorSlashingPenalty: BigNumber,
+  proverStakingAmount: BigNumber,
+  proverSlashingPenalty: BigNumber,
   treasury: string,
   marketCreationCost: BigNumber,
   marketCreator: Signer,
   marketSetupBytes: string,
   _ivsUrl: string,
   iverifier: IVerifier,
-  generator: Signer,
-  generatorData: string,
+  prover: Signer,
+  proverData: string,
   ivsEnclave: MockEnclave,
   matchingEngineEnclave: MockEnclave,
-  generatorEnclave: MockEnclave,
-  minRewardForGenerator: BigNumber,
+  proverEnclave: MockEnclave,
+  minRewardForProver: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
   godEnclave?: MockEnclave,
@@ -149,30 +148,6 @@ export const rawSetup = async (
   });
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
-  // GeneratorRegistry
-  const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
-  const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
-    kind: "uups",
-    constructorArgs: [await mockToken.getAddress(), await entityKeyRegistry.getAddress()],
-    initializer: false,
-  });
-  const generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), admin);
-
-  // ProofMarketplace
-  const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
-  const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
-    kind: "uups",
-    constructorArgs: [
-      await mockToken.getAddress(),
-      marketCreationCost.toFixed(),
-      treasury,
-      await generatorRegistry.getAddress(),
-      await entityKeyRegistry.getAddress(),
-    ],
-    initializer: false,
-  });
-  const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
-
   // StakingManager
   const StakingManagerContract = await ethers.getContractFactory("StakingManager");
   const stakingManagerProxy = await upgrades.deployProxy(StakingManagerContract, [], {
@@ -182,11 +157,35 @@ export const rawSetup = async (
   });
   const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
 
+  // ProverRegistry
+  const ProverRegistryContract = await ethers.getContractFactory("ProverRegistry");
+  const proverProxy = await upgrades.deployProxy(ProverRegistryContract, [], {
+    kind: "uups",
+    constructorArgs: [await entityKeyRegistry.getAddress(), await stakingManager.getAddress()],
+    initializer: false,
+  });
+  const proverRegistry = ProverRegistry__factory.connect(await proverProxy.getAddress(), admin);
+
+  // ProofMarketplace
+  const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
+  const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
+    kind: "uups",
+    constructorArgs: [
+      await mockToken.getAddress(),
+      marketCreationCost.toFixed(),
+      treasury,
+      await proverRegistry.getAddress(),
+      await entityKeyRegistry.getAddress(),
+    ],
+    initializer: false,
+  });
+  const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
+
   // NativeStaking
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
   const nativeStakingProxy = await upgrades.deployProxy(NativeStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await generatorRegistry.getAddress()],
+    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
@@ -195,7 +194,7 @@ export const rawSetup = async (
   const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
   const symbioticStakingProxy = await upgrades.deployProxy(SymbioticStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await generatorRegistry.getAddress()],
+    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
@@ -211,8 +210,8 @@ export const rawSetup = async (
 
   //-------------------------------- Contract Init --------------------------------//
 
-  // Initialize GeneratorRegistry
-  await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress()); // TODO
+  // Initialize ProverRegistry
+  await proverRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress()); // TODO
 
   // Initialize ProofMarketplace
   await proofMarketplace.initialize(await admin.getAddress());
@@ -253,12 +252,15 @@ export const rawSetup = async (
 
   await proofMarketplace.grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
 
-  // Grant `GENERATOR_REGISTRY_ROLE` to StakingManager
-  await stakingManager.grantRole(await stakingManager.GENERATOR_REGISTRY_ROLE(), await generatorRegistry.getAddress());
+  // Grant `PROVER_REGISTRY_ROLE` to StakingManager
+  await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverRegistry.getAddress());
 
-  // Grant `KEY_REGISTER_ROLE` to GeneratorRegistry, ProofMarketplace
+  // Grant `STAKING_MANAGER_ROLE` to SymbioticStaking
+  await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
+
+  // Grant `KEY_REGISTER_ROLE` to ProverRegistry, ProofMarketplace
   const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
-  await entityKeyRegistry.grantRole(register_role, await generatorRegistry.getAddress());
+  await entityKeyRegistry.grantRole(register_role, await proverRegistry.getAddress());
   await entityKeyRegistry.grantRole(register_role, await proofMarketplace.getAddress());
 
   // Transfer marketCreationCost to ProofMarketplace
@@ -285,45 +287,42 @@ export const rawSetup = async (
     .createMarketplace(
       marketSetupBytes,
       await iverifier.getAddress(),
-      generatorSlashingPenalty.toFixed(0),
-      generatorEnclave.getPcrRlp(),
+      proverSlashingPenalty.toFixed(0),
+      proverEnclave.getPcrRlp(),
       ivsEnclave.getPcrRlp(),
     );
 
-  await mockToken.connect(tokenHolder).transfer(await generator.getAddress(), generatorStakingAmount.toFixed());
+  await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), proverStakingAmount.toFixed());
 
-  await mockToken.connect(generator).approve(await generatorRegistry.getAddress(), generatorStakingAmount.toFixed());
+  await mockToken.connect(prover).approve(await proverRegistry.getAddress(), proverStakingAmount.toFixed());
 
   const marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-  // await generatorRegistry
-  //   .connect(generator)
-  //   .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), generatorStakingAmount.toFixed(0), generatorData);
-  await generatorRegistry
-    .connect(generator)
-    .register(await generator.getAddress(), totalComputeAllocation.toFixed(0), /*  generatorStakingAmount.toFixed(0),  */ generatorData);
+  await proverRegistry
+    .connect(prover)
+    .register(await prover.getAddress(), totalComputeAllocation.toFixed(0), /*  proverStakingAmount.toFixed(0),  */ proverData);
 
   {
-    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
+    let proverAttestationBytes = await proverEnclave.getVerifiedAttestation(godEnclave);
 
     let types = ["bytes", "address"];
 
-    let values = [generatorAttestationBytes, await generator.getAddress()];
+    let values = [proverAttestationBytes, await prover.getAddress()];
 
     let abicode = new ethers.AbiCoder();
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
-    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
+    let signature = await proverEnclave.signMessage(ethers.getBytes(digest));
 
-    await generatorRegistry
-      .connect(generator)
+    await proverRegistry
+      .connect(prover)
       .joinMarketplace(
         marketId,
         computeToNewMarket.toFixed(0),
-        minRewardForGenerator.toFixed(),
+        minRewardForProver.toFixed(),
         100,
         true,
-        generatorAttestationBytes,
+        proverAttestationBytes,
         signature,
       );
   }
@@ -333,7 +332,7 @@ export const rawSetup = async (
   const errorLibrary = await new Error__factory(admin).deploy();
   return {
     mockToken,
-    generatorRegistry,
+    proverRegistry,
     proofMarketplace,
     priorityLog,
     errorLibrary,
@@ -449,36 +448,37 @@ export const stakingSetup = async (
   };
 };
 
-export const generatorSelfStake = async (
+export const proverSelfStake = async (
   nativeStaking: NativeStaking,
   admin: Signer,
-  generator: Signer,
+  prover: Signer,
   stakeToken: POND,
   amount: BigNumber
 ) => {
-  await stakeToken.connect(admin).transfer(await generator.getAddress(), amount.toFixed(0));
-  await stakeToken.connect(generator).approve(await nativeStaking.getAddress(), amount.toFixed(0));
+  await stakeToken.connect(admin).transfer(await prover.getAddress(), amount.toFixed(0));
+  await stakeToken.connect(prover).approve(await nativeStaking.getAddress(), amount.toFixed(0));
 
-  await nativeStaking.connect(generator).stake(
+  await nativeStaking.connect(prover).stake(
     await stakeToken.getAddress(),
-    await generator.getAddress(),
+    await prover.getAddress(),
     amount.toFixed(0)
   );
 }
 
-export interface VaultSnapshotData {
-  operator: string;
+export interface VaultSnapshot {
+  prover: string;
   vault: string;
   stakeToken: string;
   stakeAmount: BigNumberish;
 }
 
-export const submistVaultSnapshot = async(
+export const submitVaultSnapshot = async(
   transmitter: Signer,
   symbioticStaking: SymbioticStaking,
-  snapshotData: VaultSnapshotData[],
+  snapshotData: VaultSnapshot[],
 ) => {
   const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
+  const blockNumber = (await ethers.provider.getBlock('latest'))?.number ?? 0;
 
   // submit snapshot
   await symbioticStaking.connect(transmitter).submitVaultSnapshot(
@@ -487,7 +487,7 @@ export const submistVaultSnapshot = async(
     timestamp,
     new ethers.AbiCoder().encode(
       [
-        "tuple(address operator, address vault, address stakeToken, uint256 stakeAmount)[]"
+        "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
       ],
       [snapshotData]
     ),

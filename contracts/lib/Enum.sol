@@ -5,10 +5,10 @@ library Enum {
     /* ProofMarketplace */
     enum BidState {
         NULL,
-        CREATE,
+        CREATED,
         UNASSIGNED,
         ASSIGNED,
-        COMPLETE,
+        COMPLETED,
         DEADLINE_CROSSED
     }
 

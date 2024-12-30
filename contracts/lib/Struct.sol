@@ -25,7 +25,7 @@ library Struct {
         bytes proverData;
     }
 
-    struct BidWithState {
+struct BidWithState {
         Bid bid;
         Enum.BidState state;
         address requester;
