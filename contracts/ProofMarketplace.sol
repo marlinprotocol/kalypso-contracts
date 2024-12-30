@@ -102,7 +102,7 @@ contract ProofMarketplace is
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
 
         // push empty data for market id 0 so first market id starts with 1
-        marketData.push(Struct.Market(address(0), bytes32(0), 0, 0, bytes32(0), address(0), bytes("")));
+        marketData.push(Struct.Market(address(0), bytes32(0), 0, 0, address(0), bytes("")));
     }
 
     //-------------------------------- Init end --------------------------------//

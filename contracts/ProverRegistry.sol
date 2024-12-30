@@ -89,18 +89,30 @@ contract ProverRegistry is
     /**
      * @notice Register Prover
      */
-    function register(address _rewardAddress, uint256 _declaredCompute, bytes memory _proverData) external nonReentrant {
+    function register(
+        address rewardAddress,
+        uint256 declaredCompute,
+        bytes memory proverData
+    ) external nonReentrant {
         address _proverAddress = _msgSender();
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
-        require(_proverData.length != 0 && _rewardAddress != address(0) && _declaredCompute != 0, Error.CannotBeZero());
+        require(proverData.length != 0 && rewardAddress != address(0) && declaredCompute != 0, Error.CannotBeZero());
 
         // prevents registering multiple times, unless deregistered
         require(prover.rewardAddress == address(0), Error.ProverAlreadyExists());
 
-        proverRegistry[_proverAddress] = Struct.Prover(_rewardAddress, 0, 0, 0, _declaredCompute, EXPONENT, _proverData);
+        proverRegistry[_proverAddress] = Struct.Prover(
+            rewardAddress,
+            0,
+            0,
+            0,
+            declaredCompute,
+            EXPONENT,
+            proverData
+        );
 
-        emit ProverRegistered(_proverAddress, _declaredCompute);
+        emit ProverRegistered(_proverAddress, declaredCompute);
     }
 
     /**
@@ -217,6 +229,7 @@ contract ProverRegistry is
             revert Error.ReductionRequestNotValid();
         }
 
+
         delete reduceComputeRequestBlock[_proverAddress];
         emit ComputeDecreased(_proverAddress, computeToRelease);
     }
@@ -226,14 +239,14 @@ contract ProverRegistry is
     //-------------------------------- Prover-Marketplace start --------------------------------//
 
     function joinMarketplace(
-        uint256 marketId,
-        uint256 computePerRequestRequired,
-        uint256 proofGenerationCost,
-        uint256 proposedTime,
-        uint256 commission,
-        bool updateMarketDedicatedKey, // false if not a private market
-        bytes memory attestationData, // verification ignored if updateMarketDedicatedKey==false
-        bytes calldata enclaveSignature // ignored if updateMarketDedicatedKey==false
+        uint256 _marketId,
+        uint256 _computePerRequestRequired,
+        uint256 _proofGenerationCost,
+        uint256 _proposedTime,
+        uint256 _commission,
+        bool _updateMarketDedicatedKey, // false if not a private market
+        bytes memory _attestationData, // verification ignored if updateMarketDedicatedKey==false
+        bytes calldata _enclaveSignature // ignored if updateMarketDedicatedKey==false
     ) external {
         address proverAddress = _msgSender();
 
@@ -247,7 +260,7 @@ contract ProverRegistry is
         }
 
         // commission can't be more than 1e18 (100%)
-        if (commission > 1e18) {
+        if (_commission > 1e18) {
             revert Error.InvalidProverCommission();
         }
 
@@ -270,87 +283,54 @@ contract ProverRegistry is
         prover.activeMarketplaces++;
 
         // update market specific info for the prover
-        proverInfoPerMarket[proverAddress][marketId] = Struct.ProverInfoPerMarket(
+        proverInfoPerMarket[proverAddress][_marketId] = Struct.ProverInfoPerMarket(
             Enum.ProverState.JOINED,
-            computePerRequestRequired,
-            commission,
-            proofGenerationCost,
-            proposedTime,
+            _computePerRequestRequired,
+            _commission,
+            _proofGenerationCost,
+            _proposedTime,
             0
-
+        );
 
         if (_updateMarketDedicatedKey) {
             _updateEncryptionKey(proverAddress, _marketId, _attestationData, _enclaveSignature);
         }
 
-        emit ProverJoinedMarketplace(proverAddress, marketId, computePerRequestRequired, commission);
+        emit ProverJoinedMarketplace(proverAddress, _marketId, _computePerRequestRequired, _commission);
     }
 
     // TODO: Add methods to update prover commission for a market
 
-    function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
-        (address _verifier, bytes32 proverImageId, , , , ) = proofMarketplace.marketData(marketId);
-
-        // TODO: check if the details are not needed to be emitted
-        emit ProverJoinedMarketplace(proverAddress, _marketId, _computePerRequestRequired);
-    }
-
-    function updateProverMarketInfo(
-        uint256 _marketId,
-        uint256 _computePerRequestRequired,
-        uint256 _proofGenerationCost,
-        uint256 _proposedTime,
-        uint256 _commission
-    ) external {
-        address proverAddress = _msgSender();
-        Struct.Prover storage prover = proverRegistry[proverAddress];
-        Struct.ProverInfoPerMarket storage info = proverInfoPerMarket[proverAddress][_marketId];
-
-        // Check if the prover is registered
-        require(prover.rewardAddress != address(0) && prover.proverData.length != 0, Error.ProverNotRegistered());
-
-        // Validate the market ID
-        (address marketVerifierContractAddress,) = _readMarketData(_marketId);
-        require(marketVerifierContractAddress != address(0), Error.InvalidMarket());
-    }
-
     function _readMarketData(uint256 _marketId) internal view returns (address, bytes32) {
-        (address _verifier, bytes32 proverImageId,,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
+        (address _verifier, bytes32 proverImageId, , , , ) = ProofMarketplace(proofMarketplace).marketData(_marketId);
 
         return (_verifier, proverImageId);
     }
 
-    function leaveMarketplace(uint256 _marketId) external {
-        // proverAddress = _msgSender();
-        _leaveMarketplace(_msgSender(), _marketId);
-    }
 
-    function leaveMarketplaces(uint256[] calldata _marketIds) external {
-        for (uint256 index = 0; index < _marketIds.length; index++) {
+    function leaveMarketplaces(uint256[] calldata marketIds) external {
+        for (uint256 index = 0; index < marketIds.length; index++) {
             // proverAddress = _msgSender();
-            _leaveMarketplace(_msgSender(), _marketIds[index]);
+            _leaveMarketplace(_msgSender(), marketIds[index]);
         }
     }
 
+    function leaveMarketplace(uint256 marketId) external {
+        // proverAddress = _msgSender();
+        _leaveMarketplace(_msgSender(), marketId);
+    }
     function getProverCommission(uint256 marketId, address proverAddress) public view returns (uint256) {
         return proverInfoPerMarket[proverAddress][marketId].commission;
     }
 
-    function _maxReducableCompute(address proverAddress) internal view returns (uint256) {
-        Struct.Prover memory prover = proverRegistry[proverAddress];
-
     function _leaveMarketplace(address _proverAddress, uint256 _marketId) internal {
-        (address marketVerifier,,,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
+        (address marketVerifier,,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
 
-        if (marketVerifier == address(0)) {
-            revert Error.InvalidMarket();
-        }
+        require(marketVerifier != address(0), Error.InvalidMarket());
 
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
         
-        if (info.state == Enum.ProverState.NULL) {
-            revert Error.InvalidProverStatePerMarket();
-        }
+        require(info.state != Enum.ProverState.NULL, Error.InvalidProverStatePerMarket());
 
         // check if there is any active requests
         require(info.activeRequests == 0, Error.CannotLeaveMarketWithActiveRequest());
@@ -394,8 +374,6 @@ contract ProverRegistry is
         }
     }
 
-    function _leaveMarketplace(address proverAddress, uint256 marketId) internal {
-        (address marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
     /**
      * @notice update the encryption key
      */
@@ -415,14 +393,12 @@ contract ProverRegistry is
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
         // just an extra check to prevent spam
-        if (prover.rewardAddress == address(0)) {
-            revert Error.CannotBeZero();
-        }
+        require(prover.rewardAddress != address(0), Error.CannotBeZero());
 
         // only for knowing if the given market is private or public
         (, bytes32 proverImageId) = _readMarketData(_marketId);
         
-        require(!proverImageId.IS_ENCLAVE(), Error.PublicMarketsDontNeedKey());
+        require(proverImageId.IS_ENCLAVE(), Error.PublicMarketsDontNeedKey());
 
         require(
             EntityKeyRegistry(entityKeyRegistry).isImageInFamily(
@@ -444,13 +420,12 @@ contract ProverRegistry is
      */
     function addIvsKey(uint256 _marketId, bytes memory _attestationData, bytes calldata _enclaveSignature) external {
         // ensure only right image is used
-        if (
-            !EntityKeyRegistry(entityKeyRegistry).isImageInFamily(
+        require(
+            EntityKeyRegistry(entityKeyRegistry).isImageInFamily(
                 _attestationData.GET_IMAGE_ID_FROM_ATTESTATION(), _marketId.IVS_FAMILY_ID()
-            )
-        ) {
-            revert Error.IncorrectImageId();
-        }
+            ),
+            Error.IncorrectImageId()
+        );
 
         // confirms that _msgSender() has access to enclave
         _attestationData.VERIFY_ENCLAVE_SIGNATURE(_enclaveSignature, _msgSender());
@@ -605,64 +580,6 @@ contract ProverRegistry is
     }
 
     //-------------------------------- Getters end --------------------------------//
-
-    /* Callbacks below */
-
-    function addStakeCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit AddedStake(_proverAddress, _token, _amount);
-    }
-
-    function intendToReduceStakeCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit IntendToReduceStake(_proverAddress, _token, _amount);
-    }
-
-    function removeStakeCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit RemovedStake(_proverAddress, _token, _amount);
-    }
-
-    function stakeLockImposedCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockImposed(_proverAddress, _token, _amount);
-    }
-
-    function stakeLockReleasedCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeLockReleased(_proverAddress, _token, _amount);
-    }
-
-    function stakeSlashedCallback(address _proverAddress, address _token, uint256 _amount) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit StakeSlashed(_proverAddress, _token, _amount);
-    }
-
-    function symbioticCompleteSnapshotCallback(uint256 _captureTimestamp) external override {
-        if (!StakingManager(stakingManager).isEnabledPool(msg.sender)) {
-            revert Error.InvalidContractAddress();
-        }
-
-        emit SymbioticCompleteSnapshot(_captureTimestamp);
-    }
 
     //-------------------------------- Overrides start --------------------------------//
 
