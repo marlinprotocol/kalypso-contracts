@@ -10,7 +10,7 @@ contract IProverRegistry {
 
     event ProverRewardAddressChanged(address indexed prover, address newRewardAddress);
 
-    event ProverJoinedMarketplace(address indexed prover, uint256 indexed marketId, uint256 computeAllocation);
+    event ProverJoinedMarketplace(address indexed prover, uint256 indexed marketId, uint256 computeAllocation, uint256 commission);
     event ProverRequestedMarketplaceExit(address indexed prover, uint256 indexed marketId);
     event ProverLeftMarketplace(address indexed prover, uint256 indexed marketId);
 

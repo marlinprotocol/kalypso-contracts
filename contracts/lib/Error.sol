@@ -28,6 +28,7 @@ library Error {
     // Prover-related Errors
     error ProverAlreadyExists();
     error InvalidProver();
+    error InvalidProverCommission();
     error CannotLeaveWithActiveMarket();
     error AssignOnlyToIdleProvers();
     error InsufficientProverComputeAvailable();

@@ -10,7 +10,6 @@ library Struct {
         address verifier; // verifier address for the market place
         bytes32 proverImageId; // use bytes32(0) for public market
         uint256 slashingPenalty;
-        uint256 activationBlock;
         bytes32 ivsImageId;
         address creator;
         bytes marketmetadata;
@@ -54,6 +53,7 @@ struct BidWithState {
     struct ProverInfoPerMarket {
         Enum.ProverState state;
         uint256 computePerRequestRequired;
+        uint256 commission;
         uint256 proofGenerationCost;
         uint256 proposedTime;
         uint256 activeRequests;

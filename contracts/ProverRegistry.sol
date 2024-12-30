@@ -17,26 +17,18 @@ import {ProofMarketplace} from "./ProofMarketplace.sol";
 import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
 import {IProverRegistry} from "./interfaces/IProverRegistry.sol";
-import {IProverCallbacks} from "./interfaces/IProverCallbacks.sol";
-import {StakingManager} from "./staking/l2_contracts/StakingManager.sol";
 
 contract ProverRegistry is
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    IProverRegistry,
-    IProverCallbacks
+    IProverRegistry
 {
+
     using HELPER for bytes;
     using HELPER for bytes32;
     using HELPER for uint256;
     using SafeERC20 for IERC20;
-
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
-    // for further increase
-    uint256[50] private __gap1_0;
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
@@ -51,6 +43,7 @@ contract ProverRegistry is
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
+   
     address public proofMarketplace;
     address public stakingManager;
     address public entityKeyRegistry;
@@ -58,6 +51,10 @@ contract ProverRegistry is
     mapping(address => Struct.Prover) public proverRegistry;
     mapping(address => mapping(uint256 => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
     mapping(address => uint256) reduceComputeRequestBlock;
+    
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
+
 
     //-------------------------------- State variables end --------------------------------//
 
@@ -229,13 +226,14 @@ contract ProverRegistry is
     //-------------------------------- Prover-Marketplace start --------------------------------//
 
     function joinMarketplace(
-        uint256 _marketId,
-        uint256 _computePerRequestRequired,
-        uint256 _proofGenerationCost,
-        uint256 _proposedTime,
-        bool _updateMarketDedicatedKey, // false if not a private market
-        bytes memory _attestationData, // verification ignored if updateMarketDedicatedKey==false
-        bytes calldata _enclaveSignature // ignored if updateMarketDedicatedKey==false
+        uint256 marketId,
+        uint256 computePerRequestRequired,
+        uint256 proofGenerationCost,
+        uint256 proposedTime,
+        uint256 commission,
+        bool updateMarketDedicatedKey, // false if not a private market
+        bytes memory attestationData, // verification ignored if updateMarketDedicatedKey==false
+        bytes calldata enclaveSignature // ignored if updateMarketDedicatedKey==false
     ) external {
         address proverAddress = _msgSender();
 
@@ -246,6 +244,11 @@ contract ProverRegistry is
         // compute required per proof can't be zero
         if (prover.rewardAddress == address(0) || _proposedTime == 0 || _computePerRequestRequired == 0) {
             revert Error.CannotBeZero();
+        }
+
+        // commission can't be more than 1e18 (100%)
+        if (commission > 1e18) {
+            revert Error.InvalidProverCommission();
         }
 
         // only for checking if any market id valid or not
@@ -267,13 +270,26 @@ contract ProverRegistry is
         prover.activeMarketplaces++;
 
         // update market specific info for the prover
-        proverInfoPerMarket[proverAddress][_marketId] = Struct.ProverInfoPerMarket(
-            Enum.ProverState.JOINED, _computePerRequestRequired, _proofGenerationCost, _proposedTime, 0
-        );
+        proverInfoPerMarket[proverAddress][marketId] = Struct.ProverInfoPerMarket(
+            Enum.ProverState.JOINED,
+            computePerRequestRequired,
+            commission,
+            proofGenerationCost,
+            proposedTime,
+            0
+
 
         if (_updateMarketDedicatedKey) {
             _updateEncryptionKey(proverAddress, _marketId, _attestationData, _enclaveSignature);
         }
+
+        emit ProverJoinedMarketplace(proverAddress, marketId, computePerRequestRequired, commission);
+    }
+
+    // TODO: Add methods to update prover commission for a market
+
+    function _readMarketData(uint256 marketId) internal view returns (address, bytes32) {
+        (address _verifier, bytes32 proverImageId, , , , ) = proofMarketplace.marketData(marketId);
 
         // TODO: check if the details are not needed to be emitted
         emit ProverJoinedMarketplace(proverAddress, _marketId, _computePerRequestRequired);
@@ -315,6 +331,13 @@ contract ProverRegistry is
             _leaveMarketplace(_msgSender(), _marketIds[index]);
         }
     }
+
+    function getProverCommission(uint256 marketId, address proverAddress) public view returns (uint256) {
+        return proverInfoPerMarket[proverAddress][marketId].commission;
+    }
+
+    function _maxReducableCompute(address proverAddress) internal view returns (uint256) {
+        Struct.Prover memory prover = proverRegistry[proverAddress];
 
     function _leaveMarketplace(address _proverAddress, uint256 _marketId) internal {
         (address marketVerifier,,,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
@@ -371,6 +394,8 @@ contract ProverRegistry is
         }
     }
 
+    function _leaveMarketplace(address proverAddress, uint256 marketId) internal {
+        (address marketVerifier, , , , , ) = proofMarketplace.marketData(marketId);
     /**
      * @notice update the encryption key
      */

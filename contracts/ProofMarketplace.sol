@@ -65,11 +65,10 @@ contract ProofMarketplace is
     Struct.Market[] public marketData;
     Struct.BidWithState[] public listOfBid;
 
-    // cost for inputs
+    // cost for inputs in payment token
     mapping(Enum.SecretType => uint256) public costPerInputBytes;
     // min proving time (in blocks) for each secret type.
     mapping(Enum.SecretType => uint256) public minProvingTime;
-    mapping(address prover => uint256 rewardShare) public proverRewardShares; // 1e18 == 100%
     mapping(address => uint256) public proverClaimableFeeReward;
     mapping(address => uint256) public transmitterClaimableFeeReward;
 
@@ -121,7 +120,8 @@ contract ProofMarketplace is
         bytes calldata _ivsPcrs
     ) external nonReentrant {
         address msgSender = _msgSender();
-        if (_penalty == 0 || _marketmetadata.length == 0 || address(_verifier) == address(0)) {
+        // Note: _penalty can be set to 0, allowing operators to submit invalid proofs without consequences.
+        if (_marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
 
@@ -145,7 +145,6 @@ contract ProofMarketplace is
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 _penalty,
-                block.number + MARKET_ACTIVATION_DELAY,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 msgSender,
                 _marketmetadata
@@ -258,9 +257,10 @@ contract ProofMarketplace is
         Struct.Bid calldata bid,
         Enum.SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) external whenNotPaused nonReentrant {
-        _createBid(bid, msg.sender, secretType, privateInputs, acl);
+        _createBid(bid, msg.sender, secretType, privateInputs, acl, extraData);
     }
 
     function _createBid(
@@ -268,7 +268,8 @@ contract ProofMarketplace is
         address payFrom,
         Enum.SecretType secretType,
         bytes calldata privateInputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extraData
     ) internal {
         if (bid.reward == 0 || bid.proverData.length == 0) {
             revert Error.CannotBeZero();
@@ -283,9 +284,6 @@ contract ProofMarketplace is
         }
 
         Struct.Market memory market = marketData[bid.marketId];
-        if (block.number < market.activationBlock) {
-            revert Error.InactiveMarket();
-        }
 
         uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
 
@@ -308,10 +306,10 @@ contract ProofMarketplace is
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit BidCreated(bidId, true, privateInputs, acl);
+            emit BidCreated(bidId, true, privateInputs, acl, extraData);
         } else {
             // ACL is not emitted if not private
-            emit BidCreated(bidId, false, "", "");
+            emit BidCreated(bidId, false, "", "", extraData);
         }
     }
 
@@ -333,16 +331,6 @@ contract ProofMarketplace is
     //-------------------------------- Bid end --------------------------------//
 
     //-------------------------------- Prover start --------------------------------//
-
-    /// @notice Set the reward share for a prover
-    function setProverRewardShare(uint256 _rewardShare) external {
-        require(_rewardShare <= 1e18, Error.InvalidProverRewardShare());
-
-        // TODO: replace with reward claiming address
-        proverRewardShares[_msgSender()] = _rewardShare;
-
-        emit ProverRewardShareSet(_msgSender(), _rewardShare);
-    }
 
     /**
      * @notice Submit Single Proof
@@ -386,7 +374,7 @@ contract ProofMarketplace is
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
@@ -462,7 +450,7 @@ contract ProofMarketplace is
         uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
 
         // transfer the amount to treasury collection
         PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
@@ -471,12 +459,13 @@ contract ProofMarketplace is
         emit InvalidInputsDetected(bidId);
     }
 
-    function _distributeProverFeeReward(address _prover, uint256 _feePaid)
+    function _distributeProverFeeReward(uint256 _marketId, address _prover, uint256 _feePaid)
         internal
         returns (uint256 feeRewardRemaining)
     {
         // calculate prover fee reward
-        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverRewardShares[_prover], 1e18);
+        uint256 proverCommission = PROVER_REGISTRY.getProverCommission(_marketId, _prover);
+        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward
