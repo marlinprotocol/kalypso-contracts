@@ -19,7 +19,7 @@ interface IStakingManager {
 
     event PoolEnabledSet(address indexed pool, bool enabled);
 
-    event PoolRewardShareSet(address[] indexed pools, uint256[] shares);
+    event PoolRewardShareSet(address indexed pool, uint256 share);
 
     /*===================================================== functions =====================================================*/
 

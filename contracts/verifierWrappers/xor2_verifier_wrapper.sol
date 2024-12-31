@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
-import "../interfaces/SetPmp.sol";
-import "../interfaces/IVerifier.sol";
+import {SetPmp} from "../interfaces/SetPmp.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";
 
 interface i_xor2_verifier {
     function verifyProof(uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[1] memory input) external view returns (bool);
@@ -25,7 +27,8 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
         Struct.Bid calldata bid,
         Enum.SecretType secretType,
         bytes calldata secret_inputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extra_data
     ) public {
         Struct.Bid memory newBid = Struct.Bid(
             bid.marketId,
@@ -37,7 +40,7 @@ contract xor2_verifier_wrapper is SetPmp, IVerifier {
             encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl));
+        proofMarketplace.createBid(newBid, secretType, abi.encode(secret_inputs), abi.encode(acl), extra_data);
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (uint[1] memory) {

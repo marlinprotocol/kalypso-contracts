@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
 library Error {
     // Administrative and Miscellaneous Errors
@@ -28,6 +28,7 @@ library Error {
     // Prover-related Errors
     error ProverAlreadyExists();
     error InvalidProver();
+    error InvalidProverCommission();
     error CannotLeaveWithActiveMarket();
     error AssignOnlyToIdleProvers();
     error InsufficientProverComputeAvailable();
@@ -69,7 +70,79 @@ library Error {
     error OnlyExpiredBidsCanBeCancelled(uint256 bidId);
     error OnlyAssignedBidsCanBeProved(uint256 bidId);
     error InvalidProof(uint256 bidId);
-    error ShouldBeInCrossedDeadlineState(uint256 bidId);
+    error DeadlineNotCrossed(uint256 bidId);
     error ShouldBeInAssignedState(uint256 bidId);
     error OnlyProverCanDiscardRequest(uint256 bidId);
+
+    // ProverRegistry
+    error ZeroProverDataLength();
+    error ZeroComputeToIncrease();
+    error ZeroComputeToReduce();
+    error ZeroRewardAddress();
+    error ZeroDeclaredCompute();
+    error ZeroNewRewardAddress();
+    error ProverNotRegistered();
+    
+    // ProofMarketplace
+    error InvalidProverRewardShare();
+    error NotSlashableBidId(uint256 bidId);
+
+    // Staking
+    error InsufficientStakeAmount();
+    error NoStakeTokenAvailableToLock();
+    error ZeroTokenAddress();
+    error ZeroToAddress();
+
+    // StakingManager
+    error InvalidPool();
+    error PoolAlreadyExists();
+    error InvalidLength();
+    error InvalidShares();
+    
+    // Symbiotic Staking
+    error InvalidSlashResultBlockRange();
+    error EndBlockBeforeStartBlock();
+    error NotRegisteredBlockNumber();
+    error NotRegisteredTransmitter();
+    error SubmissionAlreadyCompleted();
+    error InvalidIndex();
+    error ZeroNumOfTxs();
+    error InvalidCaptureTimestamp();
+    error CooldownPeriodNotPassed();
+    error NotIdxToSubmit();
+    error ImageNotFound();
+    error InvalidSignatureLength();
+    error EnclaveKeyMismatch();
+    error InvalidImage();
+    error InvalidPublicKeyLength();
+    error InvalidLastBlockNumber();
+    error ImageAlreadyExists();
+    error InvalidPCR0Length();
+    error InvalidPCR1Length();
+    error InvalidPCR2Length();
+    error ZeroStakeTokenSelectionWeightSum();
+    error NoStakeTokensAvailable();
+    error TokenAlreadyExists();
+    error TokenDoesNotExist();
+    error InvalidComissionRate();
+
+    // Native Staking
+    error OnlyProverCanStake();
+    error InsufficientStake();
+    error InvalidIndexLength();
+    error OnlyProverCanWithdrawStake();
+    error WithdrawalTimeNotReached();
+    error InvalidWithdrawalAmount();
+    error TokenNotSupported();
+    error InvalidWithdrawalDuration();
+
+    // SymbioticStakingReward
+    error OnlyStakingManager();
+    error ZeroProofMarketplaceAddress();
+    error ZeroSymbioticStakingAddress();
+
+    // Contract Address
+    error InvalidStakingManager();
+    error InvalidFeeToken();
+    error InvalidSymbioticStaking();
 }

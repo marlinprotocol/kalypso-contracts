@@ -3,42 +3,52 @@ import { ethers, upgrades } from "hardhat";
 import { Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
 import {
-  GeneratorRegistry,
+  ProverRegistry,
   IVerifier,
   IVerifier__factory,
   MockToken,
-  ProofMarketplace,
-  XorVerifier__factory,
-  Xor2_verifier_wrapper__factory,
   PriorityLog,
+  ProofMarketplace,
+  UltraVerifier__factory,
+  Plonk_verifier_wrapper__factory,
   Error,
   EntityKeyRegistry,
+  SymbioticStakingReward,
+  SymbioticStaking,
+  NativeStaking,
+  StakingManager,
 } from "../typechain-types";
 
 import {
-  GeneratorData,
+  ProverData,
   GodEnclavePCRS,
   MarketData,
   MockEnclave,
-  MockGeneratorPCRS,
+  MockProverPCRS,
   MockIVSPCRS,
   MockMEPCRS,
-  generatorDataToBytes,
+  proverDataToBytes,
   marketDataToBytes,
   setup,
   skipBlocks,
 } from "../helpers";
+import * as fs from "fs";
 
-import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.json";
-import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
+import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
+const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
 
-describe("Proof Market Place for Circom Verifier", () => {
+describe("Proof Market Place for Plonk Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let generatorRegistry: GeneratorRegistry;
+  let proverRegistry: ProverRegistry;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+
+  let stakingManager: StakingManager;
+  let nativeStaking: NativeStaking;
+  let symbioticStaking: SymbioticStaking;
+  let symbioticStakingReward: SymbioticStakingReward;
 
   let signers: Signer[];
   let admin: Signer;
@@ -51,25 +61,25 @@ describe("Proof Market Place for Circom Verifier", () => {
   let marketSetupData: MarketData;
   let marketId: string;
 
-  let generatorData: GeneratorData;
+  let proverData: ProverData;
 
   let iverifier: IVerifier;
 
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
-  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
+  const proverEnclave = new MockEnclave(MockProverPCRS);
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
   const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
-
-  const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
-  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
   const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
 
   const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
+
+  const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
+  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -81,7 +91,7 @@ describe("Proof Market Place for Circom Verifier", () => {
     generator = signers[5];
 
     marketSetupData = {
-      zkAppName: "circom addition",
+      zkAppName: "plonk verifier",
       proverCode: "url of the prover code",
       verifierCode: "url of the verifier code",
       proverOysterImage: "oyster image link for the prover",
@@ -89,25 +99,23 @@ describe("Proof Market Place for Circom Verifier", () => {
       inputOuputVerifierUrl: "this should be nclave url",
     };
 
-    generatorData = {
+    proverData = {
       name: "some custom name for the generator",
     };
 
-    const circomVerifier = await new XorVerifier__factory(admin).deploy();
+    const plonkVerifier = await new UltraVerifier__factory(admin).deploy();
     let abiCoder = new ethers.AbiCoder();
-    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
-    let proofBytes = abiCoder.encode(
-      ["uint[2]", "uint[2][2]", "uint[2]"],
-      [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
-    );
 
-    const circomVerifierWrapper = await new Xor2_verifier_wrapper__factory(admin).deploy(
-      await circomVerifier.getAddress(),
+    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
+    let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+
+    const plonkVerifierWrapper = await new Plonk_verifier_wrapper__factory(admin).deploy(
+      await plonkVerifier.getAddress(),
       inputBytes,
       proofBytes,
     );
 
-    iverifier = IVerifier__factory.connect(await circomVerifierWrapper.getAddress(), admin);
+    iverifier = IVerifier__factory.connect(await plonkVerifierWrapper.getAddress(), admin);
 
     let treasuryAddress = await treasury.getAddress();
     await treasury.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
@@ -125,58 +133,66 @@ describe("Proof Market Place for Circom Verifier", () => {
       marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
-      generatorDataToBytes(generatorData),
+      proverDataToBytes(proverData),
       ivsEnclave,
       matchingEngineEnclave,
-      generatorEnclave,
+      proverEnclave,
       minRewardByGenerator,
       generatorComputeAllocation,
       computeGivenToNewMarket,
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    generatorRegistry = data.generatorRegistry;
+    proverRegistry = data.proverRegistry;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
 
-    await circomVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
+    await plonkVerifierWrapper.setProofMarketplaceContract(await proofMarketplace.getAddress());
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
     let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
-  it("Check circom verifier", async () => {
+  it("Check plonk verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
-    let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
+    let inputBytes = abiCoder.encode(["bytes32[]"], [[plonkInputs]]);
     // console.log({ inputBytes });
     const latestBlock = await ethers.provider.getBlockNumber();
     let assignmentExpiry = 100; // in blocks
     let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
     let maxTimeForProofGeneration = 10000; // in blocks
 
-    const askId = await setup.createAsk(
+    const bidId = await setup.createBid(
       prover,
       tokenHolder,
       {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
+        expiry: assignmentExpiry + latestBlock.toString(),
+        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
+        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        proverRegistry,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
     );
@@ -187,19 +203,21 @@ describe("Proof Market Place for Circom Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        proverRegistry,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
-      askId,
+      bidId,
       generator,
     );
 
-    let proofBytes = abiCoder.encode(
-      ["uint[2]", "uint[2][2]", "uint[2]"],
-      [circom_verifier_proof[0], circom_verifier_proof[1], circom_verifier_proof[2]],
-    );
-    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
+    // console.log({ plonkProof });
+    let proofBytes = abiCoder.encode(["bytes"], [plonkProof]);
+    await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
   });
 });

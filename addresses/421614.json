@@ -24,6 +24,8 @@
     "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
     "generator_registry": "0xF800CA64CFdf47Efbc9b4c21F273A7B2ce7AaEB7",
     "proof_market_place": "0xceCd8A1a4f851fF96aD3Db9B789D6AE1077AA820"
-    
+  },
+  "wallet": {
+    "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"
   }
 }

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
 import {Enum} from "../lib/Enum.sol";
 
 interface IProofMarketplace {
-    function slashProver(uint256 bidId) external;
+    function refundFees(uint256[] calldata bidIds) external;
 
     //-------------------------------- Events start --------------------------------//
 
-    event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl);
+    event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl, bytes extra_data);
     event TaskCreated(uint256 indexed bidId, address indexed prover, bytes new_acl);
     event ProofCreated(uint256 indexed bidId, bytes proof);
     event ProofNotGenerated(uint256 indexed bidId);

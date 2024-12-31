@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
 contract IProverRegistry {
     //-------------------------------- Events end --------------------------------//
@@ -8,9 +8,9 @@ contract IProverRegistry {
     event ProverRegistered(address indexed prover, uint256 initialCompute);
     event ProverDeregistered(address indexed prover);
 
-    event ProverRewardAddressChanged(address indexed prover, address newRewardAddress);
+    event ProverRewardAddressChanged(address indexed prover, address indexed newRewardAddress);
 
-    event ProverJoinedMarketplace(address indexed prover, uint256 indexed marketId, uint256 computeAllocation);
+    event ProverJoinedMarketplace(address indexed prover, uint256 indexed marketId, uint256 computeAllocation, uint256 commission);
     event ProverRequestedMarketplaceExit(address indexed prover, uint256 indexed marketId);
     event ProverLeftMarketplace(address indexed prover, uint256 indexed marketId);
 

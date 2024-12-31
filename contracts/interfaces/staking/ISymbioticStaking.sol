@@ -12,26 +12,17 @@ interface ISymbioticStaking is IStakingPool {
     event VaultSnapshotSubmitted(
         address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes vaultSnapshotData, bytes proof
     );
-
     event SlashResultSubmitted(
         address indexed transmitter, uint256 indexed captureTimestamp, uint256 index, uint256 numOfTxs, bytes32 indexed imageId, bytes slashResultData, bytes proof
     );
-
-    event SnapshotConfirmed(address indexed transmitter, uint256 confirmedTimestamp);
-
+    event SnapshotConfirmed(address indexed transmitter, uint256 indexed confirmedTimestamp);
     event SubmissionCooldownSet(uint256 cooldown);
-
     event BaseTransmitterComissionRateSet(uint256 rate);
-
-    event ProofMarketplaceSet(address proofMarketplace);
-
-    event RewardDistributorSet(address rewardDistributor);
-
+    event ProofMarketplaceSet(address indexed proofMarketplace);
+    event RewardDistributorSet(address indexed rewardDistributor);
     event EnclaveImageAdded(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
-
     event EnclaveImageRemoved(bytes32 indexed imageId);
-
-    event AttestationVerifierSet(address attestationVerifier);
+    event AttestationVerifierSet(address indexed attestationVerifier);
 
     /*===================================================== functions =====================================================*/
 
@@ -48,6 +39,7 @@ interface ISymbioticStaking is IStakingPool {
         uint256 index,
         uint256 numOfTxs, // number of total transactions
         uint256 captureTimestamp,
+        uint256 lastBlockNumber,
         bytes32 imageId,
         bytes calldata slashResultData,
         bytes calldata proof
@@ -57,9 +49,7 @@ interface ISymbioticStaking is IStakingPool {
 
     function txCountInfo(uint256 captureTimestamp, bytes32 _txType) external view returns (uint256 idxToSubmit, uint256 numOfTxs);
 
-    function registeredTransmitters(uint256 captureTimestamp) external view returns (address);
-
-    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (Enum.SubmissionStatus);
+    function getSubmissionStatus(uint256 captureTimestamp, address transmitter) external view returns (bytes32);
 
     function confirmedTimestampInfo(uint256 idx) external view returns (Struct.ConfirmedTimestamp memory);
 

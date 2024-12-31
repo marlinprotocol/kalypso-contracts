@@ -22,7 +22,7 @@ interface ISymbioticStakingReward {
 
     event RewardAccrued(address indexed rewardToken, address indexed vault, uint256 amount);
 
-    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed prover, uint256 rewardPerTokenStoredUpdated, uint256 rewardPerTokenAdded);
+    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed prover, uint256 rewardPerTokenStoredUpdated);
 
     /*===================================================== functions =====================================================*/
 

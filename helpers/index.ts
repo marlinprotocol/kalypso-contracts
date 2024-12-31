@@ -1,9 +1,14 @@
-import { randomBytes } from "crypto";
-import * as fs from "fs";
-import { ethers } from "hardhat";
-import { PrivateKey } from "eciesjs";
-import { AddressLike, BigNumberish, BytesLike, Signer, SigningKey } from "ethers";
-import BigNumber from "bignumber.js";
+import BigNumber from 'bignumber.js';
+import { randomBytes } from 'crypto';
+import { PrivateKey } from 'eciesjs';
+import {
+  AddressLike,
+  BigNumberish,
+  BytesLike,
+  SigningKey,
+} from 'ethers';
+import * as fs from 'fs';
+import { ethers } from 'hardhat';
 
 export * as secret_operations from "./secretInputOperation";
 
@@ -32,8 +37,8 @@ export interface MarketData {
   inputOuputVerifierUrl: string;
 }
 
-// TODO: Update Generator Data
-export interface GeneratorData {
+// TODO: Update Prover Data
+export interface ProverData {
   name: string; // some field for him to be identified on chain
 }
 
@@ -50,11 +55,11 @@ export function hexStringToMarketData(hexString: string): MarketData {
   return JSON.parse(data) as MarketData;
 }
 
-export function generatorDataToBytes(generatorData: GeneratorData): string {
-  return jsonToBytes(generatorData);
+export function proverDataToBytes(proverData: ProverData): string {
+  return jsonToBytes(proverData);
 }
 
-export function hexStringToGeneratorData(hexString: string): GeneratorData {
+export function hexStringToProverData(hexString: string): ProverData {
   return hexStringToJson(hexString);
 }
 
@@ -290,8 +295,8 @@ export class MockEnclave {
   }
 
   public async signMessageWithoutPrefix(ethHash: BytesLike): Promise<string> {
-    const generatorEnclaveSigningKey = new SigningKey(this.getPrivateKey(true));
-    const signature = generatorEnclaveSigningKey.sign(ethHash).serialized;
+    const proverEnclaveSigningKey = new SigningKey(this.getPrivateKey(true));
+    const signature = proverEnclaveSigningKey.sign(ethHash).serialized;
     return signature;
   }
 
@@ -378,7 +383,7 @@ export const MockMEPCRS: [BytesLike, BytesLike, BytesLike] = [
   "0x" + "00".repeat(47) + "12",
   "0x" + "00".repeat(47) + "13",
 ];
-export const MockGeneratorPCRS: [BytesLike, BytesLike, BytesLike] = [
+export const MockProverPCRS: [BytesLike, BytesLike, BytesLike] = [
   "0x" + "00".repeat(47) + "21",
   "0x" + "00".repeat(47) + "32",
   "0x" + "00".repeat(47) + "43",
@@ -390,7 +395,7 @@ export const GodEnclavePCRS: [BytesLike, BytesLike, BytesLike] = [
   "0x" + "00".repeat(47) + "93",
 ];
 
-export function generatorFamilyId(marketId: BigNumberish): BytesLike {
+export function proverFamilyId(marketId: BigNumberish): BytesLike {
   let abicode = new ethers.AbiCoder();
   let encoded = abicode.encode(["string", "uint256"], ["gen", marketId]);
   let digest = ethers.keccak256(encoded);

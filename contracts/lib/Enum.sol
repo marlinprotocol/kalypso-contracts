@@ -5,10 +5,10 @@ library Enum {
     /* ProofMarketplace */
     enum BidState {
         NULL,
-        CREATE,
+        CREATED,
         UNASSIGNED,
         ASSIGNED,
-        COMPLETE,
+        COMPLETED,
         DEADLINE_CROSSED
     }
 
@@ -27,12 +27,6 @@ library Enum {
         REQUESTED_FOR_EXIT
     }
 
-    /* Symbiotic Staking */
-    enum SubmissionStatus {
-        NONE,
-        STAKE_SNAPSHOT_DONE,
-        COMPLETE
-    }
 
     /* Priority Log */
     enum Priority {

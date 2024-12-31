@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "../EntityKeyRegistry.sol";
-import "./Error.sol";
-import "./Helper.sol";
+import {EntityKeyRegistry} from "../EntityKeyRegistry.sol";
+import {Error} from "./Error.sol";
+import {HELPER} from "./Helper.sol";
 
 contract Dispute {
     using HELPER for bytes;
