@@ -37,8 +37,6 @@ contract NativeStaking is
     address public rewardDistributor;
     address public feeRewardToken;
 
-    // gaps in case we new vars in same file
-
     /* Config */
     uint256 public withdrawalDuration;
     uint256 public stakeTokenSelectionWeightSum;
@@ -324,6 +322,7 @@ contract NativeStaking is
 
     function removeStakeToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.remove(_token), Error.TokenDoesNotExist());
+        stakeTokenSelectionWeightSum -= stakeTokenSelectionWeight[_token];
         delete stakeTokenSelectionWeight[_token];
         emit StakeTokenRemoved(_token);
     }

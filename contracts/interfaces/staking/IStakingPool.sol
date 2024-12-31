@@ -16,13 +16,13 @@ interface IStakingPool {
     
     /* Stake Token */
 
-    event StakeTokenAdded(address indexed token, uint256 indexed weight);
+    event StakeTokenAdded(address indexed token, uint256 weight);
 
     event StakeTokenRemoved(address indexed token);
 
-    event StakeTokenSelectionWeightSet(address indexed token, uint256 indexed weight);
+    event StakeTokenSelectionWeightSet(address indexed token, uint256 weight);
 
-    event AmountToLockSet(address indexed token, uint256 indexed amount);
+    event AmountToLockSet(address indexed token, uint256 amount);
 
     /* Contracts Set */
 

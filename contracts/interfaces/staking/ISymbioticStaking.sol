@@ -18,11 +18,11 @@ interface ISymbioticStaking is IStakingPool {
     event SnapshotConfirmed(address indexed transmitter, uint256 indexed confirmedTimestamp);
     event SubmissionCooldownSet(uint256 cooldown);
     event BaseTransmitterComissionRateSet(uint256 rate);
-    event ProofMarketplaceSet(address proofMarketplace);
-    event RewardDistributorSet(address rewardDistributor);
+    event ProofMarketplaceSet(address indexed proofMarketplace);
+    event RewardDistributorSet(address indexed rewardDistributor);
     event EnclaveImageAdded(bytes32 indexed imageId, bytes PCR0, bytes PCR1, bytes PCR2);
     event EnclaveImageRemoved(bytes32 indexed imageId);
-    event AttestationVerifierSet(address attestationVerifier);
+    event AttestationVerifierSet(address indexed attestationVerifier);
 
     /*===================================================== functions =====================================================*/
 
