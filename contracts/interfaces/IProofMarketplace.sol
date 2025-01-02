@@ -7,7 +7,16 @@ import {Enum} from "../lib/Enum.sol";
 interface IProofMarketplace {
     function refundFees(uint256[] calldata bidIds) external;
 
+
     //-------------------------------- Events start --------------------------------//
+
+    /* setter */
+    event MarketCreationCostSet(uint256 marketCreationCost);
+    event PaymentTokenSet(address indexed paymentToken);
+    event TreasurySet(address indexed treasury);
+    event ProverRegistrySet(address indexed proverRegistry);
+    event EntityKeyRegistrySet(address indexed entityRegistry);
+
 
     event BidCreated(uint256 indexed bidId, bool indexed hasPrivateInputs, bytes secret_data, bytes acl, bytes extra_data);
     event TaskCreated(uint256 indexed bidId, address indexed prover, bytes new_acl);
