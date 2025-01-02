@@ -9,7 +9,6 @@ library Struct {
     struct Market {
         address verifier; // verifier address for the market place
         bytes32 proverImageId; // use bytes32(0) for public market
-        uint256 slashingPenalty;
         bytes32 ivsImageId;
         address creator;
         bytes marketmetadata;

@@ -18,13 +18,7 @@ import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
 import {IProverRegistry} from "./interfaces/IProverRegistry.sol";
 
-contract ProverRegistry is
-    AccessControlUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IProverRegistry
-{
-
+contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, IProverRegistry {
     using HELPER for bytes;
     using HELPER for bytes32;
     using HELPER for uint256;
@@ -43,7 +37,7 @@ contract ProverRegistry is
     //-------------------------------- Constants and Immutable start --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
-   
+
     address public proofMarketplace;
     address public stakingManager;
     address public entityKeyRegistry;
@@ -51,10 +45,9 @@ contract ProverRegistry is
     mapping(address => Struct.Prover) public proverRegistry;
     mapping(address => mapping(uint256 => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
     mapping(address => uint256) reduceComputeRequestBlock;
-    
+
     // in case we add more contracts in the inheritance chain
     uint256[500] private __gap_0;
-
 
     //-------------------------------- State variables end --------------------------------//
 
@@ -89,11 +82,7 @@ contract ProverRegistry is
     /**
      * @notice Register Prover
      */
-    function register(
-        address rewardAddress,
-        uint256 declaredCompute,
-        bytes memory proverData
-    ) external nonReentrant {
+    function register(address rewardAddress, uint256 declaredCompute, bytes memory proverData) external nonReentrant {
         address _proverAddress = _msgSender();
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
@@ -102,15 +91,7 @@ contract ProverRegistry is
         // prevents registering multiple times, unless deregistered
         require(prover.rewardAddress == address(0), Error.ProverAlreadyExists());
 
-        proverRegistry[_proverAddress] = Struct.Prover(
-            rewardAddress,
-            0,
-            0,
-            0,
-            declaredCompute,
-            EXPONENT,
-            proverData
-        );
+        proverRegistry[_proverAddress] = Struct.Prover(rewardAddress, 0, 0, 0, declaredCompute, EXPONENT, proverData);
 
         emit ProverRegistered(_proverAddress, declaredCompute);
     }
@@ -229,7 +210,6 @@ contract ProverRegistry is
             revert Error.ReductionRequestNotValid();
         }
 
-
         delete reduceComputeRequestBlock[_proverAddress];
         emit ComputeDecreased(_proverAddress, computeToRelease);
     }
@@ -284,12 +264,7 @@ contract ProverRegistry is
 
         // update market specific info for the prover
         proverInfoPerMarket[proverAddress][_marketId] = Struct.ProverInfoPerMarket(
-            Enum.ProverState.JOINED,
-            _computePerRequestRequired,
-            _commission,
-            _proofGenerationCost,
-            _proposedTime,
-            0
+            Enum.ProverState.JOINED, _computePerRequestRequired, _commission, _proofGenerationCost, _proposedTime, 0
         );
 
         if (_updateMarketDedicatedKey) {
@@ -302,11 +277,10 @@ contract ProverRegistry is
     // TODO: Add methods to update prover commission for a market
 
     function _readMarketData(uint256 _marketId) internal view returns (address, bytes32) {
-        (address _verifier, bytes32 proverImageId, , , , ) = ProofMarketplace(proofMarketplace).marketData(_marketId);
+        (address _verifier, bytes32 proverImageId,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
 
         return (_verifier, proverImageId);
     }
-
 
     function leaveMarketplaces(uint256[] calldata marketIds) external {
         for (uint256 index = 0; index < marketIds.length; index++) {
@@ -319,17 +293,18 @@ contract ProverRegistry is
         // proverAddress = _msgSender();
         _leaveMarketplace(_msgSender(), marketId);
     }
+
     function getProverCommission(uint256 marketId, address proverAddress) public view returns (uint256) {
         return proverInfoPerMarket[proverAddress][marketId].commission;
     }
 
     function _leaveMarketplace(address _proverAddress, uint256 _marketId) internal {
-        (address marketVerifier,,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
+        (address marketVerifier,,,,) = ProofMarketplace(proofMarketplace).marketData(_marketId);
 
         require(marketVerifier != address(0), Error.InvalidMarket());
 
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
-        
+
         require(info.state != Enum.ProverState.NULL, Error.InvalidProverStatePerMarket());
 
         // check if there is any active requests
@@ -397,7 +372,7 @@ contract ProverRegistry is
 
         // only for knowing if the given market is private or public
         (, bytes32 proverImageId) = _readMarketData(_marketId);
-        
+
         require(proverImageId.IS_ENCLAVE(), Error.PublicMarketsDontNeedKey());
 
         require(
@@ -450,7 +425,10 @@ contract ProverRegistry is
     /**
      * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when provers is about to be slashed
      */
-    function releaseProverCompute(address _proverAddress, uint256 _marketId) external onlyRole(PROOF_MARKET_PLACE_ROLE) {
+    function releaseProverCompute(address _proverAddress, uint256 _marketId)
+        external
+        onlyRole(PROOF_MARKET_PLACE_ROLE)
+    {
         (Enum.ProverState state,) = getProverState(_proverAddress, _marketId);
 
         // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
@@ -522,7 +500,11 @@ contract ProverRegistry is
 
     //-------------------------------- Getters start --------------------------------//
 
-    function getProverState(address _proverAddress, uint256 _marketId) public view returns (Enum.ProverState, uint256) {
+    function getProverState(address _proverAddress, uint256 _marketId)
+        public
+        view
+        returns (Enum.ProverState, uint256)
+    {
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
@@ -572,7 +554,11 @@ contract ProverRegistry is
         return (info.proofGenerationCost, info.proposedTime);
     }
 
-    function getProverRewardDetails(address _proverAddress, uint256 _marketId) external view returns (address, uint256) {
+    function getProverRewardDetails(address _proverAddress, uint256 _marketId)
+        external
+        view
+        returns (address, uint256)
+    {
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
@@ -587,7 +573,7 @@ contract ProverRegistry is
         return super.supportsInterface(_interfaceId);
     }
 
-    function _authorizeUpgrade(address /*account*/) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     //-------------------------------- Overrides end --------------------------------//
 }

@@ -102,7 +102,7 @@ contract ProofMarketplace is
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
 
         // push empty data for market id 0 so first market id starts with 1
-        marketData.push(Struct.Market(address(0), bytes32(0), 0, 0, address(0), bytes("")));
+        marketData.push(Struct.Market(address(0), bytes32(0), 0, address(0), bytes("")));
     }
 
     //-------------------------------- Init end --------------------------------//
@@ -115,12 +115,11 @@ contract ProofMarketplace is
     function createMarket(
         bytes calldata _marketmetadata,
         address _verifier,
-        uint256 _penalty,
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
         address msgSender = _msgSender();
-        // Note: _penalty can be set to 0, allowing operators to submit invalid proofs without consequences.
+        // Note: StakeToken to be locked per task will be set in NativeStaking and SymbioticStaking as of now
         if (_marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
@@ -144,7 +143,6 @@ contract ProofMarketplace is
             Struct.Market(
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
-                _penalty,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 msgSender,
                 _marketmetadata
@@ -227,6 +225,7 @@ contract ProofMarketplace is
     /**
      * @notice Once called new images can't be added to market
      */
+    // TODO: change the name
     function freezeMarket(uint256 marketId) external {
         Struct.Market memory market = marketData[marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
@@ -260,7 +259,7 @@ contract ProofMarketplace is
         bytes calldata acl,
         bytes calldata extraData
     ) external whenNotPaused nonReentrant {
-        _createBid(bid, msg.sender, secretType, privateInputs, acl, extraData);
+        _createBid(bid, _msgSender(), secretType, privateInputs, acl, extraData);
     }
 
     function _createBid(
@@ -271,38 +270,28 @@ contract ProofMarketplace is
         bytes calldata acl,
         bytes calldata extraData
     ) internal {
-        if (bid.reward == 0 || bid.proverData.length == 0) {
-            revert Error.CannotBeZero();
-        }
-        if (bid.expiry <= block.number + minProvingTime[secretType]) {
-            revert Error.CannotAssignExpiredTasks();
-        }
+        require (bid.reward != 0 && bid.proverData.length != 0, Error.CannotBeZero());
+
+        require (bid.expiry > block.number + minProvingTime[secretType], Error.CannotAssignExpiredTasks());
 
         // ensures that the cipher used is small enough
-        if (acl.length > 130) {
-            revert Error.InvalidECIESACL();
-        }
+        require (acl.length <= 130, Error.InvalidECIESACL());
 
         Struct.Market memory market = marketData[bid.marketId];
+        require (market.marketmetadata.length > 0, Error.InvalidMarket());
 
         uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
 
         PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), bid.reward + platformFee);
         PAYMENT_TOKEN.safeTransfer(TREASURY, platformFee);
 
-        if (market.marketmetadata.length == 0) {
-            revert Error.InvalidMarket();
-        }
 
         uint256 bidId = listOfBid.length;
-        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATED, msg.sender, address(0));
+        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATED, _msgSender(), address(0));
         listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
-
-        if (!inputVerifier.verifyInputs(bid.proverData)) {
-            revert Error.InvalidInputs();
-        }
+        require (inputVerifier.verifyInputs(bid.proverData), Error.InvalidInputs());
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
@@ -343,9 +332,8 @@ contract ProofMarketplace is
      * @notice Submit Multiple proofs in single transaction
      */
     function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        if (taskIds.length != proofs.length) {
-            revert Error.ArityMismatch();
-        }
+        require (taskIds.length == proofs.length, Error.ArityMismatch());
+
         for (uint256 index = 0; index < taskIds.length; index++) {
             _submitProof(taskIds[index], proofs[index]);
         }
@@ -379,8 +367,6 @@ contract ProofMarketplace is
         // fraction of amount back to requestor
         PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
-        // TODO: consider setting slashingPenalty per market
-        // uint256 proverAmountToRelease = _slashingPenalty(marketId);
         PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit ProofCreated(bidId, proof);
     }
@@ -524,10 +510,6 @@ contract ProofMarketplace is
         }
     }
 
-    function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
-        return marketData[marketId].slashingPenalty;
-    }
-
     //-------------------------------- Slashing end --------------------------------//
 
     //-------------------------------- Matching Engine start --------------------------------//
@@ -575,9 +557,7 @@ contract ProofMarketplace is
         bytes[] calldata newAcls,
         bytes calldata signature
     ) external nonReentrant {
-        if (bidIds.length != provers.length || provers.length != newAcls.length) {
-            revert Error.ArityMismatch();
-        }
+        require ((bidIds.length == provers.length) && (provers.length == newAcls.length), Error.ArityMismatch());
 
         bytes32 messageHash = keccak256(abi.encode(bidIds, provers, newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
