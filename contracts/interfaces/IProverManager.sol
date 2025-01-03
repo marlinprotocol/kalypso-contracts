@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.26;
 
-contract IProverRegistry {
+contract IProverManager {
     //-------------------------------- Events end --------------------------------//
 
     event ProverRegistered(address indexed prover, uint256 initialCompute);

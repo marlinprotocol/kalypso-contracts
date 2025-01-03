@@ -74,7 +74,7 @@ library Error {
     error ShouldBeInAssignedState(uint256 bidId);
     error OnlyProverCanDiscardRequest(uint256 bidId);
 
-    // ProverRegistry
+    // ProverManager
     error ZeroProverDataLength();
     error ZeroComputeToIncrease();
     error ZeroComputeToReduce();

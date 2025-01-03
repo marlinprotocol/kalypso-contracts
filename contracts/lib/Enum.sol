@@ -18,7 +18,7 @@ library Enum {
         EXTERNAL
     }
 
-    /* ProverRegistry */
+    /* ProverManager */
     enum ProverState {
         NULL,
         JOINED,

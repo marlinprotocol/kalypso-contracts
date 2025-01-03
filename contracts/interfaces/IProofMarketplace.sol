@@ -14,7 +14,7 @@ interface IProofMarketplace {
     event MarketCreationCostSet(uint256 marketCreationCost);
     event PaymentTokenSet(address indexed paymentToken);
     event TreasurySet(address indexed treasury);
-    event ProverRegistrySet(address indexed proverRegistry);
+    event ProverManagerSet(address indexed proverManager);
     event EntityKeyRegistrySet(address indexed entityRegistry);
 
 

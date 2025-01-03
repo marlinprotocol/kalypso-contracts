@@ -13,7 +13,7 @@ import {WETH} from "./mocks/WETH.sol";
 import {AttestationVerifier} from "../../contracts/periphery/AttestationVerifier.sol";
 import {ProofMarketplace} from "../../contracts/ProofMarketplace.sol";
 import {EntityKeyRegistry} from "../../contracts/EntityKeyRegistry.sol";
-import {ProverRegistry} from "../../contracts/ProverRegistry.sol";
+import {ProverManager} from "../../contracts/ProverManager.sol";
 import {StakingManager} from "../../contracts/staking/l2_contracts/StakingManager.sol";
 import {NativeStaking} from "../../contracts/staking/l2_contracts/NativeStaking.sol";
 import {SymbioticStaking} from "../../contracts/staking/l2_contracts/SymbioticStaking.sol";
@@ -49,7 +49,7 @@ contract DeployArbitrumSepolia is Script {
     // address attestationVerifierImpl;
     address proofMarketplaceImpl;
     address entityKeyRegistryImpl;
-    address proverRegistryImpl;
+    address proverManagerImpl;
     address stakingManagerImpl;
     address nativeStakingImpl;
     address symbioticStakingImpl;
@@ -59,7 +59,7 @@ contract DeployArbitrumSepolia is Script {
     // address attestationVerifier;
     address proofMarketplace;
     address entityKeyRegistry;
-    address proverRegistry;
+    address proverManager;
     address stakingManager;
     address nativeStaking;
     address symbioticStaking;
@@ -109,9 +109,9 @@ contract DeployArbitrumSepolia is Script {
         entityKeyRegistryImpl = address(new EntityKeyRegistry(AttestationVerifier(ATTESTATION_VERIFIER)));
         entityKeyRegistry = address(new ERC1967Proxy(entityKeyRegistryImpl, ""));
 
-        // ProverRegistry
-        proverRegistryImpl = address(new ProverRegistry(EntityKeyRegistry(entityKeyRegistry)));
-        proverRegistry = address(new ERC1967Proxy(proverRegistryImpl, ""));
+        // ProverManager
+        proverManagerImpl = address(new ProverManager(EntityKeyRegistry(entityKeyRegistry)));
+        proverManager = address(new ERC1967Proxy(proverManagerImpl, ""));
 
         // ProofMarketplace
         proofMarketplaceImpl = address(
@@ -119,7 +119,7 @@ contract DeployArbitrumSepolia is Script {
                 IERC20(usdc),
                 100 ether,
                 admin,
-                ProverRegistry(proverRegistry),
+                ProverManager(proverManager),
                 EntityKeyRegistry(entityKeyRegistry)
             )
         );
@@ -137,8 +137,8 @@ contract DeployArbitrumSepolia is Script {
         EntityKeyRegistry.EnclaveImage[] memory initWhitelistImages;
         EntityKeyRegistry(address(entityKeyRegistry)).initialize(admin, initWhitelistImages);
 
-        // ProverRegistry
-        ProverRegistry(address(proverRegistry)).initialize(admin, proofMarketplace, stakingManager);
+        // ProverManager
+        ProverManager(address(proverManager)).initialize(admin, proofMarketplace, stakingManager);
 
         // StakingManager
         StakingManager(address(stakingManager)).initialize(
@@ -165,12 +165,12 @@ contract DeployArbitrumSepolia is Script {
 
         // Grant `PROVER_REGISTRY_ROLE` to StakingManager
         StakingManager(address(stakingManager)).grantRole(
-            StakingManager(address(stakingManager)).PROVER_REGISTRY_ROLE(), address(proverRegistry)
+            StakingManager(address(stakingManager)).PROVER_REGISTRY_ROLE(), address(proverManager)
         );
 
-        // Grant `KEY_REGISTER_ROLE` to ProverRegistry, ProofMarketplace
+        // Grant `KEY_REGISTER_ROLE` to ProverManager, ProofMarketplace
         bytes32 register_role = EntityKeyRegistry(address(entityKeyRegistry)).KEY_REGISTER_ROLE();
-        EntityKeyRegistry(address(entityKeyRegistry)).grantRole(register_role, address(proverRegistry));
+        EntityKeyRegistry(address(entityKeyRegistry)).grantRole(register_role, address(proverManager));
         EntityKeyRegistry(address(entityKeyRegistry)).grantRole(register_role, address(proofMarketplace));
 
         // Grant `UPDATER_ROLE` to admin
@@ -228,7 +228,7 @@ contract DeployArbitrumSepolia is Script {
         console.log("< Impls Deployed >\n");
         // console.log("attestationVerifierImpl: \t", address(attestationVerifierImpl));
         console.log("entityKeyRegistryImpl: \t", address(entityKeyRegistryImpl));
-        console.log("proverRegistryImpl: \t", address(proverRegistryImpl));
+        console.log("proverManagerImpl: \t", address(proverManagerImpl));
         console.log("stakingManagerImpl: \t\t", address(stakingManagerImpl));
         console.log("nativeStakingImpl: \t\t", address(nativeStakingImpl));
         console.log("symbioticStakingImpl: \t", address(symbioticStakingImpl));
@@ -240,7 +240,7 @@ contract DeployArbitrumSepolia is Script {
         console.log("proofMarketplace: \t\t", address(proofMarketplace));
         // console.log("attestationVerifier: \t\t", address(attestationVerifier));
         console.log("entityKeyRegistry: \t\t", address(entityKeyRegistry));
-        console.log("proverRegistry: \t\t", address(proverRegistry));
+        console.log("proverManager: \t\t", address(proverManager));
         console.log("stakingManager: \t\t", address(stakingManager));
         console.log("nativeStaking: \t\t", address(nativeStaking));
         console.log("symbioticStaking: \t\t", address(symbioticStaking));

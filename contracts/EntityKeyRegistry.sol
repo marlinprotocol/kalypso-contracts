@@ -69,8 +69,8 @@ contract EntityKeyRegistry is
         __AttestationAuther_init_unchained(initWhitelistImages);
     }
 
-    function addProverRegistry(address _proverRegistry) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _grantRole(KEY_REGISTER_ROLE, _proverRegistry);
+    function addProverManager(address _proverManager) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _grantRole(KEY_REGISTER_ROLE, _proverManager);
     }
 
     /**

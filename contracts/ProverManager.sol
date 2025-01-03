@@ -16,9 +16,9 @@ import {HELPER} from "./lib/Helper.sol";
 import {ProofMarketplace} from "./ProofMarketplace.sol";
 import {IStakingManager} from "./interfaces/staking/IStakingManager.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
-import {IProverRegistry} from "./interfaces/IProverRegistry.sol";
+import {IProverManager} from "./interfaces/IProverManager.sol";
 
-contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, IProverRegistry {
+contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, IProverManager {
     using HELPER for bytes;
     using HELPER for bytes32;
     using HELPER for uint256;
@@ -42,7 +42,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     address public stakingManager;
     address public entityKeyRegistry;
 
-    mapping(address => Struct.Prover) public proverRegistry;
+    mapping(address => Struct.Prover) public proverManager;
     mapping(address => mapping(uint256 => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
     mapping(address => uint256) reduceComputeRequestBlock;
 
@@ -84,14 +84,14 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
      */
     function register(address rewardAddress, uint256 declaredCompute, bytes memory proverData) external nonReentrant {
         address _proverAddress = _msgSender();
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         require(proverData.length != 0 && rewardAddress != address(0) && declaredCompute != 0, Error.CannotBeZero());
 
         // prevents registering multiple times, unless deregistered
         require(prover.rewardAddress == address(0), Error.ProverAlreadyExists());
 
-        proverRegistry[_proverAddress] = Struct.Prover(rewardAddress, 0, 0, 0, declaredCompute, EXPONENT, proverData);
+        proverManager[_proverAddress] = Struct.Prover(rewardAddress, 0, 0, 0, declaredCompute, EXPONENT, proverData);
 
         emit ProverRegistered(_proverAddress, declaredCompute);
     }
@@ -101,11 +101,11 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
      */
     function deregister() external nonReentrant {
         address _proverAddress = _msgSender();
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         require(prover.sumOfComputeAllocations == 0, Error.CannotLeaveWithActiveMarket());
 
-        delete proverRegistry[_proverAddress];
+        delete proverManager[_proverAddress];
 
         emit ProverDeregistered(_proverAddress);
     }
@@ -117,7 +117,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         require(_newRewardAddress != address(0), Error.ZeroNewRewardAddress());
 
         address _proverAddress = _msgSender();
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
         require(prover.rewardAddress != address(0), Error.ProverNotRegistered());
 
         prover.rewardAddress = _newRewardAddress;
@@ -132,7 +132,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         require(_computeToIncrease != 0, Error.ZeroComputeToIncrease());
 
         address _proverAddress = _msgSender();
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
         require(prover.rewardAddress != address(0) && prover.proverData.length != 0, Error.ProverNotRegistered());
 
         prover.declaredCompute += _computeToIncrease;
@@ -148,7 +148,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         require(_computeToReduce != 0, Error.ZeroComputeToReduce());
 
         address _proverAddress = _msgSender();
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
 
         require(prover.rewardAddress != address(0) && prover.proverData.length != 0, Error.ProverNotRegistered());
 
@@ -179,7 +179,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     function decreaseDeclaredCompute() external {
         address _proverAddress = _msgSender();
 
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
 
         require(prover.proverData.length != 0 && prover.rewardAddress != address(0), Error.InvalidProver());
 
@@ -230,7 +230,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     ) external {
         address proverAddress = _msgSender();
 
-        Struct.Prover storage prover = proverRegistry[proverAddress];
+        Struct.Prover storage prover = proverManager[proverAddress];
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[proverAddress][_marketId];
 
         // proof generation time can't be zero.
@@ -310,7 +310,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         // check if there is any active requests
         require(info.activeRequests == 0, Error.CannotLeaveMarketWithActiveRequest());
 
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
 
         prover.sumOfComputeAllocations -= info.computePerRequestRequired;
         prover.activeMarketplaces -= 1;
@@ -365,7 +365,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         bytes memory _attestationData,
         bytes calldata _enclaveSignature
     ) internal {
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         // just an extra check to prevent spam
         require(prover.rewardAddress != address(0), Error.CannotBeZero());
@@ -437,7 +437,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
             revert Error.CannotBeSlashed();
         }
 
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
         Struct.ProverInfoPerMarket storage info = proverInfoPerMarket[_proverAddress][_marketId];
 
         info.activeRequests--;
@@ -457,7 +457,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
             revert Error.AssignOnlyToIdleProvers();
         }
 
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
         Struct.ProverInfoPerMarket storage info = proverInfoPerMarket[_proverAddress][_marketId];
 
         require(info.computePerRequestRequired <= idleCapacity, Error.InsufficientProverComputeAvailable());
@@ -484,7 +484,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
             revert Error.OnlyWorkingProvers();
         }
 
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
+        Struct.Prover storage prover = proverManager[_proverAddress];
         Struct.ProverInfoPerMarket storage info = proverInfoPerMarket[_proverAddress][_marketId];
 
         uint256 computeReleased = info.computePerRequestRequired;
@@ -506,7 +506,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         returns (Enum.ProverState, uint256)
     {
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         if (info.state == Enum.ProverState.NULL) {
             return (Enum.ProverState.NULL, 0);
@@ -533,7 +533,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     }
 
     function _maxReducableCompute(address _proverAddress) internal view returns (uint256) {
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         uint256 maxUsableCompute = (prover.declaredCompute * prover.intendedComputeUtilization) / EXPONENT;
 
@@ -560,7 +560,7 @@ contract ProverRegistry is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         returns (address, uint256)
     {
         Struct.ProverInfoPerMarket memory info = proverInfoPerMarket[_proverAddress][_marketId];
-        Struct.Prover memory prover = proverRegistry[_proverAddress];
+        Struct.Prover memory prover = proverManager[_proverAddress];
 
         return (prover.rewardAddress, info.proofGenerationCost);
     }

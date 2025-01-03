@@ -8,7 +8,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {EntityKeyRegistry} from "./EntityKeyRegistry.sol";
-import {ProverRegistry} from "./ProverRegistry.sol";
+import {ProverManager} from "./ProverManager.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IProofMarketplace} from "./interfaces/IProofMarketplace.sol";
@@ -57,7 +57,7 @@ contract ProofMarketplace is
     uint256 public marketCreationCost;
     address public paymentToken;
     address public treasury;
-    address public proverRegistry;
+    address public proverManager;
     address public entityKeyRegistry;
 
     // cost for inputs in payment token
@@ -81,7 +81,7 @@ contract ProofMarketplace is
         address _admin,
         address _paymentToken,
         address _treasury,
-        address _proverRegistry,
+        address _proverManager,
         address _entityKeyRegistry,
         uint256 _marketCreationCost
     ) external initializer {
@@ -100,8 +100,8 @@ contract ProofMarketplace is
         treasury = _treasury;
         emit TreasurySet(_treasury);
 
-        proverRegistry = _proverRegistry;
-        emit ProverRegistrySet(_proverRegistry);
+        proverManager = _proverManager;
+        emit ProverManagerSet(_proverManager);
 
         entityKeyRegistry = _entityKeyRegistry;
         emit EntityKeyRegistrySet(_entityKeyRegistry);
@@ -354,7 +354,7 @@ contract ProofMarketplace is
         uint256 marketId = bidWithState.bid.marketId;
 
         (address proverRewardAddress, uint256 minRewardForProver) =
-            ProverRegistry(proverRegistry).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
         require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
@@ -376,7 +376,7 @@ contract ProofMarketplace is
         // fraction of amount back to requestor
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
-        ProverRegistry(proverRegistry).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
+        ProverManager(proverManager).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit ProofCreated(bidId, proof);
     }
 
@@ -405,7 +405,7 @@ contract ProofMarketplace is
         returns (uint256, address)
     {
         (address proverRewardAddress, uint256 minRewardForProver) =
-            ProverRegistry(proverRegistry).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
         require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
@@ -450,7 +450,7 @@ contract ProofMarketplace is
         // transfer the amount to treasury collection
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
 
-        ProverRegistry(proverRegistry).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
+        ProverManager(proverManager).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
         emit InvalidInputsDetected(bidId);
     }
 
@@ -459,7 +459,7 @@ contract ProofMarketplace is
         returns (uint256 feeRewardRemaining)
     {
         // calculate prover fee reward
-        uint256 proverCommission = ProverRegistry(proverRegistry).getProverCommission(_marketId, _prover);
+        uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
         uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
         feeRewardRemaining = _feePaid - proverFeeReward;
 
@@ -514,7 +514,7 @@ contract ProofMarketplace is
             IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
             bidWithState.bid.reward = 0;
 
-            ProverRegistry(proverRegistry).releaseProverCompute(bidWithState.prover, marketId);
+            ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
             emit ProofNotGenerated(bidId);
         }
     }
@@ -537,7 +537,7 @@ contract ProofMarketplace is
 
         Struct.BidWithState storage bidWithState = listOfBid[bidId];
         (uint256 proofGenerationCost, uint256 proverProposedTime) =
-            ProverRegistry(proverRegistry).getProverAssignmentDetails(prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverAssignmentDetails(prover, bidWithState.bid.marketId);
 
         // Can not assign task if price mismatch happens
         if (bidWithState.bid.reward < proofGenerationCost) {
@@ -553,7 +553,7 @@ contract ProofMarketplace is
         bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
         bidWithState.prover = prover;
 
-        ProverRegistry(proverRegistry).assignProverTask(bidId, prover, bidWithState.bid.marketId);
+        ProverManager(proverManager).assignProverTask(bidId, prover, bidWithState.bid.marketId);
         emit TaskCreated(bidId, prover, new_acl);
     }
 
@@ -684,9 +684,9 @@ contract ProofMarketplace is
         emit TreasurySet(_treasury);
     }
 
-    function setProverRegistry(address _proverRegistry) external onlyRole(UPDATER_ROLE) {
-        proverRegistry = _proverRegistry;
-        emit ProverRegistrySet(_proverRegistry);
+    function setProverManager(address _proverManager) external onlyRole(UPDATER_ROLE) {
+        proverManager = _proverManager;
+        emit ProverManagerSet(_proverManager);
     }
 
     function setEntityKeyRegistry(address _entityKeyRegistry) external onlyRole(UPDATER_ROLE) {
