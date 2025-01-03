@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { ethers } from "hardhat";
 import { run } from "hardhat";
 
-export async function config() {
+export async function getConfig() {
   const chainId = (await ethers.provider.getNetwork()).chainId.toString();
   console.log("deploying on chain id:", chainId);
 

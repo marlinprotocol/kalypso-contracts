@@ -18,7 +18,9 @@
     "staking_manager": "0xCe75C0E25b2c70415b237273345105402aEbe79F"
   },
   "token" : {
-    "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C"
+    "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
+    "pond": "0xB5570D4D39dD20F61dEf7C0d6846790360b89a18",
+    "weth": ""
   },
   "implementation": {
     "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
