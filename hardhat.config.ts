@@ -66,7 +66,7 @@ const config: HardhatUserConfig = {
     ],
   },
   gasReporter: {
-    enabled: false,
+    enabled: (process.env.REPORT_GAS) ? true : false,
     gasPrice: 1,
     coinmarketcap: process.env.COIN_MARKET_CAP,
   },
