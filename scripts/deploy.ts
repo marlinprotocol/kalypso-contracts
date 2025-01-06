@@ -24,7 +24,7 @@ import {
   MockAttestationVerifier__factory,
   MockToken__factory,
   PriorityLog__factory,
-  ProverRegistry__factory,
+  ProverManager__factory,
   Transfer_verifier_wrapper__factory,
   TransferVerifier__factory,
   ZkbVerifier__factory,
@@ -142,7 +142,7 @@ async function main(): Promise<string> {
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   if (!addresses.proxy.prover_registry) {
-    const prover_registryContract = await ethers.getContractFactory("ProverRegistry");
+    const prover_registryContract = await ethers.getContractFactory("ProverManager");
     const proverProxy = await upgrades.deployProxy(prover_registryContract, [], {
       kind: "uups",
       constructorArgs: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
@@ -193,7 +193,7 @@ async function main(): Promise<string> {
     let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.proof_market_place);
     tx.wait();
 
-    const prover_registry = ProverRegistry__factory.connect(addresses.proxy.prover_registry, admin);
+    const prover_registry = ProverManager__factory.connect(addresses.proxy.prover_registry, admin);
     tx = await prover_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
   }

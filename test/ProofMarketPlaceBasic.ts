@@ -842,8 +842,6 @@ describe("Proof market place", () => {
         });
 
         it("Can't discard request before assignment (by anyone)", async () => {
-          console.log("prover: ", await prover.getAddress());
-
           await expect(proofMarketplace.connect(prover).discardRequest(bidId.toString()))
             .to.revertedWithCustomError(proofMarketplace, "ShouldBeInAssignedState")
             .withArgs(bidId);
