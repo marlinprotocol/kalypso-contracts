@@ -1,33 +1,49 @@
 {
-  "proxy": {
-    "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
-    "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
-    "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
-    "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
-    "dispute": "0x48b28BC18E9d9EcDFa7A2CF8b1DDa2668bC005b2",
-    "transfer_verifier_wrapper": "0x30A5fFf0D0d54fab407a409467835e56830a7471",
-    "zkb_verifier_wrapper": "0xeE89C22838a691d03fB3b6f47C387d06917C0bBD",
-    "priority_list": "0x138e29f7804Bfe8225E431c79764663620AEac54",
-    "input_and_proof_format": "0x43F4159c011f6d05957182748C1F2b77C74fFDB5",
-    "tee_verifier_deployer": "0x5acCC2F599045D13EA03e4c2b7b0Ed9F8C7Fb99C",
-    "proof_market_place": "0xfa2AAcA897C4AB956625B72ac678b3CB5450a154",
-    "symbiotic_staking": "0xE7136641cB2c94d318779c3B6BEb997dC5B2E574",
-    "native_staking": "0xe9d2Bcc597f943ddA9EDf356DAC7C6A713dDE113",
-    "generator_registry": "0xdC33E074d2b055171e56887D79678136B4505Dec",
-    "entity_key_registry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
-    "staking_manager": "0xCe75C0E25b2c70415b237273345105402aEbe79F"
-  },
-  "token" : {
-    "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
-    "pond": "0xB5570D4D39dD20F61dEf7C0d6846790360b89a18",
-    "weth": ""
-  },
-  "implementation": {
-    "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
-    "generator_registry": "0xF800CA64CFdf47Efbc9b4c21F273A7B2ce7AaEB7",
-    "proof_market_place": "0xceCd8A1a4f851fF96aD3Db9B789D6AE1077AA820"
-  },
-  "wallet": {
-    "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"
-  }
+    "proxy": {
+        "payment_token": "0x01d84D33CC8636F83d2bb771e184cE57d8356863",
+        "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
+        "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
+        "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+        "dispute": "0x48b28BC18E9d9EcDFa7A2CF8b1DDa2668bC005b2",
+        "transfer_verifier_wrapper": "0x30A5fFf0D0d54fab407a409467835e56830a7471",
+        "zkb_verifier_wrapper": "0xeE89C22838a691d03fB3b6f47C387d06917C0bBD",
+        "priority_list": "0x138e29f7804Bfe8225E431c79764663620AEac54",
+        "input_and_proof_format": "0x43F4159c011f6d05957182748C1F2b77C74fFDB5",
+        "tee_verifier_deployer": "0x5acCC2F599045D13EA03e4c2b7b0Ed9F8C7Fb99C",
+        "proof_market_place": "0xfa2AAcA897C4AB956625B72ac678b3CB5450a154",
+        "symbiotic_staking": "0xE7136641cB2c94d318779c3B6BEb997dC5B2E574",
+        "native_staking": "0xe9d2Bcc597f943ddA9EDf356DAC7C6A713dDE113",
+        "generator_registry": "0xdC33E074d2b055171e56887D79678136B4505Dec",
+        "entity_key_registry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
+        "staking_manager": "0xCe75C0E25b2c70415b237273345105402aEbe79F",
+        "stakingManager": "0x065A7F32570a5264c1055f9D8e5F338C000C5a65",
+        "nativeStaking": "0x5AB0539C53da9D91f7AC24e344d0A85bF909B180",
+        "symbioticStaking": "0x82C42e721B2e616c32d79239636faf0a16062774",
+        "symbioticStakingReward": "0x247490F1fC99E9371bfeFa602213AfEfD837415C",
+        "attestationVerifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+        "entityKeyRegistry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
+        "proverManager": "0x72d05bb208b0F31b833DA3D03BF44830bAE35b8c",
+        "proofMarketplace": "0x14f0499cE8E736D6e029D7609396b0d7769823a0"
+    },
+    "mockToken": {
+        "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
+        "pond": "0xB5570D4D39dD20F61dEf7C0d6846790360b89a18",
+        "weth": ""
+    },
+    "implementation": {
+        "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
+        "generator_registry": "0xF800CA64CFdf47Efbc9b4c21F273A7B2ce7AaEB7",
+        "proof_market_place": "0xceCd8A1a4f851fF96aD3Db9B789D6AE1077AA820",
+        "stakingManager": "0x7e8a431543823C93b6B684548A0530e9c4258Bd4",
+        "nativeStaking": "0x833C818314026Ea3C32AF4F56274769Fda31DF96",
+        "symbioticStaking": "0x45bE6A02D50d38eED72BDFFc9EcAa44953EB230C",
+        "symbioticStakingReward": "0x1e1Ae0C3204043E7bA74ee43ef33E06bE6E3F067",
+        "attestationVerifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
+        "entityKeyRegistry": "0x7AE71621312900e91EB5256654933ABE3eae34D3",
+        "proverManager": "0x1A952a563bfBD8661a934104e3A798DD2b0f42da",
+        "proofMarketplace": "0x336Ad136d3B4320629a0603B38EeFA087923b38e"
+    },
+    "wallet": {
+        "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"
+    }
 }

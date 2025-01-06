@@ -90,12 +90,15 @@ const config: HardhatUserConfig = {
     hardhat: {
       blockGasLimit: 500000000000,
     },
-    // arbSepolia: {
-    //   url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
-    //   accounts: [
-    //     `${process.env.ARBITRUM_SEPOLIA_ADMIN_KEY}`,
-    //   ],
-    // },
+    arbSepolia: {
+      url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
+      accounts: [
+        `${process.env.ARBITRUM_SEPOLIA_ADMIN_KEY}`,
+      ],
+      forking: {
+        url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
+      }
+    }
     // sepolia: {
     //   url: `${process.env.SEPOLIA_RPC_URL}`,
     //   // NOTE: don't change the order of elements in the array, add new elements at the last.
