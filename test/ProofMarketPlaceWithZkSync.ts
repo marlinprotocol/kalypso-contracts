@@ -1,43 +1,42 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
-  ProverRegistry,
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+  skipBlocks,
+} from '../helpers';
+import * as zksync_data from '../helpers/sample/zksync/data.json';
+import {
+  EntityKeyRegistry,
+  Error,
   IVerifier,
   IVerifier__factory,
   MockToken,
+  NativeStaking,
   PriorityLog,
   ProofMarketplace,
-  ZkSyncVerifier__factory,
-  Zksync_verifier_wrapper__factory,
-  Error,
-  EntityKeyRegistry,
-  SymbioticStakingReward,
-  SymbioticStaking,
-  NativeStaking,
+  ProverManager,
   StakingManager,
-} from "../typechain-types";
-
-import {
-  ProverData,
-  GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockProverPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  proverDataToBytes,
-  marketDataToBytes,
-  setup,
-  skipBlocks,
-} from "../helpers";
-
-import * as zksync_data from "../helpers/sample/zksync/data.json";
+  SymbioticStaking,
+  SymbioticStakingReward,
+  Zksync_verifier_wrapper__factory,
+  ZkSyncVerifier__factory,
+} from '../typechain-types';
 
 describe("Proof Market Place for zksync Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
@@ -141,7 +140,7 @@ describe("Proof Market Place for zksync Verifier", () => {
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
@@ -181,7 +180,7 @@ describe("Proof Market Place for zksync Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
@@ -199,7 +198,7 @@ describe("Proof Market Place for zksync Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,

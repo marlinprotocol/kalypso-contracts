@@ -59,6 +59,11 @@ contract StakingManager is
     //---------------------------------------- Mapping end ----------------------------------------//
 
     //---------------------------------------- Init start ----------------------------------------//
+    
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeToken) public initializer {
         __Context_init_unchained();

@@ -67,6 +67,8 @@ contract ProofMarketplace is
     mapping(address => uint256) public proverClaimableFeeReward;
     mapping(address => uint256) public transmitterClaimableFeeReward;
 
+    // TODO: Add mapping for `stakePerjob` later
+
     //-------------------------------- State variables end --------------------------------//
 
     //-------------------------------- Init start --------------------------------//

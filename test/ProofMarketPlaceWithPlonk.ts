@@ -1,45 +1,47 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
+import * as fs from 'fs';
+import { ethers } from 'hardhat';
+
 import {
-  ProverRegistry,
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+  skipBlocks,
+} from '../helpers';
+import {
+  a as plonkInputs,
+} from '../helpers/sample/plonk/verification_params.json';
+import {
+  EntityKeyRegistry,
+  Error,
   IVerifier,
   IVerifier__factory,
   MockToken,
+  NativeStaking,
+  Plonk_verifier_wrapper__factory,
   PriorityLog,
   ProofMarketplace,
-  UltraVerifier__factory,
-  Plonk_verifier_wrapper__factory,
-  Error,
-  EntityKeyRegistry,
-  SymbioticStakingReward,
-  SymbioticStaking,
-  NativeStaking,
+  ProverManager,
   StakingManager,
-} from "../typechain-types";
+  SymbioticStaking,
+  SymbioticStakingReward,
+  UltraVerifier__factory,
+} from '../typechain-types';
 
-import {
-  ProverData,
-  GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockProverPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  proverDataToBytes,
-  marketDataToBytes,
-  setup,
-  skipBlocks,
-} from "../helpers";
-import * as fs from "fs";
-
-import { a as plonkInputs } from "../helpers/sample/plonk/verification_params.json";
 const plonkProof = "0x" + fs.readFileSync("helpers/sample/plonk/p.proof", "utf-8");
 
 describe("Proof Market Place for Plonk Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
@@ -143,7 +145,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
@@ -185,7 +187,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
@@ -203,7 +205,7 @@ describe("Proof Market Place for Plonk Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,

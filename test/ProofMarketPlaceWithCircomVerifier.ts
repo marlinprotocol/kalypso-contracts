@@ -1,44 +1,45 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
-  ProverRegistry,
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+  skipBlocks,
+} from '../helpers';
+import * as circom_verifier_inputs
+  from '../helpers/sample/circomVerifier/input.json';
+import * as circom_verifier_proof
+  from '../helpers/sample/circomVerifier/proof.json';
+import {
+  EntityKeyRegistry,
+  Error,
   IVerifier,
   IVerifier__factory,
   MockToken,
-  ProofMarketplace,
-  XorVerifier__factory,
-  Xor2_verifier_wrapper__factory,
-  PriorityLog,
-  Error,
-  EntityKeyRegistry,
   NativeStaking,
+  PriorityLog,
+  ProofMarketplace,
+  ProverManager,
   StakingManager,
   SymbioticStaking,
   SymbioticStakingReward,
-} from "../typechain-types";
-
-import {
-  ProverData,
-  GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockProverPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  proverDataToBytes,
-  marketDataToBytes,
-  setup,
-  skipBlocks,
-} from "../helpers";
-
-import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.json";
-import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
+  Xor2_verifier_wrapper__factory,
+  XorVerifier__factory,
+} from '../typechain-types';
 
 describe("Proof Market Place for Circom Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
@@ -143,7 +144,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
@@ -185,7 +186,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
@@ -203,7 +204,7 @@ describe("Proof Market Place for Circom Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,

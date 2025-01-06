@@ -30,8 +30,8 @@ import {
   NativeStaking__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
-  ProverRegistry,
-  ProverRegistry__factory,
+  ProverManager,
+  ProverManager__factory,
   StakingManager,
   StakingManager__factory,
   SymbioticStaking,
@@ -64,7 +64,7 @@ describe("Staking manager", () => {
   let symbioticStaking: SymbioticStaking;
   let symbioticStakingReward: SymbioticStakingReward;
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let entityRegistry: EntityKeyRegistry;
   let mockVerifier: MockVerifier;
   let errorLibrary: Error;
@@ -135,14 +135,14 @@ describe("Staking manager", () => {
       });
       entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
-      // ProverRegistry
-      const ProverRegistryContract = await ethers.getContractFactory("ProverRegistry");
-      const proverProxy = await upgrades.deployProxy(ProverRegistryContract, [], {
+      // ProverManager
+      const ProverManagerContract = await ethers.getContractFactory("ProverManager");
+      const proverProxy = await upgrades.deployProxy(ProverManagerContract, [], {
         kind: "uups",
         constructorArgs: [await mockToken.getAddress(), await entityRegistry.getAddress()],
         initializer: false,
       });
-      proverRegistry = ProverRegistry__factory.connect(await proverProxy.getAddress(), signers[0]);
+      proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), signers[0]);
 
       // ProofMarketplace
       const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
@@ -152,7 +152,7 @@ describe("Staking manager", () => {
           await mockToken.getAddress(),
           marketCreationCost.toString(),
           await treasury.getAddress(),
-          await proverRegistry.getAddress(),
+          await proverManager.getAddress(),
           await entityRegistry.getAddress(),
         ],
         initializer: false,
@@ -172,8 +172,8 @@ describe("Staking manager", () => {
         await mockToken.getAddress(),
       );
 
-      // PROVER_REGISTRY_ROLE to ProverRegistry
-      await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverRegistry.getAddress());
+      // PROVER_REGISTRY_ROLE to ProverManager
+      await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverManager.getAddress());
 
       // SymbioticStaking
       await symbioticStaking.initialize(
@@ -193,8 +193,8 @@ describe("Staking manager", () => {
         await mockToken.getAddress(),
       );
 
-      // ProverRegistry
-      await proverRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress());
+      // ProverManager
+      await proverManager.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress());
 
       // ProofMarketplace
       await proofMarketplace.initialize(await admin.getAddress());
@@ -211,11 +211,11 @@ describe("Staking manager", () => {
       // Transfer market creation cost to `marketCreator` ()
       await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
 
-      // KEY_REGISTER_ROLE to ProofMarketplace and ProverRegistry
+      // KEY_REGISTER_ROLE to ProofMarketplace and ProverManager
       await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
-      // KEY_REGISTER_ROLE to ProverRegistry
-      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proverRegistry.getAddress());
+      // KEY_REGISTER_ROLE to ProverManager
+      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proverManager.getAddress());
 
       // UPDATER_ROLE to admin
       await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());

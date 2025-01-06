@@ -397,7 +397,7 @@ export const GodEnclavePCRS: [BytesLike, BytesLike, BytesLike] = [
 
 export function proverFamilyId(marketId: BigNumberish): BytesLike {
   let abicode = new ethers.AbiCoder();
-  let encoded = abicode.encode(["string", "uint256"], ["gen", marketId]);
+  let encoded = abicode.encode(["string", "uint256"], ["prov", marketId]);
   let digest = ethers.keccak256(encoded);
   return digest;
 }

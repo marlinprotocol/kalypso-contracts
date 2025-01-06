@@ -1,44 +1,45 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
+import { ethers } from 'hardhat';
+
+import {
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+  skipBlocks,
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
 import {
   EntityKeyRegistry,
   Error,
-  ProverRegistry,
   IVerifier,
   IVerifier__factory,
   MockToken,
+  NativeStaking,
   PriorityLog,
   ProofMarketplace,
-  TransferVerifier__factory,
-  Transfer_verifier_wrapper__factory,
-  SymbioticStakingReward,
-  SymbioticStaking,
-  NativeStaking,
+  ProverManager,
   StakingManager,
-} from "../typechain-types";
-
-import {
-  ProverData,
-  GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockProverPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  proverDataToBytes,
-  marketDataToBytes,
-  setup,
-  skipBlocks,
-} from "../helpers";
-
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+  SymbioticStaking,
+  SymbioticStakingReward,
+  Transfer_verifier_wrapper__factory,
+  TransferVerifier__factory,
+} from '../typechain-types';
 
 describe("Proof Market Place for Transfer Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
@@ -167,7 +168,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
@@ -220,7 +221,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
@@ -238,7 +239,7 @@ describe("Proof Market Place for Transfer Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
