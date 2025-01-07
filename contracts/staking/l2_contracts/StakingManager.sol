@@ -38,25 +38,18 @@ contract StakingManager is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
-
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public proofMarketplace;
     address public symbioticStaking;
     address public feeToken;
 
-    //---------------------------------------- State Variable end ----------------------------------------//
-
-    //---------------------------------------- Mapping start ----------------------------------------//
-
     mapping(address pool => Struct.PoolConfig config) private poolConfig;
 
     // gaps in case we new vars in same file
-    uint256[500] private __gap_1; 
+    uint256[500] private __gap_0;
 
-    //---------------------------------------- Mapping end ----------------------------------------//
+    //---------------------------------------- State Variable end ----------------------------------------//
 
     //---------------------------------------- Init start ----------------------------------------//
     
@@ -247,14 +240,14 @@ contract StakingManager is
 
     //---------------------------------------- Override start ----------------------------------------//
 
-    function supportsInterface(bytes4 interfaceId)
+    function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
         override
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}

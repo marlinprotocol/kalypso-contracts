@@ -29,8 +29,6 @@ contract ProofMarketplace is
     UUPSUpgradeable,
     IProofMarketplace
 {
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
 
     using HELPER for bytes;
     using HELPER for bytes32;
@@ -66,6 +64,8 @@ contract ProofMarketplace is
     mapping(Enum.SecretType => uint256) public minProvingTime;
     mapping(address => uint256) public proverClaimableFeeReward;
     mapping(address => uint256) public transmitterClaimableFeeReward;
+
+    uint256[500] private __gap;
 
     // TODO: Add mapping for `stakePerjob` later
 
@@ -165,8 +165,8 @@ contract ProofMarketplace is
     /**
      * @notice Feature for market creator to list new prover images and ivs images
      */
-    function addExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Struct.Market memory market = marketData[marketId];
+    function addExtraImages(uint256 _marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
 
@@ -174,7 +174,7 @@ contract ProofMarketplace is
             require(market.proverImageId.IS_ENCLAVE(), Error.CannotModifyImagesForPublicMarkets());
 
             for (uint256 index = 0; index < _proverPcrs.length; index++) {
-                bytes32 familyId = marketId.PROVER_FAMILY_ID();
+                bytes32 familyId = _marketId.PROVER_FAMILY_ID();
                 bytes32 proverImageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
                 if (EntityKeyRegistry(entityKeyRegistry).isImageInFamily(proverImageId, familyId)) {
@@ -182,12 +182,12 @@ contract ProofMarketplace is
                 }
 
                 EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
-                emit AddExtraProverImage(marketId, proverImageId);
+                emit AddExtraProverImage(_marketId, proverImageId);
             }
         }
 
         for (uint256 index = 0; index < _ivsPcrs.length; index++) {
-            bytes32 familyId = marketId.IVS_FAMILY_ID();
+            bytes32 familyId = _marketId.IVS_FAMILY_ID();
             bytes32 ivsImageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
             if (EntityKeyRegistry(entityKeyRegistry).isImageInFamily(ivsImageId, familyId)) {
@@ -195,15 +195,15 @@ contract ProofMarketplace is
             }
 
             EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(familyId, _ivsPcrs[index]);
-            emit AddExtraIVSImage(marketId, ivsImageId);
+            emit AddExtraIVSImage(_marketId, ivsImageId);
         }
     }
 
     /**
      * @notice Feature for market creator to remove extra provers
      */
-    function removeExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Struct.Market memory market = marketData[marketId];
+    function removeExtraImages(uint256 _marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
         if (_proverPcrs.length != 0) {
@@ -213,11 +213,11 @@ contract ProofMarketplace is
                 bytes32 imageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
                 if (imageId == market.proverImageId) {
-                    revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                    revert Error.CannotRemoveDefaultImageFromMarket(_marketId, imageId);
                 }
 
-                EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, marketId.PROVER_FAMILY_ID());
-                emit RemoveExtraProverImage(marketId, imageId);
+                EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, _marketId.PROVER_FAMILY_ID());
+                emit RemoveExtraProverImage(_marketId, imageId);
             }
         }
 
@@ -225,31 +225,30 @@ contract ProofMarketplace is
             bytes32 imageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
             if (imageId == market.ivsImageId) {
-                revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                revert Error.CannotRemoveDefaultImageFromMarket(_marketId, imageId);
             }
 
-            EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, marketId.IVS_FAMILY_ID());
-            emit RemoveExtraIVSImage(marketId, imageId);
+            EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, _marketId.IVS_FAMILY_ID());
+            emit RemoveExtraIVSImage(_marketId, imageId);
         }
     }
 
     /**
      * @notice Once called new images can't be added to market
      */
-    // TODO: change the name
-    function freezeMarket(uint256 marketId) external {
-        Struct.Market memory market = marketData[marketId];
+    function freezeMarket(uint256 _marketId) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
-        delete marketData[marketId].creator;
+        delete marketData[_marketId].creator;
     }
 
-    function updateMarketMetadata(uint256 marketId, bytes memory metadata) external {
-        require(_msgSender() == marketData[marketId].creator, Error.OnlyMarketCreator());
+    function updateMarketMetadata(uint256 _marketId, bytes calldata _metadata) external {
+        require(_msgSender() == marketData[_marketId].creator, Error.OnlyMarketCreator());
 
-        marketData[marketId].marketmetadata = metadata;
+        marketData[_marketId].marketmetadata = _metadata;
 
-        emit MarketMetadataUpdated(marketId, metadata);
+        emit MarketMetadataUpdated(_marketId, _metadata);
     }
 
     //-------------------------------- Market end --------------------------------//
@@ -258,74 +257,74 @@ contract ProofMarketplace is
 
     /**
      * @notice Create requests. Can be paused to prevent temporary escrowing of unwanted amount
-     * @param bid: Details of the BID request
-     * @param secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
-     * @param privateInputs: Private Inputs to the circuit.
-     * @param acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
+     * @param _bid: Details of the BID request
+     * @param _secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
+     * @param _privateInputs: Private Inputs to the circuit.
+     * @param _acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
      */
     function createBid(
-        Struct.Bid calldata bid,
-        Enum.SecretType secretType,
-        bytes calldata privateInputs,
-        bytes calldata acl,
-        bytes calldata extraData
+        Struct.Bid calldata _bid,
+        Enum.SecretType _secretType,
+        bytes calldata _privateInputs,
+        bytes calldata _acl,
+        bytes calldata _extraData
     ) external whenNotPaused nonReentrant {
-        _createBid(bid, _msgSender(), secretType, privateInputs, acl, extraData);
+        _createBid(_bid, _msgSender(), _secretType, _privateInputs, _acl, _extraData);
     }
 
     function _createBid(
-        Struct.Bid calldata bid,
-        address payFrom,
-        Enum.SecretType secretType,
-        bytes calldata privateInputs,
-        bytes calldata acl,
-        bytes calldata extraData
+        Struct.Bid calldata _bid,
+        address _payFrom,
+        Enum.SecretType _secretType,
+        bytes calldata _privateInputs,
+        bytes calldata _acl,
+        bytes calldata _extraData
     ) internal {
-        require (bid.reward != 0 && bid.proverData.length != 0, Error.CannotBeZero());
+        require (_bid.reward != 0 && _bid.proverData.length != 0, Error.CannotBeZero());
 
-        require (bid.expiry > block.number + minProvingTime[secretType], Error.CannotAssignExpiredTasks());
+        require (_bid.expiry > block.number + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
 
         // ensures that the cipher used is small enough
-        require (acl.length <= 130, Error.InvalidECIESACL());
+        require (_acl.length <= 130, Error.InvalidECIESACL());
 
-        Struct.Market memory market = marketData[bid.marketId];
+        Struct.Market memory market = marketData[_bid.marketId];
         require (market.marketmetadata.length > 0, Error.InvalidMarket());
 
-        uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
+        uint256 platformFee = getPlatformFee(_secretType, _bid, _privateInputs, _acl);
 
-        IERC20(paymentToken).safeTransferFrom(payFrom, address(this), bid.reward + platformFee);
+        IERC20(paymentToken).safeTransferFrom(_payFrom, address(this), _bid.reward + platformFee);
         IERC20(paymentToken).safeTransfer(treasury, platformFee);
 
 
         uint256 bidId = listOfBid.length;
-        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATED, _msgSender(), address(0));
+        Struct.BidWithState memory bidRequest = Struct.BidWithState(_bid, Enum.BidState.CREATED, _msgSender(), address(0));
         listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
-        require (inputVerifier.verifyInputs(bid.proverData), Error.InvalidInputs());
+        require (inputVerifier.verifyInputs(_bid.proverData), Error.InvalidInputs());
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit BidCreated(bidId, true, privateInputs, acl, extraData);
+            emit BidCreated(bidId, true, _privateInputs, _acl, _extraData);
         } else {
             // ACL is not emitted if not private
-            emit BidCreated(bidId, false, "", "", extraData);
+            emit BidCreated(bidId, false, "", "", _extraData);
         }
     }
 
     /**
      * @notice Cancel the unassigned request. Refunds the proof fee back to the requestor
      */
-    function cancelBid(uint256 bidId) external nonReentrant {
+    function cancelBid(uint256 _bidId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        require(getBidState(bidId) == Enum.BidState.UNASSIGNED, Error.OnlyExpiredBidsCanBeCancelled(bidId));
+        require(getBidState(_bidId) == Enum.BidState.UNASSIGNED, Error.OnlyExpiredBidsCanBeCancelled(_bidId));
 
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
         bidWithState.state = Enum.BidState.COMPLETED;
 
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
 
-        emit BidCancelled(bidId);
+        emit BidCancelled(_bidId);
     }
 
     //-------------------------------- Bid end --------------------------------//
@@ -335,23 +334,23 @@ contract ProofMarketplace is
     /**
      * @notice Submit Single Proof
      */
-    function submitProof(uint256 bidId, bytes calldata proof) external nonReentrant {
-        _submitProof(bidId, proof);
+    function submitProof(uint256 _bidId, bytes calldata _proof) external nonReentrant {
+        _submitProof(_bidId, _proof);
     }
 
     /**
      * @notice Submit Multiple proofs in single transaction
      */
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        require (taskIds.length == proofs.length, Error.ArityMismatch());
+    function submitProofs(uint256[] memory _taskIds, bytes[] calldata _proofs) external nonReentrant {
+        require (_taskIds.length == _proofs.length, Error.ArityMismatch());
 
-        for (uint256 index = 0; index < taskIds.length; index++) {
-            _submitProof(taskIds[index], proofs[index]);
+        for (uint256 index = 0; index < _taskIds.length; index++) {
+            _submitProof(_taskIds[index], _proofs[index]);
         }
     }
 
-    function _submitProof(uint256 bidId, bytes calldata proof) internal {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function _submitProof(uint256 _bidId, bytes calldata _proof) internal {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
 
         uint256 marketId = bidWithState.bid.marketId;
 
@@ -359,16 +358,16 @@ contract ProofMarketplace is
             ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
         // check what needs to be encoded from proof, bid and task for proof to be verified
 
-        bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, proof);
+        bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, _proof);
 
-        // Verify input and proof against verifier
-        require(IVerifier(marketData[marketId].verifier).verify(inputAndProof), Error.InvalidProof(bidId));
+        // Verify input and _proof against verifier
+        require(IVerifier(marketData[marketId].verifier).verify(inputAndProof), Error.InvalidProof(_bidId));
 
-        listOfBid[bidId].state = Enum.BidState.COMPLETED;
+        listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
@@ -378,82 +377,82 @@ contract ProofMarketplace is
         // fraction of amount back to requestor
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
-        ProverManager(proverManager).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
-        emit ProofCreated(bidId, proof);
+        ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, feeRewardRemaining);
+        emit ProofCreated(_bidId, _proof);
     }
 
     /**
      * @notice Submit Attestation/Proof from the IVS signer that the given inputs are invalid
      */
-    function submitProofForInvalidInputs(uint256 bidId, bytes calldata invalidProofSignature) external nonReentrant {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function submitProofForInvalidInputs(uint256 _bidId, bytes calldata _invalidProofSignature) external nonReentrant {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
         uint256 marketId = bidWithState.bid.marketId;
 
-        (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(bidId, bidWithState);
+        (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(_bidId, bidWithState);
 
         require(
             _checkDisputeUsingSignature(
-                bidId, bidWithState.bid.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID()
+                _bidId, bidWithState.bid.proverData, _invalidProofSignature, marketId.IVS_FAMILY_ID()
             ),
-            Error.CannotSlashUsingValidInputs(bidId)
+            Error.CannotSlashUsingValidInputs(_bidId)
         );
 
-        _completeProofForInvalidRequests(bidId, bidWithState, minRewardForProver, proverRewardAddress, marketId);
+        _completeProofForInvalidRequests(_bidId, bidWithState, minRewardForProver, proverRewardAddress, marketId);
     }
 
-    function _verifyAndGetData(uint256 bidId, Struct.BidWithState memory bidWithState)
+    function _verifyAndGetData(uint256 _bidId, Struct.BidWithState memory _bidWithState)
         internal
         view
         returns (uint256, address)
     {
         (address proverRewardAddress, uint256 minRewardForProver) =
-            ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverRewardDetails(_bidWithState.prover, _bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
         return (minRewardForProver, proverRewardAddress);
     }
 
     function _checkDisputeUsingSignature(
-        uint256 bidId,
-        bytes memory proverData,
-        bytes memory invalidProofSignature,
-        bytes32 familyId
+        uint256 _bidId,
+        bytes memory _proverData,
+        bytes memory _invalidProofSignature,
+        bytes32 _familyId
     ) internal view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(bidId, proverData));
+        bytes32 messageHash = keccak256(abi.encode(_bidId, _proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
-        address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
+        address signer = ECDSA.recover(ethSignedMessageHash, _invalidProofSignature);
         require(signer != address(0), Error.InvalidEnclaveSignature(signer));
 
-        EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(familyId, signer);
+        EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(_familyId, signer);
         return true;
     }
 
     function _completeProofForInvalidRequests(
-        uint256 bidId,
-        Struct.BidWithState memory bidWithState,
-        uint256 minRewardForProver,
-        address proverRewardAddress,
-        uint256 marketId
+        uint256 _bidId,
+        Struct.BidWithState memory _bidWithState,
+        uint256 _minRewardForProver,
+        address _proverRewardAddress,
+        uint256 _marketId
     ) internal {
         // Only assigned requests can be proved
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
-        listOfBid[bidId].state = Enum.BidState.COMPLETED;
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
+        listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
         // tokens related to incorrect request will be sen't to treasury
-        uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
+        uint256 toTreasury = _bidWithState.bid.reward - _minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(_marketId, _proverRewardAddress, _minRewardForProver);
 
         // transfer the amount to treasury collection
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
 
-        ProverManager(proverManager).completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
-        emit InvalidInputsDetected(bidId);
+        ProverManager(proverManager).completeProverTask(_bidId, _bidWithState.prover, _marketId, feeRewardRemaining);
+        emit InvalidInputsDetected(_bidId);
     }
 
     function _distributeProverFeeReward(uint256 _marketId, address _prover, uint256 _feePaid)
@@ -474,11 +473,11 @@ contract ProofMarketplace is
     /**
      * @notice Prover can discard assigned request if he choses to. This will however result in slashing
      */
-    function discardRequest(uint256 bidId) external nonReentrant {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(bidId));
-        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(bidId));
-        _refundFee(bidId);
+    function discardRequest(uint256 _bidId) external nonReentrant {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(_bidId));
+        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(_bidId));
+        _refundFee(_bidId);
     }
 
     //-------------------------------- Prover end --------------------------------//
@@ -488,24 +487,24 @@ contract ProofMarketplace is
     /**
      * @notice Slash Prover for deadline crossed requests
      */
-    function refundFees(uint256[] calldata bidIds) external {
-        for (uint256 i = 0; i < bidIds.length; i++) {
-            Enum.BidState bidState = getBidState(bidIds[i]);
+    function refundFees(uint256[] calldata _bidIds) external {
+        for (uint256 i = 0; i < _bidIds.length; i++) {
+            Enum.BidState bidState = getBidState(_bidIds[i]);
 
             if(bidState == Enum.BidState.DEADLINE_CROSSED) {
                 // if `refundFee` hasn't been called
-                _refundFee(bidIds[i]);
+                _refundFee(_bidIds[i]);
             } else if (bidState == Enum.BidState.COMPLETED) {
                 // actual slashing be done by StakingManager
                 continue;
             } else {
-                revert Error.NotSlashableBidId(bidIds[i]);  
+                revert Error.NotSlashableBidId(_bidIds[i]);  
             }
         }
     }
 
-    function _refundFee(uint256 bidId) internal {
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+    function _refundFee(uint256 _bidId) internal {
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
 
         bidWithState.state = Enum.BidState.COMPLETED;
         uint256 marketId = bidWithState.bid.marketId;
@@ -517,7 +516,7 @@ contract ProofMarketplace is
             bidWithState.bid.reward = 0;
 
             ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
-            emit ProofNotGenerated(bidId);
+            emit ProofNotGenerated(_bidId);
         }
     }
 
@@ -528,57 +527,57 @@ contract ProofMarketplace is
     /**
      * @notice Assign Tasks for Provers directly if ME signer has the gas
      */
-    function assignTask(uint256 bidId, address prover, bytes calldata new_acl) external nonReentrant {
+    function assignTask(uint256 _bidId, address _prover, bytes calldata _new_acl) external nonReentrant {
         EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
-        _assignTask(bidId, prover, new_acl);
+        _assignTask(_bidId, _prover, _new_acl);
     }
 
-    function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {
+    function _assignTask(uint256 _bidId, address _prover, bytes memory _new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        require(getBidState(bidId) == Enum.BidState.CREATED, Error.ShouldBeInCreateState());
+        require(getBidState(_bidId) == Enum.BidState.CREATED, Error.ShouldBeInCreateState());
 
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
         (uint256 proofGenerationCost, uint256 proverProposedTime) =
-            ProverManager(proverManager).getProverAssignmentDetails(prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverAssignmentDetails(_prover, bidWithState.bid.marketId);
 
         // Can not assign task if price mismatch happens
         if (bidWithState.bid.reward < proofGenerationCost) {
-            revert Error.ProofPriceMismatch(bidId);
+            revert Error.ProofPriceMismatch(_bidId);
         }
 
         // Can not assign task if time mismatch happens
         if (bidWithState.bid.timeTakenForProofGeneration < proverProposedTime) {
-            revert Error.ProofTimeMismatch(bidId);
+            revert Error.ProofTimeMismatch(_bidId);
         }
 
         bidWithState.state = Enum.BidState.ASSIGNED;
         bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
-        bidWithState.prover = prover;
+        bidWithState.prover = _prover;
 
-        ProverManager(proverManager).assignProverTask(bidId, prover, bidWithState.bid.marketId);
-        emit TaskCreated(bidId, prover, new_acl);
+        ProverManager(proverManager).assignProverTask(_bidId, _prover, bidWithState.bid.marketId);
+        emit TaskCreated(_bidId, _prover, _new_acl);
     }
 
     /**
      * @notice Assign Tasks for Provers. Only Matching Engine Image can call
      */
     function relayBatchAssignTasks(
-        uint256[] memory bidIds,
-        address[] memory provers,
-        bytes[] calldata newAcls,
-        bytes calldata signature
+        uint256[] calldata _bidIds,
+        address[] calldata _provers,
+        bytes[] calldata _newAcls,
+        bytes calldata _signature
     ) external nonReentrant {
-        require ((bidIds.length == provers.length) && (provers.length == newAcls.length), Error.ArityMismatch());
+        require ((_bidIds.length == _provers.length) && (_provers.length == _newAcls.length), Error.ArityMismatch());
 
-        bytes32 messageHash = keccak256(abi.encode(bidIds, provers, newAcls));
+        bytes32 messageHash = keccak256(abi.encode(_bidIds, _provers, _newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
-        address signer = ECDSA.recover(ethSignedMessageHash, signature);
+        address signer = ECDSA.recover(ethSignedMessageHash, _signature);
 
         EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
 
-        for (uint256 index = 0; index < bidIds.length; index++) {
-            _assignTask(bidIds[index], provers[index], newAcls[index]);
+        for (uint256 index = 0; index < _bidIds.length; index++) {
+            _assignTask(_bidIds[index], _provers[index], _newAcls[index]);
         }
     }
 
@@ -625,42 +624,42 @@ contract ProofMarketplace is
     /**
      * @notice Enforces PMP to use only one matching engine image
      */
-    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
-        EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
+    function setMatchingEngineImage(bytes calldata _pcrs) external onlyRole(UPDATER_ROLE) {
+        EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _pcrs);
     }
 
     /**
      * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
      */
-    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature)
+    function verifyMatchingEngine(bytes calldata _attestationData, bytes calldata _meSignature)
         external
         onlyRole(UPDATER_ROLE)
     {
         address _thisAddress = address(this);
 
         // confirms that admin has access to enclave
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
+        _attestationData.VERIFY_ENCLAVE_SIGNATURE(_meSignature, _thisAddress);
 
         // checks attestation and updates the key
-        EntityKeyRegistry(entityKeyRegistry).updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
+        EntityKeyRegistry(entityKeyRegistry).updatePubkey(_thisAddress, 0, _attestationData.GET_PUBKEY(), _attestationData);
     }
 
     /**
      * @notice Update Cost for inputs
      */
-    function updateCostPerBytes(Enum.SecretType secretType, uint256 costPerByte) external onlyRole(UPDATER_ROLE) {
-        costPerInputBytes[secretType] = costPerByte;
+    function updateCostPerBytes(Enum.SecretType _secretType, uint256 _costPerByte) external onlyRole(UPDATER_ROLE) {
+        costPerInputBytes[_secretType] = _costPerByte;
 
-        emit UpdateCostPerBytes(secretType, costPerByte);
+        emit UpdateCostPerBytes(_secretType, _costPerByte);
     }
 
     /**
      * @notice Update Min Proving Time
      */
-    function updateMinProvingTime(Enum.SecretType secretType, uint256 newProvingTime) external onlyRole(UPDATER_ROLE) {
-        minProvingTime[secretType] = newProvingTime;
+    function updateMinProvingTime(Enum.SecretType _secretType, uint256 _newProvingTime) external onlyRole(UPDATER_ROLE) {
+        minProvingTime[_secretType] = _newProvingTime;
 
-        emit UpdateMinProvingTime(secretType, newProvingTime);
+        emit UpdateMinProvingTime(_secretType, _newProvingTime);
     }
 
     function pause() external onlyRole(UPDATER_ROLE) {
@@ -702,20 +701,20 @@ contract ProofMarketplace is
 
     /**
      * @notice Different secret might have different fee. Hence fee is different
-     * @param secretType: Secret Type
-     * @param bid: Details of the bid
-     * @param privateInputs: Private Inputs to the circuit
-     * @param acl: Access control Data
+     * @param _secretType: Secret Type
+     * @param _bid: Details of the bid
+     * @param _privateInputs: Private Inputs to the circuit
+     * @param _acl: Access control Data
      */
     function getPlatformFee(
-        Enum.SecretType secretType,
-        Struct.Bid calldata bid,
-        bytes calldata privateInputs,
-        bytes calldata acl
+        Enum.SecretType _secretType,
+        Struct.Bid calldata _bid,
+        bytes calldata _privateInputs,
+        bytes calldata _acl
     ) public view returns (uint256) {
-        uint256 costperByte = costPerInputBytes[secretType];
+        uint256 costperByte = costPerInputBytes[_secretType];
         if (costperByte != 0) {
-            return (bid.proverData.length + privateInputs.length + acl.length) * costperByte;
+            return (_bid.proverData.length + _privateInputs.length + _acl.length) * costperByte;
         }
         return 0;
     }
@@ -723,8 +722,8 @@ contract ProofMarketplace is
     /**
      * @notice Possible States: NULL, CREATE, UNASSIGNED, ASSIGNED, COMPLETE, DEADLINE_CROSSED
      */
-    function getBidState(uint256 bidId) public view returns (Enum.BidState) {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function getBidState(uint256 _bidId) public view returns (Enum.BidState) {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
 
         // time before which matching engine should assign the task to prover
         if (bidWithState.state == Enum.BidState.CREATED) {
@@ -759,8 +758,8 @@ contract ProofMarketplace is
 
     //-------------------------------- Overrides start --------------------------------//
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}

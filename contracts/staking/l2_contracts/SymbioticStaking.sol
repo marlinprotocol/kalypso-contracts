@@ -56,8 +56,6 @@ contract SymbioticStaking is
 
     //---------------------------------- State Variable start ----------------------------------//
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
 
     /* Config */
     uint256 public submissionCooldown; // 18 decimal (in seconds)
@@ -116,7 +114,7 @@ contract SymbioticStaking is
     //---------------------------------- Mapping end ----------------------------------//
 
     // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
+    uint256[500] private __gap;
 
     //---------------------------------- Init start ----------------------------------//
 
@@ -698,14 +696,14 @@ contract SymbioticStaking is
 
     //---------------------------------- Override start ----------------------------------//
 
-    function supportsInterface(bytes4 interfaceId)
+    function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
         override
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}

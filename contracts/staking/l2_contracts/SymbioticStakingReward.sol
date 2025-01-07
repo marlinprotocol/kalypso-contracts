@@ -40,20 +40,12 @@ contract SymbioticStakingReward is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
-
     address public proofMarketplace;
     address public symbioticStaking;
-
     address public feeRewardToken;
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
 
-    //---------------------------------------- State Variable end ----------------------------------------//
 
-    //---------------------------------------- Mapping start ----------------------------------------//
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address rewardToken => mapping(address prover => uint256 rewardPerToken)))
@@ -69,7 +61,11 @@ contract SymbioticStakingReward is
     // reward accrued that the vault can claim
     mapping(address rewardToken => mapping(address vault => uint256 amount)) public rewardAccrued;
 
-    //---------------------------------------- Mapping end ----------------------------------------//
+    uint256[500] private __gap;
+
+    //---------------------------------------- State Variable end ----------------------------------------//
+
+
 
     //---------------------------------------- Init start ----------------------------------------//
 
@@ -237,13 +233,13 @@ contract SymbioticStakingReward is
     //---------------------------------------- DEFAULT_ADMIN_ROLE end ----------------------------------------//
 
 
-    //---------------------------------------- override start ----------------------------------------//
+    //---------------------------------------- Override start ----------------------------------------//
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
-    //---------------------------------------- override end ----------------------------------------//
+    //---------------------------------------- Override end ----------------------------------------//
 }

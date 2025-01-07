@@ -41,9 +41,7 @@ contract NativeStaking is
     uint256 public withdrawalDuration;
     uint256 public stakeTokenSelectionWeightSum;
 
-    //---------------------------------------- State Variable end ----------------------------------------//
 
-    //---------------------------------------- Mapping start ----------------------------------------//
 
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each task assignment
     mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
@@ -62,10 +60,10 @@ contract NativeStaking is
     mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
+    uint256[500] private __gap;
 
-    //---------------------------------------- Mapping end ----------------------------------------//
+    //---------------------------------------- State Variable end ----------------------------------------//
+
 
     //---------------------------------------- Modifier start ----------------------------------------//
 
@@ -367,14 +365,14 @@ contract NativeStaking is
 
     //---------------------------------------- Override start ----------------------------------------//
 
-    function supportsInterface(bytes4 interfaceId)
+    function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
         override
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
