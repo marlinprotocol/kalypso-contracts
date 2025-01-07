@@ -16,14 +16,14 @@
         "generator_registry": "0xdC33E074d2b055171e56887D79678136B4505Dec",
         "entity_key_registry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
         "staking_manager": "0xCe75C0E25b2c70415b237273345105402aEbe79F",
-        "stakingManager": "0xdB294DA7452045F52d3fAcC8c31f339f98119240",
-        "nativeStaking": "0xd1448AFB5AeF88cc854fB5Ab696d2f4DDBD96636",
-        "symbioticStaking": "0x9f9459fcA1d6fb73b1bB0E7341de6C51B5A126B3",
-        "symbioticStakingReward": "0x32788774AD4dbF702aDc56472DC0727622FA6805",
         "attestationVerifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
         "entityKeyRegistry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
-        "proverManager": "0x2B0e5bb7Eca58384C68026f86723EAb013f520E1",
-        "proofMarketplace": "0x4edd8D615db7c6DFC6D50780829B2B16f1935fd1"
+        "stakingManager": "0xaf2ae7Ce949665ebA8a43A31DF73F4814252Cc84",
+        "nativeStaking": "0x5F1666aEB646439157e139FF37637302168e6bb9",
+        "symbioticStaking": "0x078B3f1504a4B5Bc08EB057cd2Fc8DD790459163",
+        "symbioticStakingReward": "0xEfDE9B92709187ef2f03CcCCD7e7E3B17Cee497D",
+        "proverManager": "0x4743a2c7a96C9FBED8b7eAD980aD01822F9711Db",
+        "proofMarketplace": "0xC05d689B341d84900f0d0CE36f35aDAbfB57F68d"
     },
     "mockToken": {
         "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
@@ -31,17 +31,14 @@
         "weth": ""
     },
     "implementation": {
-        "entity_registry": "0x990f923bdC45739c7E42e2fF3b8810B28a959bb8",
-        "generator_registry": "0xF800CA64CFdf47Efbc9b4c21F273A7B2ce7AaEB7",
-        "proof_market_place": "0xceCd8A1a4f851fF96aD3Db9B789D6AE1077AA820",
-        "stakingManager": "0x7Ca2fC3EDb1bd0B2B6A70a7CFfBFa0244C4C0968",
+        "stakingManager": "0xFE379a4406367b61EB1405309539469cAB3d2Ab6",
         "nativeStaking": "0xF1308AdD340906227Bd059cDB00071b5a9CD5c4C",
-        "symbioticStaking": "0x66d7e0eB7bC910D3348ae7C2B0d380cca38f668E",
-        "symbioticStakingReward": "0xcA495460CecB5e5EC181AB6090D09740d72bD703",
+        "symbioticStaking": "0x90dc640Cd760a087E3801a57e0EFB20697814fB2",
+        "symbioticStakingReward": "0x5468326b83639261B8424b0E4517addbB98c57D7",
         "attestationVerifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
         "entityKeyRegistry": "0x7AE71621312900e91EB5256654933ABE3eae34D3",
-        "proverManager": "0x4c76FB268cF6bf4dEF2cA6dE25bD269ee8BBEF16",
-        "proofMarketplace": "0xd4a56F42447a9E8F1bEC1ACA4374B7D24c1B9521"
+        "proverManager": "0xb8D487Da6F13702D771a8B14fc5b0188c54E98ae",
+        "proofMarketplace": "0xff31b68F8f108C0A29513a55E3D6aC10DC6D5a4E"
     },
     "wallet": {
         "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"

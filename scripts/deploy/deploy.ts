@@ -39,9 +39,9 @@ async function deploy(): Promise<string> {
   await stakingManagerProxy.waitForDeployment();
   const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
   addresses.proxy.stakingManager = await stakingManager.getAddress();
-  addresses.implementation.stakingManager = await upgrades.erc1967.getImplementationAddress(addresses.proxy.stakingManager);
+  addresses.implementation.stakingManager = await upgrades.erc1967.getImplementationAddress(await stakingManager.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("StakingManager deployed at:\t\t", addresses.proxy.stakingManager);
+  console.log("StakingManager deployed at:\t\t", await stakingManager.getAddress());
 
   // Native Staking
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
@@ -51,9 +51,9 @@ async function deploy(): Promise<string> {
   });
   const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
   addresses.proxy.nativeStaking = await nativeStaking.getAddress();
-  addresses.implementation.nativeStaking = await upgrades.erc1967.getImplementationAddress(addresses.proxy.nativeStaking);
+  addresses.implementation.nativeStaking = await upgrades.erc1967.getImplementationAddress(await nativeStaking.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("NativeStaking deployed at:\t\t", addresses.proxy.nativeStaking);
+  console.log("NativeStaking deployed at:\t\t", await nativeStaking.getAddress());
 
   // Symbiotic Staking
   const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
@@ -63,9 +63,9 @@ async function deploy(): Promise<string> {
   });
   const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
   addresses.proxy.symbioticStaking = await symbioticStaking.getAddress();
-  addresses.implementation.symbioticStaking = await upgrades.erc1967.getImplementationAddress(addresses.proxy.symbioticStaking);
+  addresses.implementation.symbioticStaking = await upgrades.erc1967.getImplementationAddress(await symbioticStaking.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("SymbioticStaking deployed at:\t\t", addresses.proxy.symbioticStaking);
+  console.log("SymbioticStaking deployed at:\t\t", await symbioticStaking.getAddress());
 
   // Symbiotic Staking Reward
   const SymbioticStakingRewardContract = await ethers.getContractFactory("SymbioticStakingReward");
@@ -75,20 +75,20 @@ async function deploy(): Promise<string> {
   });
   const symbioticStakingReward = SymbioticStakingReward__factory.connect(await symbioticStakingRewardProxy.getAddress(), admin);
   addresses.proxy.symbioticStakingReward = await symbioticStakingReward.getAddress();
-  addresses.implementation.symbioticStakingReward = await upgrades.erc1967.getImplementationAddress(addresses.proxy.symbioticStakingReward);
+  addresses.implementation.symbioticStakingReward = await upgrades.erc1967.getImplementationAddress(await symbioticStakingReward.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("SymbioticStakingReward deployed at:\t\t", addresses.proxy.symbioticStakingReward);
+  console.log("SymbioticStakingReward deployed at:\t\t", await symbioticStakingReward.getAddress());
 
   // Attestation Verifier
   // TODO: check wether to use existing address or not
   const attestationVerifier = AttestationVerifier__factory.connect(addresses.proxy.attestationVerifier, admin);
-  addresses.implementation.attestationVerifier = await upgrades.erc1967.getImplementationAddress(addresses.proxy.attestationVerifier);
+  addresses.implementation.attestationVerifier = await upgrades.erc1967.getImplementationAddress(await attestationVerifier.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
 
   // Entity Key Registry
   // TODO: check wether to use existing address or not
   const entityKeyRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entityKeyRegistry, admin);
-  addresses.implementation.entityKeyRegistry = await upgrades.erc1967.getImplementationAddress(addresses.proxy.entityKeyRegistry);
+  addresses.implementation.entityKeyRegistry = await upgrades.erc1967.getImplementationAddress(await entityKeyRegistry.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
 
   // ProverManager
@@ -99,9 +99,9 @@ async function deploy(): Promise<string> {
   });
   const proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), admin);
   addresses.proxy.proverManager = await proverManager.getAddress();
-  addresses.implementation.proverManager = await upgrades.erc1967.getImplementationAddress(addresses.proxy.proverManager);
+  addresses.implementation.proverManager = await upgrades.erc1967.getImplementationAddress(await proverManager.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("ProverManager deployed at:\t\t", addresses.proxy.proverManager);
+  console.log("ProverManager deployed at:\t\t", await proverManager.getAddress());
 
   // ProofMarketplace
   const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
@@ -111,9 +111,9 @@ async function deploy(): Promise<string> {
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
   addresses.proxy.proofMarketplace = await proofMarketplace.getAddress();
-  addresses.implementation.proofMarketplace = await upgrades.erc1967.getImplementationAddress(addresses.proxy.proofMarketplace);
+  addresses.implementation.proofMarketplace = await upgrades.erc1967.getImplementationAddress(await proofMarketplace.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("ProofMarketplace deployed at:\t\t", addresses.proxy.proofMarketplace);
+  console.log("ProofMarketplace deployed at:\t\t", await proofMarketplace.getAddress());
 
   return "Deploy Done";
   // TODO: set address for roles
@@ -219,5 +219,4 @@ async function initialize(): Promise<string> {
   return "Initialize Done";
 }
 
-initialize().then(console.log).catch(console.error);
-// verify().then(console.log).catch(console.error);
+deploy().then(console.log).then(initialize).then(console.log).catch(console.error);

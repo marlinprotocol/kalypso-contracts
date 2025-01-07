@@ -4,6 +4,9 @@ import '@nomicfoundation/hardhat-chai-matchers';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-tracer';
+import * as tenderly from "@tenderly/hardhat-tenderly";
+
+tenderly.setup({ automaticVerifications: false });
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';
@@ -97,7 +100,8 @@ const config: HardhatUserConfig = {
       ],
       forking: {
         url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
-      }
+      },
+      chainId: 421614, 
     }
     // sepolia: {
     //   url: `${process.env.SEPOLIA_RPC_URL}`,

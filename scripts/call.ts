@@ -1,16 +1,13 @@
-import { SymbioticStaking__factory } from '../typechain-types';
-import { config } from './helper';
+import { ProofMarketplace__factory } from '../typechain-types';
+import { getConfig } from './helper';
 
 async function main() {
 
-  const { chainId, signers, addresses } = await config();
+  const { chainId, signers, addresses } = await getConfig();
 
-  const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbiotic_staking, signers[0]);
+  const proofMarketplace = ProofMarketplace__factory.connect(addresses.proxy.proofMarketplace, signers[0]);
 
-  const one_minute = 60;
-  const one_hour = one_minute * 60;
-
-  const tx = await symbioticStaking.setSubmissionCooldown(one_hour * 4);
+  const tx = await proofMarketplace.grantRole(await proofMarketplace.MATCHING_ENGINE_ROLE(), "0xc6dE583B87716E351e4Fb60D687b9330877DbaF4"); 
   await tx.wait();
 
   return "Done";

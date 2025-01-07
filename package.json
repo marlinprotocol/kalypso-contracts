@@ -29,6 +29,7 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
     "@nomicfoundation/hardhat-verify": "^2.0.11",
     "@nomicfoundation/ignition-core": "^0.15.7",
+    "@tenderly/hardhat-tenderly": "^2.5.1",
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
     "@types/mocha": "^10.0.9",
