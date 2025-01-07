@@ -115,45 +115,109 @@ async function deploy(): Promise<string> {
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
   console.log("ProofMarketplace deployed at:\t\t", addresses.proxy.proofMarketplace);
 
+  return "Deploy Done";
+  // TODO: set address for roles
+}
+
+async function initialize(): Promise<string> {
+  const { chainId, signers, addresses } = await getConfig();
+  console.log("Initializing on chain id:", chainId);
+
+  console.log("Available Signers", signers);
+  const admin = signers[0];
+
+  const configPath = `./config/${chainId}.json`;
+  const configurationExists = checkFileExists(configPath);
+
+  if (!configurationExists) {
+    throw new Error(`Config doesn't exists for chainId: ${chainId}`);
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+
   //---------------------------------------- Initialize ----------------------------------------//
+  const stakingManager = StakingManager__factory.connect(addresses.proxy.stakingManager, admin);
+  const nativeStaking = NativeStaking__factory.connect(addresses.proxy.nativeStaking, admin);
+  const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbioticStaking, admin);
+  const symbioticStakingReward = SymbioticStakingReward__factory.connect(addresses.proxy.symbioticStakingReward, admin);
+  const attestationVerifier = AttestationVerifier__factory.connect(addresses.proxy.attestationVerifier, admin);
+  const entityKeyRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entityKeyRegistry, admin);
+  const proverManager = ProverManager__factory.connect(addresses.proxy.proverManager, admin);
+  const proofMarketplace = ProofMarketplace__factory.connect(addresses.proxy.proofMarketplace, admin);
 
   const mockUSDC = addresses.mockToken.usdc;
 
   // Staking Manager
-  await stakingManager.initialize(
-    await admin.getAddress(),
-    await proofMarketplace.getAddress(),
-    await symbioticStaking.getAddress(),
-    await mockUSDC,
-  );
+  console.log(await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress()))
+  if(!await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await stakingManager.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await symbioticStaking.getAddress(),
+      mockUSDC,
+    );
+    console.log("StakingManager initialized");
+  }
 
   // Native Staking
   const WITHDRAWAL_DURATION = 2 * 60 * 60; // 2 hours
-  await nativeStaking.initialize(await admin.getAddress(), await stakingManager.getAddress(), WITHDRAWAL_DURATION, await mockUSDC);
+  if(!await nativeStaking.hasRole(await nativeStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await nativeStaking.initialize(await admin.getAddress(), await stakingManager.getAddress(), WITHDRAWAL_DURATION, mockUSDC);
+    console.log("NativeStaking initialized");
+  }
 
   // Symbiotic Staking
-  await symbioticStaking.initialize(
-    await admin.getAddress(),
-    await attestationVerifier.getAddress(),
-    await proofMarketplace.getAddress(),
-    await stakingManager.getAddress(),
-    await symbioticStakingReward.getAddress(),
-    await mockUSDC,
-  );
+  if(await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await symbioticStaking.initialize(
+      await admin.getAddress(),
+      await attestationVerifier.getAddress(),
+      await proofMarketplace.getAddress(),
+      await stakingManager.getAddress(),
+      await symbioticStakingReward.getAddress(),
+      mockUSDC,
+    );
+    console.log("SymbioticStaking initialized");
+  }
 
   // Symbiotic Staking Reward
-  await symbioticStakingReward.initialize(
-    await admin.getAddress(),
-    await proofMarketplace.getAddress(),
-    await symbioticStaking.getAddress(),
-    await mockUSDC,
-  );
+  if(await symbioticStakingReward.hasRole(await symbioticStakingReward.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await symbioticStakingReward.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await symbioticStaking.getAddress(),
+      mockUSDC,
+    );
+    console.log("SymbioticStakingReward initialized");
+  }
 
-  return "Deploy Done";
+  // Prover Manager
+  if(await proverManager.hasRole(await proverManager.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await proverManager.initialize(
+      await admin.getAddress(),
+      await proofMarketplace.getAddress(),
+      await stakingManager.getAddress(),
+      await entityKeyRegistry.getAddress()
+    );
+    console.log("ProverManager initialized");
+  }
+
+  // Proof Marketplace
+  if(await proofMarketplace.hasRole(await proofMarketplace.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+    await proofMarketplace.initialize(
+      await admin.getAddress(),
+      await mockUSDC,
+      await admin.getAddress(), // TODO: set treasury address
+      await proverManager.getAddress(),
+      await entityKeyRegistry.getAddress(),
+      config.marketCreationCost
+    );
+    console.log("ProofMarketplace initialized");
+  }
 
   //---------------------------------------- Initialize ----------------------------------------//
-  // TODO: set address for roles
+
+  return "Initialize Done";
 }
 
-deploy().then(console.log).catch(console.error);
-verify().then(console.log).catch(console.error);
+initialize().then(console.log).catch(console.error);
+// verify().then(console.log).catch(console.error);
