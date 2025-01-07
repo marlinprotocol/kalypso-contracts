@@ -167,7 +167,7 @@ async function initialize(): Promise<string> {
   }
 
   // Symbiotic Staking
-  if(await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
     await symbioticStaking.initialize(
       await admin.getAddress(),
       await attestationVerifier.getAddress(),
@@ -180,7 +180,7 @@ async function initialize(): Promise<string> {
   }
 
   // Symbiotic Staking Reward
-  if(await symbioticStakingReward.hasRole(await symbioticStakingReward.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await symbioticStakingReward.hasRole(await symbioticStakingReward.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
     await symbioticStakingReward.initialize(
       await admin.getAddress(),
       await proofMarketplace.getAddress(),
@@ -191,7 +191,7 @@ async function initialize(): Promise<string> {
   }
 
   // Prover Manager
-  if(await proverManager.hasRole(await proverManager.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await proverManager.hasRole(await proverManager.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
     await proverManager.initialize(
       await admin.getAddress(),
       await proofMarketplace.getAddress(),
@@ -202,7 +202,7 @@ async function initialize(): Promise<string> {
   }
 
   // Proof Marketplace
-  if(await proofMarketplace.hasRole(await proofMarketplace.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await proofMarketplace.hasRole(await proofMarketplace.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
     await proofMarketplace.initialize(
       await admin.getAddress(),
       await mockUSDC,
