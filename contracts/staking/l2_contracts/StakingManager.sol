@@ -31,7 +31,7 @@ contract StakingManager is
 
     //---------------------------------------- Constant start ----------------------------------------//
 
-    bytes32 public constant PROVER_REGISTRY_ROLE = keccak256("PROVER_REGISTRY");
+    bytes32 public constant PROVER_MANAGER_ROLE = keccak256("PROVER_MANAGER"); // TODO: fix to PROVER_MANAGER
     bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING");
 
     //---------------------------------------- Constant end ----------------------------------------//
@@ -83,11 +83,11 @@ contract StakingManager is
 
     //---------------------------------------- Init end ----------------------------------------//
 
-    //---------------------------------------- PROVER_REGISTRY_ROLE start ----------------------------------------//
+    //---------------------------------------- PROVER_MANAGER_ROLE start ----------------------------------------//
 
     /// @notice lock stake for the task for all enabled pools
     /// @dev called by ProofMarketplace contract when a task is created
-    function onTaskAssignment(uint256 _bidId, address _prover) external onlyRole(PROVER_REGISTRY_ROLE) {
+    function onTaskAssignment(uint256 _bidId, address _prover) external onlyRole(PROVER_MANAGER_ROLE) {
         uint256 len = stakingPoolSet.length();
 
         for (uint256 i = 0; i < len; i++) {
@@ -102,7 +102,7 @@ contract StakingManager is
      * @notice  called when task is completed to unlock the locked stakes
      * @dev     called by ProofMarketplace contract when a task is completed
      */
-    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_REGISTRY_ROLE) {
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_MANAGER_ROLE) {
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
@@ -125,7 +125,7 @@ contract StakingManager is
         return poolFeeRewardAmount;
     }
 
-    //---------------------------------------- PROVER_REGISTRY_ROLE end ----------------------------------------//
+    //---------------------------------------- PROVER_MANAGER_ROLE end ----------------------------------------//
 
     //---------------------------------------- SYMBIOTIC_STAKING_ROLE start ----------------------------------------//
 

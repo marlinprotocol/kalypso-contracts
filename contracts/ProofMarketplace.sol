@@ -49,6 +49,7 @@ contract ProofMarketplace is
     //-------------------------------- Constants and Immutable end --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
+    
     Struct.Market[] public marketData;
     Struct.BidWithState[] public listOfBid;
 

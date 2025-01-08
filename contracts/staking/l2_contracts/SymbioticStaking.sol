@@ -56,7 +56,6 @@ contract SymbioticStaking is
 
     //---------------------------------- State Variable start ----------------------------------//
 
-
     /* Config */
     uint256 public submissionCooldown; // 18 decimal (in seconds)
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
@@ -633,7 +632,7 @@ contract SymbioticStaking is
 
     function setAmountToLock(address _stakeToken, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         amountToLock[_stakeToken] = _amount;
-
+        
         emit AmountToLockSet(_stakeToken, _amount);
     }
 

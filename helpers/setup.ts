@@ -254,8 +254,8 @@ export const rawSetup = async (
 
   await proofMarketplace.grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
 
-  // Grant `PROVER_REGISTRY_ROLE` to StakingManager
-  await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverManager.getAddress());
+  // Grant `PROVER_MANAGER_ROLE` to StakingManager
+  await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
 
   // Grant `STAKING_MANAGER_ROLE` to SymbioticStaking
   await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
