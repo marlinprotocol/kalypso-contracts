@@ -104,9 +104,9 @@ contract SymbioticStaking is
     mapping(uint256 bidId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
-    // transmitter and block number
-    // once a certain captureTimestamp has been submitted, the transmitter and block number will be set and cannot be overwritten
-    mapping(uint256 captureTimestamp => Struct.CaptureTimestampInfo captureTimestampInfo) public captureTimestampInfo; 
+    // once a certain captureTimestamp is submitted, transmitter and block number will be set and cannot be overwritten
+    // once the captureTimestamp is confirmed, this will be stored in `confirmedTimestamps`
+    mapping(uint256 captureTimestamp => Struct.CaptureTimestampInfo) public captureTimestampInfo; 
 
     mapping(bytes32 imageId => Struct.EnclaveImage) public enclaveImages;
 
@@ -207,7 +207,7 @@ contract SymbioticStaking is
         bytes calldata _proof
     ) external {
         require(_lastBlockNumber > 0, Error.CannotBeZero());
-        require(_lastBlockNumber >= captureTimestampInfo[_captureTimestamp].blockNumber + 1, Error.InvalidLastBlockNumber());
+        require(_lastBlockNumber > latestConfirmedTimestampBlockNumber(), Error.InvalidLastBlockNumber());
 
         Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
