@@ -59,10 +59,8 @@ contract ProofMarketplace is
     address public proverManager;
     address public entityKeyRegistry;
 
-    // cost for inputs in payment token
-    mapping(Enum.SecretType => uint256) public costPerInputBytes;
-    // min proving time (in blocks) for each secret type.
-    mapping(Enum.SecretType => uint256) public minProvingTime;
+    mapping(Enum.SecretType => uint256) public costPerInputBytes; // cost for inputs in payment token
+    mapping(Enum.SecretType => uint256) public minProvingTime; // min proving time for each secret type.
     mapping(address => uint256) public proverClaimableFeeReward;
     mapping(address => uint256) public transmitterClaimableFeeReward;
 
@@ -283,7 +281,7 @@ contract ProofMarketplace is
     ) internal {
         require (_bid.reward != 0 && _bid.proverData.length != 0, Error.CannotBeZero());
 
-        require (_bid.expiry > block.number + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
+        require (_bid.expiry > block.timestamp + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
 
         // ensures that the cipher used is small enough
         require (_acl.length <= 130, Error.InvalidECIESACL());
@@ -552,7 +550,7 @@ contract ProofMarketplace is
         }
 
         bidWithState.state = Enum.BidState.ASSIGNED;
-        bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
+        bidWithState.bid.deadline = block.timestamp + bidWithState.bid.timeTakenForProofGeneration;
         bidWithState.prover = _prover;
 
         ProverManager(proverManager).assignProverTask(_bidId, _prover, bidWithState.bid.marketId);
@@ -728,7 +726,7 @@ contract ProofMarketplace is
 
         // time before which matching engine should assign the task to prover
         if (bidWithState.state == Enum.BidState.CREATED) {
-            if (bidWithState.bid.expiry > block.number) {
+            if (bidWithState.bid.expiry > block.timestamp) {
                 return bidWithState.state;
             }
 
@@ -737,7 +735,7 @@ contract ProofMarketplace is
 
         // time before which prover should submit the proof
         if (bidWithState.state == Enum.BidState.ASSIGNED) {
-            if (bidWithState.bid.deadline < block.number) {
+            if (bidWithState.bid.deadline < block.timestamp) {
                 return Enum.BidState.DEADLINE_CROSSED;
             }
 

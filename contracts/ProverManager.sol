@@ -28,11 +28,10 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
     bytes32 public constant PROOF_MARKET_PLACE_ROLE = keccak256("PROOF_MARKET_PLACE_ROLE");
 
-    uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
-    uint256 public constant UNLOCK_WAIT_BLOCKS = 100;
-
     uint256 internal constant EXPONENT = 10 ** 18;
-    uint256 internal constant REDUCTION_REQUEST_BLOCK_GAP = 1;
+
+    uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
+    uint256 internal constant REDUCTION_REQUEST_DELAY = 100; // in seconds
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
@@ -44,7 +43,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
     mapping(address => Struct.Prover) public proverRegistry;
     mapping(address => mapping(uint256 => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
-    mapping(address => uint256) reduceComputeRequestBlock;
+    mapping(address => uint256) public reduceComputeRequestTimestamp;
 
     uint256[500] private __gap;
 
@@ -168,7 +167,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         prover.intendedComputeUtilization = newUtilization;
 
         // block number after which this intent which execute
-        reduceComputeRequestBlock[_proverAddress] = block.number + REDUCTION_REQUEST_BLOCK_GAP;
+        reduceComputeRequestTimestamp[_proverAddress] = block.timestamp + REDUCTION_REQUEST_DELAY; // TODO: ask Akshay // in seconds
         emit ComputeDecreaseRequested(_proverAddress, newUtilization);
     }
 
@@ -202,14 +201,14 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
         if (
             !(
-                block.number >= reduceComputeRequestBlock[_proverAddress]
-                    && reduceComputeRequestBlock[_proverAddress] != 0
+                block.timestamp >= reduceComputeRequestTimestamp[_proverAddress]
+                    && reduceComputeRequestTimestamp[_proverAddress] != 0
             )
         ) {
             revert Error.ReductionRequestNotValid();
         }
 
-        delete reduceComputeRequestBlock[_proverAddress];
+        delete reduceComputeRequestTimestamp[_proverAddress];
         emit ComputeDecreased(_proverAddress, computeToRelease);
     }
 

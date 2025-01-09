@@ -16,8 +16,7 @@ library Struct {
     struct Bid {
         uint256 marketId;
         uint256 reward;
-        // the block number by which the bid should be assigned by matching engine
-        uint256 expiry;
+        uint256 expiry; // block.timestamp by which the bid should be assigned by matching engine
         uint256 timeTakenForProofGeneration;
         uint256 deadline;
         address refundAddress;
