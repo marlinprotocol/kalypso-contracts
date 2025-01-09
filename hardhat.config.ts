@@ -6,7 +6,7 @@ import 'solidity-coverage';
 import 'hardhat-tracer';
 import * as tenderly from "@tenderly/hardhat-tenderly";
 
-tenderly.setup({ automaticVerifications: false });
+tenderly.setup();
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';

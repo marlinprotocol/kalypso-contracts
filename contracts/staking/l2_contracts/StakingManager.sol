@@ -214,7 +214,7 @@ contract StakingManager is
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(_pools.length == _shares.length || _pools.length == stakingPoolSet.length(), Error.InvalidLength());
+        require(_pools.length == _shares.length && _pools.length == stakingPoolSet.length(), Error.InvalidLength());
 
         uint256 sum = 0;
         for (uint256 i = 0; i < _shares.length; i++) {

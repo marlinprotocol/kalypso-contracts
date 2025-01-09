@@ -28,7 +28,7 @@
     "mockToken": {
         "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
         "pond": "0xB5570D4D39dD20F61dEf7C0d6846790360b89a18",
-        "weth": ""
+        "weth": "0x854493FB9F844c8632140ffF9B66207B10027E8d"
     },
     "implementation": {
         "stakingManager": "0xFE379a4406367b61EB1405309539469cAB3d2Ab6",

@@ -163,9 +163,9 @@ contract DeployArbitrumSepolia is Script {
             admin, address(proofMarketplace), address(symbioticStaking), feeToken
         );
 
-        // Grant `PROVER_REGISTRY_ROLE` to StakingManager
+        // Grant `PROVER_MANAGER_ROLE` to StakingManager
         StakingManager(address(stakingManager)).grantRole(
-            StakingManager(address(stakingManager)).PROVER_REGISTRY_ROLE(), address(proverManager)
+            StakingManager(address(stakingManager)).PROVER_MANAGER_ROLE(), address(proverManager)
         );
 
         // Grant `KEY_REGISTER_ROLE` to ProverManager, ProofMarketplace
