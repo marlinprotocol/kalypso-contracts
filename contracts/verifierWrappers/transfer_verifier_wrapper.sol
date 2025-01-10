@@ -39,7 +39,7 @@ contract transfer_verifier_wrapper is SetPmp, IVerifier {
             bid.marketId,
             bid.reward,
             bid.expiry,
-            bid.timeTakenForProofGeneration,
+            bid.timeForProofGeneration,
             bid.deadline,
             bid.refundAddress,
             encodeInputs(verifyAndDecodeInputs(bid.proverData))

@@ -284,8 +284,8 @@ contract ProofMarketplace is
 
         require(_bid.expiry > block.timestamp + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
         require(
-            _bid.timeTakenForProofGeneration >= MIN_PROVING_TIME && _bid.timeTakenForProofGeneration <= MAX_PROVING_TIME,
-            Error.InvalidTimeTakenForProofGeneration()
+            _bid.timeForProofGeneration >= MIN_PROVING_TIME && _bid.timeForProofGeneration <= MAX_PROVING_TIME,
+            Error.InvalidTimeForProofGeneration()
         );
 
         // ensures that the cipher used is small enough

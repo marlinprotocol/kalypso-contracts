@@ -17,7 +17,7 @@ library Struct {
         uint256 marketId;
         uint256 reward;
         uint256 expiry; // block.timestamp by which the bid should be assigned by matching engine
-        uint256 timeTakenForProofGeneration;
+        uint256 timeForProofGeneration;
         uint256 deadline;
         address refundAddress;
         bytes proverData;

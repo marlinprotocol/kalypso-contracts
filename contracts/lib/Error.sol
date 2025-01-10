@@ -87,7 +87,7 @@ library Error {
     error InvalidProverRewardShare();
     error NotSlashableBidId(uint256 bidId);
     error InvalidProverProposedTime();
-    error InvalidTimeTakenForProofGeneration();
+    error InvalidTimeForProofGeneration();
     
     // Staking
     error InsufficientStakeAmount();
