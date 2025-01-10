@@ -552,12 +552,12 @@ contract ProofMarketplace is
         }
 
         // Can not assign task if time mismatch happens
-        if (bidWithState.bid.timeTakenForProofGeneration < proverProposedTime) {
+        if (bidWithState.bid.timeForProofGeneration < proverProposedTime) {
             revert Error.ProofTimeMismatch(_bidId);
         }
 
         bidWithState.state = Enum.BidState.ASSIGNED;
-        bidWithState.bid.deadline = block.timestamp + bidWithState.bid.timeTakenForProofGeneration;
+        bidWithState.bid.deadline = block.timestamp + bidWithState.bid.timeForProofGeneration;
         bidWithState.prover = _prover;
 
         ProverManager(proverManager).assignProverTask(_bidId, _prover, bidWithState.bid.marketId);
