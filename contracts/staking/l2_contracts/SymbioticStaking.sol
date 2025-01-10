@@ -207,6 +207,7 @@ contract SymbioticStaking is
         bytes calldata _proof
     ) external {
         require(_lastBlockNumber > 0, Error.CannotBeZero());
+        // the range must include at least one block after the block number of the latest confirmed block
         require(_lastBlockNumber > latestConfirmedTimestampBlockNumber(), Error.InvalidLastBlockNumber());
 
         Struct.TaskSlashed[] memory _taskSlashed;

@@ -86,7 +86,9 @@ library Error {
     // ProofMarketplace
     error InvalidProverRewardShare();
     error NotSlashableBidId(uint256 bidId);
-
+    error InvalidProverProposedTime();
+    error InvalidTimeTakenForProofGeneration();
+    
     // Staking
     error InsufficientStakeAmount();
     error NoStakeTokenAvailableToLock();
