@@ -57,6 +57,7 @@ library Error {
 
     // Task and Request Errors
     error CannotAssignExpiredTasks();
+    error ExceedsMaximumMatchtime();
     error InvalidInputs();
     error ArityMismatch();
     error OnlyMatchingEngineCanAssign();

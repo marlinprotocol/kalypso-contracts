@@ -46,6 +46,7 @@ contract ProofMarketplace is
 
     uint256 public constant MIN_PROVING_TIME = 1; // 1 second
     uint256 public constant MAX_PROVING_TIME = 24 * 60 * 60; // 1 day
+    uint256 public constant MAX_MATCHING_TIME = 24 * 60 * 60; // 1 day
 
     //-------------------------------- Constants and Immutable end --------------------------------//
 
@@ -283,6 +284,7 @@ contract ProofMarketplace is
         require(_bid.reward > 0 && _bid.proverData.length > 0, Error.CannotBeZero());
 
         require(_bid.expiry > block.timestamp + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
+        require(_bid.expiry <= block.timestamp + MAX_MATCHING_TIME, Error.ExceedsMaximumMatchtime());
         require(
             _bid.timeForProofGeneration >= MIN_PROVING_TIME && _bid.timeForProofGeneration <= MAX_PROVING_TIME,
             Error.InvalidTimeForProofGeneration()
