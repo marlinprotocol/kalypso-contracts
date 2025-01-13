@@ -44,9 +44,9 @@ contract ProofMarketplace is
     bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE =
         0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb; // keccak256("SYMBIOTIC_STAKING_REWARD_ROLE")
 
-    uint256 public constant MIN_PROVING_TIME = 1; // 1 second
-    uint256 public constant MAX_PROVING_TIME = 24 * 60 * 60; // 1 day
-    uint256 public constant MAX_MATCHING_TIME = 24 * 60 * 60; // 1 day
+    uint256 public constant MIN_PROVING_TIME = 1 seconds; // 1 second
+    uint256 public constant MAX_PROVING_TIME = 1 days; // 1 day
+    uint256 public constant MAX_MATCHING_TIME = 1 days; // 1 day
 
     //-------------------------------- Constants and Immutable end --------------------------------//
 

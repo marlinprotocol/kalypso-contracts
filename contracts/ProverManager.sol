@@ -31,9 +31,9 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     uint256 internal constant EXPONENT = 10 ** 18;
 
     uint256 public constant PARALLEL_REQUESTS_UPPER_LIMIT = 100;
-    uint256 internal constant REDUCTION_REQUEST_DELAY = 100; // in seconds
-    uint256 public constant MIN_PROVING_TIME = 1; // 1 second
-    uint256 public constant MAX_PROVING_TIME = 24 * 60 * 60; // 1 day
+    uint256 internal constant REDUCTION_REQUEST_DELAY = 100 seconds; // in seconds
+    uint256 public constant MIN_PROVING_TIME = 1 seconds; // 1 second
+    uint256 public constant MAX_PROVING_TIME = 1 days; // 1 day
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
