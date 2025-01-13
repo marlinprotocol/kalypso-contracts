@@ -12,7 +12,7 @@ export async function getConfig() {
   const path = `./addresses/${chainId}.json`;
   const addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  return { chainId, signers, addresses };
+  return { chainId, signers, path, addresses };
 }
 
 export async function verify(address: string, constructorArguments: any[]) {
