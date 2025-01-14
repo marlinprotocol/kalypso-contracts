@@ -38,7 +38,7 @@
         "attestationVerifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
         "entityKeyRegistry": "0x7AE71621312900e91EB5256654933ABE3eae34D3",
         "proverManager": "0xD6670072CE3e657f5acaa07a1A041c7daEf5c43a",
-        "proofMarketplace": "0x21d5C7974853776e09092B3528D1F874da906eC9"
+        "proofMarketplace": "0x5C18172cf7893223643dCB018af680b8e4b4cc00"
     },
     "wallet": {
         "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"

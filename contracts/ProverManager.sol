@@ -436,30 +436,6 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
     //-------------------------------- PROOF_MARKET_PLACE_ROLE start --------------------------------//
 
-    /**
-     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when provers is about to be slashed
-     */
-    function releaseProverCompute(address _proverAddress, uint256 _marketId)
-        external
-        onlyRole(PROOF_MARKET_PLACE_ROLE)
-    {
-        (Enum.ProverState state,) = getProverState(_proverAddress, _marketId);
-
-        // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
-        // only provers in WIP, REQUESTED_FOR_EXIT, NO_COMPUTE_AVAILABLE can submit the request, NULL and JOINED can't
-        if (state == Enum.ProverState.NULL || state == Enum.ProverState.JOINED) {
-            revert Error.CannotBeSlashed();
-        }
-
-        Struct.Prover storage prover = proverRegistry[_proverAddress];
-        Struct.ProverInfoPerMarket storage info = proverInfoPerMarket[_proverAddress][_marketId];
-
-        info.activeRequests--;
-
-        prover.computeConsumed -= info.computePerRequestRequired;
-        emit ComputeReleased(_proverAddress, info.computePerRequestRequired);
-    }
-
     function assignProverTask(uint256 _bidId, address _proverAddress, uint256 _marketId)
         external
         nonReentrant
@@ -490,6 +466,22 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         external
         onlyRole(PROOF_MARKET_PLACE_ROLE)
     {
+        _releaseProverCompute(_proverAddress, _marketId);
+        
+        IStakingManager(stakingManager).onTaskCompletion(_bidId, _proverAddress, _feeReward);
+    }
+
+    /**
+     * @notice Should be called by proof market place only, PMP is assigned SLASHER_ROLE, called when provers is about to be slashed
+     */
+    function releaseProverCompute(address _proverAddress, uint256 _marketId)
+        external
+        onlyRole(PROOF_MARKET_PLACE_ROLE)
+    {
+        _releaseProverCompute(_proverAddress, _marketId);
+    }
+
+    function _releaseProverCompute(address _proverAddress, uint256 _marketId) internal {
         (Enum.ProverState state,) = getProverState(_proverAddress, _marketId);
 
         // All states = NULL,JOINED,NO_COMPUTE_AVAILABLE,WIP,REQUESTED_FOR_EXIT
@@ -503,8 +495,6 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
         uint256 computeReleased = info.computePerRequestRequired;
         prover.computeConsumed -= computeReleased;
-
-        IStakingManager(stakingManager).onTaskCompletion(_bidId, _proverAddress, _feeReward);
 
         info.activeRequests--;
         emit ComputeReleased(_proverAddress, computeReleased);

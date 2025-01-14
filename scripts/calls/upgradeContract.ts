@@ -5,50 +5,49 @@ import {
 import * as fs from "fs";
 import {
   ProofMarketplace__factory,
-  ProverManager__factory,
   UUPSUpgradeable__factory,
-} from '../typechain-types';
-import { getConfig } from './helper';
+} from '../../typechain-types';
+import { getConfig } from '../helper';
 
 async function main() {
   const { chainId, signers, path, addresses } = await getConfig();
 
   const admin = signers[0];
 
-  // ProofMarketplace Proxy
-  const proofMarketplaceProxy = UUPSUpgradeable__factory.connect(addresses.proxy.proofMarketplace, admin);
-  // New ProofMarketplace Implementation
-  const newProofMarketplaceImpl = await new ProofMarketplace__factory(admin).deploy();
-  await newProofMarketplaceImpl.waitForDeployment();
+  // // ProofMarketplace Proxy
+  // const proofMarketplaceProxy = UUPSUpgradeable__factory.connect(addresses.proxy.proofMarketplace, admin);
+  // // New ProofMarketplace Implementation
+  // const newProofMarketplaceImpl = await new ProofMarketplace__factory(admin).deploy();
+  // await newProofMarketplaceImpl.waitForDeployment();
   
-  addresses.implementation.proofMarketplace = await newProofMarketplaceImpl.getAddress();
-  fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("ProofMarketplace deployed at:\t\t", await newProofMarketplaceImpl.getAddress());
+  // addresses.implementation.proofMarketplace = await newProofMarketplaceImpl.getAddress();
+  // fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  // console.log("ProofMarketplace deployed at:\t\t", await newProofMarketplaceImpl.getAddress());
   
-  // Upgrade ProofMarketplace
-  let tx = await proofMarketplaceProxy.upgradeToAndCall(await newProofMarketplaceImpl.getAddress(), "0x");
-  await tx.wait();
-  console.log("ProofMarketplace upgraded");
+  // let tx = await proofMarketplaceProxy.upgradeToAndCall(await newProofMarketplaceImpl.getAddress(), "0x");
+  // // Upgrade ProofMarketplace
+  // await tx.wait();
+  // console.log("ProofMarketplace upgraded");
   
-  let verificationResult;
+  // let verificationResult;
   
-  try {
-    verificationResult = await run("verify:verify", {
-      address: await newProofMarketplaceImpl.getAddress(),
-    });
-    console.log({ verificationResult });  
-  } catch (error) {
-    console.error("Error verifying ProofMarketplace implementation on Etherscan:", error);
-  }
+  // try {
+  //   verificationResult = await run("verify:verify", {
+  //     address: await newProofMarketplaceImpl.getAddress(),
+  //   });
+  //   console.log({ verificationResult });  
+  // } catch (error) {
+  //   console.error("Error verifying ProofMarketplace implementation on Etherscan:", error);
+  // }
 
-  try {
-    await tenderly.verify({
-      address: await newProofMarketplaceImpl.getAddress(),
-      name: "ProofMarketplace",
-    });
-  } catch (error) {
-    console.error("Error verifying ProofMarketplace implementation on Tenderly:", error);
-  }
+  // try {
+  //   await tenderly.verify({
+  //     address: addresses.implementation.proofMarketplace,
+  //     name: "ProofMarketplace",
+  //   });
+  // } catch (error) {
+  //   console.error("Error verifying ProofMarketplace implementation on Tenderly:", error);
+  // }
 
   // ProverManager Proxy
   const proverManagerProxy = UUPSUpgradeable__factory.connect(addresses.proxy.proverManager, admin);
