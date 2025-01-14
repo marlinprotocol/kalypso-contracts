@@ -27,7 +27,7 @@ export interface Bid {
   marketId: string;
   reward: string;
   expiry: string;
-  timeTakenForProofGeneration: string;
+  timeForProofGeneration: string;
   deadline: string;
   refundAddress: string; // address
   proverData: string; // bytes

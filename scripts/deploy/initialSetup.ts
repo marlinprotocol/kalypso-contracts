@@ -1,13 +1,15 @@
-import BigNumber from "bignumber.js";
+import BigNumber from 'bignumber.js';
+
 import {
   EntityKeyRegistry__factory,
+  IStakingPool,
   NativeStaking__factory,
   ProofMarketplace__factory,
   StakingManager__factory,
   SymbioticStaking__factory,
   SymbioticStakingReward__factory,
-} from "../../typechain-types";
-import { getConfig } from "../helper";
+} from '../../typechain-types';
+import { getConfig } from '../helper';
 
 async function main() {
   const { chainId, signers, addresses } = await getConfig();
@@ -39,7 +41,6 @@ async function main() {
   await stakingManager.addStakingPool(await symbioticStaking.getAddress());
   console.log("SymbioticStaking added to StakingManager");
 
-
   // Set reward shares for each pool
   await stakingManager.setPoolRewardShare(
     [await nativeStaking.getAddress(), await symbioticStaking.getAddress()],
@@ -54,26 +55,37 @@ async function main() {
   console.log("SymbioticStaking enabled");
 
   /*-------------------------------- NativeStaking Setup --------------------------------*/
-
+  
+  // TODO: weight will be twisted each time new token is added, need to fix the contract logic
   await nativeStaking.addStakeToken(POND, ONE_ETH.toString());
   console.log("POND added to NativeStaking");
   await nativeStaking.setStakeAmountToLock(POND, ONE_ETH.toString());
   console.log("Stake amount to lock set for POND");
 
-  /*-------------------------------- SymbioticStaking Config --------------------------------*/
+  // /*-------------------------------- SymbioticStaking Config --------------------------------*/
 
+  // TODO: weight will be twisted each time new token is added, need to fix the contract logic
+  // Add Stake Tokens
   await symbioticStaking.addStakeToken(POND, SIXTY_PERCENT.toString()); // POND: 60%
   console.log("POND added to SymbioticStaking");
   await symbioticStaking.addStakeToken(WETH, FOURTY_PERCENT.toString()); // WETH: 40%
   console.log("WETH added to SymbioticStaking");
+  await symbioticStaking.addStakeToken("0x5e478cb7576906fe2a443684adcd9a0dfc547abd", TWENTY_PERCENT.toString()); // Arbitrary: 20%
+  console.log("Arbitrary added to SymbioticStaking");
 
+  // Set Amount to Lock
   await symbioticStaking.setAmountToLock(POND, ONE_ETH.multipliedBy(2).toString()); // Lock 2 POND per job
   console.log("Amount to lock set for POND");
   await symbioticStaking.setAmountToLock(WETH, ONE_ETH.multipliedBy(2).toString()); // Lock 2 WETH per job
   console.log("Amount to lock set for WETH");
+  await symbioticStaking.setAmountToLock("0x5e478cb7576906fe2a443684adcd9a0dfc547abd", ONE_ETH.multipliedBy(10).toString()); // Lock 10 WETH per job
+  console.log("Amount to lock set for 0x5e478cb7576906fe2a443684adcd9a0dfc547abd");
 
+  // Set Base Transmitter Comission Rate
   await symbioticStaking.setBaseTransmitterComissionRate(TWENTY_PERCENT.toString()); // Base Transmitter Comission: 20%
   console.log("Base Transmitter Comission set");
+
+  // Set Submission Cooldown
   await symbioticStaking.setSubmissionCooldown(TEN_MINUTES);
   console.log("Submission Cooldown set");
   
