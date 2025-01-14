@@ -521,7 +521,10 @@ contract ProofMarketplace is
             IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
             bidWithState.bid.reward = 0;
 
+            // TODO: Remove this (i.e. releasing the stake) when slashing is implemented
+            ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, 0);
             ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
+
             emit ProofNotGenerated(_bidId);
         }
     }
