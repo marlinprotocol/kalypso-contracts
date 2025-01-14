@@ -523,7 +523,8 @@ contract ProofMarketplace is
 
             // TODO: Remove this (i.e. releasing the stake) when slashing is implemented
             ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, 0);
-            ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
+            // TODO: Uncomment this when slashing is implemented
+            // ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
 
             emit ProofNotGenerated(_bidId);
         }
