@@ -147,6 +147,7 @@ contract Middleware is Initializable,  // initializer
     mapping(address vault => mapping(uint256 jobId => SlashInfo)) public slashInfo;
     address[] public vaults;
     mapping(address operator => address delegate) delegates;
+    bool public isSlashingEnabled = false;
 
     uint256[500] private __gap_1;
 
@@ -181,6 +182,21 @@ contract Middleware is Initializable,  // initializer
      * @param delegate The address of the delegate.
      */
     event DelegateSet(address indexed operator, address indexed delegate);
+
+    /**
+     * @dev Emitted when slashing is enabled or disabled.
+     * @param isEnabled True if slashing is enabled, false otherwise.
+     */
+    event SlashingEnabled(bool isEnabled);
+
+    /**
+     * @dev Enables or disables slashing.
+     * @param _isEnabled True to enable slashing, false to disable.
+     */
+    function setSlashingEnabled(bool _isEnabled) external onlyAdmin() {
+        isSlashingEnabled = _isEnabled;
+        emit SlashingEnabled(_isEnabled);
+    }
 
     /**
      * @dev Sets a delegate for an operator.
@@ -272,6 +288,7 @@ contract Middleware is Initializable,  // initializer
         bytes calldata _hints,
         bytes calldata _proof
     ) external { // TODO: Is reentrancy guard required?
+        require(isSlashingEnabled, "M:S-Slashing disabled");
         require(vaultInfo[_vault].slasherType == SlasherType.INSTANT_SLASH, "M:S-Invalid slasher type");
         require(_amount != 0, "M:S-Invalid amount");
         require(slashInfo[_vault][_jobId].amount == 0, "M:S-Already slashed");
@@ -310,6 +327,7 @@ contract Middleware is Initializable,  // initializer
         bytes calldata _hints,
         bytes calldata _proof
     ) external { // TODO: Is reentrancy guard required?
+        require(isSlashingEnabled, "M:S-Slashing disabled");
         require(vaultInfo[_vault].slasherType == SlasherType.VETO_SLASH, "M:RS-Invalid slasher type");
         require(_amount != 0, "M:RS-Invalid amount");
         require(slashInfo[_vault][_jobId].amount == 0, "M:RS-Already slashed");

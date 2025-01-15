@@ -14,6 +14,7 @@ import {
 } from "../typechain-types";
 import { HDNodeWallet, Signer, SigningKey } from "ethers";
 import { BytesLike } from "ethers";
+import exp from "constants";
 
 describe("Middleware Contract Tests", function () {
     let middleware: Middleware;
@@ -54,6 +55,11 @@ describe("Middleware Contract Tests", function () {
             expect(
                 await middleware.getRoleMemberCount(await middleware.DEFAULT_ADMIN_ROLE())
             ).to.equal(1);
+            expect(
+                await middleware.getRoleMember(await middleware.DEFAULT_ADMIN_ROLE(), 0)
+            ).to.equal(await admin.getAddress());
+            expect(await middleware.getNoOfVaults()).to.equal(0);
+            expect(await middleware.isSlashingEnabled()).to.equal(false);
         });
 
         it("Should prevent re-initialization", async function () {
@@ -185,6 +191,18 @@ describe("Middleware Contract Tests", function () {
             // Grant VAULT_CONFIG_SET_ROLE to admin
             const VAULT_CONFIG_SET_ROLE = await middleware.VAULT_CONFIG_SET_ROLE();
             await middleware.connect(admin).grantRole(VAULT_CONFIG_SET_ROLE, await admin.getAddress());
+        });
+
+        it("Should allow admin to enable slashing", async function () {
+            expect(await middleware.isSlashingEnabled()).to.equal(false);
+            await middleware.connect(admin).enableSlashing();
+            expect(await middleware.isSlashingEnabled()).to.equal(true);
+        });
+
+        it("Should prevent non-admin from enabling slashing", async function () {
+            await expect(
+                middleware.connect(otherAccount).enableSlashing()
+            ).to.be.revertedWith("only admin");
         });
 
         it("Should allow admin to configure a vault", async function () {
