@@ -7,6 +7,7 @@ import {
   RiscZeroGroth16Verifier__factory,
   RiscZeroVerifierEmergencyStop__factory,
 } from "../typechain-types";
+
 import { checkFileExists } from "../helpers";
 import { AbiCoder } from "ethers";
 import * as attestation from "../helpers/sample/risc0/attestation.json";
@@ -29,21 +30,25 @@ async function main(): Promise<string> {
     throw new Error(`Config doesn't exists for chainId: ${chainId}`);
   }
 
-  let admin = signers[0];
-
   const path = `./addresses/${chainId}.json`;
 
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   let attestation_zk_verifier = addresses.proxy.attestation_zk_verifier;
 
-  const AttestationVerifierZK = await ethers.getContractFactory("AttestationVerifierZK");
-
-  const attestationVerifierZk = AttestationVerifierZK__factory.connect(attestation_zk_verifier, admin);
+  const AttestationProofVerifier = await ethers.getContractFactory("AttestationProofVerifier");
 
   // using same old verifier patches in attestationVerifierZk
-  await upgrades.upgradeProxy(attestation_zk_verifier, AttestationVerifierZK, {
+  await upgrades.upgradeProxy(attestation_zk_verifier, AttestationProofVerifier, {
     kind: "uups",
-    constructorArgs: [await attestationVerifierZk.RISC0_VERIFIER()],
+    // constructorArgs: [await attestationVerifierZk.RISC0_VERIFIER()
+    constructorArgs: ["0x0b144e07a0826182b6b59788c34b32bfa86fb711"],
+  });
+
+  const implementationAddress = await upgrades.erc1967.getImplementationAddress(attestation_zk_verifier);
+
+  await run("verify:verify", {
+    address: implementationAddress,
+    constructorArguments: ["0x0b144e07a0826182b6b59788c34b32bfa86fb711"],
   });
 
   return "Upgraded AttestationVerifierZK";

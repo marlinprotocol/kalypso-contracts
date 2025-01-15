@@ -171,6 +171,12 @@ describe("Proof Market Place for Attestation Verifier", () => {
     await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
+  it.skip("Print function calldata", async () => {
+    const type_input = ["bytes", "bytes"];
+    let functionCalldata = new AbiCoder().encode(type_input, [inputBytes, proofBytes]);
+    console.log(JSON.stringify({ functionCalldata }, null, 4));
+  });
+
   it("Check risc0 attestation zk verifier", async () => {
     const latestBlock = await ethers.provider.getBlockNumber();
 
