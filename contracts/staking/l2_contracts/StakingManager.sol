@@ -31,7 +31,7 @@ contract StakingManager is
 
     //---------------------------------------- Constant start ----------------------------------------//
 
-    bytes32 public constant PROVER_MANAGER_ROLE = keccak256("PROVER_MANAGER"); // TODO: fix to PROVER_MANAGER
+    bytes32 public constant PROVER_MANAGER_ROLE = keccak256("PROVER_MANAGER");
     bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING");
 
     //---------------------------------------- Constant end ----------------------------------------//
@@ -77,8 +77,6 @@ contract StakingManager is
         require(_symbioticStaking != address(0), Error.InvalidSymbioticStaking());
         symbioticStaking = _symbioticStaking;
         emit SymbioticStakingSet(_symbioticStaking);
-
-        // TODO: Add ROLE_SETTER role
     }
 
     //---------------------------------------- Init end ----------------------------------------//
@@ -113,8 +111,6 @@ contract StakingManager is
 
             IStakingPool(pool).onTaskCompletion(_bidId, _prover, poolFeeRewardAmount);
         }
-        
-        // TODO: emit event?
     }
 
     function _calcFeeRewardAmount(address _pool, uint256 _feeRewardAmount) internal view returns (uint256) {

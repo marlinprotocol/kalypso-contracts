@@ -68,7 +68,7 @@ contract ProofMarketplace is
 
     uint256[500] private __gap;
 
-    // TODO: Add mapping for `stakePerjob` later
+    // TODO: mapping for `stakePerjob` later
 
     //-------------------------------- State variables end --------------------------------//
 
@@ -79,7 +79,7 @@ contract ProofMarketplace is
         _disableInitializers();
     }
 
-    // TODO: add stake per job
+    // TODO: stake per job
     function initialize(
         address _admin,
         address _paymentToken,

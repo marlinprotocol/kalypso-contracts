@@ -200,7 +200,6 @@ contract SymbioticStaking is
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
-        // TODO: how to gaurantee this matches with given captureTimestamp
         uint256 _lastBlockNumber, // last block number of the range
         bytes32 _imageId,
         bytes calldata _slashResultData,
@@ -616,7 +615,12 @@ contract SymbioticStaking is
     function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.add(_stakeToken), Error.TokenAlreadyExists());
 
-        stakeTokenSelectionWeightSum += _weight;
+        if(stakeTokenSelectionWeightSum == 0) {
+            stakeTokenSelectionWeightSum = 10e18;
+        } else {
+            stakeTokenSelectionWeightSum += _weight;
+        }
+
         stakeTokenSelectionWeight[_stakeToken] = _weight;
 
         emit StakeTokenAdded(_stakeToken, _weight);

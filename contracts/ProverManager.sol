@@ -169,7 +169,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         prover.intendedComputeUtilization = newUtilization;
 
         // block number after which this intent which execute
-        reduceComputeRequestTimestamp[_proverAddress] = block.timestamp + REDUCTION_REQUEST_DELAY; // TODO: ask Akshay // in seconds
+        reduceComputeRequestTimestamp[_proverAddress] = block.timestamp + REDUCTION_REQUEST_DELAY;
         emit ComputeDecreaseRequested(_proverAddress, newUtilization);
     }
 
