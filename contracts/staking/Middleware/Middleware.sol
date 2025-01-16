@@ -104,7 +104,7 @@ contract Middleware is Initializable,  // initializer
         _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         _updateNetworkId(_networkId);
-        attestationVerifier = _attestationVerifier;
+        _updateAttestationVerifier(_attestationVerifier);
     }
 
 //-------------------------------- Initializer start --------------------------------//
@@ -137,7 +137,7 @@ contract Middleware is Initializable,  // initializer
     }
 
     bytes32 public constant VAULT_CONFIG_SET_ROLE = keccak256("VAULT_CONFIG_SET_ROLE");
-    bytes32 public constant NETWORK_UPDATE_ROLE = keccak256("NETWORK_UPDATE_ROLE");
+    bytes32 public constant MIDDLEWARE_CONFIG_SET_ROLE = keccak256("MIDDLEWARE_CONFIG_SET_ROLE");
     uint256 private constant SIGNATURE_LENGTH = 65;
     uint256 private constant PUBLIC_KEY_LENGTH = 64;
 
@@ -156,6 +156,12 @@ contract Middleware is Initializable,  // initializer
      * @param networkId The new network ID.
      */
     event NetworkIdUpdated(bytes32 indexed networkId);
+
+    /**
+     * @dev Emitted when the attestation verifier contract address is updated.
+     * @param attestationVerifier The address of the attestation verifier contract.
+     */
+    event AttestationVerifierUpdated(address indexed attestationVerifier);
 
     /**
      * @dev Emitted when vault information is configured in Middleware.
@@ -245,11 +251,30 @@ contract Middleware is Initializable,  // initializer
     }
 
     /**
+     * @dev Removes the configuration for a vault.
+     * @param _vault The address of the vault.
+     */
+    function removeVault(address _vault) external onlyRole(VAULT_CONFIG_SET_ROLE) {
+        require(_vault != address(0), "M:RV-Vault cannot be zero address");
+        require(vaultInfo[_vault].collateral != address(0), "M:RV-Vault not configured");
+
+        delete vaultInfo[_vault];
+        for(uint256 i = 0; i < vaults.length; i++) {
+            if(vaults[i] == _vault) {
+                vaults[i] = vaults[vaults.length - 1];
+                vaults.pop();
+                break;
+            }
+        }
+        
+        emit VaultConfigured(_vault, address(0), SlasherType.UNDEFINED);
+    }
+
+    /**
      * @dev Updates the network ID.
      * @param _networkId The new network ID.
      */
-     // TODO: Is this function required?
-    function updateNetworkId(bytes32 _networkId) external onlyRole(NETWORK_UPDATE_ROLE) {
+    function updateNetworkId(bytes32 _networkId) external onlyRole(MIDDLEWARE_CONFIG_SET_ROLE) {
         _updateNetworkId(_networkId);
     }
 
@@ -261,6 +286,24 @@ contract Middleware is Initializable,  // initializer
         require(_networkId != bytes32(0), "M:UN-Network id cannot be zero");
         networkId = _networkId;
         emit NetworkIdUpdated(_networkId);
+    }
+
+    /**
+     * @dev Updates the attestation verifier contract address.
+     * @param _attestationVerifier The address of the attestation verifier contract.
+     */
+    function updateAttestationVerifier(address _attestationVerifier) external onlyRole(MIDDLEWARE_CONFIG_SET_ROLE) {
+        _updateAttestationVerifier(_attestationVerifier);
+    }
+
+    /**
+     * @dev Internal function to update the attestation verifier contract address.
+     * @param _attestationVerifier The address of the attestation verifier contract.
+     */
+    function _updateAttestationVerifier(address _attestationVerifier) internal {
+        require(_attestationVerifier != address(0), "M:UAV-Attestation verifier cannot be zero address");
+        attestationVerifier = _attestationVerifier;
+        emit AttestationVerifierUpdated(_attestationVerifier);
     }
     
 //-------------------------------- Slashing config end --------------------------------//
@@ -287,7 +330,7 @@ contract Middleware is Initializable,  // initializer
         uint48 _captureTimestamp,
         bytes calldata _hints,
         bytes calldata _proof
-    ) external { // TODO: Is reentrancy guard required?
+    ) external {
         require(isSlashingEnabled, "M:S-Slashing disabled");
         require(vaultInfo[_vault].slasherType == SlasherType.INSTANT_SLASH, "M:S-Invalid slasher type");
         require(_amount != 0, "M:S-Invalid amount");
@@ -326,7 +369,7 @@ contract Middleware is Initializable,  // initializer
         uint48 _captureTimestamp,
         bytes calldata _hints,
         bytes calldata _proof
-    ) external { // TODO: Is reentrancy guard required?
+    ) external {
         require(isSlashingEnabled, "M:S-Slashing disabled");
         require(vaultInfo[_vault].slasherType == SlasherType.VETO_SLASH, "M:RS-Invalid slasher type");
         require(_amount != 0, "M:RS-Invalid amount");
