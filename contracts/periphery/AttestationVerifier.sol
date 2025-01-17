@@ -10,6 +10,8 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IAttestationVerifier.sol";
 
+import "hardhat/console.sol";
+
 contract AttestationVerifier is
     Initializable, // initializer
     ContextUpgradeable, // _msgSender, _msgData

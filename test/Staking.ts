@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js';
 import {
+  AbiCoder,
   BytesLike,
   Signer,
 } from 'ethers';
@@ -27,6 +28,7 @@ import {
   AttestationVerifier,
   EntityKeyRegistry,
   Error,
+  IAttestationVerifier,
   IVerifier,
   IVerifier__factory,
   MockToken,
@@ -223,12 +225,27 @@ describe("Staking", () => {
 
     describe("Enclave Key Verification", () => {
       it.only("should verify Enclave Key", async () => {
-        const signature = await bridgeEnclave.signMessage(imageId);
+        // const signature = await bridgeEnclave.signMessage(imageId);
         const latestBlock = await ethers.provider.getBlock('latest');
         const timestampInMs = (latestBlock?.timestamp ?? 0) * 1000;
         
-        const attestation = await bridgeEnclave.getVerifiedAttestation(bridgeEnclave, timestampInMs);
-        await attestationVerifier.verify(attestation);
+        const verifiedAttestation = await bridgeEnclave.getVerifiedAttestation(bridgeEnclave, timestampInMs);
+        
+        const types = ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"];
+        const decoded = new AbiCoder().decode(types, verifiedAttestation);
+
+        const signature = decoded[0];
+        const attestationToVerify: IAttestationVerifier.AttestationStruct = {
+          enclavePubKey: decoded[1],
+          PCR0: decoded[2],
+          PCR1: decoded[3],
+          PCR2: decoded[4],
+          timestampInMilliseconds:decoded[5]
+        }
+
+        const types2 = ['bytes', 'tuple(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)'];
+        const encoded = new AbiCoder().encode(types2, [signature, attestationToVerify]);
+        await attestationVerifier['verify(bytes)'](encoded);
 
       });
 
