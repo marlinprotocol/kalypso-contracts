@@ -35,21 +35,27 @@ async function main(): Promise<string> {
   let addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
   let attestation_zk_verifier = addresses.proxy.attestation_zk_verifier;
 
+  if (!addresses.proxy.risc0_router) {
+    throw new Error("risc0_router address doesnot exists");
+  }
+
+  let risc0Router = addresses.proxy.risc0_router;
+
   const AttestationProofVerifier = await ethers.getContractFactory("AttestationProofVerifier");
 
   // using same old verifier patches in attestationVerifierZk
   await upgrades.upgradeProxy(attestation_zk_verifier, AttestationProofVerifier, {
     kind: "uups",
     // constructorArgs: [await attestationVerifierZk.RISC0_VERIFIER()
-    constructorArgs: ["0x0b144e07a0826182b6b59788c34b32bfa86fb711"],
+    constructorArgs: [risc0Router],
   });
 
   const implementationAddress = await upgrades.erc1967.getImplementationAddress(attestation_zk_verifier);
 
   await run("verify:verify", {
     address: implementationAddress,
-    constructorArguments: ["0x0b144e07a0826182b6b59788c34b32bfa86fb711"],
-    contract: "contracts/periphery/AttestationVerifierZKWithRisczeroRouter.sol:AttestationProofVerifier"
+    constructorArguments: [risc0Router],
+    contract: "contracts/periphery/AttestationVerifierZKWithRisczeroRouter.sol:AttestationProofVerifier",
   });
 
   return "Upgraded AttestationVerifierZK";

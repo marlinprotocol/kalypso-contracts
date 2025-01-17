@@ -18,7 +18,8 @@
     "mock_verifier": "0x4B8d302A982D11d946255cA091F9C242491cDD31",
     "risc0_verifier": "0xBE78405f7853A7642481fC7e556f6d318Db194A0",
     "attestation_zk_verifier": "0x8975288764260b1877C60a87314b1eC20a85Dc79",
-    "attestation_zk_verifier_wrapper": "0x8C9B044F1c2c150a068012016836330250C67951"
+    "attestation_zk_verifier_wrapper": "0x8C9B044F1c2c150a068012016836330250C67951",
+    "risc0_router": "0x0b144e07a0826182b6b59788c34b32bfa86fb711"
   },
   "implementation": {
     "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
