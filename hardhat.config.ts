@@ -6,7 +6,7 @@ import 'solidity-coverage';
 import 'hardhat-tracer';
 import * as tenderly from "@tenderly/hardhat-tenderly";
 
-tenderly.setup();
+// tenderly.setup();
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';
@@ -69,7 +69,7 @@ const config: HardhatUserConfig = {
     ],
   },
   gasReporter: {
-    enabled: (process.env.REPORT_GAS) ? true : false,
+    enabled: (process.env.REPORT_GAS == "true") ? true : false,
     gasPrice: 1,
     coinmarketcap: process.env.COIN_MARKET_CAP,
   },

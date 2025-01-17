@@ -10,6 +10,8 @@ import {
 } from 'hardhat';
 
 import {
+  AttestationVerifier,
+  AttestationVerifier__factory,
   EntityKeyRegistry,
   EntityKeyRegistry__factory,
   Error,
@@ -39,6 +41,7 @@ import {
   WETH__factory,
 } from '../typechain-types';
 import {
+  BridgeEnclavePCRS,
   GodEnclavePCRS,
   MockEnclave,
 } from './';
@@ -51,6 +54,7 @@ interface SetupTemplate {
   priorityLog: PriorityLog;
   errorLibrary: Error;
   entityKeyRegistry: EntityKeyRegistry;
+  attestationVerifier: AttestationVerifier;
 
   /* Staking Contracts */
   stakingManager: StakingManager;
@@ -113,6 +117,7 @@ export const rawSetup = async (
   minRewardForProver: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
+  bridgeEnclave?: MockEnclave,
   godEnclave?: MockEnclave,
 ): Promise<SetupTemplate> => {
   //-------------------------------- Contract Deployment --------------------------------//
@@ -131,7 +136,7 @@ export const rawSetup = async (
 
   // AttestationVerifier
   const AttestationVerifierContract = await ethers.getContractFactory("AttestationVerifier");
-  const attestationVerifier = await upgrades.deployProxy(
+  const attestationVerifierProxy = await upgrades.deployProxy(
     AttestationVerifierContract,
     [[godEnclave.pcrs], [godEnclave.getUncompressedPubkey()], await admin.getAddress()],
     {
@@ -139,6 +144,7 @@ export const rawSetup = async (
       constructorArgs: [],
     },
   );
+  const attestationVerifier = AttestationVerifier__factory.connect(await attestationVerifierProxy.getAddress(), admin);
 
   // EntityKeyRegistry
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
@@ -339,6 +345,7 @@ export const rawSetup = async (
     priorityLog,
     errorLibrary,
     entityKeyRegistry,
+    attestationVerifier,
     /* Staking Contracts */
     stakingManager,
     nativeStaking,
@@ -348,9 +355,8 @@ export const rawSetup = async (
 };
 
 interface StakingTokens {
-  POND: POND;
-  WETH: WETH;
-  USDC: USDC;
+  pond: POND;
+  weth: WETH;
 }
 
 export const stakingSetup = async (
@@ -374,9 +380,9 @@ export const stakingSetup = async (
 
   /*-------------------------------- StakingTokens Deployment --------------------------------*/
 
-  const POND = await new POND__factory(admin).deploy(await admin.getAddress());
-  const WETH = await new WETH__factory(admin).deploy(await admin.getAddress());
-  const USDC = await new USDC__factory(admin).deploy(await admin.getAddress());
+  const pond = await new POND__factory(admin).deploy(await admin.getAddress());
+  const weth = await new WETH__factory(admin).deploy(await admin.getAddress());
+  const usdc = await new USDC__factory(admin).deploy(await admin.getAddress());
 
   /*-------------------------------- StakingManager Config --------------------------------*/
 
@@ -406,12 +412,12 @@ export const stakingSetup = async (
 
   // Add POND to NativeStaking
   await nativeStaking.connect(admin).addStakeToken(
-    await POND.getAddress(),
+    await pond.getAddress(),
     HUNDRED_PERCENT, // 100% weight for selection
   );
   // Amount to lock
   await nativeStaking.connect(admin).setStakeAmountToLock(
-    await POND.getAddress(),
+    await pond.getAddress(),
     new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
   );
 
@@ -419,11 +425,11 @@ export const stakingSetup = async (
   
   // Stake Tokens and weights
   await symbioticStaking.connect(admin).addStakeToken(
-    await POND.getAddress(),
+    await pond.getAddress(),
     SIXTY_PERCENT, // 60% weight for selection
   );
   await symbioticStaking.connect(admin).addStakeToken(
-    await WETH.getAddress(),
+    await weth.getAddress(),
     FORTY_PERCENT, // 40% weight for selection
   );
 
@@ -433,20 +439,19 @@ export const stakingSetup = async (
 
   // amount to lock
   await symbioticStaking.connect(admin).setAmountToLock(
-    await POND.getAddress(),
+    await pond.getAddress(),
     new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
   );
   await symbioticStaking.connect(admin).setAmountToLock(
-    await WETH.getAddress(),
-    new BigNumber(10).pow(18).multipliedBy(0.2).toFixed(0), // 0.2 WETH locked per job creation
+    await weth.getAddress(),
+    new BigNumber(10).pow(18).multipliedBy(3).toFixed(0), // 3 WETH locked per job creation
   );
 
   /*-------------------------------- SymbioticStakingReward Config --------------------------------*/
   
   return {
-    POND,
-    WETH,
-    USDC,
+    pond,
+    weth,
   };
 };
 
