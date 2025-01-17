@@ -114,7 +114,7 @@ contract Middleware is Initializable,  // initializer
     /**
      * @dev Enumeration for slasher types.
      */
-    enum SlasherType {UNDEFINED, INSTANT_SLASH, VETO_SLASH}
+    enum SlasherType {UNDEFINED, NO_SLASH, INSTANT_SLASH, VETO_SLASH}
 
     /**
      * @dev Struct to hold vault information.
@@ -240,7 +240,11 @@ contract Middleware is Initializable,  // initializer
         address collateral = IVault(_vault).collateral();
         require(collateral != address(0), "M:CV-Collateral cannot be zero address");
         address slasher = IVault(_vault).slasher();
-        require(slasher != address(0), "M:CV-Slasher cannot be zero address");
+        if(_type == SlasherType.NO_SLASH) {
+            require(slasher == address(0), "M:CV-Slasher not allowed for NO_SLASH");
+        } else {
+            require(slasher != address(0), "M:CV-Slasher cannot be zero address");
+        }
         if(vaultInfo[_vault].collateral == address(0)) {
             // Add the vault to the list if it is not already present
             vaults.push(_vault);

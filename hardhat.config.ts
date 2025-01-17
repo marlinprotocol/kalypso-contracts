@@ -98,6 +98,13 @@ const config: HardhatUserConfig = {
     hardhat: {
       blockGasLimit: 500000000000,
     },
+    mainnet: {
+      url: `${process.env.MAINNET_RPC_URL}`,
+      accounts: [
+        `${process.env.MAINNET_ADMIN}`,
+        `${process.env.MAINNET_DEPLOYER}`,
+      ],
+    },
     holesky: {
       url: `${process.env.HOLESKY_RPC_URL}`,
       accounts: [
