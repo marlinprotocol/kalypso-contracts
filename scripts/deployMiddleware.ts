@@ -11,7 +11,7 @@ async function main(): Promise<string> {
     const signers = await ethers.getSigners();
     console.log("available signers", signers.length);
 
-    if (signers.length < 2) {
+    if (signers.length < 1) {
         throw new Error("Atleast 2 signers are required for deployment");
     }
 
@@ -24,8 +24,8 @@ async function main(): Promise<string> {
 
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
-    let admin = signers[0];
-    let deployer = signers[1];
+    let admin = config.symbiotic.admin;
+    let deployer = signers[0];
 
     const path = `./addresses/${chainId}.json`;
 
@@ -36,11 +36,11 @@ async function main(): Promise<string> {
     }
 
     if (!addresses.proxy.middleware) {
-        const middlewareFactory = (await ethers.getContractFactory("Middleware", admin)) as Middleware__factory;
+        const middlewareFactory = (await ethers.getContractFactory("Middleware", deployer)) as Middleware__factory;
 
         const proxy = await upgrades.deployProxy(
             middlewareFactory.connect(deployer),
-            [config.symbiotic.networkId, addresses.proxy.attestation_verifier, await admin.getAddress()],
+            [config.symbiotic.networkId, addresses.proxy.attestation_verifier, admin],
             { initializer: "initialize" }
         );
         await proxy.waitForDeployment();

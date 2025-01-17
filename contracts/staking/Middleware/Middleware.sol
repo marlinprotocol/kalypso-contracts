@@ -105,6 +105,8 @@ contract Middleware is Initializable,  // initializer
 
         _updateNetworkId(_networkId);
         _updateAttestationVerifier(_attestationVerifier);
+
+        _setSlashingEnabled(false);
     }
 
 //-------------------------------- Initializer start --------------------------------//
@@ -147,7 +149,7 @@ contract Middleware is Initializable,  // initializer
     mapping(address vault => mapping(uint256 jobId => SlashInfo)) public slashInfo;
     address[] public vaults;
     mapping(address operator => address delegate) delegates;
-    bool public isSlashingEnabled = false;
+    bool public isSlashingEnabled;
 
     uint256[500] private __gap_1;
 
@@ -200,6 +202,14 @@ contract Middleware is Initializable,  // initializer
      * @param _isEnabled True to enable slashing, false to disable.
      */
     function setSlashingEnabled(bool _isEnabled) external onlyAdmin() {
+        _setSlashingEnabled(_isEnabled);
+    }
+
+    /**
+     * @dev Internal function to enable or disable slashing.
+     * @param _isEnabled True to enable slashing, false to disable.
+     */
+    function _setSlashingEnabled(bool _isEnabled) internal {
         isSlashingEnabled = _isEnabled;
         emit SlashingEnabled(_isEnabled);
     }

@@ -101,7 +101,6 @@ const config: HardhatUserConfig = {
     mainnet: {
       url: `${process.env.MAINNET_RPC_URL}`,
       accounts: [
-        `${process.env.MAINNET_ADMIN}`,
         `${process.env.MAINNET_DEPLOYER}`,
       ],
     },
