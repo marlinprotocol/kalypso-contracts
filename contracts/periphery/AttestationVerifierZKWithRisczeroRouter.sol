@@ -95,6 +95,41 @@ contract AttestationProofVerifier is
     function _verify(bytes memory proof, bytes memory attestation) internal view {
         (bytes memory seal, bytes32 imageId, bytes memory journal) = abi.decode(proof, (bytes, bytes32, bytes));
 
+        // Check if seal has at least 4 bytes to compare prefixes
+        if (seal.length >= 4) {
+            // Extract the first 4 bytes (prefix) of the seal
+            bytes4 prefix;
+            assembly {
+                // Load the first 32 bytes from seal, then shift to get the first 4 bytes
+                prefix := mload(add(seal, 32))
+            }
+
+            // Define the prefixes to check against
+            bytes4 prefix1 = 0x310fe598;
+            bytes4 prefix2 = 0x50bd1769;
+            bytes4 newPrefix = 0xc101b42b;
+
+            // Check if the prefix matches either of the specified prefixes
+            if (prefix == prefix1 || prefix == prefix2) {
+                // Create a new seal with the new prefix
+                bytes memory newSeal = new bytes(seal.length);
+
+                // Replace the first 4 bytes with the new prefix
+                assembly {
+                    // Store the new prefix at the beginning of newSeal
+                    mstore(add(newSeal, 32), shl(224, newPrefix))
+                }
+
+                // Copy the remaining bytes from the original seal to the new seal
+                for (uint i = 4; i < seal.length; i++) {
+                    newSeal[i] = seal[i];
+                }
+
+                // Update the seal variable to the new seal
+                seal = newSeal;
+            }
+        }
+        
         // Use RISC0_VERIFIER to check if the receipt is right, else revert
         RISC0_VERIFIER.verify(seal, imageId, sha256(journal));
 
