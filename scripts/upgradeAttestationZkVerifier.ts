@@ -49,6 +49,7 @@ async function main(): Promise<string> {
   await run("verify:verify", {
     address: implementationAddress,
     constructorArguments: ["0x0b144e07a0826182b6b59788c34b32bfa86fb711"],
+    contract: "contracts/periphery/AttestationVerifierZKWithRisczeroRouter.sol:AttestationProofVerifier"
   });
 
   return "Upgraded AttestationVerifierZK";
