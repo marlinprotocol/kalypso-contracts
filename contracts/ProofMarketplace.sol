@@ -63,8 +63,8 @@ contract ProofMarketplace is
 
     mapping(Enum.SecretType => uint256) public costPerInputBytes; // cost for inputs in payment token
     mapping(Enum.SecretType => uint256) public minProvingTime; // min proving time for each secret type.
-    mapping(address => uint256) public proverClaimableFeeReward;
-    mapping(address => uint256) public transmitterClaimableFeeReward;
+    mapping(address proverRewardAddress => uint256 amount) public proverClaimableFeeReward;
+    mapping(address transmitter => uint256 amount) public transmitterClaimableFeeReward;
 
     uint256[500] private __gap;
 
@@ -378,7 +378,7 @@ contract ProofMarketplace is
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
@@ -452,7 +452,7 @@ contract ProofMarketplace is
         uint256 toTreasury = _bidWithState.bid.reward - _minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(_marketId, _proverRewardAddress, _minRewardForProver);
+        uint256 feeRewardRemaining = _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _minRewardForProver);
 
         // transfer the amount to treasury collection
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
@@ -461,7 +461,7 @@ contract ProofMarketplace is
         emit InvalidInputsDetected(_bidId);
     }
 
-    function _distributeProverFeeReward(uint256 _marketId, address _prover, uint256 _feePaid)
+    function _distributeProverFeeReward(uint256 _marketId, address _prover, address _proverRewardAddress, uint256 _feePaid)
         internal
         returns (uint256 feeRewardRemaining)
     {
@@ -471,7 +471,7 @@ contract ProofMarketplace is
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward
-        proverClaimableFeeReward[_prover] += proverFeeReward;
+        proverClaimableFeeReward[_proverRewardAddress] += proverFeeReward; // TODO replace to rewardAddress
 
         emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
@@ -599,14 +599,14 @@ contract ProofMarketplace is
 
     //-------------------------------- Reward Claim start --------------------------------//
 
-    function claimProverFeeReward() external {
-        address feeReceipient = _msgSender();
-        uint256 amount = proverClaimableFeeReward[feeReceipient];
+    function claimProverFeeReward(address proverRewardAddress) external {
+        uint256 amount = proverClaimableFeeReward[proverRewardAddress];
         require(amount > 0, Error.NoRewardToClaim());
-        IERC20(paymentToken).safeTransfer(feeReceipient, amount);
-        delete proverClaimableFeeReward[feeReceipient];
+        IERC20(paymentToken).safeTransfer(proverRewardAddress, amount);
+        delete proverClaimableFeeReward[proverRewardAddress];
     }
 
+    // TODO: seperate RewardAddress
     function claimTransmitterFeeReward() external {
         uint256 amount = transmitterClaimableFeeReward[_msgSender()];
         require(amount > 0, Error.NoRewardToClaim());

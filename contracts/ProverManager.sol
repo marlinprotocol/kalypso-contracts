@@ -44,8 +44,8 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     address public entityKeyRegistry;
 
     mapping(address => Struct.Prover) public proverRegistry;
-    mapping(address => mapping(uint256 => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
-    mapping(address => uint256) public reduceComputeRequestTimestamp;
+    mapping(address prover => mapping(uint256 marketId => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
+    mapping(address prover => uint256 timestamp) public reduceComputeRequestTimestamp;
 
     uint256[500] private __gap;
 

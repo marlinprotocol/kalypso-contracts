@@ -37,8 +37,8 @@
         "symbioticStakingReward": "0x5468326b83639261B8424b0E4517addbB98c57D7",
         "attestationVerifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
         "entityKeyRegistry": "0x7AE71621312900e91EB5256654933ABE3eae34D3",
-        "proverManager": "0xD6670072CE3e657f5acaa07a1A041c7daEf5c43a",
-        "proofMarketplace": "0xb02b17CD2C68162543A5CDf134ec96b3CA6D3422"
+        "proverManager": "0x4685121c18D19F39a20404EA327a97036BB88a05",
+        "proofMarketplace": "0xE5868093f293eEFdE2887b4a92caa9146485AB3b"
     },
     "wallet": {
         "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"
