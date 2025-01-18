@@ -599,7 +599,8 @@ contract ProofMarketplace is
 
     //-------------------------------- Reward Claim start --------------------------------//
 
-    function claimProverFeeReward(address feeReceipient) external {
+    function claimProverFeeReward() external {
+        address feeReceipient = _msgSender();
         uint256 amount = proverClaimableFeeReward[feeReceipient];
         require(amount > 0, Error.NoRewardToClaim());
         IERC20(paymentToken).safeTransfer(feeReceipient, amount);
