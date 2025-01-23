@@ -5,8 +5,14 @@ import {
 
 import { getConfig } from '../helper';
 
-const verifyContract = async (contractName: string, isProxy: boolean = false, constructorArguments: any[] = []) => {
+enum ContractType {
+  Proxy = "proxy",
+  Implementation = "implementation",
+}
+
+const verifyContract = async (contractName: string, contractType: ContractType, constructorArguments: any[] = []) => {
   const { addresses } = await getConfig();
+  const isProxy = contractType === ContractType.Proxy;
   const type = isProxy ? "proxy" : "implementation";
   
   // Verify in Explorer
@@ -39,31 +45,32 @@ const verifyContract = async (contractName: string, isProxy: boolean = false, co
 
 async function verify(): Promise<string> {
   // StakingManager
-  await verifyContract("stakingManager");
-  await verifyContract("stakingManager", true);
+  await verifyContract("stakingManager", ContractType.Implementation);
+  await verifyContract("stakingManager", ContractType.Proxy);
 
   // NativeStaking
-  await verifyContract("nativeStaking");
-  await verifyContract("nativeStaking", true);
+  await verifyContract("nativeStaking", ContractType.Implementation);
+  await verifyContract("nativeStaking", ContractType.Proxy);
 
   // SymbioticStaking
-  await verifyContract("symbioticStaking");
-  await verifyContract("symbioticStaking", true);
+  await verifyContract("symbioticStaking", ContractType.Implementation);
+  await verifyContract("symbioticStaking", ContractType.Proxy);
 
   // SymbioticStakingReward
-  await verifyContract("symbioticStakingReward");
-  await verifyContract("symbioticStakingReward", true);
+  await verifyContract("symbioticStakingReward", ContractType.Implementation);
+  await verifyContract("symbioticStakingReward", ContractType.Proxy);
 
   // ProverManager
-  await verifyContract("proverManager");
-  await verifyContract("proverManager", true);
+  await verifyContract("proverManager", ContractType.Implementation);
+  await verifyContract("proverManager", ContractType.Proxy);
 
   // EntityKeyRegistry
-  await verifyContract("entityKeyRegistry");
+  await verifyContract("entityKeyRegistry", ContractType.Implementation);
+  await verifyContract("entityKeyRegistry", ContractType.Proxy);
 
   // ProofMarketplace
-  await verifyContract("proofMarketplace");
-  await verifyContract("proofMarketplace", true);
+  await verifyContract("proofMarketplace", ContractType.Implementation);
+  await verifyContract("proofMarketplace", ContractType.Proxy);
 
   return "Verify Done";
 }

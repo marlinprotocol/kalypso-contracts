@@ -47,7 +47,7 @@ contract SymbioticStaking is
 
     /* Roles */
     bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
-    bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE"); // 0x86e48cde700dd7fd18603644944b13787cc9ae42d34a21f8bfb69bc2eab7ede1
+    bytes32 public constant BRIDGE_ENCLAVE_UPDATER_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATER_ROLE"); // 0x86e48cde700dd7fd18603644944b13787cc9ae42d34a21f8bfb69bc2eab7ede1
 
     uint256 public constant SIGNATURE_LENGTH = 65;
 
@@ -600,28 +600,28 @@ contract SymbioticStaking is
         return baseTransmitterComissionRate;
     }
 
-    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE start ----------------------------------//
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE start ----------------------------------//
 
     function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2)
         external
-        onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE)
+        onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE)
     {
         _addEnclaveImage(abi.encode(PCR0, PCR1, PCR2));
     }
 
-    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _addEnclaveImage(PCRs);
     }
 
-    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _removeEnclaveImage(_imageId);
     }
 
-    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _setAttestationVerifier(_attestationVerifier);
     }
 
-    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE end ----------------------------------//
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE end ----------------------------------//
 
     //---------------------------------- Admin start ----------------------------------//
 

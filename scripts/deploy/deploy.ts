@@ -124,6 +124,8 @@ async function initialize(): Promise<string> {
   console.log("Initializing on chain id:", chainId);
 
   console.log("Available Signers", signers);
+  
+  // Note: check admin address
   const admin = signers[0];
 
   const configPath = `./config/${chainId}.json`;
@@ -145,6 +147,7 @@ async function initialize(): Promise<string> {
   const proverManager = ProverManager__factory.connect(addresses.proxy.proverManager, admin);
   const proofMarketplace = ProofMarketplace__factory.connect(addresses.proxy.proofMarketplace, admin);
 
+  // TODO: fix this with USDC Address
   const mockUSDC = addresses.mockToken.usdc;
 
   // Staking Manager

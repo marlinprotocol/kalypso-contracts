@@ -26,7 +26,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
-    bytes32 public constant PROOF_MARKET_PLACE_ROLE = keccak256("PROOF_MARKET_PLACE_ROLE");
+    bytes32 public constant PROOF_MARKET_PLACE_ROLE = keccak256("PROOF_MARKET_PLACE_ROLE"); // 0xc79b502a8525f583d129c14570e17ce9bca26110a5c41ab7e2556f95e081fec5
 
     uint256 internal constant EXPONENT = 10 ** 18;
 

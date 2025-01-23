@@ -81,18 +81,18 @@ export const createTask = async (
 };
 
 export const createBid = async (
-  prover: Signer,
+  requester: Signer,
   tokenHolder: Signer,
   bid: Bid,
   setupTemplate: SetupTemplate,
   secretType: number,
 ): Promise<string> => {
-  await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
+  await setupTemplate.mockToken.connect(tokenHolder).transfer(await requester.getAddress(), bid.reward.toString());
 
-  await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
+  await setupTemplate.mockToken.connect(requester).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
 
   const bidId = await setupTemplate.proofMarketplace.bidCounter();
-  await setupTemplate.proofMarketplace.connect(prover).createBid(bid, secretType, "0x", "0x", "0x");
+  await setupTemplate.proofMarketplace.connect(requester).createBid(bid, secretType, "0x", "0x", "0x");
 
   return bidId.toString();
 };
@@ -315,7 +315,7 @@ export const rawSetup = async (
 
   await proverManager
     .connect(prover)
-    .register(await prover.getAddress(), totalComputeAllocation.toFixed(0), /*  proverStakingAmount.toFixed(0),  */ proverData);
+    .register(await prover.getAddress(), totalComputeAllocation.toFixed(0), proverData);
 
   {
     let proverAttestationBytes = await proverEnclave.getVerifiedAttestation(godEnclave);

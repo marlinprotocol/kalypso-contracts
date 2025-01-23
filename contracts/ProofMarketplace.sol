@@ -37,12 +37,11 @@ contract ProofMarketplace is
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
-    bytes32 public constant UPDATER_ROLE = 0x73e573f9566d61418a34d5de3ff49360f9c51fec37f7486551670290f6285dab; // keccak256("UPDATER_ROLE")
-    bytes32 public constant MATCHING_ENGINE_ROLE = 0x080f5ea84ed1de4c8edb58be651c25581c355a0011b0f9360de5082becd64640; // keccak256("MATCHING_ENGINE_ROLE")
-    bytes32 public constant STAKING_MANAGER_ROLE = 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b; // keccak256("STAKING_MANAGER_ROLE")
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58; // keccak256("SYMBIOTIC_STAKING_ROLE")
-    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE =
-        0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb; // keccak256("SYMBIOTIC_STAKING_REWARD_ROLE")
+    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE"); // 0x73e573f9566d61418a34d5de3ff49360f9c51fec37f7486551670290f6285dab
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE"); // 0x080f5ea84ed1de4c8edb58be651c25581c355a0011b0f9360de5082becd64640
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE"); // 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58
+    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE = keccak256("SYMBIOTIC_STAKING_REWARD_ROLE"); // 0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb
 
     uint256 public constant MIN_PROVING_TIME = 1 seconds; // 1 second
     uint256 public constant MAX_PROVING_TIME = 1 days; // 1 day
