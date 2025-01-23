@@ -23,6 +23,7 @@ async function main() {
   const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbioticStaking, admin);
   const symbioticStakingReward = SymbioticStakingReward__factory.connect(addresses.proxy.symbioticStakingReward, admin);
 
+  // TODO: set this address
   const WETH = addresses.mockToken.weth;
   const POND = addresses.mockToken.pond;
 
