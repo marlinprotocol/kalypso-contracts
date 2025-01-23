@@ -23,7 +23,7 @@ contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
 
     //---------------------------------------- State Variable start ----------------------------------------//
 

@@ -45,11 +45,13 @@ contract EntityKeyRegistry is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
+    // in case we add more contracts in the inheritance chain
+    uint256[500] private __gap_0;
+
     mapping(address => mapping(uint256 => bytes)) public pub_key;
     mapping(bytes32 => bool) public blackListedImages;
 
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
+    uint256[500] private __gap_1;
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
