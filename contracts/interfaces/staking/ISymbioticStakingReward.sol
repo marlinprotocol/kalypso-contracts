@@ -1,17 +1,40 @@
 // SPDX-License-Identifier: MIT
 
-import {Struct} from "../../lib/staking/Struct.sol";
+import {Struct} from "../../lib/Struct.sol";
 
 pragma solidity ^0.8.26;
 
 interface ISymbioticStakingReward {
-    function claimReward(address _operator) external;
 
-    function updateFeeReward(address _stakeToken, address _operator, uint256 _amount) external;
+    /*====================================================== events =======================================================*/
 
-    function updateInflationReward(address _operator, uint256 _rewardAmount) external;
+    event RewardDistributed(address indexed stakeToken, address indexed prover, uint256 amount);
 
-    function onSnapshotSubmission(Struct.VaultSnapshot[] calldata _vaultSnapshots) external;
+    event RewardClaimed(address indexed prover, uint256 amount);
 
-    function onSnapshotSubmission(address _vault, address _operator) external;
+    event StakingPoolSet(address indexed stakingPool);
+
+    event ProofMarketplaceSet(address indexed proofMarketplace);
+
+    event SymbioticStakingSet(address indexed symbioticStaking);
+
+    event FeeRewardTokenSet(address indexed feeRewardToken);
+
+    event RewardAccrued(address indexed rewardToken, address indexed vault, uint256 amount);
+
+    event RewardPerTokenUpdated(address indexed stakeToken, address indexed rewardToken, address indexed prover, uint256 rewardPerTokenStoredUpdated);
+
+    /*===================================================== functions =====================================================*/
+
+    function rewardPerTokenPaid(address _stakeToken, address _rewardToken, address _vault, address _prover) external view returns (uint256);
+
+    function rewardPerTokenStored(address _stakeToken, address _rewardToken, address _prover) external view returns (uint256);
+
+    function rewardAccrued(address _rewardToken, address _vault) external view returns (uint256);
+
+    function claimReward(address _prover) external;
+
+    function updateFeeReward(address _stakeToken, address _prover, uint256 _amount) external;
+
+    function onSnapshotSubmission(address _vault, address _prover) external;
 }

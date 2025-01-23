@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
-import "../interfaces/IVerifier.sol";
-import "../interfaces/SetPmp.sol";
-
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {SetPmp} from "../interfaces/SetPmp.sol";
+import {IProofMarketplace} from "../interfaces/IProofMarketplace.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";
 interface i_plonk_vk {
     function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool);
 }
@@ -25,22 +27,23 @@ contract plonk_verifier_wrapper is SetPmp, IVerifier {
     }
 
     function createRequest(
-        ProofMarketplace.Ask calldata ask,
-        ProofMarketplace.SecretType secretType,
+        Struct.Bid calldata bid,
+        Enum.SecretType secretType,
         bytes calldata secret_inputs,
-        bytes calldata acl
+        bytes calldata acl,
+        bytes calldata extra_data
     ) public {
-        ProofMarketplace.Ask memory newAsk = ProofMarketplace.Ask(
-            ask.marketId,
-            ask.reward,
-            ask.expiry,
-            ask.timeTakenForProofGeneration,
-            ask.deadline,
-            ask.refundAddress,
-            encodeInputs(verifyAndDecodeInputs(ask.proverData))
+        Struct.Bid memory newBid = Struct.Bid(
+            bid.marketId,
+            bid.reward,
+            bid.expiry,
+            bid.timeTakenForProofGeneration,
+            bid.deadline,
+            bid.refundAddress,
+            encodeInputs(verifyAndDecodeInputs(bid.proverData))
         );
 
-        proofMarketplace.createAsk(newAsk, secretType, secret_inputs, acl);
+        proofMarketplace.createBid(newBid, secretType, secret_inputs, acl, extra_data);
     }
 
     function verifyAndDecodeInputs(bytes calldata inputs) internal pure returns (bytes32[] memory) {

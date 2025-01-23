@@ -1,26 +1,34 @@
-import { ethers, upgrades } from "hardhat";
-import * as fs from "fs";
+import * as fs from 'fs';
+import {
+  ethers,
+  upgrades,
+} from 'hardhat';
 
 import {
-  GeneratorRegistry__factory,
+  checkFileExists,
+  createFileIfNotExists,
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
+import * as zkb_verifier_inputs
+  from '../helpers/sample/zkbVerifier/transfer_input.json';
+import * as zkb_verifier_proof
+  from '../helpers/sample/zkbVerifier/transfer_proof.json';
+import {
+  AttestationVerifier__factory,
+  Dispute__factory,
+  EntityKeyRegistry__factory,
   InputAndProofFormatRegistry__factory,
   MockAttestationVerifier__factory,
   MockToken__factory,
   PriorityLog__factory,
-  EntityKeyRegistry__factory,
-  TransferVerifier__factory,
+  ProverRegistry__factory,
   Transfer_verifier_wrapper__factory,
+  TransferVerifier__factory,
   ZkbVerifier__factory,
-  AttestationVerifier__factory,
-  Dispute__factory,
-} from "../typechain-types";
-import { checkFileExists, createFileIfNotExists } from "../helpers";
-
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
-
-import * as zkb_verifier_inputs from "../helpers/sample/zkbVerifier/transfer_input.json";
-import * as zkb_verifier_proof from "../helpers/sample/zkbVerifier/transfer_proof.json";
+} from '../typechain-types';
 
 const abiCoder = new ethers.AbiCoder();
 
@@ -47,7 +55,7 @@ async function main(): Promise<string> {
   let tokenHolder = signers[1];
   let treasury = signers[2];
   // let marketCreator = signers[3];
-  // let generator = signers[4];
+  // let prover = signers[4];
   let sampleSigner = signers[5];
 
   const path = `./addresses/${chainId}.json`;
@@ -133,23 +141,23 @@ async function main(): Promise<string> {
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.generator_registry) {
-    const generator_registryContract = await ethers.getContractFactory("GeneratorRegistry");
-    const generatorProxy = await upgrades.deployProxy(generator_registryContract, [], {
+  if (!addresses.proxy.prover_registry) {
+    const prover_registryContract = await ethers.getContractFactory("ProverRegistry");
+    const proverProxy = await upgrades.deployProxy(prover_registryContract, [], {
       kind: "uups",
       constructorArgs: [addresses.proxy.staking_token, addresses.proxy.entity_registry],
       initializer: false,
     });
 
-    await generatorProxy.waitForDeployment();
+    await proverProxy.waitForDeployment();
 
-    addresses.proxy.generator_registry = await generatorProxy.getAddress();
-    addresses.implementation.generator_registry = await upgrades.erc1967.getImplementationAddress(addresses.proxy.generator_registry);
+    addresses.proxy.prover_registry = await proverProxy.getAddress();
+    addresses.implementation.prover_registry = await upgrades.erc1967.getImplementationAddress(addresses.proxy.prover_registry);
     fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
 
     const entityRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entity_registry, admin);
     const roleToGive = await entityRegistry.KEY_REGISTER_ROLE();
-    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.generator_registry);
+    let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.prover_registry);
     tx.wait();
   }
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
@@ -170,7 +178,7 @@ async function main(): Promise<string> {
         addresses.proxy.payment_token,
         config.marketCreationCost,
         await treasury.getAddress(),
-        addresses.proxy.generator_registry,
+        addresses.proxy.prover_registry,
         addresses.proxy.entity_registry,
       ],
     });
@@ -185,8 +193,8 @@ async function main(): Promise<string> {
     let tx = await entityRegistry.grantRole(roleToGive, addresses.proxy.proof_market_place);
     tx.wait();
 
-    const generator_registry = GeneratorRegistry__factory.connect(addresses.proxy.generator_registry, admin);
-    tx = await generator_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
+    const prover_registry = ProverRegistry__factory.connect(addresses.proxy.prover_registry, admin);
+    tx = await prover_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
   }
 
