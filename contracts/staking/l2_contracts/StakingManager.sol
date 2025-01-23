@@ -20,12 +20,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Error} from "../../lib/Error.sol";
 
-contract StakingManager is
-    AccessControlUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IStakingManager
-{
+contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, IStakingManager {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -38,6 +33,8 @@ contract StakingManager is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
+    uint256[500] private __gap_0;
+
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public proofMarketplace;
@@ -46,19 +43,21 @@ contract StakingManager is
 
     mapping(address pool => Struct.PoolConfig config) private poolConfig;
 
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_0;
+    uint256[500] private __gap_1;
 
     //---------------------------------------- State Variable end ----------------------------------------//
 
     //---------------------------------------- Init start ----------------------------------------//
-    
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeToken) public initializer {
+    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeToken)
+        public
+        initializer
+    {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -100,12 +99,15 @@ contract StakingManager is
      * @notice  called when task is completed to unlock the locked stakes
      * @dev     called by ProofMarketplace contract when a task is completed
      */
-    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(PROVER_MANAGER_ROLE) {
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount)
+        external
+        onlyRole(PROVER_MANAGER_ROLE)
+    {
         uint256 len = stakingPoolSet.length();
         for (uint256 i = 0; i < len; i++) {
             address pool = stakingPoolSet.at(i);
 
-            if(!isEnabledPool(pool)) continue;
+            if (!isEnabledPool(pool)) continue;
 
             uint256 poolFeeRewardAmount = _calcFeeRewardAmount(pool, _feeRewardAmount);
 
@@ -115,7 +117,7 @@ contract StakingManager is
 
     function _calcFeeRewardAmount(address _pool, uint256 _feeRewardAmount) internal view returns (uint256) {
         uint256 poolShare = poolConfig[_pool].share;
-        
+
         uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
 
         return poolFeeRewardAmount;
@@ -125,14 +127,16 @@ contract StakingManager is
 
     //---------------------------------------- SYMBIOTIC_STAKING_ROLE start ----------------------------------------//
 
-
     /// @notice called by SymbioticStaking contract when slash result is submitted
-    function onSlashResultSubmission(Struct.TaskSlashed[] calldata _tasksSlashed) external onlyRole(SYMBIOTIC_STAKING_ROLE) {
+    function onSlashResultSubmission(Struct.TaskSlashed[] calldata _tasksSlashed)
+        external
+        onlyRole(SYMBIOTIC_STAKING_ROLE)
+    {
         // msg.sender will most likely be SymbioticStaking contract
         require(stakingPoolSet.contains(msg.sender), Error.InvalidPool());
 
         uint256[] memory bidIds = new uint256[](_tasksSlashed.length);
-        for(uint256 i = 0; i < _tasksSlashed.length; i++) {
+        for (uint256 i = 0; i < _tasksSlashed.length; i++) {
             bidIds[i] = _tasksSlashed[i].bidId;
         }
 
@@ -164,7 +168,7 @@ contract StakingManager is
     //---------------------------------------- DEFAULT_ADMIN_ROLE start ----------------------------------------//
 
     /// @notice add new staking pool
-    /// @dev 
+    /// @dev
     function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingPoolSet.add(_stakingPool);
 
@@ -236,13 +240,7 @@ contract StakingManager is
 
     //---------------------------------------- Override start ----------------------------------------//
 
-    function supportsInterface(bytes4 _interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
         return super.supportsInterface(_interfaceId);
     }
 

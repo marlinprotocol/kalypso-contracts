@@ -39,6 +39,8 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
 
     //-------------------------------- State variables start --------------------------------//
 
+    uint256[500] private __gap_0;
+
     address public proofMarketplace;
     address public stakingManager;
     address public entityKeyRegistry;
@@ -47,7 +49,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     mapping(address prover => mapping(uint256 marketId => Struct.ProverInfoPerMarket)) public proverInfoPerMarket;
     mapping(address prover => uint256 timestamp) public reduceComputeRequestTimestamp;
 
-    uint256[500] private __gap;
+    uint256[500] private __gap_1;
 
     //-------------------------------- State variables end --------------------------------//
 
@@ -82,7 +84,10 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     /**
      * @notice Register Prover
      */
-    function register(address _rewardAddress, uint256 _declaredCompute, bytes calldata _proverData) external nonReentrant {
+    function register(address _rewardAddress, uint256 _declaredCompute, bytes calldata _proverData)
+        external
+        nonReentrant
+    {
         address _proverAddress = _msgSender();
         Struct.Prover memory prover = proverRegistry[_proverAddress];
 
@@ -251,7 +256,9 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
             revert Error.CannotBeZero();
         }
 
-        require(_proposedTime >= MIN_PROVING_TIME && _proposedTime <= MAX_PROVING_TIME, Error.InvalidProverProposedTime());
+        require(
+            _proposedTime >= MIN_PROVING_TIME && _proposedTime <= MAX_PROVING_TIME, Error.InvalidProverProposedTime()
+        );
 
         // commission can't be more than 1e18 (100%)
         if (_commission > 1e18) {
@@ -467,7 +474,7 @@ contract ProverManager is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         onlyRole(PROOF_MARKET_PLACE_ROLE)
     {
         _releaseProverCompute(_proverAddress, _marketId);
-        
+
         IStakingManager(stakingManager).onTaskCompletion(_bidId, _proverAddress, _feeReward);
     }
 

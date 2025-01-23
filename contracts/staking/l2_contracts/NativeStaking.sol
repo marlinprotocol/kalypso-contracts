@@ -19,18 +19,15 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Struct} from "../../lib/Struct.sol";
 import {Error} from "../../lib/Error.sol";
 
-contract NativeStaking is
-    AccessControlUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    INativeStaking
-{
+contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, INativeStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
     bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
 
     //---------------------------------------- State Variable start ----------------------------------------//
+
+    uint256[500] private __gap_0;
 
     EnumerableSet.AddressSet private stakeTokenSet;
     address public stakingManager;
@@ -40,8 +37,6 @@ contract NativeStaking is
     /* Config */
     uint256 public withdrawalDuration;
     uint256 public stakeTokenSelectionWeightSum;
-
-
 
     mapping(address stakeToken => uint256 lockAmount) public amountToLock; // amount of token to lock for each task assignment
     mapping(address stakeToken => uint256 weight) public stakeTokenSelectionWeight;
@@ -60,10 +55,9 @@ contract NativeStaking is
     mapping(uint256 bi => Struct.NativeStakingLock lock) public lockInfo;
     mapping(address stakeToken => mapping(address prover => uint256 amount)) public proverLockedAmounts;
 
-    uint256[500] private __gap;
+    uint256[500] private __gap_1;
 
     //---------------------------------------- State Variable end ----------------------------------------//
-
 
     //---------------------------------------- Modifier start ----------------------------------------//
 
@@ -81,12 +75,10 @@ contract NativeStaking is
         _disableInitializers();
     }
 
-    function initialize(
-        address _admin,
-        address _stakingManager,
-        uint256 _withdrawalDuration,
-        address _feeToken
-    ) public initializer {
+    function initialize(address _admin, address _stakingManager, uint256 _withdrawalDuration, address _feeToken)
+        public
+        initializer
+    {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -177,11 +169,10 @@ contract NativeStaking is
 
     /// @notice unlock stake and distribute reward
     /// @dev called by StakingManager when assigned task is completed
-    function onTaskCompletion(
-        uint256 _bidId,
-        address _prover,
-        uint256 /* _feeRewardAmount */
-    ) external onlyRole(STAKING_MANAGER_ROLE) {
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 /* _feeRewardAmount */ )
+        external
+        onlyRole(STAKING_MANAGER_ROLE)
+    {
         Struct.NativeStakingLock memory lock = lockInfo[_bidId];
 
         if (lock.amount == 0) return;
@@ -201,7 +192,7 @@ contract NativeStaking is
 
             _unlockStake(_slashedTasks[i].bidId, lock.token, _slashedTasks[i].prover, lockedAmount);
             IERC20(lock.token).safeTransfer(_slashedTasks[i].rewardAddress, lockedAmount);
-        
+
             emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.token, lockedAmount);
         }
     }
@@ -251,7 +242,7 @@ contract NativeStaking is
 
     //---------------------------------------- Token Selection start ----------------------------------------//
 
-    function _selectStakeToken(address _prover) internal view returns(address) {
+    function _selectStakeToken(address _prover) internal view returns (address) {
         require(stakeTokenSelectionWeightSum > 0, "Total weight must be greater than zero");
         require(stakeTokenSet.length() > 0, "No tokens available");
 
@@ -277,11 +268,13 @@ contract NativeStaking is
             require(idx > 0, Error.NoStakeTokenAvailableToLock());
 
             // random number in range [0, weightSum - 1]
-            uint256 random = uint256(keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), _msgSender()))) % weightSum;
+            uint256 random = uint256(
+                keccak256(abi.encodePacked(block.timestamp, blockhash(block.number - 1), _msgSender()))
+            ) % weightSum;
 
             uint256 cumulativeWeight = 0;
             address selectedToken;
-            
+
             uint256 i;
             // select token based on weight
             for (i = 0; i < idx; i++) {
@@ -300,11 +293,11 @@ contract NativeStaking is
             weightSum -= weights[i];
             tokens[i] = tokens[idx - 1];
             weights[i] = weights[idx - 1];
-            idx--;  // reduce the array size
+            idx--; // reduce the array size
         }
 
         // this should be returned
-        return address(0);  
+        return address(0);
     }
 
     //---------------------------------------- Token Selection end ----------------------------------------//
@@ -365,13 +358,7 @@ contract NativeStaking is
 
     //---------------------------------------- Override start ----------------------------------------//
 
-    function supportsInterface(bytes4 _interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
         return super.supportsInterface(_interfaceId);
     }
 

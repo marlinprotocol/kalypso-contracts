@@ -40,6 +40,8 @@ contract SymbioticStakingReward is
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
+    uint256[500] private __gap_0;
+
     address public proofMarketplace;
     address public symbioticStaking;
     address public feeRewardToken;
@@ -58,11 +60,9 @@ contract SymbioticStakingReward is
     // reward accrued that the vault can claim
     mapping(address rewardToken => mapping(address vault => uint256 amount)) public rewardAccrued;
 
-    uint256[500] private __gap;
+    uint256[500] private __gap_1;
 
     //---------------------------------------- State Variable end ----------------------------------------//
-
-
 
     //---------------------------------------- Init start ----------------------------------------//
 
@@ -95,7 +95,7 @@ contract SymbioticStakingReward is
     //---------------------------------------- Init end ----------------------------------------//
 
     //---------------------------------------- Reward Claim start ----------------------------------------//
-    
+
     // TODO: Vault -> Claimer address
     /// @notice vault can claim reward accrued
     function claimReward(address _prover) external nonReentrant {
@@ -137,10 +137,7 @@ contract SymbioticStakingReward is
             emit RewardDistributed(_stakeToken, _prover, _rewardAmount);
 
             emit RewardPerTokenUpdated(
-                _stakeToken,
-                feeRewardToken,
-                _prover,
-                rewardPerTokenStored[_stakeToken][feeRewardToken][_prover]
+                _stakeToken, feeRewardToken, _prover, rewardPerTokenStored[_stakeToken][feeRewardToken][_prover]
             );
         }
     }
@@ -228,7 +225,6 @@ contract SymbioticStakingReward is
     }
 
     //---------------------------------------- DEFAULT_ADMIN_ROLE end ----------------------------------------//
-
 
     //---------------------------------------- Override start ----------------------------------------//
 

@@ -52,6 +52,8 @@ contract ProofMarketplace is
 
     //-------------------------------- State variables start --------------------------------//
 
+    uint256[500] private __gap_0;
+
     Struct.Market[] public marketData;
     Struct.BidWithState[] public listOfBid;
 
@@ -66,7 +68,7 @@ contract ProofMarketplace is
     mapping(address proverRewardAddress => uint256 amount) public proverClaimableFeeReward;
     mapping(address transmitter => uint256 amount) public transmitterClaimableFeeReward;
 
-    uint256[500] private __gap;
+    uint256[500] private __gap_1;
 
     // TODO: mapping for `stakePerjob` later
 
@@ -378,7 +380,8 @@ contract ProofMarketplace is
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, minRewardForProver);
+        uint256 feeRewardRemaining =
+            _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
@@ -452,7 +455,8 @@ contract ProofMarketplace is
         uint256 toTreasury = _bidWithState.bid.reward - _minRewardForProver;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _minRewardForProver);
+        uint256 feeRewardRemaining =
+            _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _minRewardForProver);
 
         // transfer the amount to treasury collection
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
@@ -461,10 +465,12 @@ contract ProofMarketplace is
         emit InvalidInputsDetected(_bidId);
     }
 
-    function _distributeProverFeeReward(uint256 _marketId, address _prover, address _proverRewardAddress, uint256 _feePaid)
-        internal
-        returns (uint256 feeRewardRemaining)
-    {
+    function _distributeProverFeeReward(
+        uint256 _marketId,
+        address _prover,
+        address _proverRewardAddress,
+        uint256 _feePaid
+    ) internal returns (uint256 feeRewardRemaining) {
         // calculate prover fee reward
         // uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
         // uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
