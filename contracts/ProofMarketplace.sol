@@ -466,8 +466,9 @@ contract ProofMarketplace is
         returns (uint256 feeRewardRemaining)
     {
         // calculate prover fee reward
-        uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
-        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
+        // uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
+        // uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
+        uint256 proverFeeReward = _feePaid;
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward
