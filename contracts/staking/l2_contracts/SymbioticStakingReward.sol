@@ -34,7 +34,7 @@ contract SymbioticStakingReward is
 
     //---------------------------------------- Constant start ----------------------------------------//
 
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE"); // 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58
 
     //---------------------------------------- Constant end ----------------------------------------//
 
@@ -43,9 +43,6 @@ contract SymbioticStakingReward is
     address public proofMarketplace;
     address public symbioticStaking;
     address public feeRewardToken;
-
-
-
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address rewardToken => mapping(address prover => uint256 rewardPerToken)))

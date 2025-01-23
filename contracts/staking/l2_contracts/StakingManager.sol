@@ -31,8 +31,8 @@ contract StakingManager is
 
     //---------------------------------------- Constant start ----------------------------------------//
 
-    bytes32 public constant PROVER_MANAGER_ROLE = keccak256("PROVER_MANAGER");
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING");
+    bytes32 public constant PROVER_MANAGER_ROLE = keccak256("PROVER_MANAGER"); // 0xa761a3d842ba56907e019d308ac5d6a410a849e235f38df4d3ac13b1e8714714
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING"); // 0x470cc73029982e5259cad3b0b46af8575cc034941e1ff27fe1fb7e55101a341f
 
     //---------------------------------------- Constant end ----------------------------------------//
 

@@ -128,6 +128,7 @@ library Error {
     error TokenAlreadyExists();
     error TokenDoesNotExist();
     error InvalidComissionRate();
+    error NoConfirmedTimestamp();
 
     // Native Staking
     error OnlyProverCanStake();

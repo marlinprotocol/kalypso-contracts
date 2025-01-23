@@ -38,8 +38,8 @@ contract SymbioticStaking is
     //---------------------------------- Constant/Immutable start ----------------------------------//
 
     /* Submission Type */
-    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
-    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
+    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE"); // 0x1333028fe2c67747e7c1ef0a711cbd0288f29c0059f66b8560d4ee5c6792b4a3
+    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE"); // 0xc89837a6ea06308d6a2f41007d2d0af18fc34c85ac214bc95f0f56c191db8707
 
     /* Submission Status */
     bytes32 public constant STAKE_SNAPSHOT_DONE = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -47,8 +47,8 @@ contract SymbioticStaking is
     bytes32 public constant SUBMISSION_COMPLETE = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
     /* Roles */
-    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
-    bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
+    bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE"); // 0x86e48cde700dd7fd18603644944b13787cc9ae42d34a21f8bfb69bc2eab7ede1
 
     uint256 public constant SIGNATURE_LENGTH = 65;
 
@@ -218,6 +218,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
+        // TODO: Should include latestBlockNumber
         _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _slashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
@@ -369,11 +370,14 @@ contract SymbioticStaking is
     }
 
     function latestConfirmedTimestampBlockNumber() public view returns (uint256) {
-        return confirmedTimestamps[latestConfirmedTimestampIdx()].blockNumber;
+        uint256 len = confirmedTimestamps.length;
+        return len > 0 ? confirmedTimestamps[len - 1].blockNumber : 0;
     }
 
     function latestConfirmedTimestampInfo() external view returns (Struct.ConfirmedTimestamp memory) {
-        return confirmedTimestamps[latestConfirmedTimestampIdx()];
+        uint256 len = confirmedTimestamps.length;
+        require(len > 0, Error.NoConfirmedTimestamp());
+        return confirmedTimestamps[len - 1];
     }
 
     function confirmedTimestampInfo(uint256 _idx) public view returns (Struct.ConfirmedTimestamp memory) {
@@ -512,7 +516,7 @@ contract SymbioticStaking is
     }
 
     function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
-        return keccak256(abi.encode(PCR0, PCR1, PCR2));
+        return keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
     }
 
 
