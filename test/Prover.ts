@@ -7,6 +7,7 @@ import {
 import { ethers } from 'hardhat';
 
 import {
+  BridgeEnclavePCRS,
   GodEnclavePCRS,
   MarketData,
   marketDataToBytes,
@@ -32,6 +33,7 @@ import {
   VaultSnapshot,
 } from '../helpers/setup';
 import {
+  AttestationVerifier,
   EntityKeyRegistry,
   Error,
   IVerifier,
@@ -50,7 +52,7 @@ import {
   WETH,
 } from '../typechain-types';
 
-describe("Checking Generator's multiple compute", () => {
+describe("Checking Prover's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
   let proverManager: ProverManager;
   let tokenToUse: MockToken;
@@ -63,10 +65,10 @@ describe("Checking Generator's multiple compute", () => {
   let nativeStaking: NativeStaking;
   let symbioticStaking: SymbioticStaking;
   let symbioticStakingReward: SymbioticStakingReward;
-
-  let POND: POND;
-  let WETH: WETH;
-  let USDC: USDC;
+  let attestationVerifier: AttestationVerifier;
+  let pond: POND;
+  let weth: WETH;
+  let USDC: MockToken;
 
   let signers: Signer[];
   let admin: Signer;
@@ -83,20 +85,20 @@ describe("Checking Generator's multiple compute", () => {
 
   let generatorData: ProverData;
 
+  /* Enclaves */
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
   const generatorEnclave = new MockEnclave(MockProverPCRS);
-
   const godEnclave = new MockEnclave(GodEnclavePCRS);
+  const bridgeEnclave = new MockEnclave(BridgeEnclavePCRS);
 
+  /* Config */
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
   const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
   const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
-
   const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
-
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
   const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
 
@@ -191,6 +193,7 @@ describe("Checking Generator's multiple compute", () => {
       generatorComputeAllocation,
       modifiedComputeGivenToNewMarket,
       godEnclave,
+      bridgeEnclave,
     );
 
     proofMarketplace = data.proofMarketplace;
@@ -199,6 +202,7 @@ describe("Checking Generator's multiple compute", () => {
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    attestationVerifier = data.attestationVerifier;
 
     /* Staking Contracts */
     stakingManager = data.stakingManager;
@@ -208,8 +212,12 @@ describe("Checking Generator's multiple compute", () => {
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // await attestationVerifier.whitelistEnclaveImage(godEnclave.pcrs[0], godEnclave.pcrs[1], godEnclave.pcrs[2]);
+    // await attestationVerifier.whitelistEnclaveKey(godEnclave.getUncompressedPubkey(), godEnclave.getImageId());
+
+    
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   };
 
   beforeEach(async () => {
@@ -217,9 +225,9 @@ describe("Checking Generator's multiple compute", () => {
 
     vault1 = signers[6];
     vault2 = signers[7];
-    ({ POND, WETH, USDC } = await stakingSetup(admin, stakingManager, nativeStaking, symbioticStaking, symbioticStakingReward));
+    ({ pond, weth } = await stakingSetup(admin, stakingManager, nativeStaking, symbioticStaking, symbioticStakingReward));
 
-    await proverSelfStake(nativeStaking, admin, generator, POND, new BigNumber(10).pow(18).multipliedBy(10000));
+    await proverSelfStake(nativeStaking, admin, generator, pond, new BigNumber(10).pow(18).multipliedBy(10000));
 
     /* Submitting Vault Snapshots */
     const snapshotData: VaultSnapshot[] = [
@@ -227,19 +235,30 @@ describe("Checking Generator's multiple compute", () => {
       {
         prover: await generator.getAddress(),
         vault: await vault1.getAddress(),
-        stakeToken: await POND.getAddress(),
-        stakeAmount: new BigNumber(10).pow(18).multipliedBy(10000).toFixed(0),
+        stakeToken: await pond.getAddress(),
+        stakeAmount: new BigNumber(10).pow(18).multipliedBy(1000000).toFixed(0),
       },
       // vault2 -> generator (10000 WETH)
       {
         prover: await generator.getAddress(),
         vault: await vault2.getAddress(),
-        stakeToken: await WETH.getAddress(),
-        stakeAmount: new BigNumber(10).pow(18).multipliedBy(10000).toFixed(0),
+        stakeToken: await weth.getAddress(),
+        stakeAmount: new BigNumber(10).pow(18).multipliedBy(1000000).toFixed(0),
       },
     ];
 
-    // await submitVaultSnapshot(generator, symbioticStaking, snapshotData);
+    const captureTimestamp = new BigNumber((await ethers.provider.getBlock("latest"))?.timestamp ?? 0).minus(10);
+    const imageId = bridgeEnclave.getImageId();
+
+    await symbioticStaking['addEnclaveImage(bytes,bytes,bytes)'](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+
+    await submitVaultSnapshot(symbioticStaking, bridgeEnclave, prover, {
+      index: 0,
+      numOfTxs: 1,
+      captureTimestamp: captureTimestamp.toString(),
+      imageId: imageId.toString(),
+      snapshotData,
+    });
   });
 
   it("Using Simple Transfer Verifier", async () => {
@@ -258,10 +277,11 @@ describe("Checking Generator's multiple compute", () => {
       ],
     );
     // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlockNumber();
+    const latestBlock = await ethers.provider.getBlock('latest');
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    let timeForProofGeneration = 1000; // 1 second ~ 1 day
+    let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
 
     const bidId = await setup.createBid(
       prover,
@@ -270,14 +290,15 @@ describe("Checking Generator's multiple compute", () => {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: (assignmentExpiry + latestBlock).toString(),
-        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
         mockToken: tokenToUse,
         proofMarketplace,
+        attestationVerifier,
         proverManager,
         priorityLog,
         errorLibrary,
@@ -300,6 +321,7 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -324,6 +346,7 @@ describe("Checking Generator's multiple compute", () => {
         ],
       ],
     );
+
     await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
   });
 
@@ -343,10 +366,11 @@ describe("Checking Generator's multiple compute", () => {
       ],
     );
     // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlockNumber();
-    let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
+    let assignmentExpiry = 100; // in seconds
+    let timeForProofGeneration = 10000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
 
     const bidId = await setup.createBid(
       prover,
@@ -355,9 +379,9 @@ describe("Checking Generator's multiple compute", () => {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: (assignmentExpiry + latestBlock).toString(),
-        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
@@ -367,6 +391,7 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -385,6 +410,7 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -434,19 +460,20 @@ describe("Checking Generator's multiple compute", () => {
     // console.log({ inputBytes });
 
     for (let index = 0; index < parseInt(max_asks) + 2; index++) {
-      const latestBlock = await ethers.provider.getBlockNumber();
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
       let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index >= parseInt(max_asks)) {
         const ask = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         };
 
@@ -462,7 +489,7 @@ describe("Checking Generator's multiple compute", () => {
 
         await expect(
           proofMarketplace.connect(matchingEngine).assignTask(bidId, await generator.getAddress(), "0x1234"),
-        ).to.be.revertedWithCustomError(errorLibrary, "InsufficientGeneratorComputeAvailable");
+        ).to.be.revertedWithCustomError(errorLibrary, "InsufficientProverComputeAvailable");
       } else {
         const bidId = await setup.createBid(
           prover,
@@ -471,9 +498,9 @@ describe("Checking Generator's multiple compute", () => {
             marketId,
             proverData: inputBytes,
             reward: rewardForProofGeneration.toFixed(),
-            expiry: (assignmentExpiry + latestBlock).toString(),
-            timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-            deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+            expiry: (assignmentExpiry + blockTimestamp).toString(),
+            timeForProofGeneration: timeForProofGeneration.toString(),
+            deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
             refundAddress: await prover.getAddress(),
           },
           {
@@ -487,6 +514,7 @@ describe("Checking Generator's multiple compute", () => {
             nativeStaking,
             symbioticStaking,
             symbioticStakingReward,
+            attestationVerifier,
           },
           1,
         );
@@ -501,6 +529,7 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            attestationVerifier,
             stakingManager,
             nativeStaking,
             symbioticStaking,
@@ -516,10 +545,12 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Leave Market Place with active request", async () => {
-    const latestBlock = await ethers.provider.getBlockNumber();
-    let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
+
+    let assignmentExpiry = 100; // in seconds
+    let timeForProofGeneration = 10000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
     let abiCoder = new ethers.AbiCoder();
 
@@ -543,9 +574,9 @@ describe("Checking Generator's multiple compute", () => {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: (assignmentExpiry + latestBlock).toString(),
-        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
@@ -555,6 +586,7 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -573,6 +605,7 @@ describe("Checking Generator's multiple compute", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -623,19 +656,20 @@ describe("Checking Generator's multiple compute", () => {
     // console.log({ inputBytes });
 
     for (let index = 0; index < parseInt(max_asks); index++) {
-      const latestBlock = await ethers.provider.getBlockNumber();
-      let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+      let assignmentExpiry = 100; // in seconds
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index > MAX_PARALLEL_REQUESTS.toNumber()) {
         const ask = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         };
 
@@ -660,9 +694,9 @@ describe("Checking Generator's multiple compute", () => {
             marketId,
             proverData: inputBytes,
             reward: rewardForProofGeneration.toFixed(),
-            expiry: (assignmentExpiry + latestBlock).toString(),
-            timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-            deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+            expiry: (assignmentExpiry + blockTimestamp).toString(),
+            timeForProofGeneration: timeForProofGeneration.toString(),
+            deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
             refundAddress: await prover.getAddress(),
           },
           {
@@ -676,6 +710,7 @@ describe("Checking Generator's multiple compute", () => {
             nativeStaking,
             symbioticStaking,
             symbioticStakingReward,
+            attestationVerifier,
           },
           1,
         );
@@ -690,6 +725,7 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            attestationVerifier,
             stakingManager,
             nativeStaking,
             symbioticStaking,
@@ -723,19 +759,20 @@ describe("Checking Generator's multiple compute", () => {
     );
 
     for (let index = 0; index < max_restricted_requests_by_stake + 12; index++) {
-      const latestBlock = await ethers.provider.getBlockNumber();
-      let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+      let assignmentExpiry = 100; // in seconds
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index >= max_restricted_requests_by_stake) {
         const ask = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         };
 
@@ -760,9 +797,9 @@ describe("Checking Generator's multiple compute", () => {
             marketId,
             proverData: inputBytes,
             reward: rewardForProofGeneration.toFixed(),
-            expiry: (assignmentExpiry + latestBlock).toString(),
-            timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-            deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+            expiry: (assignmentExpiry + blockTimestamp).toString(),
+            timeForProofGeneration: timeForProofGeneration.toString(),
+            deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
             refundAddress: await prover.getAddress(),
           },
           {
@@ -772,6 +809,7 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            attestationVerifier,
             stakingManager,
             nativeStaking,
             symbioticStaking,
@@ -790,6 +828,7 @@ describe("Checking Generator's multiple compute", () => {
             priorityLog,
             errorLibrary,
             entityKeyRegistry,
+            attestationVerifier,
             stakingManager,
             nativeStaking,
             symbioticStaking,
@@ -803,15 +842,32 @@ describe("Checking Generator's multiple compute", () => {
   });
 
   it("Only registered generator should be able to add/update entity keys", async () => {
+    let abicode = new ethers.AbiCoder();
     const generatorEnclave = new MockEnclave(MockProverPCRS);
 
     let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
 
     let types = ["bytes", "address"];
-
     let values = [generatorAttestationBytes, await generator.getAddress()];
 
+    let encoded = abicode.encode(types, values);
+    let digest = ethers.keccak256(encoded);
+    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
+
+    await expect(proverManager.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature))
+      .to.emit(entityKeyRegistry, "UpdateKey")
+      .withArgs(await generator.getAddress(), marketId);
+  });
+
+  it("Only registered generator should be able to add/update entity keys", async () => {
     let abicode = new ethers.AbiCoder();
+    const generatorEnclave = new MockEnclave(MockProverPCRS);
+
+    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
+
+    let types = ["bytes", "address"];
+    let values = [generatorAttestationBytes, await generator.getAddress()];
+
     let encoded = abicode.encode(types, values);
     let digest = ethers.keccak256(encoded);
     let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
@@ -885,21 +941,21 @@ describe("Checking Generator's multiple compute", () => {
   it("Generator Prechecks", async () => {
     const exponent = new BigNumber(10).pow(18).toFixed(0);
 
-    const generatorData = await proverManager.proverManager(await generator.getAddress());
-    expect(generatorComputeAllocation.toFixed(0)).to.eq(generatorData.declaredCompute.toString());
-    expect(generatorData.computeConsumed).to.eq(0);
-    // expect(generatorData.totalStake).to.eq(generatorStakingAmount.toFixed(0));
-    // expect(generatorData.stakeLocked).to.eq(0);
-    expect(generatorData.activeMarketplaces).to.eq(1);
-    expect(generatorData.intendedComputeUtilization).to.eq(exponent);
-    // expect(generatorData.intendedStakeUtilization).to.eq(exponent);
+    const proverData = await proverManager.proverRegistry(await generator.getAddress());
+    expect(generatorComputeAllocation.toFixed(0)).to.eq(proverData.declaredCompute.toString());
+    expect(proverData.computeConsumed).to.eq(0);
+    // expect(proverData.totalStake).to.eq(generatorStakingAmount.toFixed(0));
+    // expect(proverData.stakeLocked).to.eq(0);
+    expect(proverData.activeMarketplaces).to.eq(1);
+    expect(proverData.intendedComputeUtilization).to.eq(exponent);
+    // expect(proverData.intendedStakeUtilization).to.eq(exponent);
 
-    const marketId = 0; // likely to be 0, if failed change it
-    const generatorDataPerMarket = await proverManager.proverInfoPerMarket(await generator.getAddress(), marketId);
+    const marketId = 1; // likely to be 0, if failed change it
+    const proverDataPerMarket = await proverManager.proverInfoPerMarket(await generator.getAddress(), marketId);
 
-    expect(generatorDataPerMarket.state).to.not.eq(0); // 0 means no generator
-    expect(generatorDataPerMarket.computePerRequestRequired).to.eq(computeGivenToNewMarket.toFixed(0));
-    expect(generatorDataPerMarket.proofGenerationCost).to.eq(minRewardByGenerator.toFixed(0));
-    expect(generatorDataPerMarket.activeRequests).to.eq(0);
+    expect(proverDataPerMarket.state).to.not.eq(0); // 0 means no generator
+    expect(proverDataPerMarket.computePerRequestRequired).to.eq(computeGivenToNewMarket.toFixed(0));
+    expect(proverDataPerMarket.proofGenerationCost).to.eq(minRewardByGenerator.toFixed(0));
+    expect(proverDataPerMarket.activeRequests).to.eq(0);
   });
 });

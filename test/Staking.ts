@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 import {
-  AbiCoder,
   BytesLike,
   Signer,
 } from 'ethers';
@@ -23,12 +22,11 @@ import * as transfer_verifier_inputs
   from '../helpers/sample/transferVerifier/transfer_inputs.json';
 import * as transfer_verifier_proof
   from '../helpers/sample/transferVerifier/transfer_proof.json';
-import { stakingSetup } from '../helpers/setup';
+import { stakingSetup, submitSlashResult, submitVaultSnapshot, TaskSlashed, VaultSnapshot, toEthSignedMessageHash } from '../helpers/setup';
 import {
   AttestationVerifier,
   EntityKeyRegistry,
   Error,
-  IAttestationVerifier,
   IVerifier,
   IVerifier__factory,
   MockToken,
@@ -189,7 +187,7 @@ describe("Staking", () => {
       modifiedComputeGivenToNewMarket,
       godEnclave,
     );
-    
+
     attestationVerifier = data.attestationVerifier;
     entityKeyRegistry = data.entityKeyRegistry;
     proofMarketplace = data.proofMarketplace;
@@ -204,12 +202,13 @@ describe("Staking", () => {
     symbioticStaking = data.symbioticStaking;
     symbioticStakingReward = data.symbioticStakingReward;
 
-    imageId = bridgeEnclave.getImageId();
+    imageId = await symbioticStaking.getImageId(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
     vault1Address = ethers.Wallet.createRandom().address;
     vault2Address = ethers.Wallet.createRandom().address;
-    
+
     await attestationVerifier.whitelistEnclaveImage(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
-    await attestationVerifier.whitelistEnclaveKey(bridgeEnclave.getUncompressedPubkey(), imageId);// TODO: check if this is correct
+    await attestationVerifier.whitelistEnclaveKey(bridgeEnclave.getUncompressedPubkey(), imageId);
+    await symbioticStaking['addEnclaveImage(bytes,bytes,bytes)'](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
     ({ pond, weth } = await stakingSetup(admin, stakingManager, nativeStaking, symbioticStaking, symbioticStakingReward));
@@ -218,40 +217,19 @@ describe("Staking", () => {
   describe("Vault Snapshot Submission", () => {
     let captureTimestamp: BigNumber;
     let lastBlockNumber: BigNumber;
-    
+
     beforeEach(async () => {
       await refreshSetup();
     });
 
     describe("Enclave Key Verification", () => {
-      it.only("should verify Enclave Key", async () => {
-        // const signature = await bridgeEnclave.signMessage(imageId);
-        const latestBlock = await ethers.provider.getBlock('latest');
-        const timestampInMs = (latestBlock?.timestamp ?? 0) * 1000;
-        
-        const verifiedAttestation = await bridgeEnclave.getVerifiedAttestation(bridgeEnclave, timestampInMs);
-        
-        const types = ["bytes", "bytes", "bytes", "bytes", "bytes", "uint256"];
-        const decoded = new AbiCoder().decode(types, verifiedAttestation);
-
-        const signature = decoded[0];
-        const attestationToVerify: IAttestationVerifier.AttestationStruct = {
-          enclavePubKey: decoded[1],
-          PCR0: decoded[2],
-          PCR1: decoded[3],
-          PCR2: decoded[4],
-          timestampInMilliseconds:decoded[5]
-        }
-
-        const types2 = ['bytes', 'tuple(bytes enclavePubKey,bytes PCR0,bytes PCR1,bytes PCR2,uint256 timestampInMilliseconds)'];
-        const encoded = new AbiCoder().encode(types2, [signature, attestationToVerify]);
-        await attestationVerifier['verify(bytes)'](encoded);
-
+      it("should verify Enclave Key", async () => {
+        const encoded = await bridgeEnclave.getMockAttestation();
+        await attestationVerifier["verify(bytes)"](encoded);
       });
 
       it("should submit snapshot", async () => {
-        captureTimestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).minus(10);
-        lastBlockNumber = new BigNumber((await ethers.provider.getBlock('latest'))?.number ?? 0).minus(10);
+        captureTimestamp = new BigNumber((await ethers.provider.getBlock("latest"))?.timestamp ?? 0).minus(10);
 
         // 3 partial txs
         const numOfTxs = 3;
@@ -260,35 +238,36 @@ describe("Staking", () => {
           {
             prover: await prover.getAddress(),
             vault: vault1Address,
-            stakeToken: pond,
-            stakeAmount: new BigNumber(10).pow(18).multipliedBy(1000), // 1000 POND
+            stakeToken: await pond.getAddress(),
+            stakeAmount: new BigNumber(10).pow(18).multipliedBy(1000).toFixed(), // 1000 POND
           },
         ];
-        const vaultSnapshotData = encodeSnapshotData(vaultSnapshots);
-        const signature = await signSnapshotData(bridgeEnclave, vaultSnapshotData);
+
+        await submitVaultSnapshot(symbioticStaking, bridgeEnclave, prover, {
+          index: 0,
+          numOfTxs,
+          captureTimestamp: captureTimestamp.toString(),
+          imageId: imageId.toString(),
+          snapshotData: vaultSnapshots,
+        });
+      });
+
+      it("should submit slash result", async () => {
+        lastBlockNumber = new BigNumber((await ethers.provider.getBlock("latest"))?.number ?? 0).minus(10);
+        captureTimestamp = new BigNumber((await ethers.provider.getBlock("latest"))?.timestamp ?? 0).minus(10);
+
+        const taskSlashed: TaskSlashed[] = [];
+
+        await submitSlashResult(symbioticStaking, bridgeEnclave, prover, {
+          index: 0,
+          numOfTxs: 1,
+          captureTimestamp: captureTimestamp.toString(),
+          lastBlockNumber: lastBlockNumber.toString(),
+          imageId: imageId.toString(),
+          slashResultData: taskSlashed,
+        });
       });
     });
   });
 });
 
-type VaultSnapshot = {
-  prover: string;
-  vault: string;
-  stakeToken: POND | WETH;
-  stakeAmount: BigNumber;
-};
-
-const encodeSnapshotData = (
-  vaultSnapshots: VaultSnapshot[],
-) => {
-  const abiCoder = new ethers.AbiCoder();
-  return abiCoder.encode(["tuple(address, address, address, uint256)"], [vaultSnapshots]);
-};
-
-const signSnapshotData = async (
-  bridgeEnclave: MockEnclave,
-  data: BytesLike,
-) => {
-  const signature = await bridgeEnclave.signMessage(data);
-  return signature;
-};

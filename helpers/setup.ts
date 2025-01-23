@@ -117,8 +117,8 @@ export const rawSetup = async (
   minRewardForProver: BigNumber,
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
-  bridgeEnclave?: MockEnclave,
   godEnclave?: MockEnclave,
+  bridgeEnclave?: MockEnclave,
 ): Promise<SetupTemplate> => {
   //-------------------------------- Contract Deployment --------------------------------//
 
@@ -145,6 +145,10 @@ export const rawSetup = async (
     },
   );
   const attestationVerifier = AttestationVerifier__factory.connect(await attestationVerifierProxy.getAddress(), admin);
+  if (bridgeEnclave) {
+    await attestationVerifier.whitelistEnclaveImage(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+    await attestationVerifier.whitelistEnclaveKey(bridgeEnclave.getUncompressedPubkey(), bridgeEnclave.getImageId());
+  }
 
   // EntityKeyRegistry
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
@@ -260,16 +264,20 @@ export const rawSetup = async (
 
   await proofMarketplace.grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
 
-  // Grant `PROVER_MANAGER_ROLE` to StakingManager
+  // `StakingManager.PROVER_MANAGER_ROLE` -> `ProverManager`
   await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
-
-  // Grant `STAKING_MANAGER_ROLE` to SymbioticStaking
+  // `SymbioticStaking.STAKING_MANAGER_ROLE` -> `StakingManager`
   await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
-
-  // Grant `KEY_REGISTER_ROLE` to ProverManager, ProofMarketplace
-  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
-  await entityKeyRegistry.grantRole(register_role, await proverManager.getAddress());
-  await entityKeyRegistry.grantRole(register_role, await proofMarketplace.getAddress());
+  // `SymbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE` -> admin
+  await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), await admin.getAddress());
+  // `SymbioticStakingReward.SYMBIOTIC_STAKING_ROLE` -> `SymbioticStaking`
+  await symbioticStakingReward.grantRole(await symbioticStakingReward.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
+  // `NativeStaking.STAKING_MANAGER_ROLE` -> `StakingManager`
+  await nativeStaking.grantRole(await nativeStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
+  // `EntityKeyRegistry.KEY_REGISTER_ROLE` -> `ProverManager`
+  await entityKeyRegistry.grantRole(await entityKeyRegistry.KEY_REGISTER_ROLE(), await proverManager.getAddress());
+  // `EntityKeyRegistry.KEY_REGISTER_ROLE` -> `ProofMarketplace`
+  await entityKeyRegistry.grantRole(await entityKeyRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
   // Transfer marketCreationCost to ProofMarketplace
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
@@ -479,34 +487,126 @@ export interface VaultSnapshot {
   stakeAmount: BigNumberish;
 }
 
-export const submitVaultSnapshot = async(
-  transmitter: Signer,
-  symbioticStaking: SymbioticStaking,
-  snapshotData: VaultSnapshot[],
-) => {
-  const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
-  const blockNumber = (await ethers.provider.getBlock('latest'))?.number ?? 0;
-
-  // TODO
-  // submit snapshot
-  // await symbioticStaking.connect(transmitter).submitVaultSnapshot(
-  //   0,
-  //   1,
-  //   timestamp,
-  //   new ethers.AbiCoder().encode(
-  //     [
-  //       "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
-  //     ],
-  //     [snapshotData]
-  //   ),
-  //   "0x"
-  // );
-
-  // await symbioticStaking.connect(transmitter).submitSlashResult(
-  //   0,
-  //   1,
-  //   timestamp,
-  //   "0x",
-  //   "0x"
-  // );
+export interface TaskSlashed {
+  bidId: number;
+  prover: string;
+  rewardAddress: string;
 }
+
+export const toEthSignedMessageHash = (messageHash: string): string => {
+  const prefix = "\x19Ethereum Signed Message:\n32";
+  const prefixBytes = ethers.toUtf8Bytes(prefix);
+  const messageHashBytes = ethers.toBeArray(messageHash);
+  const combined = ethers.concat([prefixBytes, messageHashBytes]);
+  return ethers.keccak256(combined);
+}
+
+export interface SubmitVaultSnapshotParams {
+  index: number;
+  numOfTxs: number;
+  captureTimestamp: BigNumberish;
+  imageId: string;
+  snapshotData: VaultSnapshot[],
+}
+
+export const submitVaultSnapshot = async (
+  symbioticStaking: SymbioticStaking,
+  bridgeEnclave: MockEnclave,
+  transmitter: Signer,
+  params: SubmitVaultSnapshotParams
+) => {
+  const abiCoder = new ethers.AbiCoder();
+  
+  const vaultSnapshotData = encodeSnapshotData(params.snapshotData);
+  const STAKE_SNAPSHOT_TYPE = await symbioticStaking.STAKE_SNAPSHOT_TYPE();
+  const dataToSign = abiCoder.encode(
+    ["bytes32", "uint256", "uint256", "uint256", "bytes"], // _type, _index, _numOfTxs, _captureTimestamp, _data
+    [STAKE_SNAPSHOT_TYPE, params.index, params.numOfTxs, params.captureTimestamp, vaultSnapshotData]
+  );
+
+  const messageHash = toEthSignedMessageHash(ethers.keccak256(dataToSign));
+  const signature = await bridgeEnclave.signMessageWithoutPrefix(messageHash);
+  const attestation = await bridgeEnclave.getMockAttestation();
+  const proof = abiCoder.encode(
+    ["bytes", "bytes"],
+    [signature, attestation]
+  );
+
+  await symbioticStaking.connect(transmitter).submitVaultSnapshot(
+    params.index,
+    params.numOfTxs,
+    params.captureTimestamp,
+    params.imageId,
+    vaultSnapshotData,
+    proof
+  );
+};
+
+export interface SubmitSlashResultParams {
+  index: number;
+  numOfTxs: number;
+  captureTimestamp: BigNumberish;
+  lastBlockNumber: BigNumberish;
+  imageId: string;
+  slashResultData: TaskSlashed[],
+}
+
+export const submitSlashResult = async (
+  symbioticStaking: SymbioticStaking,
+  bridgeEnclave: MockEnclave,
+  transmitter: Signer,
+  params: SubmitSlashResultParams
+) => {
+  const abiCoder = new ethers.AbiCoder();
+
+  const slashResultData = encodeSlashResultData(params.slashResultData);
+  const SLASH_RESULT_TYPE = await symbioticStaking.SLASH_RESULT_TYPE();
+  const dataToSign = abiCoder.encode(
+    ["bytes32", "uint256", "uint256", "uint256", "bytes"], // _type, _index, _numOfTxs, _captureTimestamp, _data
+    [SLASH_RESULT_TYPE, params.index, params.numOfTxs, params.captureTimestamp, slashResultData]
+  );
+  const messageHash = toEthSignedMessageHash(ethers.keccak256(dataToSign));
+  const signature = await bridgeEnclave.signMessageWithoutPrefix(messageHash);
+  const attestation = await bridgeEnclave.getMockAttestation();
+  const proof = abiCoder.encode(
+    ["bytes", "bytes"],
+    [signature, attestation]
+  );
+
+  await symbioticStaking.connect(transmitter).submitSlashResult(
+    params.index,
+    params.numOfTxs,
+    params.captureTimestamp,
+    params.lastBlockNumber,
+    params.imageId,
+    slashResultData,
+    proof
+  );
+}
+
+const encodeSnapshotData = (vaultSnapshots: VaultSnapshot[]) => {
+  const abiCoder = new ethers.AbiCoder();
+  return abiCoder.encode(
+    ["tuple(address, address, address, uint256)[]"],
+    [vaultSnapshots.map(snapshot => [
+      snapshot.prover,
+      snapshot.vault,
+      snapshot.stakeToken,
+      snapshot.stakeAmount
+    ])]
+  );
+};
+
+const encodeSlashResultData = (taskSlashed: TaskSlashed[]) => {
+  const abiCoder = new ethers.AbiCoder();
+  return abiCoder.encode(
+    ["tuple(uint256, address, address)[]"],
+    [taskSlashed.map(slash => [
+      slash.bidId,
+      slash.prover,
+      slash.rewardAddress
+    ])]
+  );
+};
+
+

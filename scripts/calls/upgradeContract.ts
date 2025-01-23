@@ -17,29 +17,29 @@ async function main() {
   let tx;
   let verificationResult;
   
-  // ProofMarketplace Proxy
-  const proofMarketplaceProxy = UUPSUpgradeable__factory.connect(addresses.proxy.proofMarketplace, admin);
-  // New ProofMarketplace Implementation
-  const newProofMarketplaceImpl = await new ProofMarketplace__factory(admin).deploy();
-  await newProofMarketplaceImpl.waitForDeployment();
+  // // ProofMarketplace Proxy
+  // const proofMarketplaceProxy = UUPSUpgradeable__factory.connect(addresses.proxy.proofMarketplace, admin);
+  // // New ProofMarketplace Implementation
+  // const newProofMarketplaceImpl = await new ProofMarketplace__factory(admin).deploy();
+  // await newProofMarketplaceImpl.waitForDeployment();
   
-  addresses.implementation.proofMarketplace = await newProofMarketplaceImpl.getAddress();
-  fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  console.log("ProofMarketplace deployed at:\t\t", await newProofMarketplaceImpl.getAddress());
+  // addresses.implementation.proofMarketplace = await newProofMarketplaceImpl.getAddress();
+  // fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
+  // console.log("ProofMarketplace deployed at:\t\t", await newProofMarketplaceImpl.getAddress());
   
-  tx = await proofMarketplaceProxy.upgradeToAndCall(await newProofMarketplaceImpl.getAddress(), "0x");
-  // Upgrade ProofMarketplace
-  await tx.wait();
-  console.log("ProofMarketplace upgraded");
+  // tx = await proofMarketplaceProxy.upgradeToAndCall(await newProofMarketplaceImpl.getAddress(), "0x");
+  // // Upgrade ProofMarketplace
+  // await tx.wait();
+  // console.log("ProofMarketplace upgraded");
   
-  try {
-    verificationResult = await run("verify:verify", {
-      address: await newProofMarketplaceImpl.getAddress(),
-    });
-    console.log({ verificationResult });  
-  } catch (error) {
-    console.error("Error verifying ProofMarketplace implementation on Etherscan:", error);
-  }
+  // try {
+  //   verificationResult = await run("verify:verify", {
+  //     address: await newProofMarketplaceImpl.getAddress(),
+  //   });
+  //   console.log({ verificationResult });  
+  // } catch (error) {
+  //   console.error("Error verifying ProofMarketplace implementation on Etherscan:", error);
+  // }
 
   try {
     await tenderly.verify({
@@ -74,14 +74,14 @@ async function main() {
   //   console.error("Error verifying ProverManager implementation on Etherscan:", error);
   // }
 
-  // try {
-  //   await tenderly.verify({
-  //     address: await newProverManagerImpl.getAddress(),
-  //     name: "ProverManager",
-  //   });
-  // } catch (error) {
-  //   console.error("Error verifying ProverManager implementation on Tenderly:", error);
-  // }
+  try {
+    await tenderly.verify({
+      address: addresses.implementation.proverManager,
+      name: "ProverManager",
+    });
+  } catch (error) {
+    console.error("Error verifying ProverManager implementation on Tenderly:", error);
+  }
   
   return "Done";
 }

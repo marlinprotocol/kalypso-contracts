@@ -18,6 +18,7 @@ import {
 } from '../helpers';
 import * as zksync_data from '../helpers/sample/zksync/data.json';
 import {
+  AttestationVerifier,
   EntityKeyRegistry,
   Error,
   IVerifier,
@@ -38,6 +39,7 @@ describe("Proof Market Place for zksync Verifier", () => {
   let proofMarketplace: ProofMarketplace;
   let proverManager: ProverManager;
   let tokenToUse: MockToken;
+  let attestationVerifier: AttestationVerifier;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
@@ -149,21 +151,23 @@ describe("Proof Market Place for zksync Verifier", () => {
     nativeStaking = data.nativeStaking;
     symbioticStaking = data.symbioticStaking;
     symbioticStakingReward = data.symbioticStakingReward;
-
+    attestationVerifier = data.attestationVerifier;
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check zksync verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
     let inputBytes = abiCoder.encode(["uint256[]"], [zksync_data.publicInputs]);
     // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlockNumber();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
+
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    let timeForProofGeneration = 10000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
     const bidId = await setup.createBid(
       prover,
@@ -172,9 +176,9 @@ describe("Proof Market Place for zksync Verifier", () => {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: (assignmentExpiry + latestBlock).toString(),
-        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
@@ -184,6 +188,7 @@ describe("Proof Market Place for zksync Verifier", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -202,7 +207,8 @@ describe("Proof Market Place for zksync Verifier", () => {
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
-        stakingManager, 
+        attestationVerifier,
+        stakingManager,
         nativeStaking,
         symbioticStaking,
         symbioticStakingReward,

@@ -9,6 +9,7 @@ import {
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 
 import {
+  BridgeEnclavePCRS,
   bytesToHexString,
   generateRandomBytes,
   GodEnclavePCRS,
@@ -18,6 +19,7 @@ import {
   MockMEPCRS,
   MockProverPCRS,
   skipBlocks,
+  skipTime,
 } from '../helpers';
 import {
   Dispute__factory,
@@ -48,14 +50,11 @@ describe("Proof market place", () => {
   let tokenHolder: Signer;
   let treasury: Signer;
   let marketCreator: Signer;
-
   let mockToken: MockToken;
 
   let tokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(4);
   let marketCreationCost: BigNumber = new BigNumber(10).pow(20).multipliedBy(5);
-
   let proverStakingAmount = new BigNumber(10).pow(21).multipliedBy(6);
-
   let minRewardForProver = new BigNumber(10).pow(18).multipliedBy(100);
 
   let stakingManager: StakingManager;
@@ -73,7 +72,7 @@ describe("Proof market place", () => {
 
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
-
+  const bridgeEnclave = new MockEnclave(BridgeEnclavePCRS);
   let matchingEngineSigner: Signer;
 
   beforeEach(async () => {
@@ -144,7 +143,7 @@ describe("Proof market place", () => {
       await symbioticStaking.getAddress(),
       await mockToken.getAddress(),
     );
-    await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverManager.getAddress());
+    await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
     await symbioticStaking.initialize(
       await admin.getAddress(),
       await mockAttestationVerifier.getAddress(),
@@ -366,7 +365,7 @@ describe("Proof market place", () => {
     let marketId: string;
 
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 1000; // in blocks
+    let timeForProofGeneration = 1000; // in blocks
     let maxTimeForProofGeneration = 10000; // in blocks
 
     beforeEach(async () => {
@@ -388,12 +387,14 @@ describe("Proof market place", () => {
           ivsEnclave.getPcrRlp(),
         );
 
-      let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+      // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+      // const ONE_DAY_IN_BLOCKS = 24 * 60 * 60;
+      // await skipBlocks(ethers, ONE_DAY_IN_BLOCKS);
     });
 
     it("Create Ask Request", async () => {
-      const latestBlock = await ethers.provider.getBlockNumber();
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
 
       const bidIdToBeGenerated = await proofMarketplace.bidCounter();
 
@@ -402,9 +403,9 @@ describe("Proof market place", () => {
         marketId,
         proverData: proverBytes,
         reward: reward.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       };
 
@@ -436,7 +437,7 @@ describe("Proof market place", () => {
     let marketId: string;
 
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 1000; // in blocks
+    let timeForProofGeneration = 1000; // in blocks
     let maxTimeForProofGeneration = 10000; // in blocks
 
     const computeUnitsRequired = 100; // temporary absolute number
@@ -458,12 +459,13 @@ describe("Proof market place", () => {
         ivsEnclave.getPcrRlp(),
       );
 
-      let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+      // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+      // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
     });
 
     it("Create Ask Request", async () => {
-      const latestBlock = await ethers.provider.getBlockNumber();
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
 
       const bidIdToBeGenerated = await proofMarketplace.bidCounter();
 
@@ -472,9 +474,9 @@ describe("Proof market place", () => {
         marketId,
         proverData: proverBytes,
         reward: reward.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       };
 
@@ -504,7 +506,8 @@ describe("Proof market place", () => {
       await mockToken.connect(prover).approve(await proofMarketplace.getAddress(), reward.toFixed());
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
 
-      const latestBlock = await ethers.provider.getBlockNumber();
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
 
       const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 2)); // 10 MB
       const invalidMarketId = ethers.keccak256(marketBytes);
@@ -515,9 +518,9 @@ describe("Proof market place", () => {
             marketId: invalidMarketId,
             proverData: proverBytes,
             reward: reward.toFixed(),
-            expiry: assignmentExpiry + latestBlock,
-            timeTakenForProofGeneration,
-            deadline: latestBlock + maxTimeForProofGeneration,
+            expiry: (assignmentExpiry + blockTimestamp).toString(),
+            timeForProofGeneration: timeForProofGeneration.toString(),
+            deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
             refundAddress: await prover.getAddress(),
           },
           0,
@@ -544,7 +547,7 @@ describe("Proof market place", () => {
       it("Check prover data", async () => {
         await expect(proverManager.connect(prover).register(await prover.getAddress(), computeUnitsRequired, proverData))
           .to.emit(proverManager, "ProverRegistered")
-          .withArgs(await prover.getAddress(), computeUnitsRequired);
+          .withArgs(await prover.getAddress(), computeUnitsRequired, proverData);
 
         let proverEnclave = new MockEnclave(MockProverPCRS);
         await expect(
@@ -562,7 +565,7 @@ describe("Proof market place", () => {
           .to.emit(proverManager, "ProverJoinedMarketplace")
           .withArgs(await prover.getAddress(), marketId, computeUnitsRequired, new BigNumber(10).pow(18).multipliedBy(0.1).toFixed(0)); // 10%
 
-        const rewardAddress = (await proverManager.proverManager(await prover.getAddress())).rewardAddress;
+        const rewardAddress = (await proverManager.proverRegistry(await prover.getAddress())).rewardAddress;
         expect(rewardAddress).to.eq(await prover.getAddress());
 
         expect((await proverManager.proverInfoPerMarket(await prover.getAddress(), marketId)).state).to.eq(1); //1 means JOINED
@@ -761,10 +764,12 @@ describe("Proof market place", () => {
             await expect(proverManager.connect(prover).intendToReduceCompute(computeToReduce))
               .to.emit(proverManager, "ComputeDecreaseRequested")
               .withArgs(await prover.getAddress(), newUtilization.toFixed(0));
+            
+            await skipBlocks(ethers, 1000);
           });
 
           it("Prover utilization check and reduce compute", async () => {
-            const proverData = await proverManager.proverManager(await prover.getAddress());
+            const proverData = await proverManager.proverRegistry(await prover.getAddress());
             expect(proverData.intendedComputeUtilization).to.eq(newUtilization);
 
             const totalComputeBefore = proverData.declaredCompute;
@@ -788,13 +793,14 @@ describe("Proof market place", () => {
 
       describe("Task", () => {
         let proverBytes: string;
-        let latestBlock: number;
-
+        let latestBlock: any;
+        let blockTimestamp: number;
         let bidId: BigNumber;
         beforeEach(async () => {
           proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-          latestBlock = await ethers.provider.getBlockNumber();
-
+          latestBlock = await ethers.provider.getBlock("latest");
+          blockTimestamp = latestBlock?.timestamp ?? 0;
+          
           let meAttestationBytes = await matchingEngineEnclave.getVerifiedAttestation(matchingEngineEnclave);
 
           let types = ["bytes", "address"];
@@ -816,9 +822,9 @@ describe("Proof market place", () => {
               marketId,
               proverData: proverBytes,
               reward: reward.toFixed(),
-              expiry: latestBlock + assignmentExpiry,
-              timeTakenForProofGeneration,
-              deadline: latestBlock + maxTimeForProofGeneration,
+              expiry: (blockTimestamp + assignmentExpiry).toString(),
+              timeForProofGeneration: timeForProofGeneration.toString(),
+              deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
               refundAddress: await prover.getAddress(),
             },
             0,
@@ -911,9 +917,9 @@ describe("Proof market place", () => {
               marketId,
               proverData: anotherProverBytes,
               reward: reward.toFixed(),
-              expiry: latestBlock + assignmentExpiry,
-              timeTakenForProofGeneration,
-              deadline: latestBlock + maxTimeForProofGeneration,
+              expiry: (blockTimestamp + assignmentExpiry).toString(),
+              timeForProofGeneration: timeForProofGeneration.toString(),
+              deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
               refundAddress: await prover.getAddress(),
             },
             0,

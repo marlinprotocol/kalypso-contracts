@@ -25,6 +25,7 @@ import * as transfer_verifier_inputs
 import * as transfer_verifier_proof
   from '../helpers/sample/transferVerifier/transfer_proof.json';
 import {
+  AttestationVerifier,
   EntityKeyRegistry,
   Error,
   IVerifier,
@@ -48,6 +49,7 @@ describe("Checking Case where prover and ivs image is same", () => {
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let attestationVerifier: AttestationVerifier;
   let iverifier: IVerifier;
 
   let stakingManager: StakingManager;
@@ -180,6 +182,7 @@ describe("Checking Case where prover and ivs image is same", () => {
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    attestationVerifier = data.attestationVerifier;
     stakingManager = data.stakingManager;
     nativeStaking = data.nativeStaking;
     symbioticStaking = data.symbioticStaking;
@@ -187,8 +190,8 @@ describe("Checking Case where prover and ivs image is same", () => {
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
   it("Add new images for provers and ivs", async () => {
@@ -278,11 +281,13 @@ describe("Checking Case where prover and ivs image is same", () => {
     };
 
     beforeEach(async () => {
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+
       let abiCoder = new ethers.AbiCoder();
       let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
-      const latestBlock = await ethers.provider.getBlockNumber();
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       let inputBytes = abiCoder.encode(
         ["uint256[5]"],
@@ -304,9 +309,9 @@ describe("Checking Case where prover and ivs image is same", () => {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: (assignmentExpiry + latestBlock).toString(),
-          timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-          deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         },
         {
@@ -316,6 +321,7 @@ describe("Checking Case where prover and ivs image is same", () => {
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
           stakingManager,
           nativeStaking,
           symbioticStaking,
@@ -334,6 +340,7 @@ describe("Checking Case where prover and ivs image is same", () => {
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
           stakingManager,
           nativeStaking,
           symbioticStaking,

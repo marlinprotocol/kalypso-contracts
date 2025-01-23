@@ -18,11 +18,12 @@ async function main() {
 
   const admin = signers[0];
 
-  const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbioticStaking, signers[0]);
+  const symbioticStaking = SymbioticStaking__factory.connect("0xE7136641cB2c94d318779c3B6BEb997dC5B2E574", signers[0]);
 
-  // Grant BRIDGE_ENCLAVE_UPDATES_ROLE to admin
-  let tx = await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), await admin.getAddress()); 
-  await tx.wait();
+  let tx;
+  // // Grant BRIDGE_ENCLAVE_UPDATES_ROLE to admin
+  // let tx = await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), await admin.getAddress()); 
+  // await tx.wait();
 
   // Add PCR0, PCR1, PCR2 to enclave
   tx = await symbioticStaking.addEnclaveImage(
