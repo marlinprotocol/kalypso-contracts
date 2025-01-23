@@ -1,10 +1,7 @@
-import { BigNumber } from 'bignumber.js';
-import { expect } from 'chai';
-import {
-  Provider,
-  Signer,
-} from 'ethers';
-import { ethers } from 'hardhat';
+import { BigNumber } from "bignumber.js";
+import { expect } from "chai";
+import { Provider, Signer } from "ethers";
+import { ethers } from "hardhat";
 
 import {
   BridgeEnclavePCRS,
@@ -18,20 +15,11 @@ import {
   ProverData,
   proverDataToBytes,
   setup,
-  skipBlocks,
-} from '../helpers';
-import * as transfer_verifier_inputs
-  from '../helpers/sample/transferVerifier/transfer_inputs.json';
-import * as transfer_verifier_proof
-  from '../helpers/sample/transferVerifier/transfer_proof.json';
-import * as invalid_transfer_verifier_proof
-  from '../helpers/sample/zkbVerifier/transfer_proof.json';
-import {
-  proverSelfStake,
-  stakingSetup,
-  submitVaultSnapshot,
-  VaultSnapshot,
-} from '../helpers/setup';
+} from "../helpers";
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+import * as invalid_transfer_verifier_proof from "../helpers/sample/zkbVerifier/transfer_proof.json";
+import { proverSelfStake, stakingSetup, submitVaultSnapshot, VaultSnapshot } from "../helpers/setup";
 import {
   AttestationVerifier,
   EntityKeyRegistry,
@@ -50,12 +38,12 @@ import {
   Transfer_verifier_wrapper__factory,
   TransferVerifier__factory,
   WETH,
-} from '../typechain-types';
+} from "../typechain-types";
 
 describe("Checking Prover's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
   let proverManager: ProverManager;
-  let tokenToUse: MockToken;
+  // let usdc: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
@@ -68,14 +56,16 @@ describe("Checking Prover's multiple compute", () => {
   let attestationVerifier: AttestationVerifier;
   let pond: POND;
   let weth: WETH;
-  let USDC: MockToken;
+  let usdc: MockToken;
 
   let signers: Signer[];
   let admin: Signer;
   let tokenHolder: Signer;
   let treasury: Signer;
+  // TODO: generator -> prover, prover -> user
   let prover: Signer;
   let generator: Signer;
+  let user: Signer;
   let vault1: Signer;
   let vault2: Signer;
 
@@ -113,6 +103,7 @@ describe("Checking Prover's multiple compute", () => {
     marketCreator = signers[3];
     prover = signers[4];
     generator = signers[5];
+    user = signers[6];
 
     marketSetupData = {
       zkAppName: "transfer verifier",
@@ -198,7 +189,7 @@ describe("Checking Prover's multiple compute", () => {
 
     proofMarketplace = data.proofMarketplace;
     proverManager = data.proverManager;
-    tokenToUse = data.mockToken;
+    usdc = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
@@ -215,7 +206,6 @@ describe("Checking Prover's multiple compute", () => {
     // await attestationVerifier.whitelistEnclaveImage(godEnclave.pcrs[0], godEnclave.pcrs[1], godEnclave.pcrs[2]);
     // await attestationVerifier.whitelistEnclaveKey(godEnclave.getUncompressedPubkey(), godEnclave.getImageId());
 
-    
     // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
     // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   };
@@ -250,9 +240,10 @@ describe("Checking Prover's multiple compute", () => {
     const captureTimestamp = new BigNumber((await ethers.provider.getBlock("latest"))?.timestamp ?? 0).minus(10);
     const imageId = bridgeEnclave.getImageId();
 
-    await symbioticStaking['addEnclaveImage(bytes,bytes,bytes)'](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+    await symbioticStaking["addEnclaveImage(bytes,bytes,bytes)"](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
 
-    await submitVaultSnapshot(symbioticStaking, bridgeEnclave, prover, {
+    console.log("");
+    await submitVaultSnapshot(symbioticStaking, bridgeEnclave, user, {
       index: 0,
       numOfTxs: 1,
       captureTimestamp: captureTimestamp.toString(),
@@ -261,93 +252,122 @@ describe("Checking Prover's multiple compute", () => {
     });
   });
 
-  it("Using Simple Transfer Verifier", async () => {
-    let abiCoder = new ethers.AbiCoder();
+  describe("Using Simple Transfer Verifier", () => {
+    let bidId: string;
+    let proofBytes: string;
 
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
+    beforeEach(async () => {
+      let abiCoder = new ethers.AbiCoder();
+
+      let inputBytes = abiCoder.encode(
+        ["uint256[5]"],
         [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
+          [
+            transfer_verifier_inputs[0],
+            transfer_verifier_inputs[1],
+            transfer_verifier_inputs[2],
+            transfer_verifier_inputs[3],
+            transfer_verifier_inputs[4],
+          ],
         ],
-      ],
-    );
-    // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlock('latest');
-    const blockTimestamp = latestBlock?.timestamp ?? 0;
-    let assignmentExpiry = 100; // in blocks
-    let timeForProofGeneration = 1000; // 1 second ~ 1 day
-    let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
+      );
 
-    const bidId = await setup.createBid(
-      prover,
-      tokenHolder,
-      {
-        marketId,
-        proverData: inputBytes,
-        reward: rewardForProofGeneration.toFixed(),
-        expiry: (assignmentExpiry + blockTimestamp).toString(),
-        timeForProofGeneration: timeForProofGeneration.toString(),
-        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
-        refundAddress: await prover.getAddress(),
-      },
-      {
-        mockToken: tokenToUse,
-        proofMarketplace,
-        attestationVerifier,
-        proverManager,
-        priorityLog,
-        errorLibrary,
-        entityKeyRegistry,
-        stakingManager,
-        nativeStaking,
-        symbioticStaking,
-        symbioticStakingReward,
-      },
-      1,
-    );
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+      let assignmentExpiry = 100; // in blocks
+      let timeForProofGeneration = 1000; // 1 day
+      let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
 
-    await setup.createTask(
-      matchingEngineEnclave,
-      admin.provider as Provider,
-      {
-        mockToken: tokenToUse,
-        proofMarketplace,
-        proverManager,
-        priorityLog,
-        errorLibrary,
-        entityKeyRegistry,
-        attestationVerifier,
-        stakingManager,
-        nativeStaking,
-        symbioticStaking,
-        symbioticStakingReward,
-      },
-      bidId,
-      generator,
-    );
+      bidId = await setup.createBid(
+        user,
+        tokenHolder,
+        {
+          marketId,
+          proverData: inputBytes,
+          reward: rewardForProofGeneration.toFixed(),
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
+          refundAddress: await user.getAddress(),
+        },
+        {
+          mockToken: usdc,
+          proofMarketplace,
+          attestationVerifier,
+          proverManager,
+          priorityLog,
+          errorLibrary,
+          entityKeyRegistry,
+          stakingManager,
+          nativeStaking,
+          symbioticStaking,
+          symbioticStakingReward,
+        },
+        1,
+      );
 
-    let proofBytes = abiCoder.encode(
-      ["uint256[8]"],
-      [
+      await setup.createTask(
+        matchingEngineEnclave,
+        admin.provider as Provider,
+        {
+          mockToken: usdc,
+          proofMarketplace,
+          proverManager,
+          priorityLog,
+          errorLibrary,
+          entityKeyRegistry,
+          attestationVerifier,
+          stakingManager,
+          nativeStaking,
+          symbioticStaking,
+          symbioticStakingReward,
+        },
+        bidId,
+        generator,
+      );
+
+      proofBytes = abiCoder.encode(
+        ["uint256[8]"],
         [
-          transfer_verifier_proof.a[0],
-          transfer_verifier_proof.a[1],
-          transfer_verifier_proof.b[0][0],
-          transfer_verifier_proof.b[0][1],
-          transfer_verifier_proof.b[1][0],
-          transfer_verifier_proof.b[1][1],
-          transfer_verifier_proof.c[0],
-          transfer_verifier_proof.c[1],
+          [
+            transfer_verifier_proof.a[0],
+            transfer_verifier_proof.a[1],
+            transfer_verifier_proof.b[0][0],
+            transfer_verifier_proof.b[0][1],
+            transfer_verifier_proof.b[1][0],
+            transfer_verifier_proof.b[1][1],
+            transfer_verifier_proof.c[0],
+            transfer_verifier_proof.c[1],
+          ],
         ],
-      ],
-    );
+      );
+    });
 
-    await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
+    it("should submit proof", async () => {
+      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
+    });
+
+    // Note: this will change in the future (Prover will not receive 100% reward)
+    it("prover should receive 100% reward", async () => {
+      const generatorRewardBefore = await proofMarketplace.proverClaimableFeeReward(await generator.getAddress());
+      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
+      const generatorRewardAfter = await proofMarketplace.proverClaimableFeeReward(await generator.getAddress());
+      expect(new BigNumber(generatorRewardAfter.toString()).minus(new BigNumber(generatorRewardBefore.toString()))).to.eq(
+        rewardForProofGeneration,
+      );
+    });
+
+    it("provrRewardAddress should be able to claim reward", async () => {
+      const proverRewardAddress = await signers[7].getAddress();
+
+      await proverManager.connect(generator).updateProverRewardAddress(proverRewardAddress);
+      const proverRewardBefore = await proofMarketplace.proverClaimableFeeReward(proverRewardAddress);
+      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
+      const proverRewardAfter = await proofMarketplace.proverClaimableFeeReward(proverRewardAddress);
+      expect(new BigNumber(proverRewardAfter.toString()).minus(new BigNumber(proverRewardBefore.toString()))).to.eq(
+        rewardForProofGeneration,
+      );
+    });
   });
 
   it("Should Fail invalid Proof: Simple Transfer Verifier, but proof generated for some other request", async () => {
@@ -385,7 +405,7 @@ describe("Checking Prover's multiple compute", () => {
         refundAddress: await prover.getAddress(),
       },
       {
-        mockToken: tokenToUse,
+        mockToken: usdc,
         proofMarketplace,
         proverManager,
         priorityLog,
@@ -404,7 +424,7 @@ describe("Checking Prover's multiple compute", () => {
       matchingEngineEnclave,
       admin.provider as Provider,
       {
-        mockToken: tokenToUse,
+        mockToken: usdc,
         proofMarketplace,
         proverManager,
         priorityLog,
@@ -477,9 +497,9 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
@@ -504,7 +524,7 @@ describe("Checking Prover's multiple compute", () => {
             refundAddress: await prover.getAddress(),
           },
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,
@@ -523,7 +543,7 @@ describe("Checking Prover's multiple compute", () => {
           matchingEngineEnclave,
           admin.provider as Provider,
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,
@@ -580,7 +600,7 @@ describe("Checking Prover's multiple compute", () => {
         refundAddress: await prover.getAddress(),
       },
       {
-        mockToken: tokenToUse,
+        mockToken: usdc,
         proofMarketplace,
         proverManager,
         priorityLog,
@@ -599,7 +619,7 @@ describe("Checking Prover's multiple compute", () => {
       matchingEngineEnclave,
       admin.provider as Provider,
       {
-        mockToken: tokenToUse,
+        mockToken: usdc,
         proofMarketplace,
         proverManager,
         priorityLog,
@@ -673,9 +693,9 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
@@ -700,7 +720,7 @@ describe("Checking Prover's multiple compute", () => {
             refundAddress: await prover.getAddress(),
           },
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,
@@ -719,7 +739,7 @@ describe("Checking Prover's multiple compute", () => {
           matchingEngineEnclave,
           admin.provider as Provider,
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,
@@ -776,9 +796,9 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await tokenToUse.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
 
-        await tokenToUse.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
@@ -803,7 +823,7 @@ describe("Checking Prover's multiple compute", () => {
             refundAddress: await prover.getAddress(),
           },
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,
@@ -822,7 +842,7 @@ describe("Checking Prover's multiple compute", () => {
           matchingEngineEnclave,
           admin.provider as Provider,
           {
-            mockToken: tokenToUse,
+            mockToken: usdc,
             proofMarketplace,
             proverManager,
             priorityLog,

@@ -365,6 +365,9 @@ contract ProofMarketplace is
         (address proverRewardAddress, uint256 minRewardForProver) =
             ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
 
+        // Note: initially Prover will be paid the 100% of the reward
+        minRewardForProver = bidWithState.bid.reward; 
+
         require(proverRewardAddress != address(0), Error.CannotBeZero());
         require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
@@ -377,13 +380,16 @@ contract ProofMarketplace is
 
         listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
+        // Note: initially no tokens will be sent back to requestor
         uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
 
         // reward to prover
+        // Note: Prover will be paid the 100% of the reward so no feeRewardRemaining after distribution
         uint256 feeRewardRemaining =
             _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, minRewardForProver);
 
         // fraction of amount back to requestor
+        // Note: initially no tokens will be sent back to requestor
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
         ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, feeRewardRemaining);
@@ -451,14 +457,20 @@ contract ProofMarketplace is
         require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
         listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
-        // tokens related to incorrect request will be sen't to treasury
+        // Note: initially Prover will be paid the 100% of the reward
+        _minRewardForProver = _bidWithState.bid.reward; 
+
+        // tokens related to incorrect request will be sent to treasury
+        // Note: initially no tokens will be sent to treasury
         uint256 toTreasury = _bidWithState.bid.reward - _minRewardForProver;
 
         // transfer the reward to prover
+        // Note: Prover will be paid the 100% of the reward so no feeRewardRemaining after distribution
         uint256 feeRewardRemaining =
             _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _minRewardForProver);
 
         // transfer the amount to treasury collection
+        // Note: initially no tokens will be sent to treasury
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
 
         ProverManager(proverManager).completeProverTask(_bidId, _bidWithState.prover, _marketId, feeRewardRemaining);
@@ -475,10 +487,12 @@ contract ProofMarketplace is
         // uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
         // uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
         uint256 proverFeeReward = _feePaid;
+
+        // Note: initially all the reward will be sent to prover
         feeRewardRemaining = _feePaid - proverFeeReward;
 
         // update prover fee reward
-        proverClaimableFeeReward[_proverRewardAddress] += proverFeeReward; // TODO replace to rewardAddress
+        proverClaimableFeeReward[_proverRewardAddress] += proverFeeReward;
 
         emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
