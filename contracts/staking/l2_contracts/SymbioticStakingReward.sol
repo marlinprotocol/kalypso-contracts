@@ -98,7 +98,7 @@ contract SymbioticStakingReward is
 
     // TODO: Vault -> Claimer address
     /// @notice vault can claim reward accrued
-    function claimReward(address _prover) external nonReentrant {
+    function claimReward(address _prover) external whenNotPaused nonReentrant {
         address[] memory stakeTokenList = _getStakeTokenList();
 
         // update rewardPerTokenPaid and rewardAccrued for each vault

@@ -4,7 +4,9 @@ pragma solidity ^0.8.26;
 /* Contracts */
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 
 /* Interfaces */
 import {INativeStaking} from "../../interfaces/staking/INativeStaking.sol";
@@ -19,7 +21,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Struct} from "../../lib/Struct.sol";
 import {Error} from "../../lib/Error.sol";
 
-contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable, INativeStaking {
+contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable, INativeStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -105,6 +107,7 @@ contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
     function stake(address _stakeToken, address _prover, uint256 _amount)
         external
         onlySupportedToken(_stakeToken)
+        whenNotPaused
         nonReentrant
     {
         // this check can be removed in the future to allow delegatedStake
@@ -118,7 +121,7 @@ contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         emit Staked(_msgSender(), _prover, _stakeToken, _amount);
     }
 
-    function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external nonReentrant {
+    function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external whenNotPaused nonReentrant {
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, Error.InsufficientStakeAmount());
 
         stakeAmounts[_stakeToken][_msgSender()][_prover] -= _amount;
@@ -133,7 +136,7 @@ contract NativeStaking is AccessControlUpgradeable, UUPSUpgradeable, ReentrancyG
         emit StakeWithdrawalRequested(_msgSender(), _prover, _stakeToken, index, _amount);
     }
 
-    function withdrawStake(address _prover, uint256[] calldata _index) external nonReentrant {
+    function withdrawStake(address _prover, uint256[] calldata _index) external whenNotPaused nonReentrant {
         // TODO: _msgSender() should be claim address of the prover later
         require(_msgSender() == _prover, Error.OnlyProverCanWithdrawStake());
         require(_index.length > 0, Error.InvalidIndexLength());

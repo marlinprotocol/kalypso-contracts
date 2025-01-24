@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 /* Contracts */
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
@@ -27,8 +28,9 @@ import {Struct} from "../../lib/Struct.sol";
 
 contract SymbioticStaking is
     AccessControlUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable,
     ISymbioticStaking
 {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -164,7 +166,7 @@ contract SymbioticStaking is
         bytes32 _imageId,
         bytes calldata _vaultSnapshotData,
         bytes calldata _proof
-    ) external {
+    ) external whenNotPaused {
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
         _checkCaptureTimestampInfo(_captureTimestamp, msg.sender, 0);
@@ -202,7 +204,7 @@ contract SymbioticStaking is
         bytes32 _imageId,
         bytes calldata _slashResultData,
         bytes calldata _proof
-    ) external {
+    ) external whenNotPaused {
         require(_lastBlockNumber > 0, Error.CannotBeZero());
         // the range must include at least one block after the block number of the latest confirmed block
         require(_lastBlockNumber > latestConfirmedTimestampBlockNumber(), Error.InvalidLastBlockNumber());
