@@ -60,7 +60,7 @@ contract SymbioticStaking is
     uint256[500] private __gap_0;
 
     /* Config */
-    uint256 public submissionCooldown; // 18 decimal (in seconds)
+    uint256 public submissionCooldown; // in seconds
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     /* Stake Token */
@@ -73,11 +73,7 @@ contract SymbioticStaking is
     address public rewardDistributor;
     address public attestationVerifier;
 
-    /* RewardToken */
-    address public feeRewardToken;
-
     /* Submission */
-    uint256 public lastSlashResultBlock;
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
 
     /* Config */
@@ -125,34 +121,29 @@ contract SymbioticStaking is
         address _attestationVerifier,
         address _proofMarketplace,
         address _stakingManager,
-        address _rewardDistributor,
-        address _feeRewardToken
+        address _rewardDistributor
     ) public initializer {
         __AccessControl_init_unchained();
-        __UUPSUpgradeable_init_unchained();
         __ReentrancyGuard_init_unchained();
+        __Pausable_init_unchained();
+        __UUPSUpgradeable_init_unchained();
 
+        // Note: BRIDGE_ENCLAVE_ROLE should be set manaully
+
+        require(_admin != address(0), Error.InvalidAdmin());
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_attestationVerifier != address(0), Error.CannotBeZero());
-        attestationVerifier = _attestationVerifier;
-        emit AttestationVerifierSet(_attestationVerifier);
+        require(_attestationVerifier != address(0), Error.InvalidAttestationVerifier());
+        _setAttestationVerifier(_attestationVerifier);
 
-        require(_stakingManager != address(0), Error.CannotBeZero());
-        stakingManager = _stakingManager;
-        emit StakingManagerSet(_stakingManager);
+        require(_proofMarketplace != address(0), Error.InvalidProofMarketplace());
+        _setProofMarketplace(_proofMarketplace);
 
-        require(_proofMarketplace != address(0), Error.CannotBeZero());
-        proofMarketplace = _proofMarketplace;
-        emit ProofMarketplaceSet(_proofMarketplace);
+        require(_stakingManager != address(0), Error.InvalidStakingManager());
+        _grantRole(STAKING_MANAGER_ROLE, _stakingManager);
 
-        require(_rewardDistributor != address(0), Error.CannotBeZero());
-        rewardDistributor = _rewardDistributor;
-        emit RewardDistributorSet(_rewardDistributor);
-
-        require(_feeRewardToken != address(0), Error.CannotBeZero());
-        feeRewardToken = _feeRewardToken;
-        emit FeeRewardTokenSet(_feeRewardToken);
+        require(_rewardDistributor != address(0), Error.InvalidRewardDistributor());
+        _setRewardDistributor(_rewardDistributor);
     }
 
     //---------------------------------- Init end ----------------------------------//
@@ -193,6 +184,22 @@ contract SymbioticStaking is
         // when all chunks of Snapshots are submitted
         if (submissionStatus[_captureTimestamp][msg.sender] == SUBMISSION_COMPLETE) {
             _completeSubmission(_captureTimestamp);
+        }
+    }
+
+    function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
+        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
+            Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
+
+            // update vault staked amount
+            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot.prover]
+            = _vaultSnapshot.stakeAmount;
+
+            // update prover staked amount
+            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
+                _vaultSnapshot.stakeAmount;
+
+            ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(_vaultSnapshot.vault, _vaultSnapshot.prover);
         }
     }
 
@@ -240,6 +247,41 @@ contract SymbioticStaking is
         }
     }
 
+    function _checkCaptureTimestampInfo(uint256 _captureTimestamp, address _transmitter, uint256 _blockNumber)
+        internal
+    {
+        address registeredTransmitter = captureTimestampInfo[_captureTimestamp].transmitter;
+        if (registeredTransmitter == address(0)) {
+            // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
+            captureTimestampInfo[_captureTimestamp].transmitter = _transmitter;
+        } else {
+            require(registeredTransmitter == _transmitter, Error.NotRegisteredTransmitter());
+        }
+
+        if (_blockNumber != 0) {
+            uint256 registeredBlockNumber = captureTimestampInfo[_captureTimestamp].blockNumber;
+            if (registeredBlockNumber == 0) {
+                captureTimestampInfo[_captureTimestamp].blockNumber = _blockNumber;
+            } else {
+                require(registeredBlockNumber == _blockNumber, Error.NotRegisteredBlockNumber());
+            }
+        }
+    }
+
+    function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][_type];
+
+        // update length if 0
+        if (_snapshot.numOfTxs == 0) {
+            txCountInfo[_captureTimestamp][_type].numOfTxs = _numOfTxs;
+        } else {
+            require(_snapshot.numOfTxs == _numOfTxs, Error.InvalidNumOfTxs());
+        }
+
+        // increase count by 1
+        txCountInfo[_captureTimestamp][_type].idxToSubmit += 1;
+    }
+
     //---------------------------------- Submission end ----------------------------------//
 
     //---------------------------------- Stake lock/unlock start ------------------------------------//
@@ -247,7 +289,6 @@ contract SymbioticStaking is
     function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, Error.InsufficientStakeAmount());
 
         lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
@@ -262,6 +303,7 @@ contract SymbioticStaking is
         Struct.SymbioticStakingLock memory lock = lockInfo[_bidId];
 
         // distribute fee reward
+        // Note: initially all the reward will be sent to prover, so _feeRewardAmount will be 0
         if (_feeRewardAmount > 0) {
             uint256 currentTimestampIdx = latestConfirmedTimestampIdx();
             uint256 transmitterComission =
@@ -273,15 +315,16 @@ contract SymbioticStaking is
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
 
-            // distribute the remaining fee reward
+            // distribute the remaining fee reward  
             ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _prover, feeRewardRemaining);
         }
 
         // unlock the stake locked during task assignment
+        uint256 lockedAmount = lock.amount;
+        proverLockedAmounts[lock.stakeToken][_prover] -= lockedAmount;
         delete lockInfo[_bidId];
-        proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
-        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
+        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, lockedAmount);
     }
 
     //------------------------------------- Stake lock/unlock end ------------------------------------//
@@ -303,59 +346,8 @@ contract SymbioticStaking is
             emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.stakeToken, lockedAmount);
         }
     }
-
-    //------------------------------- Internal start ----------------------------//
-
-    function _checkCaptureTimestampInfo(uint256 _captureTimestamp, address _transmitter, uint256 _blockNumber)
-        internal
-    {
-        address regiseredTransmitter = captureTimestampInfo[_captureTimestamp].transmitter;
-        if (captureTimestampInfo[_captureTimestamp].transmitter == address(0)) {
-            // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
-            captureTimestampInfo[_captureTimestamp].transmitter = _transmitter;
-        } else {
-            require(regiseredTransmitter == _transmitter, Error.NotRegisteredTransmitter());
-        }
-
-        if (_blockNumber != 0) {
-            uint256 registerdBlockNumber = captureTimestampInfo[_captureTimestamp].blockNumber;
-            if (registerdBlockNumber == 0) {
-                captureTimestampInfo[_captureTimestamp].blockNumber = _blockNumber;
-            } else {
-                require(registerdBlockNumber == _blockNumber, Error.NotRegisteredBlockNumber());
-            }
-        }
-    }
-
-    function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][_type];
-
-        // update length if 0
-        if (_snapshot.numOfTxs == 0) {
-            txCountInfo[_captureTimestamp][_type].numOfTxs = _numOfTxs;
-        }
-
-        // increase count by 1
-        txCountInfo[_captureTimestamp][_type].idxToSubmit += 1;
-    }
-
-    function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
-        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
-            Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
-
-            // update vault staked amount
-            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot.prover]
-            = _vaultSnapshot.stakeAmount;
-
-            // update prover staked amount
-            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
-                _vaultSnapshot.stakeAmount;
-
-            ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(_vaultSnapshot.vault, _vaultSnapshot.prover);
-        }
-    }
-
-    //------------------------------- Internal end ----------------------------//
+    
+    //----------------------------------------- Slash end ------------------------------------------//
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
         uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
@@ -438,6 +430,10 @@ contract SymbioticStaking is
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 
+    function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
+    }
+
     //------------------------------- Getter end ----------------------------//
 
     //------------------------------ Internal View start -----------------------------//
@@ -498,35 +494,6 @@ contract SymbioticStaking is
     function _pubKeyToAddress(bytes memory _pubKey) internal pure returns (address) {
         require(_pubKey.length == 64, Error.InvalidPublicKeyLength());
         return address(uint160(uint256(keccak256(_pubKey))));
-    }
-
-    function _addEnclaveImage(bytes memory _PCRs) internal {
-        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
-        bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
-        require(enclaveImages[imageId].PCR0.length == 0, Error.ImageAlreadyExists());
-        require(PCR0.length == 48, Error.InvalidPCR0Length());
-        require(PCR1.length == 48, Error.InvalidPCR1Length());
-        require(PCR2.length == 48, Error.InvalidPCR2Length());
-
-        Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
-        enclaveImages[imageId] = enclaveImage;
-
-        emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
-    }
-
-    function _removeEnclaveImage(bytes32 _imageId) internal {
-        delete enclaveImages[_imageId];
-
-        emit EnclaveImageRemoved(_imageId);
-    }
-
-    function _setAttestationVerifier(address _attestationVerifier) internal {
-        attestationVerifier = _attestationVerifier;
-        emit AttestationVerifierSet(_attestationVerifier);
-    }
-
-    function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
     }
 
     function _calcTransmitterComissionRate(uint256 /* _confirmedTimestamp */ ) internal view returns (uint256) {
@@ -597,10 +564,8 @@ contract SymbioticStaking is
         return address(0);
     }
 
-    function _transmitterComissionRate(uint256 /* _lastConfirmedTimestamp */ ) internal view returns (uint256) {
-        // TODO: implement logic
-        return baseTransmitterComissionRate;
-    }
+    //------------------------------ Internal View end -----------------------------//
+
 
     //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE start ----------------------------------//
 
@@ -615,12 +580,38 @@ contract SymbioticStaking is
         _addEnclaveImage(PCRs);
     }
 
+    function _addEnclaveImage(bytes memory _PCRs) internal {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
+        bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
+        require(enclaveImages[imageId].PCR0.length == 0, Error.ImageAlreadyExists());
+        require(PCR0.length == 48, Error.InvalidPCR0Length());
+        require(PCR1.length == 48, Error.InvalidPCR1Length());
+        require(PCR2.length == 48, Error.InvalidPCR2Length());
+
+        Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
+        enclaveImages[imageId] = enclaveImage;
+
+        emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
+    }
+
     function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _removeEnclaveImage(_imageId);
     }
 
+    function _removeEnclaveImage(bytes32 _imageId) internal {
+        delete enclaveImages[_imageId];
+
+        emit EnclaveImageRemoved(_imageId);
+    }
+
     function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _setAttestationVerifier(_attestationVerifier);
+    }
+
+    function _setAttestationVerifier(address _attestationVerifier) internal {
+        require(_attestationVerifier != address(0), Error.CannotBeZero());
+        attestationVerifier = _attestationVerifier;
+        emit AttestationVerifierSet(_attestationVerifier);
     }
 
     //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE end ----------------------------------//
@@ -630,12 +621,7 @@ contract SymbioticStaking is
     function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakeTokenSet.add(_stakeToken), Error.TokenAlreadyExists());
 
-        if (stakeTokenSelectionWeightSum == 0) {
-            stakeTokenSelectionWeightSum = 10e18;
-        } else {
-            stakeTokenSelectionWeightSum += _weight;
-        }
-
+        stakeTokenSelectionWeightSum += _weight;
         stakeTokenSelectionWeight[_stakeToken] = _weight;
 
         emit StakeTokenAdded(_stakeToken, _weight);
@@ -680,27 +666,36 @@ contract SymbioticStaking is
     }
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setStakingManager(_stakingManager);
+    }
+
+    function _setStakingManager(address _stakingManager) internal {
+        require(_stakingManager != address(0), Error.CannotBeZero());
         stakingManager = _stakingManager;
 
         emit StakingManagerSet(_stakingManager);
     }
 
     function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setProofMarketplace(_proofMarketplace);
+    }
+
+    function _setProofMarketplace(address _proofMarketplace) internal {
+        require(_proofMarketplace != address(0), Error.CannotBeZero());
         proofMarketplace = _proofMarketplace;
 
         emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setRewardDistributor(_rewardDistributor);
+    }
+
+    function _setRewardDistributor(address _rewardDistributor) internal {
+        require(_rewardDistributor != address(0), Error.CannotBeZero());
         rewardDistributor = _rewardDistributor;
 
         emit RewardDistributorSet(_rewardDistributor);
-    }
-
-    function setFeeRewardToken(address _feeRewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        feeRewardToken = _feeRewardToken;
-
-        emit FeeRewardTokenSet(_feeRewardToken);
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {

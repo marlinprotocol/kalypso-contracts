@@ -102,7 +102,6 @@ library Error {
     error PoolDoesNotExist();
     error InvalidLength();
     error InvalidShares();
-    error InvalidProofMarketplace();
     error ZeroRewardShare();
     
     // Symbiotic Staking
@@ -143,6 +142,7 @@ library Error {
     error InvalidWithdrawalAmount();
     error TokenNotSupported();
     error InvalidWithdrawalDuration();
+    error ZeroAmount();
 
     // SymbioticStakingReward
     error OnlyStakingManager();
@@ -151,8 +151,11 @@ library Error {
 
     // Contract Address
     error InvalidAdmin();
-    error InvalidStakingManager();
     error InvalidFeeToken();
-    error InvalidSymbioticStaking();
+    error InvalidAttestationVerifier();
+    error InvalidProofMarketplace();
     error InvalidProverManager();
+    error InvalidSymbioticStaking();
+    error InvalidStakingManager();
+    error InvalidRewardDistributor();
 }

@@ -32,9 +32,7 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
     uint256[500] private __gap_0;
 
     EnumerableSet.AddressSet private stakeTokenSet;
-    address public stakingManager;
     address public rewardDistributor;
-    address public feeRewardToken;
 
     /* Config */
     uint256 public withdrawalDuration;
@@ -64,7 +62,7 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
     //---------------------------------------- Modifier start ----------------------------------------//
 
     modifier onlySupportedToken(address _stakeToken) {
-        require(stakeTokenSet.contains(_stakeToken), Error.TokenNotSupported());
+        require(isSupportedStakeToken(_stakeToken), Error.TokenNotSupported());
         _;
     }
 
@@ -85,19 +83,15 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
+        __Pausable_init_unchained();
 
+        require(_admin != address(0), Error.InvalidAdmin());
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
         require(_stakingManager != address(0), Error.InvalidStakingManager());
-        stakingManager = _stakingManager;
-        emit StakingManagerSet(_stakingManager);
+        _grantRole(STAKING_MANAGER_ROLE, _stakingManager);
 
-        require(_withdrawalDuration > 0, Error.InvalidWithdrawalDuration());
-        withdrawalDuration = _withdrawalDuration;
-        emit WithdrawalDurationSet(_withdrawalDuration);
-
-        require(_feeToken != address(0), Error.InvalidFeeToken());
-        feeRewardToken = _feeToken;
+        _setWithdrawalDuration(_withdrawalDuration);
     }
 
     //---------------------------------------- Init end ----------------------------------------//
@@ -123,6 +117,7 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
 
     function requestStakeWithdrawal(address _prover, address _stakeToken, uint256 _amount) external whenNotPaused nonReentrant {
         require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amount, Error.InsufficientStakeAmount());
+        require(_amount > 0, Error.ZeroAmount());
 
         stakeAmounts[_stakeToken][_msgSender()][_prover] -= _amount;
         proverstakeAmounts[_stakeToken][_prover] -= _amount;
@@ -148,7 +143,7 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
 
             require(request.amount > 0, Error.InvalidWithdrawalAmount());
 
-            withdrawalRequests[_msgSender()][_prover][_index[i]].amount = 0;
+            delete withdrawalRequests[_msgSender()][_prover][_index[i]];
 
             IERC20(request.stakeToken).safeTransfer(_msgSender(), request.amount);
 
@@ -321,17 +316,12 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
         emit StakeTokenRemoved(_token);
     }
 
-    function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakingManager = _stakingManager;
-        emit StakingManagerSet(_stakingManager);
-    }
-
-    function setFeeRewardToken(address _token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        feeRewardToken = _token;
-        emit FeeRewardTokenSet(_token);
-    }
-
     function setWithdrawalDuration(uint256 _duration) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setWithdrawalDuration(_duration);
+    }
+
+    function _setWithdrawalDuration(uint256 _duration) internal {
+        require(_duration > 0, Error.InvalidWithdrawalDuration());
         withdrawalDuration = _duration;
         emit WithdrawalDurationSet(_duration);
     }
