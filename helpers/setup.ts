@@ -35,13 +35,11 @@ import {
   SymbioticStaking__factory,
   SymbioticStakingReward,
   SymbioticStakingReward__factory,
-  USDC,
   USDC__factory,
   WETH,
   WETH__factory,
 } from '../typechain-types';
 import {
-  BridgeEnclavePCRS,
   GodEnclavePCRS,
   MockEnclave,
 } from './';
@@ -254,6 +252,12 @@ export const rawSetup = async (
     await mockToken.getAddress(),
   );
 
+  let arr = [];
+
+  type arrType = [number, number, string];
+
+  "https://<api-url/login/2"
+
   // Initialize SymbioticStakingReward
   await symbioticStakingReward.initialize(
     await admin.getAddress(), // address _admin
@@ -269,7 +273,7 @@ export const rawSetup = async (
   // `SymbioticStaking.STAKING_MANAGER_ROLE` -> `StakingManager`
   await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
   // `SymbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE` -> admin
-  await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE(), await admin.getAddress());
+  await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATER_ROLE(), await admin.getAddress());
   // `SymbioticStakingReward.SYMBIOTIC_STAKING_ROLE` -> `SymbioticStaking`
   await symbioticStakingReward.grantRole(await symbioticStakingReward.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
   // `NativeStaking.STAKING_MANAGER_ROLE` -> `StakingManager`

@@ -590,7 +590,7 @@ contract SymbioticStaking is
             weightSum -= weights[i];
             tokens[i] = tokens[idx - 1];
             weights[i] = weights[idx - 1];
-            idx--; // 배열 크기를 줄임
+            idx--; // reduce the array size
         }
 
         // this should be returned

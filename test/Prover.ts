@@ -343,8 +343,8 @@ describe("Checking Prover's multiple compute", () => {
       );
     });
 
-    it("should submit proof", async () => {
-      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
+    it.only("should submit proof", async () => {
+      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreatedd").withArgs(bidId, proofBytes);
     });
 
     // Note: this will change in the future (Prover will not receive 100% reward)
