@@ -361,17 +361,13 @@ contract ProofMarketplace is
 
         uint256 marketId = bidWithState.bid.marketId;
 
-        (address proverRewardAddress, uint256 minRewardForProver) =
+        (address proverRewardAddress, uint256 proverAskAmount) =
             ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
-
-        // Note: initially Prover will be paid the 100% of the reward
-        minRewardForProver = bidWithState.bid.reward; 
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
         require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
         // check what needs to be encoded from proof, bid and task for proof to be verified
-
         bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, _proof);
 
         // Verify input and _proof against verifier
@@ -379,16 +375,13 @@ contract ProofMarketplace is
 
         listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
-        // Note: initially no tokens will be sent back to requestor
-        uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
+        uint256 toBackToRequestor = bidWithState.bid.reward - proverAskAmount;
 
         // reward to prover
-        // Note: Prover will be paid the 100% of the reward so no feeRewardRemaining after distribution
-        uint256 feeRewardRemaining =
-            _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, minRewardForProver);
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, proverAskAmount);
 
-        // fraction of amount back to requestor
-        // Note: initially no tokens will be sent back to requestor
+        // fraction of amount back to requestor (BidAmount - AskAmount)
         IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
         ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, feeRewardRemaining);
@@ -402,7 +395,7 @@ contract ProofMarketplace is
         Struct.BidWithState memory bidWithState = listOfBid[_bidId];
         uint256 marketId = bidWithState.bid.marketId;
 
-        (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(_bidId, bidWithState);
+        (address proverRewardAddress, uint256 minRewardForProver) = _verifyAndGetData(_bidId, bidWithState);
 
         require(
             _checkDisputeUsingSignature(
@@ -411,13 +404,13 @@ contract ProofMarketplace is
             Error.CannotSlashUsingValidInputs(_bidId)
         );
 
-        _completeProofForInvalidRequests(_bidId, bidWithState, minRewardForProver, proverRewardAddress, marketId);
+        _completeProofForInvalidRequests(_bidId, bidWithState, proverRewardAddress, minRewardForProver, marketId);
     }
 
     function _verifyAndGetData(uint256 _bidId, Struct.BidWithState memory _bidWithState)
         internal
         view
-        returns (uint256, address)
+        returns (address, uint256)
     {
         (address proverRewardAddress, uint256 minRewardForProver) =
             ProverManager(proverManager).getProverRewardDetails(_bidWithState.prover, _bidWithState.bid.marketId);
@@ -425,7 +418,7 @@ contract ProofMarketplace is
         require(proverRewardAddress != address(0), Error.CannotBeZero());
         require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
-        return (minRewardForProver, proverRewardAddress);
+        return (proverRewardAddress, minRewardForProver);
     }
 
     function _checkDisputeUsingSignature(
@@ -448,28 +441,23 @@ contract ProofMarketplace is
     function _completeProofForInvalidRequests(
         uint256 _bidId,
         Struct.BidWithState memory _bidWithState,
-        uint256 _minRewardForProver,
         address _proverRewardAddress,
+        uint256 _proverAskAmount,
         uint256 _marketId
     ) internal {
         // Only assigned requests can be proved
         require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
         listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
-        // Note: initially Prover will be paid the 100% of the reward
-        _minRewardForProver = _bidWithState.bid.reward; 
-
         // tokens related to incorrect request will be sent to treasury
-        // Note: initially no tokens will be sent to treasury
-        uint256 toTreasury = _bidWithState.bid.reward - _minRewardForProver;
+        uint256 toTreasury = _bidWithState.bid.reward - _proverAskAmount;
 
         // transfer the reward to prover
-        // Note: Prover will be paid the 100% of the reward so no feeRewardRemaining after distribution
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
         uint256 feeRewardRemaining =
-            _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _minRewardForProver);
+            _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _proverAskAmount);
 
         // transfer the amount to treasury collection
-        // Note: initially no tokens will be sent to treasury
         IERC20(paymentToken).safeTransfer(treasury, toTreasury);
 
         ProverManager(proverManager).completeProverTask(_bidId, _bidWithState.prover, _marketId, feeRewardRemaining);
@@ -485,13 +473,14 @@ contract ProofMarketplace is
         // calculate prover fee reward
         // uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
         // uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
-        uint256 proverFeeReward = _feePaid;
 
-        // Note: initially all the reward will be sent to prover
-        feeRewardRemaining = _feePaid - proverFeeReward;
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
+        uint256 proverFeeReward = _feePaid;
 
         // update prover fee reward
         proverClaimableFeeReward[_proverRewardAddress] += proverFeeReward;
+
+        feeRewardRemaining = _feePaid - proverFeeReward;
 
         emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
