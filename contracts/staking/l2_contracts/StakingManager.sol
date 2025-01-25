@@ -191,7 +191,6 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
 
     function setPoolRewardShare(address _pool, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakingPoolSet.contains(_pool), Error.PoolDoesNotExist());
-        require(_rewardShare > 0, Error.ZeroRewardShare());
 
         poolRewardShareSum -= poolConfig[_pool].rewardShare;
         poolConfig[_pool].rewardShare = _rewardShare;
