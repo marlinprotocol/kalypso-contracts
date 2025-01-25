@@ -38,8 +38,9 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     EnumerableSet.AddressSet private stakingPoolSet;
 
     address public proofMarketplace;
-    address public symbioticStaking;
     address public feeToken;
+
+    uint256 public poolRewardShareSum;
 
     mapping(address pool => Struct.PoolConfig config) private poolConfig;
 
@@ -54,28 +55,29 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _proofMarketplace, address _symbioticStaking, address _feeToken)
-        public
-        initializer
-    {
+    function initialize(
+        address _admin,
+        address _proofMarketplace,
+        address _proverManager,
+        address _symbioticStaking,
+        address _feeToken
+    ) public initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
 
+        require(_admin != address(0), Error.InvalidAdmin());
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-
-        require(_proofMarketplace != address(0), Error.InvalidStakingManager());
-        proofMarketplace = _proofMarketplace;
-        emit ProofMarketplaceSet(_proofMarketplace);
-
-        require(_feeToken != address(0), Error.InvalidFeeToken());
-        feeToken = _feeToken;
-        emit FeeTokenSet(_feeToken);
+        
+        require(_proverManager != address(0), Error.InvalidProverManager());
+        _grantRole(PROVER_MANAGER_ROLE, _proverManager);
 
         require(_symbioticStaking != address(0), Error.InvalidSymbioticStaking());
-        symbioticStaking = _symbioticStaking;
-        emit SymbioticStakingSet(_symbioticStaking);
+        _grantRole(SYMBIOTIC_STAKING_ROLE, _symbioticStaking);
+
+        _setProofMarketplace(_proofMarketplace);
+        _setFeeToken(_feeToken);
     }
 
     //---------------------------------------- Init end ----------------------------------------//
@@ -110,15 +112,14 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
             if (!isEnabledPool(pool)) continue;
 
             uint256 poolFeeRewardAmount = _calcFeeRewardAmount(pool, _feeRewardAmount);
-
             IStakingPool(pool).onTaskCompletion(_bidId, _prover, poolFeeRewardAmount);
         }
     }
 
     function _calcFeeRewardAmount(address _pool, uint256 _feeRewardAmount) internal view returns (uint256) {
-        uint256 poolShare = poolConfig[_pool].share;
+        uint256 poolRewardShare = poolConfig[_pool].rewardShare;
 
-        uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolShare, 1e18) : 0;
+        uint256 poolFeeRewardAmount = _feeRewardAmount > 0 ? Math.mulDiv(_feeRewardAmount, poolRewardShare, poolRewardShareSum) : 0;
 
         return poolFeeRewardAmount;
     }
@@ -167,66 +168,72 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
 
     //---------------------------------------- DEFAULT_ADMIN_ROLE start ----------------------------------------//
 
-    /// @notice add new staking pool
-    /// @dev
-    function addStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakingPoolSet.add(_stakingPool);
+    /**
+     * @notice  add new staking pool, share will be applied once the pool is enabled
+     */
+    function addStakingPool(address _pool, uint256 _share) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakingPoolSet.add(_pool), Error.PoolAlreadyExists());
 
-        emit StakingPoolAdded(_stakingPool);
+        poolConfig[_pool].rewardShare = _share; // Note: this will be applied once the pool is enabled
+
+        emit StakingPoolAdded(_pool, _share);
     }
 
-    /// @notice remove staking pool
-    function removeStakingPool(address _stakingPool) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakingPoolSet.remove(_stakingPool);
-        delete poolConfig[_stakingPool];
+    function removeStakingPool(address _pool) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakingPoolSet.remove(_pool), Error.PoolDoesNotExist());
 
-        emit StakingPoolRemoved(_stakingPool);
+        poolRewardShareSum -= poolConfig[_pool].rewardShare;
+        delete poolConfig[_pool];
+
+        emit StakingPoolRemoved(_pool);
     }
 
-    function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        proofMarketplace = _proofMarketplace;
-
-        emit ProofMarketplaceSet(_proofMarketplace);
-    }
-
-    function setSymbioticStaking(address _symbioticStaking) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        symbioticStaking = _symbioticStaking;
-
-        emit SymbioticStakingSet(_symbioticStaking);
-    }
-
-    function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        feeToken = _feeToken;
-
-        emit FeeTokenSet(_feeToken);
-    }
-
-    function setEnabledPool(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setPoolEnabled(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakingPoolSet.contains(_pool), Error.PoolAlreadyExists());
-
+        
+        if(_enabled) {
+            poolRewardShareSum += poolConfig[_pool].rewardShare;
+        } else {
+            poolRewardShareSum -= poolConfig[_pool].rewardShare;
+        }
         poolConfig[_pool].enabled = _enabled;
 
         emit PoolEnabledSet(_pool, _enabled);
     }
 
-    // when task is completed, the reward will be distributed based on the share
-    function setPoolRewardShare(address[] calldata _pools, uint256[] calldata _shares)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        require(_pools.length == _shares.length && _pools.length == stakingPoolSet.length(), Error.InvalidLength());
+    function setPoolShare(address _pool, uint256 _rewardShare) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(stakingPoolSet.contains(_pool), Error.PoolDoesNotExist());
+        require(_rewardShare > 0, Error.ZeroRewardShare());
 
-        uint256 sum = 0;
-        for (uint256 i = 0; i < _shares.length; i++) {
-            poolConfig[_pools[i]].share = _shares[i];
+        poolRewardShareSum -= poolConfig[_pool].rewardShare;
+        poolConfig[_pool].rewardShare = _rewardShare;
+        poolRewardShareSum += _rewardShare;
 
-            sum += _shares[i];
+        emit PoolRewardShareSet(_pool, _rewardShare);
+    }
 
-            emit PoolRewardShareSet(_pools[i], _shares[i]);
-        }
+    function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setProofMarketplace(_proofMarketplace);
+    }
 
-        // as the weight is in percentage, the sum of the shares should be 1e18 (100%)
-        require(sum == 1e18, Error.InvalidShares());
+    function _setProofMarketplace(address _proofMarketplace) internal {
+        require(_proofMarketplace != address(0), Error.InvalidProofMarketplace());
+
+        proofMarketplace = _proofMarketplace;
+
+        emit ProofMarketplaceSet(_proofMarketplace);
+    }
+
+    function setFeeToken(address _feeToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setFeeToken(_feeToken);
+    }
+
+    function _setFeeToken(address _feeToken) internal {
+        require(_feeToken != address(0), Error.InvalidFeeToken());
+
+        feeToken = _feeToken;
+
+        emit FeeTokenSet(_feeToken);
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -61,7 +61,7 @@ library Struct {
     /*========================= Staking Manager ===========================*/
 
     struct PoolConfig {
-        uint256 share;
+        uint256 rewardShare;
         bool enabled;
     }
 

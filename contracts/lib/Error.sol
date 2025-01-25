@@ -99,8 +99,11 @@ library Error {
     // StakingManager
     error InvalidPool();
     error PoolAlreadyExists();
+    error PoolDoesNotExist();
     error InvalidLength();
     error InvalidShares();
+    error InvalidProofMarketplace();
+    error ZeroRewardShare();
     
     // Symbiotic Staking
     error InvalidSlashResultBlockRange();
@@ -109,6 +112,7 @@ library Error {
     error NotRegisteredTransmitter();
     error SubmissionAlreadyCompleted();
     error InvalidIndex();
+    error InvalidNumOfTxs();
     error ZeroNumOfTxs();
     error InvalidCaptureTimestamp();
     error CooldownPeriodNotPassed();
@@ -146,7 +150,9 @@ library Error {
     error ZeroSymbioticStakingAddress();
 
     // Contract Address
+    error InvalidAdmin();
     error InvalidStakingManager();
     error InvalidFeeToken();
     error InvalidSymbioticStaking();
+    error InvalidProverManager();
 }
