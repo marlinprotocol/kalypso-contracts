@@ -103,6 +103,8 @@ library Error {
     error InvalidLength();
     error InvalidShares();
     error ZeroRewardShare();
+    error PoolAlreadyEnabled();
+    error PoolAlreadyDisabled();
     
     // Symbiotic Staking
     error InvalidSlashResultBlockRange();

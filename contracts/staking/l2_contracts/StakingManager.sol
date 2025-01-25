@@ -202,6 +202,14 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
     function setPoolEnabled(address _pool, bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(stakingPoolSet.contains(_pool), Error.PoolAlreadyExists());
         
+        if(poolConfig[_pool].enabled == _enabled) {
+            if(_enabled) {
+                revert PoolAlreadyEnabled();
+            } else {
+                revert PoolAlreadyDisabled();
+            }
+        }
+        
         if(_enabled) {
             poolRewardShareSum += poolConfig[_pool].rewardShare;
         } else {
