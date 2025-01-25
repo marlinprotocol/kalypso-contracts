@@ -176,7 +176,8 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
 
         poolConfig[_pool].rewardShare = _share; // Note: this will be applied once the pool is enabled
 
-        emit StakingPoolAdded(_pool, _share);
+        emit StakingPoolAdded(_pool);
+        emit PoolRewardShareSet(_pool, _share);
     }
 
     function removeStakingPool(address _pool) external onlyRole(DEFAULT_ADMIN_ROLE) {
