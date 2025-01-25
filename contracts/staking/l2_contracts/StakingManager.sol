@@ -204,9 +204,9 @@ contract StakingManager is AccessControlUpgradeable, UUPSUpgradeable, Reentrancy
         
         if(poolConfig[_pool].enabled == _enabled) {
             if(_enabled) {
-                revert PoolAlreadyEnabled();
+                revert Error.PoolAlreadyEnabled();
             } else {
-                revert PoolAlreadyDisabled();
+                revert Error.PoolAlreadyDisabled();
             }
         }
         
