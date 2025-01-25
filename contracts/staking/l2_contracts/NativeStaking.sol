@@ -75,7 +75,7 @@ contract NativeStaking is AccessControlUpgradeable, ReentrancyGuardUpgradeable, 
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _stakingManager, uint256 _withdrawalDuration, address _feeToken)
+    function initialize(address _admin, address _stakingManager, uint256 _withdrawalDuration)
         public
         initializer
     {
