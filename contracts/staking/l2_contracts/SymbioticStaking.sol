@@ -26,8 +26,6 @@ import {Enum} from "../../lib/Enum.sol";
 import {Error} from "../../lib/Error.sol";
 import {Struct} from "../../lib/Struct.sol";
 
-import "hardhat/console.sol";
-
 contract SymbioticStaking is
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -214,8 +212,6 @@ contract SymbioticStaking is
         bytes calldata _slashResultData,
         bytes calldata _proof
     ) external whenNotPaused {
-        console.log("_index: ", _index);
-        console.log("_numOfTxs: ", _numOfTxs);
         require(_lastBlockNumber > 0, Error.CannotBeZero());
         // the range must include at least one block after the block number of the latest confirmed block
         require(_lastBlockNumber > latestConfirmedTimestampBlockNumber(), Error.InvalidLastBlockNumber());
@@ -552,8 +548,6 @@ contract SymbioticStaking is
                     break;
                 }
             }
-            
-            console.log("getProverActiveStakeAmount(selectedToken, _prover): ", getProverActiveStakeAmount(selectedToken, _prover));
 
             // check if the selected token has enough active stake amount
             if (getProverActiveStakeAmount(selectedToken, _prover) >= amountToLock[selectedToken]) {
