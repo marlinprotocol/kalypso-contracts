@@ -230,6 +230,7 @@ export const rawSetup = async (
   await stakingManager.initialize(
     await admin.getAddress(),
     await proofMarketplace.getAddress(),
+    await proverManager.getAddress(),
     await symbioticStaking.getAddress(),
     await mockToken.getAddress(),
   );
@@ -238,8 +239,7 @@ export const rawSetup = async (
   await nativeStaking.initialize(
     await admin.getAddress(),
     await stakingManager.getAddress(),
-    stakingContractConfig.WITHDRAWAL_DURATION.toFixed(), // 2 hours
-    await mockToken.getAddress(),
+    stakingContractConfig.WITHDRAWAL_DURATION.toFixed()
   );
 
   // Initialize SymbioticStaking
@@ -248,8 +248,7 @@ export const rawSetup = async (
     await attestationVerifier.getAddress(),
     await proofMarketplace.getAddress(),
     await stakingManager.getAddress(),
-    await symbioticStakingReward.getAddress(),
-    await mockToken.getAddress(),
+    await symbioticStakingReward.getAddress()
   );
 
   let arr = [];
@@ -398,24 +397,20 @@ export const stakingSetup = async (
 
   /*-------------------------------- StakingManager Config --------------------------------*/
 
-  // Add StakingPools
-  await stakingManager.connect(admin).addStakingPool(await symbioticStaking.getAddress());
-  await stakingManager.connect(admin).addStakingPool(await nativeStaking.getAddress());
+    // NativeStaking 0%, SymbioticStaking 100%
+    const nativeStakingShare = new BigNumber(10).pow(18).multipliedBy(0); // 0 %
+    const symbioticStakingShare = new BigNumber(10).pow(18).multipliedBy(1); // 100%
 
-  // NativeStaking 0%, SymbioticStaking 100%
-  const nativeStakingShare = new BigNumber(10).pow(18).multipliedBy(0); // 0 %
-  const symbioticStakingShare = new BigNumber(10).pow(18).multipliedBy(1); // 100%
-  await stakingManager.connect(admin).setPoolRewardShare(
-    [await nativeStaking.getAddress(), await symbioticStaking.getAddress()],
-    [nativeStakingShare.toFixed(0), symbioticStakingShare.toFixed(0)],
-  );
+  // Add StakingPools
+  await stakingManager.connect(admin).addStakingPool(await nativeStaking.getAddress(), nativeStakingShare.toFixed(0));
+  await stakingManager.connect(admin).addStakingPool(await symbioticStaking.getAddress(), symbioticStakingShare.toFixed(0));
 
   // Enable pools
-  await stakingManager.connect(admin).setEnabledPool(
+  await stakingManager.connect(admin).setPoolEnabled(
     await nativeStaking.getAddress(),
     true
   )
-  await stakingManager.connect(admin).setEnabledPool(
+  await stakingManager.connect(admin).setPoolEnabled(
     await symbioticStaking.getAddress(),
     true
   )

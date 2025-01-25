@@ -1,7 +1,10 @@
-import { BigNumber } from "bignumber.js";
-import { expect } from "chai";
-import { Provider, Signer } from "ethers";
-import { ethers } from "hardhat";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import {
+  Provider,
+  Signer,
+} from 'ethers';
+import { ethers } from 'hardhat';
 
 import {
   BridgeEnclavePCRS,
@@ -15,11 +18,21 @@ import {
   ProverData,
   proverDataToBytes,
   setup,
-} from "../helpers";
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
-import * as invalid_transfer_verifier_proof from "../helpers/sample/zkbVerifier/transfer_proof.json";
-import { proverSelfStake, stakingSetup, submitVaultSnapshot, VaultSnapshot } from "../helpers/setup";
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
+import * as invalid_transfer_verifier_proof
+  from '../helpers/sample/zkbVerifier/transfer_proof.json';
+import {
+  proverSelfStake,
+  stakingSetup,
+  submitSlashResult,
+  submitVaultSnapshot,
+  TaskSlashed,
+  VaultSnapshot,
+} from '../helpers/setup';
 import {
   AttestationVerifier,
   EntityKeyRegistry,
@@ -38,7 +51,7 @@ import {
   Transfer_verifier_wrapper__factory,
   TransferVerifier__factory,
   WETH,
-} from "../typechain-types";
+} from '../typechain-types';
 
 describe("Checking Prover's multiple compute", () => {
   let proofMarketplace: ProofMarketplace;
@@ -242,7 +255,7 @@ describe("Checking Prover's multiple compute", () => {
 
     await symbioticStaking["addEnclaveImage(bytes,bytes,bytes)"](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
 
-    console.log("");
+    // Submit Vault Snapshot
     await submitVaultSnapshot(symbioticStaking, bridgeEnclave, user, {
       index: 0,
       numOfTxs: 1,
@@ -250,11 +263,26 @@ describe("Checking Prover's multiple compute", () => {
       imageId: imageId.toString(),
       snapshotData,
     });
+
+    const taskSlashed: TaskSlashed[] = [];
+    
+    const lastBlockNumber = new BigNumber((await ethers.provider.getBlock("latest"))?.number ?? 0).minus(10);
+    // Submit Slash Result
+    await submitSlashResult(symbioticStaking, bridgeEnclave, user, {
+      index: 0,
+      numOfTxs: 1,
+      captureTimestamp: captureTimestamp.toString(),
+      lastBlockNumber: lastBlockNumber.toString(),
+      imageId: imageId.toString(),
+      slashResultData: taskSlashed,
+    });
   });
 
   describe("Using Simple Transfer Verifier", () => {
     let bidId: string;
     let proofBytes: string;
+    let proofGenerationCost: BigNumber;
+    let platformFee: BigNumber;
 
     beforeEach(async () => {
       let abiCoder = new ethers.AbiCoder();
@@ -277,19 +305,21 @@ describe("Checking Prover's multiple compute", () => {
       let assignmentExpiry = 100; // in blocks
       let timeForProofGeneration = 1000; // 1 day
       let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
+      
+      const bid = {
+        marketId,
+        proverData: inputBytes,
+        reward: rewardForProofGeneration.toFixed(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
+        refundAddress: await user.getAddress(),
+      }
 
       bidId = await setup.createBid(
         user,
         tokenHolder,
-        {
-          marketId,
-          proverData: inputBytes,
-          reward: rewardForProofGeneration.toFixed(),
-          expiry: (assignmentExpiry + blockTimestamp).toString(),
-          timeForProofGeneration: timeForProofGeneration.toString(),
-          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
-          refundAddress: await user.getAddress(),
-        },
+        bid,
         {
           mockToken: usdc,
           proofMarketplace,
@@ -305,6 +335,8 @@ describe("Checking Prover's multiple compute", () => {
         },
         1,
       );
+
+      platformFee = new BigNumber((await proofMarketplace.getPlatformFee(1, bid, "0x", "0x")).toString());
 
       await setup.createTask(
         matchingEngineEnclave,
@@ -341,10 +373,12 @@ describe("Checking Prover's multiple compute", () => {
           ],
         ],
       );
+      const [rewardAddress, _proofGenerationCost] = await proverManager.getProverRewardDetails(await generator.getAddress(), marketId);
+      proofGenerationCost = new BigNumber(_proofGenerationCost.toString());
     });
 
-    it.only("should submit proof", async () => {
-      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreatedd").withArgs(bidId, proofBytes);
+    it("should submit proof", async () => {
+      await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
     });
 
     // Note: this will change in the future (Prover will not receive 100% reward)
@@ -352,9 +386,10 @@ describe("Checking Prover's multiple compute", () => {
       const generatorRewardBefore = await proofMarketplace.proverClaimableFeeReward(await generator.getAddress());
       await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
       const generatorRewardAfter = await proofMarketplace.proverClaimableFeeReward(await generator.getAddress());
-      expect(new BigNumber(generatorRewardAfter.toString()).minus(new BigNumber(generatorRewardBefore.toString()))).to.eq(
-        rewardForProofGeneration,
-      );
+      const generatorReward = new BigNumber(generatorRewardAfter.toString()).minus(new BigNumber(generatorRewardBefore.toString()));
+      
+      const expectedReward = new BigNumber(proofGenerationCost).minus(platformFee);
+      expect(generatorReward).to.eq(expectedReward);
     });
 
     it("provrRewardAddress should be able to claim reward", async () => {
@@ -364,9 +399,10 @@ describe("Checking Prover's multiple compute", () => {
       const proverRewardBefore = await proofMarketplace.proverClaimableFeeReward(proverRewardAddress);
       await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
       const proverRewardAfter = await proofMarketplace.proverClaimableFeeReward(proverRewardAddress);
-      expect(new BigNumber(proverRewardAfter.toString()).minus(new BigNumber(proverRewardBefore.toString()))).to.eq(
-        rewardForProofGeneration,
-      );
+      const proverReward = new BigNumber(proverRewardAfter.toString()).minus(new BigNumber(proverRewardBefore.toString()));
+
+      const expectedReward = new BigNumber(proofGenerationCost).minus(platformFee);
+      expect(proverReward).to.eq(expectedReward);
     });
   });
 
@@ -859,24 +895,6 @@ describe("Checking Prover's multiple compute", () => {
         );
       }
     }
-  });
-
-  it("Only registered generator should be able to add/update entity keys", async () => {
-    let abicode = new ethers.AbiCoder();
-    const generatorEnclave = new MockEnclave(MockProverPCRS);
-
-    let generatorAttestationBytes = await generatorEnclave.getVerifiedAttestation(godEnclave);
-
-    let types = ["bytes", "address"];
-    let values = [generatorAttestationBytes, await generator.getAddress()];
-
-    let encoded = abicode.encode(types, values);
-    let digest = ethers.keccak256(encoded);
-    let signature = await generatorEnclave.signMessage(ethers.getBytes(digest));
-
-    await expect(proverManager.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature))
-      .to.emit(entityKeyRegistry, "UpdateKey")
-      .withArgs(await generator.getAddress(), marketId);
   });
 
   it("Only registered generator should be able to add/update entity keys", async () => {

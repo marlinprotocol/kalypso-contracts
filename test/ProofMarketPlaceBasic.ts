@@ -140,6 +140,7 @@ describe("Proof market place", () => {
     await stakingManager.initialize(
       await admin.getAddress(),
       await proofMarketplace.getAddress(),
+      await proverManager.getAddress(),
       await symbioticStaking.getAddress(),
       await mockToken.getAddress(),
     );
@@ -150,7 +151,6 @@ describe("Proof market place", () => {
       await proofMarketplace.getAddress(),
       await stakingManager.getAddress(),
       await symbioticStakingReward.getAddress(),
-      await mockToken.getAddress(),
     );
     await symbioticStakingReward.initialize(
       await admin.getAddress(),
