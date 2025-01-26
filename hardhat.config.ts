@@ -62,6 +62,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       arbSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`,
+      arbitrumOne: `${process.env.ARB_ONE_API_KEY}`,
     },
     customChains: [
       {
@@ -130,6 +131,12 @@ const config: HardhatUserConfig = {
         `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
       ],
     },
+    arbone: {
+      url: `${process.env.ARB_ONE_RPC_URL}`,
+      accounts: [
+        `${process.env.ARB_ONE_ADMIN}`,
+      ],
+    }
   },
 };
 
