@@ -1,0 +1,11 @@
+{
+    "admin": "0x091f7c3eeCAd6016eE2c44Cf1ac9b9dFA233A8Ee",
+    "USDC": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "treasury": "0x364c82760133AE45698fFE11D0278D58cB0f7bcA",
+    "staking": {
+        "native": {
+            "withdrawalDuration": 3600
+        }
+    },
+    "marketCreationCost": 1000000000
+}

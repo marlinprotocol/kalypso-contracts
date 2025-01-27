@@ -77,6 +77,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       arbSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`,
+      arbitrumOne: `${process.env.ARBISCAN_API_KEY}`,
     },
     customChains: [
       {
@@ -102,6 +103,13 @@ const config: HardhatUserConfig = {
         url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
       },
       chainId: 421614, 
+    },
+    arbOne: {
+      url: `${process.env.ARBITRUM_ONE_RPC_URL}`,
+      accounts: [
+        `${process.env.ARBITRUM_ONE_DEPLOYER}`,
+      ],
+      chainId: 42161,
     }
     // sepolia: {
     //   url: `${process.env.SEPOLIA_RPC_URL}`,

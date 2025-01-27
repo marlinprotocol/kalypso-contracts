@@ -36,23 +36,17 @@ async function main() {
   const TEN_MINUTES = 10 * 60; // 10 minutes
 
   // Add Staking Pools
-  await stakingManager.addStakingPool(await nativeStaking.getAddress());
+  await stakingManager.addStakingPool(await nativeStaking.getAddress(), 0);
   console.log("NativeStaking added to StakingManager");
 
-  await stakingManager.addStakingPool(await symbioticStaking.getAddress());
+  await stakingManager.addStakingPool(await symbioticStaking.getAddress(), ONE_ETH.toString());
   console.log("SymbioticStaking added to StakingManager");
-
-  // Set reward shares for each pool
-  await stakingManager.setPoolRewardShare(
-    [await nativeStaking.getAddress(), await symbioticStaking.getAddress()],
-    [0, ONE_ETH.toString()],
-  );
   console.log("Reward shares set for NativeStaking(0%) and SymbioticStaking(100%");
 
   // Set EnabledPool
-  await stakingManager.setEnabledPool(await nativeStaking.getAddress(), true);
+  await stakingManager.setPoolEnabled(await nativeStaking.getAddress(), true);
   console.log("NativeStaking enabled");
-  await stakingManager.setEnabledPool(await symbioticStaking.getAddress(), true);
+  await stakingManager.setPoolEnabled(await symbioticStaking.getAddress(), true);
   console.log("SymbioticStaking enabled");
 
   /*-------------------------------- NativeStaking Setup --------------------------------*/
@@ -60,7 +54,7 @@ async function main() {
   // TODO: weight will be twisted each time new token is added, need to fix the contract logic
   await nativeStaking.addStakeToken(POND, ONE_ETH.toString());
   console.log("POND added to NativeStaking");
-  await nativeStaking.setStakeAmountToLock(POND, ONE_ETH.toString());
+  await nativeStaking.setStakeAmountToLock(POND, );
   console.log("Stake amount to lock set for POND");
 
   // /*-------------------------------- SymbioticStaking Config --------------------------------*/

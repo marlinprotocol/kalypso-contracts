@@ -44,6 +44,7 @@ const verifyContract = async (contractName: string, contractType: ContractType, 
 }
 
 async function verify(): Promise<string> {
+  const { addresses } = await getConfig();
   // StakingManager
   await verifyContract("stakingManager", ContractType.Implementation);
   await verifyContract("stakingManager", ContractType.Proxy);
@@ -65,12 +66,16 @@ async function verify(): Promise<string> {
   await verifyContract("proverManager", ContractType.Proxy);
 
   // EntityKeyRegistry
-  await verifyContract("entityKeyRegistry", ContractType.Implementation);
+  await verifyContract("entityKeyRegistry", ContractType.Implementation, [addresses.proxy.attestationVerifier]);
   await verifyContract("entityKeyRegistry", ContractType.Proxy);
 
   // ProofMarketplace
   await verifyContract("proofMarketplace", ContractType.Implementation);
   await verifyContract("proofMarketplace", ContractType.Proxy);
+
+  // AttestationVerifier
+  await verifyContract("attestationVerifier", ContractType.Implementation);
+  await verifyContract("attestationVerifier", ContractType.Proxy);
 
   return "Verify Done";
 }

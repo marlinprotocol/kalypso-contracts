@@ -19,7 +19,7 @@ async function deploy(): Promise<string> {
   console.log("Deploying on chain id:", chainId);
 
   console.log("Available Signers", signers);
-  const admin = signers[0];
+  const deployer = signers[0];
 
   const configPath = `./config/${chainId}.json`;
   const addressPath = `./addresses/${chainId}.json`;
@@ -37,7 +37,7 @@ async function deploy(): Promise<string> {
     initializer: false,
   });
   await stakingManagerProxy.waitForDeployment();
-  const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
+  const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), deployer);
   addresses.proxy.stakingManager = await stakingManager.getAddress();
   addresses.implementation.stakingManager = await upgrades.erc1967.getImplementationAddress(await stakingManager.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
@@ -49,7 +49,7 @@ async function deploy(): Promise<string> {
     kind: "uups",
     initializer: false,
   });
-  const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
+  const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), deployer);
   addresses.proxy.nativeStaking = await nativeStaking.getAddress();
   addresses.implementation.nativeStaking = await upgrades.erc1967.getImplementationAddress(await nativeStaking.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
@@ -61,7 +61,7 @@ async function deploy(): Promise<string> {
     kind: "uups",
     initializer: false,
   });
-  const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
+  const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), deployer);
   addresses.proxy.symbioticStaking = await symbioticStaking.getAddress();
   addresses.implementation.symbioticStaking = await upgrades.erc1967.getImplementationAddress(await symbioticStaking.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
@@ -73,23 +73,36 @@ async function deploy(): Promise<string> {
     kind: "uups",
     initializer: false,
   });
-  const symbioticStakingReward = SymbioticStakingReward__factory.connect(await symbioticStakingRewardProxy.getAddress(), admin);
+  const symbioticStakingReward = SymbioticStakingReward__factory.connect(await symbioticStakingRewardProxy.getAddress(), deployer);
   addresses.proxy.symbioticStakingReward = await symbioticStakingReward.getAddress();
   addresses.implementation.symbioticStakingReward = await upgrades.erc1967.getImplementationAddress(await symbioticStakingReward.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
   console.log("SymbioticStakingReward deployed at:\t\t", await symbioticStakingReward.getAddress());
 
   // Attestation Verifier
-  // TODO: check wether to use existing address or not
-  const attestationVerifier = AttestationVerifier__factory.connect(addresses.proxy.attestationVerifier, admin);
+  const AttestationVerifierContract = await ethers.getContractFactory("AttestationVerifier");
+  const attestationVerifierProxy = await upgrades.deployProxy(AttestationVerifierContract, [], {
+    kind: "uups",
+    initializer: false,
+  });
+  const attestationVerifier = AttestationVerifier__factory.connect(await attestationVerifierProxy.getAddress(), deployer);
+  addresses.proxy.attestationVerifier = await attestationVerifier.getAddress();
   addresses.implementation.attestationVerifier = await upgrades.erc1967.getImplementationAddress(await attestationVerifier.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
+  console.log("AttestationVerifier deployed at:\t\t", await attestationVerifier.getAddress());
 
   // Entity Key Registry
-  // TODO: check wether to use existing address or not
-  const entityKeyRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entityKeyRegistry, admin);
+  const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
+  const entityKeyRegistryProxy = await upgrades.deployProxy(EntityKeyRegistryContract, [], {
+    kind: "uups",
+    initializer: false,
+    constructorArgs: [await attestationVerifier.getAddress()],
+  });
+  const entityKeyRegistry = EntityKeyRegistry__factory.connect(await entityKeyRegistryProxy.getAddress(), deployer);
+  addresses.proxy.entityKeyRegistry = await entityKeyRegistry.getAddress();
   addresses.implementation.entityKeyRegistry = await upgrades.erc1967.getImplementationAddress(await entityKeyRegistry.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
+  console.log("EntityKeyRegistry deployed at:\t\t", await entityKeyRegistry.getAddress());
 
   // ProverManager
   const ProverManagerContract = await ethers.getContractFactory("ProverManager");
@@ -97,7 +110,7 @@ async function deploy(): Promise<string> {
     kind: "uups",
     initializer: false,
   });
-  const proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), admin);
+  const proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), deployer);
   addresses.proxy.proverManager = await proverManager.getAddress();
   addresses.implementation.proverManager = await upgrades.erc1967.getImplementationAddress(await proverManager.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
@@ -109,7 +122,7 @@ async function deploy(): Promise<string> {
     kind: "uups",
     initializer: false,
   });
-  const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
+  const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), deployer);
   addresses.proxy.proofMarketplace = await proofMarketplace.getAddress();
   addresses.implementation.proofMarketplace = await upgrades.erc1967.getImplementationAddress(await proofMarketplace.getAddress());
   fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 4), "utf-8");
@@ -125,8 +138,7 @@ async function initialize(): Promise<string> {
 
   console.log("Available Signers", signers);
   
-  // Note: check admin address
-  const admin = signers[0];
+  const deployer = signers[0];
 
   const configPath = `./config/${chainId}.json`;
   const configurationExists = checkFileExists(configPath);
@@ -138,65 +150,67 @@ async function initialize(): Promise<string> {
   const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
   //---------------------------------------- Initialize ----------------------------------------//
-  const stakingManager = StakingManager__factory.connect(addresses.proxy.stakingManager, admin);
-  const nativeStaking = NativeStaking__factory.connect(addresses.proxy.nativeStaking, admin);
-  const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbioticStaking, admin);
-  const symbioticStakingReward = SymbioticStakingReward__factory.connect(addresses.proxy.symbioticStakingReward, admin);
-  const attestationVerifier = AttestationVerifier__factory.connect(addresses.proxy.attestationVerifier, admin);
-  const entityKeyRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entityKeyRegistry, admin);
-  const proverManager = ProverManager__factory.connect(addresses.proxy.proverManager, admin);
-  const proofMarketplace = ProofMarketplace__factory.connect(addresses.proxy.proofMarketplace, admin);
+  const stakingManager = StakingManager__factory.connect(addresses.proxy.stakingManager, deployer);
+  const nativeStaking = NativeStaking__factory.connect(addresses.proxy.nativeStaking, deployer);
+  const symbioticStaking = SymbioticStaking__factory.connect(addresses.proxy.symbioticStaking, deployer);
+  const symbioticStakingReward = SymbioticStakingReward__factory.connect(addresses.proxy.symbioticStakingReward, deployer);
+  const attestationVerifier = AttestationVerifier__factory.connect(addresses.proxy.attestationVerifier, deployer);
+  const entityKeyRegistry = EntityKeyRegistry__factory.connect(addresses.proxy.entityKeyRegistry, deployer);
+  const proverManager = ProverManager__factory.connect(addresses.proxy.proverManager, deployer);
+  const proofMarketplace = ProofMarketplace__factory.connect(addresses.proxy.proofMarketplace, deployer);
 
-  // TODO: fix this with USDC Address
-  const mockUSDC = addresses.mockToken.usdc;
+  const USDC = config.USDC;
+  const admin = config.admin;
+  const treasury = config.treasury;
 
   // Staking Manager
-  console.log(await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress()))
-  if(!await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  console.log(await stakingManager.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), admin));
+  if(!await stakingManager.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), admin)) {
     await stakingManager.initialize(
-      await admin.getAddress(),
+      admin,
       await proofMarketplace.getAddress(),
+      await proverManager.getAddress(),
       await symbioticStaking.getAddress(),
-      mockUSDC,
+      USDC,
     );
     console.log("StakingManager initialized");
   }
 
   // Native Staking
-  const WITHDRAWAL_DURATION = 2 * 60 * 60; // 2 hours
-  if(!await nativeStaking.hasRole(await nativeStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
-    await nativeStaking.initialize(await admin.getAddress(), await stakingManager.getAddress(), WITHDRAWAL_DURATION, mockUSDC);
+  // const WITHDRAWAL_DURATION = 2 * 60 * 60; // 2 hours
+  const WITHDRAWAL_DURATION = config.staking.native.withdrawalDuration;
+  if(!await nativeStaking.hasRole(await nativeStaking.DEFAULT_ADMIN_ROLE(), admin)) {
+    await nativeStaking.initialize(admin, await stakingManager.getAddress(), WITHDRAWAL_DURATION);
     console.log("NativeStaking initialized");
   }
 
   // Symbiotic Staking
-  if(!await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await symbioticStaking.hasRole(await symbioticStaking.DEFAULT_ADMIN_ROLE(), admin)) {
     await symbioticStaking.initialize(
-      await admin.getAddress(),
+      admin,
       await attestationVerifier.getAddress(),
       await proofMarketplace.getAddress(),
       await stakingManager.getAddress(),
       await symbioticStakingReward.getAddress(),
-      mockUSDC,
     );
     console.log("SymbioticStaking initialized");
   }
 
   // Symbiotic Staking Reward
-  if(!await symbioticStakingReward.hasRole(await symbioticStakingReward.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await symbioticStakingReward.hasRole(await symbioticStakingReward.DEFAULT_ADMIN_ROLE(), admin)) {
     await symbioticStakingReward.initialize(
-      await admin.getAddress(),
+      admin,
       await proofMarketplace.getAddress(),
       await symbioticStaking.getAddress(),
-      mockUSDC,
+      USDC,
     );
     console.log("SymbioticStakingReward initialized");
   }
 
   // Prover Manager
-  if(!await proverManager.hasRole(await proverManager.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await proverManager.hasRole(await proverManager.DEFAULT_ADMIN_ROLE(), admin)) {
     await proverManager.initialize(
-      await admin.getAddress(),
+      admin,
       await proofMarketplace.getAddress(),
       await stakingManager.getAddress(),
       await entityKeyRegistry.getAddress()
@@ -205,16 +219,28 @@ async function initialize(): Promise<string> {
   }
 
   // Proof Marketplace
-  if(!await proofMarketplace.hasRole(await proofMarketplace.DEFAULT_ADMIN_ROLE(), await admin.getAddress())) {
+  if(!await proofMarketplace.hasRole(await proofMarketplace.DEFAULT_ADMIN_ROLE(), admin)) {
     await proofMarketplace.initialize(
-      await admin.getAddress(),
-      await mockUSDC,
-      await admin.getAddress(), // TODO: set treasury address
+      admin,
+      USDC,
+      treasury, // TODO: set treasury address
       await proverManager.getAddress(),
       await entityKeyRegistry.getAddress(),
       config.marketCreationCost
     );
     console.log("ProofMarketplace initialized");
+  }
+
+  // Entity Key Registry
+  if(!await entityKeyRegistry.hasRole(await entityKeyRegistry.DEFAULT_ADMIN_ROLE(), admin)) {
+    await entityKeyRegistry.initialize(admin, []);
+    console.log("EntityKeyRegistry initialized");
+  }
+
+  // Attestation Verifier
+  if(!await attestationVerifier.hasRole(await attestationVerifier.DEFAULT_ADMIN_ROLE(), admin)) {
+    await attestationVerifier.initialize([], [], admin);
+    console.log("AttestationVerifier initialized");
   }
 
   //---------------------------------------- Initialize ----------------------------------------//
