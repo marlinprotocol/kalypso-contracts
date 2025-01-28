@@ -1,295 +1,491 @@
-import BigNumber from "bignumber.js";
-import { expect } from "chai";
-import { Signer } from "ethers";
-import { ethers, upgrades } from "hardhat";
-
-import { bytesToHexString, generateRandomBytes, MockEnclave, MockIVSPCRS, MockMEPCRS, MockProverPCRS, skipBlocks } from "../helpers";
+import BigNumber from 'bignumber.js';
 import {
-  Dispute__factory,
+  BytesLike,
+  Signer,
+  Wallet,
+} from 'ethers';
+import { ethers } from 'hardhat';
+
+import {
+  BridgeEnclavePCRS,
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
+import { stakingSetup, submitSlashResult, submitVaultSnapshot, TaskSlashed, VaultSnapshot, toEthSignedMessageHash } from '../helpers/setup';
+import {
+  AttestationVerifier,
   EntityKeyRegistry,
-  EntityKeyRegistry__factory,
   Error,
-  Error__factory,
-  MockAttestationVerifier__factory,
+  IVerifier,
+  IVerifier__factory,
   MockToken,
-  MockToken__factory,
-  MockVerifier,
-  MockVerifier__factory,
   NativeStaking,
-  NativeStaking__factory,
+  POND,
+  PriorityLog,
   ProofMarketplace,
-  ProofMarketplace__factory,
   ProverManager,
-  ProverManager__factory,
   StakingManager,
-  StakingManager__factory,
   SymbioticStaking,
-  SymbioticStaking__factory,
   SymbioticStakingReward,
-  SymbioticStakingReward__factory,
-} from "../typechain-types";
+  Transfer_verifier_wrapper__factory,
+  TransferVerifier__factory,
+  WETH,
+} from '../typechain-types';
+import { expect } from 'chai';
 
-describe("Staking manager", () => {
-  /* Signers */
-  let signers: Signer[];
-  let admin: Signer;
-  let tokenHolder: Signer;
-  let treasury: Signer;
-  let marketCreator: Signer;
-  let matchingEngineSigner: Signer;
-
-  /* Constants */
-  const tokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(4); // 4 * 10^24
-  const MARKET_CREATION_COST: BigNumber = new BigNumber(10).pow(20).multipliedBy(5); // 5 * 10^20
-  const proverStakingAmount = new BigNumber(10).pow(21).multipliedBy(6); // 6 * 10^21
-  const minRewardForProver = new BigNumber(10).pow(18).multipliedBy(100); // 100 * 10^18
-  const exponent = new BigNumber(10).pow(18);
-  const penaltyForNotComputingProof = exponent.div(100).toFixed(0);
-
-  /* Contracts */
-  let mockToken: MockToken;
+describe("Staking", () => {
+  let proofMarketplace: ProofMarketplace;
+  let proverManager: ProverManager;
+  let usdc: MockToken;
+  let priorityLog: PriorityLog;
+  let errorLibrary: Error;
+  let entityKeyRegistry: EntityKeyRegistry;
+  let iverifier: IVerifier;
+  let attestationVerifier: AttestationVerifier;
   let stakingManager: StakingManager;
   let nativeStaking: NativeStaking;
   let symbioticStaking: SymbioticStaking;
   let symbioticStakingReward: SymbioticStakingReward;
-  let proofMarketplace: ProofMarketplace;
-  let proverManager: ProverManager;
-  let entityRegistry: EntityKeyRegistry;
-  let mockVerifier: MockVerifier;
-  let errorLibrary: Error;
+
+  let pool1: string;
+  let pool2: string;
+
+  let pond: POND;
+  let weth: WETH;
+
+  let signers: Signer[];
+  let admin: Signer;
+  let tokenHolder: Signer;
+  let treasury: Signer;
+  let prover: Signer;
+  let refundReceiver: Signer;
+
+  let marketCreator: Signer;
+  let marketSetupData: MarketData;
+  let marketId: string;
+
+  let proverData: ProverData;
+  let imageId: BytesLike;
 
   /* Enclaves */
-  const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
+  const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
+  const proverEnclave = new MockEnclave(MockProverPCRS);
+  const godEnclave = new MockEnclave(GodEnclavePCRS);
+  const bridgeEnclave = new MockEnclave(BridgeEnclavePCRS);
+
+  /* Config */
+  const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
+  const proverStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
+  const proverSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
+  const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
+  const proverComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+  const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
+  const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
+  const minRewardByProver = new BigNumber(10).pow(18).multipliedBy(199);
+
+  const refreshSetup = async (
+    modifiedComputeGivenToNewMarket = computeGivenToNewMarket,
+    modifiedProverStakingAmount = proverStakingAmount,
+  ): Promise<void> => {
+    signers = await ethers.getSigners();
+    admin = signers[0];
+    tokenHolder = signers[1];
+    treasury = signers[2];
+    marketCreator = signers[3];
+    prover = signers[4];
+    refundReceiver = signers[5];
+
+    marketSetupData = {
+      zkAppName: "transfer verifier",
+      proverCode: "url of the prover code",
+      verifierCode: "url of the verifier code",
+      proverOysterImage: "oyster image link for the prover",
+      setupCeremonyData: ["first phase", "second phase", "third phase"],
+      inputOuputVerifierUrl: "this should be nclave url",
+    };
+
+    proverData = {
+      name: "some custom name for the prover",
+    };
+
+    await admin.sendTransaction({ to: ivsEnclave.getAddress(), value: "1000000000000000000" });
+    await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
+
+    const transferVerifier = await new TransferVerifier__factory(admin).deploy();
+
+    let abiCoder = new ethers.AbiCoder();
+
+    let inputBytes = abiCoder.encode(
+      ["uint256[5]"],
+      [
+        [
+          transfer_verifier_inputs[0],
+          transfer_verifier_inputs[1],
+          transfer_verifier_inputs[2],
+          transfer_verifier_inputs[3],
+          transfer_verifier_inputs[4],
+        ],
+      ],
+    );
+
+    let proofBytes = abiCoder.encode(
+      ["uint256[8]"],
+      [
+        [
+          transfer_verifier_proof.a[0],
+          transfer_verifier_proof.a[1],
+          transfer_verifier_proof.b[0][0],
+          transfer_verifier_proof.b[0][1],
+          transfer_verifier_proof.b[1][0],
+          transfer_verifier_proof.b[1][1],
+          transfer_verifier_proof.c[0],
+          transfer_verifier_proof.c[1],
+        ],
+      ],
+    );
+
+    const transferVerifierWrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
+      await transferVerifier.getAddress(),
+      inputBytes,
+      proofBytes,
+    );
+
+    iverifier = IVerifier__factory.connect(await transferVerifierWrapper.getAddress(), admin);
+
+    let treasuryAddress = await treasury.getAddress();
+
+    let data = await setup.rawSetup(
+      admin,
+      tokenHolder,
+      totalTokenSupply,
+      modifiedProverStakingAmount,
+      proverSlashingPenalty,
+      treasuryAddress,
+      marketCreationCost,
+      marketCreator,
+      marketDataToBytes(marketSetupData),
+      marketSetupData.inputOuputVerifierUrl,
+      iverifier,
+      prover,
+      proverDataToBytes(proverData),
+      ivsEnclave,
+      matchingEngineEnclave,
+      proverEnclave,
+      minRewardByProver,
+      proverComputeAllocation,
+      modifiedComputeGivenToNewMarket,
+      godEnclave,
+    );
+
+    attestationVerifier = data.attestationVerifier;
+    entityKeyRegistry = data.entityKeyRegistry;
+    proofMarketplace = data.proofMarketplace;
+    proverManager = data.proverManager;
+    usdc = data.mockToken;
+    priorityLog = data.priorityLog;
+    errorLibrary = data.errorLibrary;
+
+    /* Staking Contracts */
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
+
+    imageId = await symbioticStaking.getImageId(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+    pool1 = ethers.Wallet.createRandom().address;
+    pool2 = ethers.Wallet.createRandom().address;
+
+    await attestationVerifier.whitelistEnclaveImage(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+    await attestationVerifier.whitelistEnclaveKey(bridgeEnclave.getUncompressedPubkey(), imageId);
+    await symbioticStaking['addEnclaveImage(bytes,bytes,bytes)'](bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+
+    marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
+    ({ pond, weth } = await stakingSetup(admin, stakingManager, nativeStaking, symbioticStaking, symbioticStakingReward));
+  };
 
   describe("Staking Manager", () => {
     beforeEach(async () => {
-      // Setup signers
-      signers = await ethers.getSigners();
-      admin = signers[1];
-      tokenHolder = signers[2];
-      treasury = signers[3];
-      marketCreator = signers[4];
-      matchingEngineSigner = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
-      await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" }); // Send 1 ETH to Matching Engine
-
-      //------------------------------ Deploy Contracts ------------------------------//
-
-      // ErrorLibrary
-      errorLibrary = await new Error__factory(admin).deploy();
-
-      // MockToken
-      mockToken = await new MockToken__factory(admin).deploy(await tokenHolder.getAddress(), tokenSupply.toFixed(), "Payment Token", "PT");
-      mockVerifier = await new MockVerifier__factory(admin).deploy();
-
-      // StakingManager
-      const StakingManager = await ethers.getContractFactory("StakingManager");
-      const _stakingManager = await upgrades.deployProxy(StakingManager, [], {
-        kind: "uups",
-        initializer: false,
-      });
-      stakingManager = StakingManager__factory.connect(await _stakingManager.getAddress(), admin);
-
-      // NativeStaking
-      const NativeStaking = await ethers.getContractFactory("NativeStaking");
-      const _nativeStaking = await upgrades.deployProxy(NativeStaking, [], {
-        kind: "uups",
-        initializer: false,
-      });
-      nativeStaking = NativeStaking__factory.connect(await _nativeStaking.getAddress(), admin);
-
-      // SymbioticStaking
-      const SymbioticStaking = await ethers.getContractFactory("SymbioticStaking");
-      const _symbioticStaking = await upgrades.deployProxy(SymbioticStaking, [], {
-        kind: "uups",
-        initializer: false,
-      });
-      symbioticStaking = SymbioticStaking__factory.connect(await _symbioticStaking.getAddress(), admin);
-
-      // SymbioticStakingReward
-      const SymbioticStakingReward = await ethers.getContractFactory("SymbioticStakingReward");
-      const _symbioticStakingReward = await upgrades.deployProxy(SymbioticStakingReward, [], {
-        kind: "uups",
-        initializer: false,
-      });
-      symbioticStakingReward = SymbioticStakingReward__factory.connect(await _symbioticStakingReward.getAddress(), admin);
-
-      // EntityKeyRegistry
-      const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
-      const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
-      const _entityKeyRegistry = await upgrades.deployProxy(EntityKeyRegistryContract, [await admin.getAddress(), []], {
-        kind: "uups",
-        constructorArgs: [await mockAttestationVerifier.getAddress()],
-      });
-      entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
-
-      // ProverManager
-      const ProverManagerContract = await ethers.getContractFactory("ProverManager");
-      const proverProxy = await upgrades.deployProxy(ProverManagerContract, [], {
-        kind: "uups",
-        initializer: false,
-      });
-      proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), signers[0]);
-
-      // ProofMarketplace
-      const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
-      const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
-        kind: "uups",
-        initializer: false,
-      });
-
-      proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), signers[0]);
-
-      const dispute = await new Dispute__factory(admin).deploy(await entityRegistry.getAddress());
-
-      //------------------------------ Initialize Contracts ------------------------------//
-
-      // StakingManager
-      await stakingManager.initialize(
-        await admin.getAddress(),
-        await proofMarketplace.getAddress(),
-        await symbioticStaking.getAddress(),
-        await mockToken.getAddress(),
-      );
-
-      // StakingManager.PROVER_MANAGER_ROLE to ProverManager
-      await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
-
-      // SymbioticStaking
-      await symbioticStaking.initialize(
-        await admin.getAddress(),
-        await mockAttestationVerifier.getAddress(),
-        await proofMarketplace.getAddress(),
-        await stakingManager.getAddress(),
-        await symbioticStakingReward.getAddress(),
-        await mockToken.getAddress(),
-      );
-
-      // SymbioticStakingReward
-      await symbioticStakingReward.initialize(
-        await admin.getAddress(),
-        await proofMarketplace.getAddress(),
-        await symbioticStaking.getAddress(),
-        await mockToken.getAddress(),
-      );
-
-      // ProverManager
-      await proverManager.initialize(
-        await admin.getAddress(),
-        await proofMarketplace.getAddress(),
-        await stakingManager.getAddress(),
-        await entityRegistry.getAddress(),
-      );
-
-      // ProofMarketplace
-      await proofMarketplace.initialize(
-        await admin.getAddress(),
-        await mockToken.getAddress(),
-        await treasury.getAddress(),
-        await proverManager.getAddress(),
-        await entityRegistry.getAddress(),
-        MARKET_CREATION_COST.toString(),
-      );
-
-      //-------------------------------------- Config --------------------------------------//
-      /* StakingManager */
-      await stakingManager.addStakingPool(await nativeStaking.getAddress());
-      await stakingManager.addStakingPool(await symbioticStaking.getAddress());
-
-      //-------------------------------------- Setup --------------------------------------//
-
-      expect(ethers.isAddress(await proofMarketplace.getAddress())).is.true;
-
-      // Transfer market creation cost to `marketCreator` (admin)
-      await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), MARKET_CREATION_COST.toFixed());
-
-      // KEY_REGISTER_ROLE to ProofMarketplace and ProverManager
-      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
-
-      // KEY_REGISTER_ROLE to ProverManager
-      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proverManager.getAddress());
-
-      // UPDATER_ROLE to admin
-      await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
-
-      // SYMBIOTIC_STAKING_ROLE to SymbioticStaking
-      await proofMarketplace.connect(admin).grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
-
-      // SYMBIOTIC_STAKING_REWARD_ROLE to SymbioticStakingReward
-      await proofMarketplace
-        .connect(admin)
-        .grantRole(await proofMarketplace.SYMBIOTIC_STAKING_REWARD_ROLE(), await symbioticStakingReward.getAddress());
-    });
-  });
-
-  describe("Staking Manager: Public Market", () => {
-    let prover: Signer;
-    let reward = new BigNumber(10).pow(20).multipliedBy(3);
-    let marketId: string;
-
-    let assignmentExpiry = 100; // in blocks
-    let timeForProofGeneration = 1000; // in blocks
-    let maxTimeForProofGeneration = 10000; // in blocks
-
-    beforeEach(async () => {
-      // Send reward to prover
-      prover = signers[5];
-      await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), reward.toFixed());
-
-      const marketBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 10)); // 10 MB
-      marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).toFixed();
-
-      // Approve marketplace for market creation cost
-      await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), MARKET_CREATION_COST.toFixed());
-
-      // Create Marketplace
-      await proofMarketplace
-        .connect(marketCreator)
-        .createMarket(
-          marketBytes,
-          await mockVerifier.getAddress(),
-          new MockEnclave(MockProverPCRS).getPcrRlp(),
-          ivsEnclave.getPcrRlp(),
-        );
-
-      // Create Ask Request
-      const latestBlock = await ethers.provider.getBlockNumber();
-      const askIdToBeGenerated = await proofMarketplace.bidCounter();
-
-      const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const askRequest = {
-        marketId,
-        proverData: proverBytes,
-        reward: reward.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
-        refundAddress: await prover.getAddress(),
-      };
-
-      const secretInfo = "0x2345";
-      const aclInfo = "0x21";
-
-      await proofMarketplace.connect(admin).updateCostPerBytes(1, 1000);
-
-      const platformFee = await proofMarketplace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
-      await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
-
-      await mockToken
-        .connect(prover)
-        .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
-
-      await expect(proofMarketplace.connect(prover).createBid(askRequest, 1, secretInfo, aclInfo, "0x"))
-        .to.emit(proofMarketplace, "BidCreated")
-        .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
-        .to.emit(mockToken, "Transfer")
-        .withArgs(await prover.getAddress(), await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward));
-
-      expect((await proofMarketplace.listOfBid(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
+      await refreshSetup();
     });
 
-    it("should register prover", async () => {
-      console.log("hello");
+    describe("Default Admin Role", () => {
+
+      describe("Adding new Staking Pool", async () => {
+        const pool1_weight = 100;
+        const pool2_weight = 200;
+        let initialPoolRewardShareSum: BigNumber;
+
+        beforeEach(async () => {
+          initialPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+        });
+
+        it("should store new pool data", async () => {
+          const tx = await stakingManager.addStakingPool(pool1, pool1_weight);
+
+          const poolConfig = await stakingManager.getPoolConfig(pool1);
+          expect(poolConfig.rewardShare).to.equal(pool1_weight);
+          expect(poolConfig.enabled).to.equal(false);
+          expect(tx).to.emit(stakingManager, "StakingPoolAdded").withArgs(pool1);
+        });
+
+        it("initialPoolRewardShareSum should not be changed", async () => {
+          await stakingManager.addStakingPool(pool1, pool1_weight);
+
+          let currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+          expect(currentPoolRewardShareSum).to.be.equal(initialPoolRewardShareSum);
+
+          await stakingManager.addStakingPool(pool2, pool2_weight);
+          currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+          expect(currentPoolRewardShareSum).to.be.equal(initialPoolRewardShareSum);
+        });
+
+        it("should revert if pool already exists", async () => {
+          await stakingManager.addStakingPool(pool1, pool1_weight);
+          await expect(stakingManager.addStakingPool(pool1, pool2_weight)).to.be.revertedWithCustomError(errorLibrary, "PoolAlreadyExists");
+        });
+      });
+
+      describe("Removing Staking Pool", async () => {
+        const pool1_weight = 100;
+        const pool2_weight = 200;
+        let initialPoolRewardShareSum: BigNumber;
+
+        beforeEach(async () => {
+          await stakingManager.addStakingPool(pool1, pool1_weight);
+          initialPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+        });
+        
+        it("should decrease poolRewardShareSum", async () => {
+          let currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+          expect(currentPoolRewardShareSum).to.be.equal(initialPoolRewardShareSum);
+
+          await stakingManager.removeStakingPool(pool1);
+          currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+          expect(currentPoolRewardShareSum).to.be.equal(initialPoolRewardShareSum.minus(pool1_weight));
+        });
+
+        it("should revert if pool does not exist", async () => {
+          await expect(stakingManager.removeStakingPool(pool2)).to.be.revertedWithCustomError(errorLibrary, "PoolDoesNotExist");
+        });
+
+        it("should delete pool data", async () => {
+          await stakingManager.removeStakingPool(pool1);
+
+          const poolConfig = await stakingManager.getPoolConfig(pool1);
+          expect(poolConfig.rewardShare).to.be.equal(0);
+          expect(poolConfig.enabled).to.be.equal(false);
+        });
+
+        it("should emit event", async () => {
+          await expect(stakingManager.removeStakingPool(pool1)).to.emit(stakingManager, "StakingPoolRemoved").withArgs(pool1);
+        });
+      });
+
+      describe("Setting Pool Enabled", async () => {
+        const pool1_weight = 100;
+        const pool2_weight = 200;
+        let initialPoolRewardShareSum: BigNumber;
+
+        beforeEach(async () => {
+          await stakingManager.addStakingPool(pool1, pool1_weight);
+          initialPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+        });
+
+        describe("Enabling Staking Pool", async () => {
+
+          it("should enable pool", async () => {
+            await stakingManager.setPoolEnabled(pool1, true);
+            const poolConfig = await stakingManager.getPoolConfig(pool1);
+            expect(poolConfig.enabled).to.be.equal(true);
+          });
+
+          // TODO: fix to PoolDoesNotExist
+          it("should revert if pool does not exist", async () => {
+            await expect(stakingManager.setPoolEnabled(pool2, true)).to.be.revertedWithCustomError(errorLibrary, "PoolDoesNotExist");
+          });
+          
+          it("should revert if pool is already enabled", async () => {
+            await stakingManager.setPoolEnabled(pool1, true);
+            await expect(stakingManager.setPoolEnabled(pool1, true)).to.be.revertedWithCustomError(errorLibrary, "PoolAlreadyEnabled");
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setPoolEnabled(pool1, true)).to.emit(stakingManager, "PoolEnabledSet").withArgs(pool1, true);
+          });
+
+          it("should increase poolRewardShareSum", async () => {
+            await stakingManager.setPoolEnabled(pool1, true);
+            let currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+            expect(currentPoolRewardShareSum).to.be.equal(initialPoolRewardShareSum.plus(pool1_weight));
+          });
+        });
+
+        describe("Disabling Staking Pool", async () => {
+
+          beforeEach(async () => {
+            await stakingManager.setPoolEnabled(pool1, true);
+          });
+
+          it("should disable pool", async () => {
+            await stakingManager.setPoolEnabled(pool1, false);
+            const poolConfig = await stakingManager.getPoolConfig(pool1);
+            expect(poolConfig.enabled).to.be.equal(false);
+          });
+
+          it("should revert if pool is already disabled", async () => {
+            await stakingManager.setPoolEnabled(pool1, false);
+            await expect(stakingManager.setPoolEnabled(pool1, false)).to.be.revertedWithCustomError(errorLibrary, "PoolAlreadyDisabled");
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setPoolEnabled(pool1, false)).to.emit(stakingManager, "PoolEnabledSet").withArgs(pool1, false);
+          });
+
+          it("should decrease poolRewardShareSum", async () => {
+            let currentPoolRewardShareSum = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+            await stakingManager.setPoolEnabled(pool1, false);
+            expect(await stakingManager.poolRewardShareSum()).to.be.equal(currentPoolRewardShareSum.minus(pool1_weight));
+          });
+
+          it("should still store pool config", async () => {
+            await stakingManager.setPoolEnabled(pool1, false);
+
+            const poolConfig = await stakingManager.getPoolConfig(pool1);
+            expect(poolConfig.enabled).to.be.equal(false);
+            expect(poolConfig.rewardShare).to.be.equal(pool1_weight);
+          });
+        });
+      });
+
+      describe("Setting Pool Reward Share", async () => {
+        const pool1_weight = 100;
+        const pool2_weight = 200;
+        const pool1_weight_after = 150;
+
+        beforeEach(async () => {
+          // Add pool1
+          await stakingManager.addStakingPool(pool1, pool1_weight);
+        });
+
+        describe("When Pool is already enabled", async () => {  
+          beforeEach(async () => {
+            // Enable pool1
+            await stakingManager.setPoolEnabled(pool1, true);
+          });
+
+          it("should set pool reward share", async () => {
+            await stakingManager.setPoolRewardShare(pool1, pool1_weight_after);
+            const poolConfig = await stakingManager.getPoolConfig(pool1);
+            expect(poolConfig.rewardShare).to.be.equal(pool1_weight_after);
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setPoolRewardShare(pool1, pool1_weight_after)).to.emit(stakingManager, "PoolRewardShareSet").withArgs(pool1, pool1_weight_after);
+          });
+
+          it("should modify poolRewardShareSum", async () => {
+            const poolRewardShareSumBefore = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+            await stakingManager.setPoolRewardShare(pool1, pool1_weight_after);
+            expect(await stakingManager.poolRewardShareSum()).to.be.equal(poolRewardShareSumBefore.minus(pool1_weight).plus(pool1_weight_after));
+          });
+        });
+
+        describe("When Pool is Disabled", async () => {
+          // Pool is disabled as it's not enabled
+          
+          it("should set pool reward share", async () => {
+            await stakingManager.setPoolRewardShare(pool1, pool1_weight_after);
+            const poolConfig = await stakingManager.getPoolConfig(pool1);
+            expect(poolConfig.rewardShare).to.be.equal(pool1_weight_after);
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setPoolRewardShare(pool1, pool1_weight_after)).to.emit(stakingManager, "PoolRewardShareSet").withArgs(pool1, pool1_weight_after);
+          });
+
+          it("should not affect poolRewardShareSum", async () => {
+            const poolRewardShareSumBefore = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
+            await stakingManager.setPoolRewardShare(pool1, pool1_weight_after);
+            expect(await stakingManager.poolRewardShareSum()).to.be.equal(poolRewardShareSumBefore);
+          });
+
+          it("should revert if pool does not exist", async () => {
+            await expect(stakingManager.setPoolRewardShare(pool2, pool1_weight_after)).to.be.revertedWithCustomError(errorLibrary, "PoolDoesNotExist");
+          });
+        });
+      });
+
+      describe("Setting Contract Addresses", async () => {
+
+        describe("Setting Proof Marketplace", async () => {
+          it("should set proofMarketplace", async () => {
+            const tx = await stakingManager.setProofMarketplace(proofMarketplace.getAddress());
+            expect(tx).to.emit(stakingManager, "ProofMarketplaceSet").withArgs(proofMarketplace.getAddress());
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setProofMarketplace(proofMarketplace.getAddress())).to.emit(stakingManager, "ProofMarketplaceSet").withArgs(proofMarketplace.getAddress());
+          });
+        });
+
+        describe("Setting Fee Token", async () => {
+          let feeToken: string;
+
+          beforeEach(async () => {
+            feeToken = await ethers.Wallet.createRandom().getAddress();
+          });
+
+          it("should set feeToken", async () => {
+            const tx = await stakingManager.setFeeToken(feeToken);
+            expect(tx).to.emit(stakingManager, "FeeTokenSet").withArgs(feeToken);
+          });
+
+          it("should emit event", async () => {
+            await expect(stakingManager.setFeeToken(feeToken)).to.emit(stakingManager, "FeeTokenSet").withArgs(feeToken);
+          });
+        });
+      });
+
+      describe("Emergency Withdraw", async () => {
+        it("should revert if token address is zero", async () => {
+          await expect(stakingManager.emergencyWithdraw(ethers.ZeroAddress, ethers.ZeroAddress)).to.be.revertedWithCustomError(errorLibrary, "ZeroTokenAddress");
+        });
+
+        it("should revert if to address is zero", async () => {
+          await expect(stakingManager.emergencyWithdraw(ethers.ZeroAddress, ethers.ZeroAddress)).to.be.revertedWithCustomError(errorLibrary, "ZeroToAddress");
+        });
+
+        it.only("should transfer all tokens to the to address", async () => {
+          // transfer some tokens to the staking manager
+          await usdc.connect(tokenHolder).transfer(stakingManager.getAddress(), new BigNumber(10).pow(18).multipliedBy(100).toString());
+
+          const tokenBalanceBefore = await usdc.balanceOf(await stakingManager.getAddress());
+          const refundReceiverBalanceBefore = await usdc.balanceOf(refundReceiver.getAddress());
+          expect(tokenBalanceBefore).to.be.equal(new BigNumber(10).pow(18).multipliedBy(100).toString());
+
+          await stakingManager.emergencyWithdraw(usdc.getAddress(), refundReceiver.getAddress());
+
+          const tokenBalanceAfter = await usdc.balanceOf(await stakingManager.getAddress());
+          const refundReceiverBalanceAfter = await usdc.balanceOf(refundReceiver.getAddress());
+          expect(tokenBalanceAfter).to.be.equal(0);
+          expect(refundReceiverBalanceAfter).to.be.equal(new BigNumber(10).pow(18).multipliedBy(100).toString());
+        });
+      });
     });
+
   });
 });
+
