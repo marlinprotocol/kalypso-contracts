@@ -6,15 +6,15 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {EntityKeyRegistry} from "./EntityKeyRegistry.sol";
+import {ProverManager} from "./ProverManager.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IProofMarketplace} from "./interfaces/IProofMarketplace.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
 
-import {EntityKeyRegistry} from "./EntityKeyRegistry.sol";
-import {ProverRegistry} from "./ProverRegistry.sol";
-
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Error} from "./lib/Error.sol";
@@ -29,9 +29,6 @@ contract ProofMarketplace is
     UUPSUpgradeable,
     IProofMarketplace
 {
-    // in case we add more contracts in the inheritance chain
-    uint256[500] private __gap_0;
-
     using HELPER for bytes;
     using HELPER for bytes32;
     using HELPER for uint256;
@@ -40,58 +37,58 @@ contract ProofMarketplace is
 
     //-------------------------------- Constants and Immutable start --------------------------------//
 
-    uint256 public constant MARKET_ACTIVATION_DELAY = 100; // in blocks
-    bytes32 public constant UPDATER_ROLE = 0x73e573f9566d61418a34d5de3ff49360f9c51fec37f7486551670290f6285dab; // keccak256("UPDATER_ROLE")
-    bytes32 public constant MATCHING_ENGINE_ROLE = 0x080f5ea84ed1de4c8edb58be651c25581c355a0011b0f9360de5082becd64640; // keccak256("MATCHING_ENGINE_ROLE")
-    bytes32 public constant STAKING_MANAGER_ROLE = 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b; // keccak256("STAKING_MANAGER_ROLE")
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58; // keccak256("SYMBIOTIC_STAKING_ROLE")
-    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE =
-        0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb; // keccak256("SYMBIOTIC_STAKING_REWARD_ROLE")
+    bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE"); // 0x73e573f9566d61418a34d5de3ff49360f9c51fec37f7486551670290f6285dab
+    bytes32 public constant MATCHING_ENGINE_ROLE = keccak256("MATCHING_ENGINE_ROLE"); // 0x080f5ea84ed1de4c8edb58be651c25581c355a0011b0f9360de5082becd64640
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE"); // 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58
+    bytes32 public constant SYMBIOTIC_STAKING_REWARD_ROLE = keccak256("SYMBIOTIC_STAKING_REWARD_ROLE"); // 0x930acf1b2ff2678c6844aead593a589f81500db101decf9eb8acd3e9ed204beb
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IERC20 public immutable PAYMENT_TOKEN;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 public immutable MARKET_CREATION_COST;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    address immutable TREASURY;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    ProverRegistry public immutable PROVER_REGISTRY;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    EntityKeyRegistry public immutable ENTITY_KEY_REGISTRY;
+    uint256 public constant MIN_PROVING_TIME = 1 seconds; // 1 second
+    uint256 public constant MAX_PROVING_TIME = 1 days; // 1 day
+    uint256 public constant MAX_MATCHING_TIME = 1 days; // 1 day
 
     //-------------------------------- Constants and Immutable end --------------------------------//
 
     //-------------------------------- State variables start --------------------------------//
+
+    uint256[500] private __gap_0;
+
     Struct.Market[] public marketData;
     Struct.BidWithState[] public listOfBid;
 
-    // cost for inputs in payment token
-    mapping(Enum.SecretType => uint256) public costPerInputBytes;
-    // min proving time (in blocks) for each secret type.
-    mapping(Enum.SecretType => uint256) public minProvingTime;
-    mapping(address => uint256) public proverClaimableFeeReward;
-    mapping(address => uint256) public transmitterClaimableFeeReward;
+    uint256 public marketCreationCost;
+    address public paymentToken;
+    address public treasury;
+    address public proverManager;
+    address public entityKeyRegistry;
+
+    mapping(Enum.SecretType => uint256) public costPerInputBytes; // cost for inputs in payment token
+    mapping(Enum.SecretType => uint256) public minProvingTime; // min proving time for each secret type.
+    mapping(address proverRewardAddress => uint256 amount) public proverClaimableFeeReward;
+    mapping(address transmitter => uint256 amount) public transmitterClaimableFeeReward;
+
+    uint256[500] private __gap_1;
+
+    // TODO: mapping for `stakePerjob` later
 
     //-------------------------------- State variables end --------------------------------//
 
     //-------------------------------- Init start --------------------------------//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        IERC20 _paymentToken,
-        uint256 _marketCreationCost,
-        address _treasury,
-        ProverRegistry _proverRegistry,
-        EntityKeyRegistry _entityRegistry
-    ) initializer {
-        PAYMENT_TOKEN = _paymentToken;
-        MARKET_CREATION_COST = _marketCreationCost;
-        TREASURY = _treasury;
-        PROVER_REGISTRY = _proverRegistry;
-        ENTITY_KEY_REGISTRY = _entityRegistry;
+    constructor() {
+        _disableInitializers();
     }
 
-    function initialize(address _admin) external initializer {
+    // TODO: stake per job
+    function initialize(
+        address _admin,
+        address _paymentToken,
+        address _treasury,
+        address _proverManager,
+        address _entityKeyRegistry,
+        uint256 _marketCreationCost
+    ) external initializer {
         __Context_init_unchained();
         __ERC165_init_unchained();
         __AccessControl_init_unchained();
@@ -101,8 +98,23 @@ contract ProofMarketplace is
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(UPDATER_ROLE, DEFAULT_ADMIN_ROLE);
 
-        // push empty data for market id 0 so first market id starts with 1
-        marketData.push(Struct.Market(address(0), bytes32(0), 0, 0, bytes32(0), address(0), bytes("")));
+        paymentToken = _paymentToken;
+        emit PaymentTokenSet(_paymentToken);
+
+        treasury = _treasury;
+        emit TreasurySet(_treasury);
+
+        proverManager = _proverManager;
+        emit ProverManagerSet(_proverManager);
+
+        entityKeyRegistry = _entityKeyRegistry;
+        emit EntityKeyRegistrySet(_entityKeyRegistry);
+
+        marketCreationCost = _marketCreationCost;
+        emit MarketCreationCostSet(_marketCreationCost);
+
+        // push empty data for market id 0 so that first market id starts with 1
+        marketData.push(Struct.Market(address(0), bytes32(0), 0, address(0), bytes("")));
     }
 
     //-------------------------------- Init end --------------------------------//
@@ -115,12 +127,11 @@ contract ProofMarketplace is
     function createMarket(
         bytes calldata _marketmetadata,
         address _verifier,
-        uint256 _penalty,
         bytes calldata _proverPcrs,
         bytes calldata _ivsPcrs
     ) external nonReentrant {
         address msgSender = _msgSender();
-        // Note: _penalty can be set to 0, allowing operators to submit invalid proofs without consequences.
+        // Note: StakeToken to be locked per task will be set in NativeStaking and SymbioticStaking as of now
         if (_marketmetadata.length == 0 || address(_verifier) == address(0)) {
             revert Error.CannotBeZero();
         }
@@ -128,23 +139,23 @@ contract ProofMarketplace is
         if (!IVerifier(_verifier).checkSampleInputsAndProof()) {
             revert Error.InvalidInputs();
         }
-        PAYMENT_TOKEN.safeTransferFrom(msgSender, TREASURY, MARKET_CREATION_COST);
+
+        IERC20(paymentToken).safeTransferFrom(msgSender, treasury, marketCreationCost);
 
         uint256 marketId = marketData.length;
 
         // Helps skip whitelisting for public provers
         if (_proverPcrs.GET_IMAGE_ID_FROM_PCRS().IS_ENCLAVE()) {
-            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.PROVER_FAMILY_ID(), _proverPcrs);
+            EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(marketId.PROVER_FAMILY_ID(), _proverPcrs);
         }
 
         // ivs is always enclave, will revert if a non enclave instance is stated as an ivs
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
+        EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(marketId.IVS_FAMILY_ID(), _ivsPcrs);
 
         marketData.push(
             Struct.Market(
                 _verifier,
                 _proverPcrs.GET_IMAGE_ID_FROM_PCRS(),
-                _penalty,
                 _ivsPcrs.GET_IMAGE_ID_FROM_PCRS(),
                 msgSender,
                 _marketmetadata
@@ -156,45 +167,45 @@ contract ProofMarketplace is
     /**
      * @notice Feature for market creator to list new prover images and ivs images
      */
-    function addExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Struct.Market memory market = marketData[marketId];
+    function addExtraImages(uint256 _marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
 
         if (_proverPcrs.length != 0) {
-            require(!market.proverImageId.IS_ENCLAVE(), Error.CannotModifyImagesForPublicMarkets());
+            require(market.proverImageId.IS_ENCLAVE(), Error.CannotModifyImagesForPublicMarkets());
 
             for (uint256 index = 0; index < _proverPcrs.length; index++) {
-                bytes32 familyId = marketId.PROVER_FAMILY_ID();
+                bytes32 familyId = _marketId.PROVER_FAMILY_ID();
                 bytes32 proverImageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
-                if (ENTITY_KEY_REGISTRY.isImageInFamily(proverImageId, familyId)) {
+                if (EntityKeyRegistry(entityKeyRegistry).isImageInFamily(proverImageId, familyId)) {
                     revert Error.ImageAlreadyInFamily(proverImageId, familyId);
                 }
 
-                ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
-                emit AddExtraProverImage(marketId, proverImageId);
+                EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(familyId, _proverPcrs[index]);
+                emit AddExtraProverImage(_marketId, proverImageId);
             }
         }
 
         for (uint256 index = 0; index < _ivsPcrs.length; index++) {
-            bytes32 familyId = marketId.IVS_FAMILY_ID();
+            bytes32 familyId = _marketId.IVS_FAMILY_ID();
             bytes32 ivsImageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
-            if (ENTITY_KEY_REGISTRY.isImageInFamily(ivsImageId, familyId)) {
+            if (EntityKeyRegistry(entityKeyRegistry).isImageInFamily(ivsImageId, familyId)) {
                 revert Error.ImageAlreadyInFamily(ivsImageId, familyId);
             }
 
-            ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(familyId, _ivsPcrs[index]);
-            emit AddExtraIVSImage(marketId, ivsImageId);
+            EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(familyId, _ivsPcrs[index]);
+            emit AddExtraIVSImage(_marketId, ivsImageId);
         }
     }
 
     /**
      * @notice Feature for market creator to remove extra provers
      */
-    function removeExtraImages(uint256 marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
-        Struct.Market memory market = marketData[marketId];
+    function removeExtraImages(uint256 _marketId, bytes[] calldata _proverPcrs, bytes[] calldata _ivsPcrs) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
         if (_proverPcrs.length != 0) {
@@ -204,11 +215,11 @@ contract ProofMarketplace is
                 bytes32 imageId = _proverPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
                 if (imageId == market.proverImageId) {
-                    revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                    revert Error.CannotRemoveDefaultImageFromMarket(_marketId, imageId);
                 }
 
-                ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.PROVER_FAMILY_ID());
-                emit RemoveExtraProverImage(marketId, imageId);
+                EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, _marketId.PROVER_FAMILY_ID());
+                emit RemoveExtraProverImage(_marketId, imageId);
             }
         }
 
@@ -216,30 +227,30 @@ contract ProofMarketplace is
             bytes32 imageId = _ivsPcrs[index].GET_IMAGE_ID_FROM_PCRS();
 
             if (imageId == market.ivsImageId) {
-                revert Error.CannotRemoveDefaultImageFromMarket(marketId, imageId);
+                revert Error.CannotRemoveDefaultImageFromMarket(_marketId, imageId);
             }
 
-            ENTITY_KEY_REGISTRY.removeEnclaveImageFromFamily(imageId, marketId.IVS_FAMILY_ID());
-            emit RemoveExtraIVSImage(marketId, imageId);
+            EntityKeyRegistry(entityKeyRegistry).removeEnclaveImageFromFamily(imageId, _marketId.IVS_FAMILY_ID());
+            emit RemoveExtraIVSImage(_marketId, imageId);
         }
     }
 
     /**
      * @notice Once called new images can't be added to market
      */
-    function freezeMarket(uint256 marketId) external {
-        Struct.Market memory market = marketData[marketId];
+    function freezeMarket(uint256 _marketId) external {
+        Struct.Market memory market = marketData[_marketId];
         require(market.marketmetadata.length > 0, Error.InvalidMarket());
         require(_msgSender() == market.creator, Error.OnlyMarketCreator());
-        delete marketData[marketId].creator;
+        delete marketData[_marketId].creator;
     }
 
-    function updateMarketMetadata(uint256 marketId, bytes memory metadata) external {
-        require(_msgSender() == marketData[marketId].creator, Error.OnlyMarketCreator());
+    function updateMarketMetadata(uint256 _marketId, bytes calldata _metadata) external {
+        require(_msgSender() == marketData[_marketId].creator, Error.OnlyMarketCreator());
 
-        marketData[marketId].marketmetadata = metadata;
+        marketData[_marketId].marketmetadata = _metadata;
 
-        emit MarketMetadataUpdated(marketId, metadata);
+        emit MarketMetadataUpdated(_marketId, _metadata);
     }
 
     //-------------------------------- Market end --------------------------------//
@@ -248,84 +259,79 @@ contract ProofMarketplace is
 
     /**
      * @notice Create requests. Can be paused to prevent temporary escrowing of unwanted amount
-     * @param bid: Details of the BID request
-     * @param secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
-     * @param privateInputs: Private Inputs to the circuit.
-     * @param acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
+     * @param _bid: Details of the BID request
+     * @param _secretType: 0 for purely calldata based secret (1 for Celestia etc, 2 ipfs etc)
+     * @param _privateInputs: Private Inputs to the circuit.
+     * @param _acl: If the private inputs are mean't to be confidential, provide acl using the ME keys
      */
     function createBid(
-        Struct.Bid calldata bid,
-        Enum.SecretType secretType,
-        bytes calldata privateInputs,
-        bytes calldata acl,
-        bytes calldata extraData
+        Struct.Bid calldata _bid,
+        Enum.SecretType _secretType,
+        bytes calldata _privateInputs,
+        bytes calldata _acl,
+        bytes calldata _extraData
     ) external whenNotPaused nonReentrant {
-        _createBid(bid, msg.sender, secretType, privateInputs, acl, extraData);
+        _createBid(_bid, _msgSender(), _secretType, _privateInputs, _acl, _extraData);
     }
 
     function _createBid(
-        Struct.Bid calldata bid,
-        address payFrom,
-        Enum.SecretType secretType,
-        bytes calldata privateInputs,
-        bytes calldata acl,
-        bytes calldata extraData
+        Struct.Bid calldata _bid,
+        address _payFrom,
+        Enum.SecretType _secretType,
+        bytes calldata _privateInputs,
+        bytes calldata _acl,
+        bytes calldata _extraData
     ) internal {
-        if (bid.reward == 0 || bid.proverData.length == 0) {
-            revert Error.CannotBeZero();
-        }
-        if (bid.expiry <= block.number + minProvingTime[secretType]) {
-            revert Error.CannotAssignExpiredTasks();
-        }
+        require(_bid.reward > 0 && _bid.proverData.length > 0, Error.CannotBeZero());
+
+        require(_bid.expiry > block.timestamp + minProvingTime[_secretType], Error.CannotAssignExpiredTasks());
+        require(_bid.expiry <= block.timestamp + MAX_MATCHING_TIME, Error.ExceedsMaximumMatchtime());
+        require(
+            _bid.timeForProofGeneration >= MIN_PROVING_TIME && _bid.timeForProofGeneration <= MAX_PROVING_TIME,
+            Error.InvalidTimeForProofGeneration()
+        );
 
         // ensures that the cipher used is small enough
-        if (acl.length > 130) {
-            revert Error.InvalidECIESACL();
-        }
+        require(_acl.length <= 130, Error.InvalidECIESACL());
 
-        Struct.Market memory market = marketData[bid.marketId];
+        Struct.Market memory market = marketData[_bid.marketId];
+        require(market.marketmetadata.length > 0, Error.InvalidMarket());
 
-        uint256 platformFee = getPlatformFee(secretType, bid, privateInputs, acl);
+        uint256 platformFee = getPlatformFee(_secretType, _bid, _privateInputs, _acl);
 
-        PAYMENT_TOKEN.safeTransferFrom(payFrom, address(this), bid.reward + platformFee);
-        PAYMENT_TOKEN.safeTransfer(TREASURY, platformFee);
-
-        if (market.marketmetadata.length == 0) {
-            revert Error.InvalidMarket();
-        }
+        IERC20(paymentToken).safeTransferFrom(_payFrom, address(this), _bid.reward + platformFee);
+        IERC20(paymentToken).safeTransfer(treasury, platformFee);
 
         uint256 bidId = listOfBid.length;
-        Struct.BidWithState memory bidRequest = Struct.BidWithState(bid, Enum.BidState.CREATED, msg.sender, address(0));
+        Struct.BidWithState memory bidRequest =
+            Struct.BidWithState(_bid, Enum.BidState.CREATED, _msgSender(), address(0));
         listOfBid.push(bidRequest);
 
         IVerifier inputVerifier = IVerifier(market.verifier);
-
-        if (!inputVerifier.verifyInputs(bid.proverData)) {
-            revert Error.InvalidInputs();
-        }
+        require(inputVerifier.verifyInputs(_bid.proverData), Error.InvalidInputs());
 
         if (market.proverImageId.IS_ENCLAVE()) {
             // ACL is emitted if private
-            emit BidCreated(bidId, true, privateInputs, acl, extraData);
+            emit BidCreated(bidId, true, _privateInputs, _acl, _extraData);
         } else {
             // ACL is not emitted if not private
-            emit BidCreated(bidId, false, "", "", extraData);
+            emit BidCreated(bidId, false, "", "", _extraData);
         }
     }
 
     /**
      * @notice Cancel the unassigned request. Refunds the proof fee back to the requestor
      */
-    function cancelBid(uint256 bidId) external nonReentrant {
+    function cancelBid(uint256 _bidId) external nonReentrant {
         // Only unassigned tasks can be cancelled.
-        require(getBidState(bidId) == Enum.BidState.UNASSIGNED, Error.OnlyExpiredBidsCanBeCancelled(bidId));
+        require(getBidState(_bidId) == Enum.BidState.UNASSIGNED, Error.OnlyExpiredBidsCanBeCancelled(_bidId));
 
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
         bidWithState.state = Enum.BidState.COMPLETED;
 
-        PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
+        IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
 
-        emit BidCancelled(bidId);
+        emit BidCancelled(_bidId);
     }
 
     //-------------------------------- Bid end --------------------------------//
@@ -335,141 +341,146 @@ contract ProofMarketplace is
     /**
      * @notice Submit Single Proof
      */
-    function submitProof(uint256 bidId, bytes calldata proof) external nonReentrant {
-        _submitProof(bidId, proof);
+    function submitProof(uint256 _bidId, bytes calldata _proof) external nonReentrant {
+        _submitProof(_bidId, _proof);
     }
 
     /**
      * @notice Submit Multiple proofs in single transaction
      */
-    function submitProofs(uint256[] memory taskIds, bytes[] calldata proofs) external nonReentrant {
-        if (taskIds.length != proofs.length) {
-            revert Error.ArityMismatch();
-        }
-        for (uint256 index = 0; index < taskIds.length; index++) {
-            _submitProof(taskIds[index], proofs[index]);
+    function submitProofs(uint256[] memory _taskIds, bytes[] calldata _proofs) external nonReentrant {
+        require(_taskIds.length == _proofs.length, Error.ArityMismatch());
+
+        for (uint256 index = 0; index < _taskIds.length; index++) {
+            _submitProof(_taskIds[index], _proofs[index]);
         }
     }
 
-    function _submitProof(uint256 bidId, bytes calldata proof) internal {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function _submitProof(uint256 _bidId, bytes calldata _proof) internal {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
 
         uint256 marketId = bidWithState.bid.marketId;
 
-        (address proverRewardAddress, uint256 minRewardForProver) =
-            PROVER_REGISTRY.getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
+        (address proverRewardAddress, uint256 proverAskAmount) =
+            ProverManager(proverManager).getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
         // check what needs to be encoded from proof, bid and task for proof to be verified
+        bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, _proof);
 
-        bytes memory inputAndProof = abi.encode(bidWithState.bid.proverData, proof);
+        // Verify input and _proof against verifier
+        require(IVerifier(marketData[marketId].verifier).verify(inputAndProof), Error.InvalidProof(_bidId));
 
-        // Verify input and proof against verifier
-        require(IVerifier(marketData[marketId].verifier).verify(inputAndProof), Error.InvalidProof(bidId));
+        listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
-        listOfBid[bidId].state = Enum.BidState.COMPLETED;
-
-        uint256 toBackToRequestor = bidWithState.bid.reward - minRewardForProver;
+        uint256 toBackToRequestor = bidWithState.bid.reward - proverAskAmount;
 
         // reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
+        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, bidWithState.prover, proverRewardAddress, proverAskAmount);
 
-        // fraction of amount back to requestor
-        PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
+        // fraction of amount back to requestor (BidAmount - AskAmount)
+        IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, toBackToRequestor);
 
-        // TODO: consider setting slashingPenalty per market
-        // uint256 proverAmountToRelease = _slashingPenalty(marketId);
-        PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
-        emit ProofCreated(bidId, proof);
+        ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, feeRewardRemaining);
+        emit ProofCreated(_bidId, _proof);
     }
 
     /**
      * @notice Submit Attestation/Proof from the IVS signer that the given inputs are invalid
      */
-    function submitProofForInvalidInputs(uint256 bidId, bytes calldata invalidProofSignature) external nonReentrant {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function submitProofForInvalidInputs(uint256 _bidId, bytes calldata _invalidProofSignature) external nonReentrant {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
         uint256 marketId = bidWithState.bid.marketId;
 
-        (uint256 minRewardForProver, address proverRewardAddress) = _verifyAndGetData(bidId, bidWithState);
+        (address proverRewardAddress, uint256 minRewardForProver) = _verifyAndGetData(_bidId, bidWithState);
 
         require(
             _checkDisputeUsingSignature(
-                bidId, bidWithState.bid.proverData, invalidProofSignature, marketId.IVS_FAMILY_ID()
+                _bidId, bidWithState.bid.proverData, _invalidProofSignature, marketId.IVS_FAMILY_ID()
             ),
-            Error.CannotSlashUsingValidInputs(bidId)
+            Error.CannotSlashUsingValidInputs(_bidId)
         );
 
-        _completeProofForInvalidRequests(bidId, bidWithState, minRewardForProver, proverRewardAddress, marketId);
+        _completeProofForInvalidRequests(_bidId, bidWithState, proverRewardAddress, minRewardForProver, marketId);
     }
 
-    function _verifyAndGetData(uint256 bidId, Struct.BidWithState memory bidWithState)
+    function _verifyAndGetData(uint256 _bidId, Struct.BidWithState memory _bidWithState)
         internal
         view
-        returns (uint256, address)
+        returns (address, uint256)
     {
         (address proverRewardAddress, uint256 minRewardForProver) =
-            PROVER_REGISTRY.getProverRewardDetails(bidWithState.prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverRewardDetails(_bidWithState.prover, _bidWithState.bid.marketId);
 
         require(proverRewardAddress != address(0), Error.CannotBeZero());
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
 
-        return (minRewardForProver, proverRewardAddress);
+        return (proverRewardAddress, minRewardForProver);
     }
 
     function _checkDisputeUsingSignature(
-        uint256 bidId,
-        bytes memory proverData,
-        bytes memory invalidProofSignature,
-        bytes32 familyId
+        uint256 _bidId,
+        bytes memory _proverData,
+        bytes memory _invalidProofSignature,
+        bytes32 _familyId
     ) internal view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(bidId, proverData));
+        bytes32 messageHash = keccak256(abi.encode(_bidId, _proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
-        address signer = ECDSA.recover(ethSignedMessageHash, invalidProofSignature);
+        address signer = ECDSA.recover(ethSignedMessageHash, _invalidProofSignature);
         require(signer != address(0), Error.InvalidEnclaveSignature(signer));
 
-        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(familyId, signer);
+        EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(_familyId, signer);
         return true;
     }
 
     function _completeProofForInvalidRequests(
-        uint256 bidId,
-        Struct.BidWithState memory bidWithState,
-        uint256 minRewardForProver,
-        address proverRewardAddress,
-        uint256 marketId
+        uint256 _bidId,
+        Struct.BidWithState memory _bidWithState,
+        address _proverRewardAddress,
+        uint256 _proverAskAmount,
+        uint256 _marketId
     ) internal {
         // Only assigned requests can be proved
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(bidId));
-        listOfBid[bidId].state = Enum.BidState.COMPLETED;
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.OnlyAssignedBidsCanBeProved(_bidId));
+        listOfBid[_bidId].state = Enum.BidState.COMPLETED;
 
-        // tokens related to incorrect request will be sen't to treasury
-        uint256 toTreasury = bidWithState.bid.reward - minRewardForProver;
+        // tokens related to incorrect request will be sent to treasury
+        uint256 toTreasury = _bidWithState.bid.reward - _proverAskAmount;
 
         // transfer the reward to prover
-        uint256 feeRewardRemaining = _distributeProverFeeReward(marketId, proverRewardAddress, minRewardForProver);
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
+        uint256 feeRewardRemaining =
+            _distributeProverFeeReward(_marketId, _bidWithState.prover, _proverRewardAddress, _proverAskAmount);
 
         // transfer the amount to treasury collection
-        PAYMENT_TOKEN.safeTransfer(TREASURY, toTreasury);
+        IERC20(paymentToken).safeTransfer(treasury, toTreasury);
 
-        PROVER_REGISTRY.completeProverTask(bidId, bidWithState.prover, marketId, feeRewardRemaining);
-        emit InvalidInputsDetected(bidId);
+        ProverManager(proverManager).completeProverTask(_bidId, _bidWithState.prover, _marketId, feeRewardRemaining);
+        emit InvalidInputsDetected(_bidId);
     }
 
-    function _distributeProverFeeReward(uint256 _marketId, address _prover, uint256 _feePaid)
-        internal
-        returns (uint256 feeRewardRemaining)
-    {
+    function _distributeProverFeeReward(
+        uint256 _marketId,
+        address _prover,
+        address _proverRewardAddress,
+        uint256 _feePaid
+    ) internal returns (uint256 feeRewardRemaining) {
         // calculate prover fee reward
-        uint256 proverCommission = PROVER_REGISTRY.getProverCommission(_marketId, _prover);
-        uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
-        feeRewardRemaining = _feePaid - proverFeeReward;
+        // uint256 proverCommission = ProverManager(proverManager).getProverCommission(_marketId, _prover);
+        // uint256 proverFeeReward = Math.mulDiv(_feePaid, proverCommission, 1e18);
+
+        // Note: initially all the reward will be sent to prover, so feeRewardRemaining will be 0
+        uint256 proverFeeReward = _feePaid;
 
         // update prover fee reward
-        proverClaimableFeeReward[_prover] += proverFeeReward;
+        proverClaimableFeeReward[_proverRewardAddress] += proverFeeReward;
+
+        feeRewardRemaining = _feePaid - proverFeeReward;
 
         emit ProverFeeRewardAdded(_prover, proverFeeReward);
     }
@@ -477,11 +488,11 @@ contract ProofMarketplace is
     /**
      * @notice Prover can discard assigned request if he choses to. This will however result in slashing
      */
-    function discardRequest(uint256 bidId) external nonReentrant {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
-        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(bidId));
-        require(getBidState(bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(bidId));
-        _refundFee(bidId);
+    function discardRequest(uint256 _bidId) external nonReentrant {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
+        require(getBidState(_bidId) == Enum.BidState.ASSIGNED, Error.ShouldBeInAssignedState(_bidId));
+        require(bidWithState.prover == _msgSender(), Error.OnlyProverCanDiscardRequest(_bidId));
+        _refundFee(_bidId);
     }
 
     //-------------------------------- Prover end --------------------------------//
@@ -491,24 +502,24 @@ contract ProofMarketplace is
     /**
      * @notice Slash Prover for deadline crossed requests
      */
-    function refundFees(uint256[] calldata bidIds) external {
-        for (uint256 i = 0; i < bidIds.length; i++) {
-            Enum.BidState bidState = getBidState(bidIds[i]);
+    function refundFees(uint256[] calldata _bidIds) external {
+        for (uint256 i = 0; i < _bidIds.length; i++) {
+            Enum.BidState bidState = getBidState(_bidIds[i]);
 
-            if(bidState == Enum.BidState.DEADLINE_CROSSED) {
+            if (bidState == Enum.BidState.DEADLINE_CROSSED) {
                 // if `refundFee` hasn't been called
-                _refundFee(bidIds[i]);
+                _refundFee(_bidIds[i]);
             } else if (bidState == Enum.BidState.COMPLETED) {
                 // actual slashing be done by StakingManager
                 continue;
             } else {
-                revert Error.NotSlashableBidId(bidIds[i]);  
+                revert Error.NotSlashableBidId(_bidIds[i]);
             }
         }
     }
 
-    function _refundFee(uint256 bidId) internal {
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+    function _refundFee(uint256 _bidId) internal {
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
 
         bidWithState.state = Enum.BidState.COMPLETED;
         uint256 marketId = bidWithState.bid.marketId;
@@ -516,16 +527,16 @@ contract ProofMarketplace is
         // Locked Stake will be unlocked when SlashResult is submitted to SymbioticStaking
         if (bidWithState.bid.reward != 0) {
             // refund fee to requestor
-            PAYMENT_TOKEN.safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
+            IERC20(paymentToken).safeTransfer(bidWithState.bid.refundAddress, bidWithState.bid.reward);
             bidWithState.bid.reward = 0;
 
-            PROVER_REGISTRY.releaseProverCompute(bidWithState.prover, marketId);
-            emit ProofNotGenerated(bidId);
-        }
-    }
+            // TODO: Remove this (i.e. releasing the stake) when slashing is implemented
+            ProverManager(proverManager).completeProverTask(_bidId, bidWithState.prover, marketId, 0);
+            // TODO: Uncomment this when slashing is implemented
+            // ProverManager(proverManager).releaseProverCompute(bidWithState.prover, marketId);
 
-    function _slashingPenalty(uint256 marketId) internal view returns (uint256) {
-        return marketData[marketId].slashingPenalty;
+            emit ProofNotGenerated(_bidId);
+        }
     }
 
     //-------------------------------- Slashing end --------------------------------//
@@ -535,59 +546,61 @@ contract ProofMarketplace is
     /**
      * @notice Assign Tasks for Provers directly if ME signer has the gas
      */
-    function assignTask(uint256 bidId, address prover, bytes calldata new_acl) external nonReentrant {
-        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender());
-        _assignTask(bidId, prover, new_acl);
+    function assignTask(uint256 _bidId, address _prover, bytes calldata _new_acl) external nonReentrant {
+        EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(
+            MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _msgSender()
+        );
+        _assignTask(_bidId, _prover, _new_acl);
     }
 
-    function _assignTask(uint256 bidId, address prover, bytes memory new_acl) internal {
+    function _assignTask(uint256 _bidId, address _prover, bytes memory _new_acl) internal {
         // Only tasks in CREATE state can be assigned
-        require(getBidState(bidId) == Enum.BidState.CREATED, Error.ShouldBeInCreateState());
+        require(getBidState(_bidId) == Enum.BidState.CREATED, Error.ShouldBeInCreateState());
 
-        Struct.BidWithState storage bidWithState = listOfBid[bidId];
+        Struct.BidWithState storage bidWithState = listOfBid[_bidId];
         (uint256 proofGenerationCost, uint256 proverProposedTime) =
-            PROVER_REGISTRY.getProverAssignmentDetails(prover, bidWithState.bid.marketId);
+            ProverManager(proverManager).getProverAssignmentDetails(_prover, bidWithState.bid.marketId);
 
         // Can not assign task if price mismatch happens
         if (bidWithState.bid.reward < proofGenerationCost) {
-            revert Error.ProofPriceMismatch(bidId);
+            revert Error.ProofPriceMismatch(_bidId);
         }
 
         // Can not assign task if time mismatch happens
-        if (bidWithState.bid.timeTakenForProofGeneration < proverProposedTime) {
-            revert Error.ProofTimeMismatch(bidId);
+        if (bidWithState.bid.timeForProofGeneration < proverProposedTime) {
+            revert Error.ProofTimeMismatch(_bidId);
         }
 
         bidWithState.state = Enum.BidState.ASSIGNED;
-        bidWithState.bid.deadline = block.number + bidWithState.bid.timeTakenForProofGeneration;
-        bidWithState.prover = prover;
+        bidWithState.bid.deadline = block.timestamp + bidWithState.bid.timeForProofGeneration;
+        bidWithState.prover = _prover;
 
-        PROVER_REGISTRY.assignProverTask(bidId, prover, bidWithState.bid.marketId);
-        emit TaskCreated(bidId, prover, new_acl);
+        ProverManager(proverManager).assignProverTask(_bidId, _prover, bidWithState.bid.marketId);
+        emit TaskCreated(_bidId, _prover, _new_acl);
     }
 
     /**
      * @notice Assign Tasks for Provers. Only Matching Engine Image can call
      */
     function relayBatchAssignTasks(
-        uint256[] memory bidIds,
-        address[] memory provers,
-        bytes[] calldata newAcls,
-        bytes calldata signature
+        uint256[] calldata _bidIds,
+        address[] calldata _provers,
+        bytes[] calldata _newAcls,
+        bytes calldata _signature
     ) external nonReentrant {
-        if (bidIds.length != provers.length || provers.length != newAcls.length) {
-            revert Error.ArityMismatch();
-        }
+        require((_bidIds.length == _provers.length) && (_provers.length == _newAcls.length), Error.ArityMismatch());
 
-        bytes32 messageHash = keccak256(abi.encode(bidIds, provers, newAcls));
+        bytes32 messageHash = keccak256(abi.encode(_bidIds, _provers, _newAcls));
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
-        address signer = ECDSA.recover(ethSignedMessageHash, signature);
+        address signer = ECDSA.recover(ethSignedMessageHash, _signature);
 
-        ENTITY_KEY_REGISTRY.allowOnlyVerifiedFamily(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer);
+        EntityKeyRegistry(entityKeyRegistry).allowOnlyVerifiedFamily(
+            MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), signer
+        );
 
-        for (uint256 index = 0; index < bidIds.length; index++) {
-            _assignTask(bidIds[index], provers[index], newAcls[index]);
+        for (uint256 index = 0; index < _bidIds.length; index++) {
+            _assignTask(_bidIds[index], _provers[index], _newAcls[index]);
         }
     }
 
@@ -595,18 +608,19 @@ contract ProofMarketplace is
 
     //-------------------------------- Reward Claim start --------------------------------//
 
-    function claimProverFeeReward() external {
-        uint256 amount = proverClaimableFeeReward[_msgSender()];
+    function claimProverFeeReward(address proverRewardAddress) external {
+        uint256 amount = proverClaimableFeeReward[proverRewardAddress];
         require(amount > 0, Error.NoRewardToClaim());
-        PAYMENT_TOKEN.safeTransfer(_msgSender(), amount);
-        delete proverClaimableFeeReward[_msgSender()];
+        IERC20(paymentToken).safeTransfer(proverRewardAddress, amount);
+        delete proverClaimableFeeReward[proverRewardAddress];
     }
 
+    // TODO: seperate RewardAddress
     function claimTransmitterFeeReward() external {
         uint256 amount = transmitterClaimableFeeReward[_msgSender()];
         require(amount > 0, Error.NoRewardToClaim());
 
-        PAYMENT_TOKEN.safeTransfer(_msgSender(), amount);
+        IERC20(paymentToken).safeTransfer(_msgSender(), amount);
         delete transmitterClaimableFeeReward[_msgSender()];
     }
 
@@ -624,7 +638,7 @@ contract ProofMarketplace is
     }
 
     function transferFeeToken(address _recipient, uint256 _amount) external onlyRole(SYMBIOTIC_STAKING_REWARD_ROLE) {
-        IERC20(PAYMENT_TOKEN).safeTransfer(_recipient, _amount);
+        IERC20(paymentToken).safeTransfer(_recipient, _amount);
     }
 
     //-------------------------------- SYMBIOTIC_STAKING_REWARD end --------------------------------//
@@ -634,42 +648,49 @@ contract ProofMarketplace is
     /**
      * @notice Enforces PMP to use only one matching engine image
      */
-    function setMatchingEngineImage(bytes calldata pcrs) external onlyRole(UPDATER_ROLE) {
-        ENTITY_KEY_REGISTRY.whitelistImageUsingPcrs(MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), pcrs);
+    function setMatchingEngineImage(bytes calldata _pcrs) external onlyRole(UPDATER_ROLE) {
+        EntityKeyRegistry(entityKeyRegistry).whitelistImageUsingPcrs(
+            MATCHING_ENGINE_ROLE.MATCHING_ENGINE_FAMILY_ID(), _pcrs
+        );
     }
 
     /**
      * @notice Verifies the matching engine and its' keys. Can be verified only by UPDATE_ROLE till multi matching engine key sharing is enabled
      */
-    function verifyMatchingEngine(bytes memory attestationData, bytes calldata meSignature)
+    function verifyMatchingEngine(bytes calldata _attestationData, bytes calldata _meSignature)
         external
         onlyRole(UPDATER_ROLE)
     {
         address _thisAddress = address(this);
 
         // confirms that admin has access to enclave
-        attestationData.VERIFY_ENCLAVE_SIGNATURE(meSignature, _thisAddress);
+        _attestationData.VERIFY_ENCLAVE_SIGNATURE(_meSignature, _thisAddress);
 
         // checks attestation and updates the key
-        ENTITY_KEY_REGISTRY.updatePubkey(_thisAddress, 0, attestationData.GET_PUBKEY(), attestationData);
+        EntityKeyRegistry(entityKeyRegistry).updatePubkey(
+            _thisAddress, 0, _attestationData.GET_PUBKEY(), _attestationData
+        );
     }
 
     /**
      * @notice Update Cost for inputs
      */
-    function updateCostPerBytes(Enum.SecretType secretType, uint256 costPerByte) external onlyRole(UPDATER_ROLE) {
-        costPerInputBytes[secretType] = costPerByte;
+    function updateCostPerBytes(Enum.SecretType _secretType, uint256 _costPerByte) external onlyRole(UPDATER_ROLE) {
+        costPerInputBytes[_secretType] = _costPerByte;
 
-        emit UpdateCostPerBytes(secretType, costPerByte);
+        emit UpdateCostPerBytes(_secretType, _costPerByte);
     }
 
     /**
      * @notice Update Min Proving Time
      */
-    function updateMinProvingTime(Enum.SecretType secretType, uint256 newProvingTime) external onlyRole(UPDATER_ROLE) {
-        minProvingTime[secretType] = newProvingTime;
+    function updateMinProvingTime(Enum.SecretType _secretType, uint256 _newProvingTime)
+        external
+        onlyRole(UPDATER_ROLE)
+    {
+        minProvingTime[_secretType] = _newProvingTime;
 
-        emit UpdateMinProvingTime(secretType, newProvingTime);
+        emit UpdateMinProvingTime(_secretType, _newProvingTime);
     }
 
     function pause() external onlyRole(UPDATER_ROLE) {
@@ -680,26 +701,51 @@ contract ProofMarketplace is
         _unpause();
     }
 
+    function setMarketCreationCost(uint256 _marketCreationCost) external onlyRole(UPDATER_ROLE) {
+        marketCreationCost = _marketCreationCost;
+        emit MarketCreationCostSet(_marketCreationCost);
+    }
+
+    function setPaymentToken(address _paymentToken) external onlyRole(UPDATER_ROLE) {
+        paymentToken = _paymentToken;
+        emit PaymentTokenSet(_paymentToken);
+    }
+
+    function setTreasury(address _treasury) external onlyRole(UPDATER_ROLE) {
+        treasury = _treasury;
+        emit TreasurySet(_treasury);
+    }
+
+    function setProverManager(address _proverManager) external onlyRole(UPDATER_ROLE) {
+        proverManager = _proverManager;
+        emit ProverManagerSet(_proverManager);
+    }
+
+    function setEntityKeyRegistry(address _entityKeyRegistry) external onlyRole(UPDATER_ROLE) {
+        entityKeyRegistry = _entityKeyRegistry;
+        emit EntityKeyRegistrySet(_entityKeyRegistry);
+    }
+
     //-------------------------------- UPDATER_ROLE end --------------------------------//
 
     //-------------------------------- Getter start --------------------------------//
 
     /**
      * @notice Different secret might have different fee. Hence fee is different
-     * @param secretType: Secret Type
-     * @param bid: Details of the bid
-     * @param privateInputs: Private Inputs to the circuit
-     * @param acl: Access control Data
+     * @param _secretType: Secret Type
+     * @param _bid: Details of the bid
+     * @param _privateInputs: Private Inputs to the circuit
+     * @param _acl: Access control Data
      */
     function getPlatformFee(
-        Enum.SecretType secretType,
-        Struct.Bid calldata bid,
-        bytes calldata privateInputs,
-        bytes calldata acl
+        Enum.SecretType _secretType,
+        Struct.Bid calldata _bid,
+        bytes calldata _privateInputs,
+        bytes calldata _acl
     ) public view returns (uint256) {
-        uint256 costperByte = costPerInputBytes[secretType];
+        uint256 costperByte = costPerInputBytes[_secretType];
         if (costperByte != 0) {
-            return (bid.proverData.length + privateInputs.length + acl.length) * costperByte;
+            return (_bid.proverData.length + _privateInputs.length + _acl.length) * costperByte;
         }
         return 0;
     }
@@ -707,12 +753,12 @@ contract ProofMarketplace is
     /**
      * @notice Possible States: NULL, CREATE, UNASSIGNED, ASSIGNED, COMPLETE, DEADLINE_CROSSED
      */
-    function getBidState(uint256 bidId) public view returns (Enum.BidState) {
-        Struct.BidWithState memory bidWithState = listOfBid[bidId];
+    function getBidState(uint256 _bidId) public view returns (Enum.BidState) {
+        Struct.BidWithState memory bidWithState = listOfBid[_bidId];
 
         // time before which matching engine should assign the task to prover
         if (bidWithState.state == Enum.BidState.CREATED) {
-            if (bidWithState.bid.expiry > block.number) {
+            if (bidWithState.bid.expiry > block.timestamp) {
                 return bidWithState.state;
             }
 
@@ -721,7 +767,7 @@ contract ProofMarketplace is
 
         // time before which prover should submit the proof
         if (bidWithState.state == Enum.BidState.ASSIGNED) {
-            if (bidWithState.bid.deadline < block.number) {
+            if (bidWithState.bid.deadline < block.timestamp) {
                 return Enum.BidState.DEADLINE_CROSSED;
             }
 
@@ -743,8 +789,8 @@ contract ProofMarketplace is
 
     //-------------------------------- Overrides start --------------------------------//
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}

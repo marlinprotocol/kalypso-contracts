@@ -3,16 +3,13 @@ import { expect } from "chai";
 import { Signer } from "ethers";
 import { ethers, upgrades } from "hardhat";
 
-import { bytesToHexString, generateRandomBytes, MockEnclave, MockGeneratorPCRS, MockIVSPCRS, MockMEPCRS, skipBlocks } from "../helpers";
+import { bytesToHexString, generateRandomBytes, MockEnclave, MockIVSPCRS, MockMEPCRS, MockProverPCRS, skipBlocks } from "../helpers";
 import {
-  Dispute,
   Dispute__factory,
   EntityKeyRegistry,
   EntityKeyRegistry__factory,
   Error,
   Error__factory,
-  GeneratorRegistry,
-  GeneratorRegistry__factory,
   MockAttestationVerifier__factory,
   MockToken,
   MockToken__factory,
@@ -22,6 +19,8 @@ import {
   NativeStaking__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
+  ProverManager,
+  ProverManager__factory,
   StakingManager,
   StakingManager__factory,
   SymbioticStaking,
@@ -41,9 +40,9 @@ describe("Staking manager", () => {
 
   /* Constants */
   const tokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(4); // 4 * 10^24
-  const marketCreationCost: BigNumber = new BigNumber(10).pow(20).multipliedBy(5); // 5 * 10^20
-  const generatorStakingAmount = new BigNumber(10).pow(21).multipliedBy(6); // 6 * 10^21
-  const minRewardForGenerator = new BigNumber(10).pow(18).multipliedBy(100); // 100 * 10^18
+  const MARKET_CREATION_COST: BigNumber = new BigNumber(10).pow(20).multipliedBy(5); // 5 * 10^20
+  const proverStakingAmount = new BigNumber(10).pow(21).multipliedBy(6); // 6 * 10^21
+  const minRewardForProver = new BigNumber(10).pow(18).multipliedBy(100); // 100 * 10^18
   const exponent = new BigNumber(10).pow(18);
   const penaltyForNotComputingProof = exponent.div(100).toFixed(0);
 
@@ -54,7 +53,7 @@ describe("Staking manager", () => {
   let symbioticStaking: SymbioticStaking;
   let symbioticStakingReward: SymbioticStakingReward;
   let proofMarketplace: ProofMarketplace;
-  let generatorRegistry: GeneratorRegistry;
+  let proverManager: ProverManager;
   let entityRegistry: EntityKeyRegistry;
   let mockVerifier: MockVerifier;
   let errorLibrary: Error;
@@ -115,7 +114,6 @@ describe("Staking manager", () => {
       });
       symbioticStakingReward = SymbioticStakingReward__factory.connect(await _symbioticStakingReward.getAddress(), admin);
 
-
       // EntityKeyRegistry
       const mockAttestationVerifier = await new MockAttestationVerifier__factory(admin).deploy();
       const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
@@ -125,26 +123,18 @@ describe("Staking manager", () => {
       });
       entityRegistry = EntityKeyRegistry__factory.connect(await _entityKeyRegistry.getAddress(), admin);
 
-      // GeneratorRegistry
-      const GeneratorRegistryContract = await ethers.getContractFactory("GeneratorRegistry");
-      const generatorProxy = await upgrades.deployProxy(GeneratorRegistryContract, [], {
+      // ProverManager
+      const ProverManagerContract = await ethers.getContractFactory("ProverManager");
+      const proverProxy = await upgrades.deployProxy(ProverManagerContract, [], {
         kind: "uups",
-        constructorArgs: [await mockToken.getAddress(), await entityRegistry.getAddress()],
         initializer: false,
       });
-      generatorRegistry = GeneratorRegistry__factory.connect(await generatorProxy.getAddress(), signers[0]);
+      proverManager = ProverManager__factory.connect(await proverProxy.getAddress(), signers[0]);
 
       // ProofMarketplace
       const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
       const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
         kind: "uups",
-        constructorArgs: [
-          await mockToken.getAddress(),
-          marketCreationCost.toString(),
-          await treasury.getAddress(),
-          await generatorRegistry.getAddress(),
-          await entityRegistry.getAddress(),
-        ],
         initializer: false,
       });
 
@@ -162,12 +152,13 @@ describe("Staking manager", () => {
         await mockToken.getAddress(),
       );
 
-      // GENERATOR_REGISTRY_ROLE to GeneratorRegistry
-      await stakingManager.grantRole(await stakingManager.GENERATOR_REGISTRY_ROLE(), await generatorRegistry.getAddress());
+      // StakingManager.PROVER_MANAGER_ROLE to ProverManager
+      await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
 
       // SymbioticStaking
       await symbioticStaking.initialize(
         await admin.getAddress(),
+        await mockAttestationVerifier.getAddress(),
         await proofMarketplace.getAddress(),
         await stakingManager.getAddress(),
         await symbioticStakingReward.getAddress(),
@@ -182,11 +173,23 @@ describe("Staking manager", () => {
         await mockToken.getAddress(),
       );
 
-      // GeneratorRegistry
-      await generatorRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress());
+      // ProverManager
+      await proverManager.initialize(
+        await admin.getAddress(),
+        await proofMarketplace.getAddress(),
+        await stakingManager.getAddress(),
+        await entityRegistry.getAddress(),
+      );
 
       // ProofMarketplace
-      await proofMarketplace.initialize(await admin.getAddress());
+      await proofMarketplace.initialize(
+        await admin.getAddress(),
+        await mockToken.getAddress(),
+        await treasury.getAddress(),
+        await proverManager.getAddress(),
+        await entityRegistry.getAddress(),
+        MARKET_CREATION_COST.toString(),
+      );
 
       //-------------------------------------- Config --------------------------------------//
       /* StakingManager */
@@ -197,14 +200,14 @@ describe("Staking manager", () => {
 
       expect(ethers.isAddress(await proofMarketplace.getAddress())).is.true;
 
-      // Transfer market creation cost to `marketCreator` ()
-      await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
+      // Transfer market creation cost to `marketCreator` (admin)
+      await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), MARKET_CREATION_COST.toFixed());
 
-      // KEY_REGISTER_ROLE to ProofMarketplace and GeneratorRegistry
+      // KEY_REGISTER_ROLE to ProofMarketplace and ProverManager
       await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
-      // KEY_REGISTER_ROLE to GeneratorRegistry
-      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await generatorRegistry.getAddress());
+      // KEY_REGISTER_ROLE to ProverManager
+      await entityRegistry.connect(admin).grantRole(await entityRegistry.KEY_REGISTER_ROLE(), await proverManager.getAddress());
 
       // UPDATER_ROLE to admin
       await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
@@ -225,7 +228,7 @@ describe("Staking manager", () => {
     let marketId: string;
 
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 1000; // in blocks
+    let timeForProofGeneration = 1000; // in blocks
     let maxTimeForProofGeneration = 10000; // in blocks
 
     beforeEach(async () => {
@@ -237,26 +240,21 @@ describe("Staking manager", () => {
       marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).toFixed();
 
       // Approve marketplace for market creation cost
-      await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), marketCreationCost.toFixed());
+      await mockToken.connect(marketCreator).approve(await proofMarketplace.getAddress(), MARKET_CREATION_COST.toFixed());
 
       // Create Marketplace
       await proofMarketplace
         .connect(marketCreator)
-        .createMarketplace(
+        .createMarket(
           marketBytes,
           await mockVerifier.getAddress(),
-          penaltyForNotComputingProof,
-          new MockEnclave(MockGeneratorPCRS).getPcrRlp(),
+          new MockEnclave(MockProverPCRS).getPcrRlp(),
           ivsEnclave.getPcrRlp(),
         );
 
-      // Skip market activation delay
-      let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-      await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
-
       // Create Ask Request
       const latestBlock = await ethers.provider.getBlockNumber();
-      const askIdToBeGenerated = await proofMarketplace.askCounter();
+      const askIdToBeGenerated = await proofMarketplace.bidCounter();
 
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
       const askRequest = {
@@ -264,7 +262,7 @@ describe("Staking manager", () => {
         proverData: proverBytes,
         reward: reward.toFixed(),
         expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
+        timeForProofGeneration,
         deadline: latestBlock + maxTimeForProofGeneration,
         refundAddress: await prover.getAddress(),
       };
@@ -280,16 +278,18 @@ describe("Staking manager", () => {
       await mockToken
         .connect(prover)
         .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
-      
-        await expect(proofMarketplace.connect(prover).createAsk(askRequest, 1, secretInfo, aclInfo))
-        .to.emit(proofMarketplace, "AskCreated")
+
+      await expect(proofMarketplace.connect(prover).createBid(askRequest, 1, secretInfo, aclInfo, "0x"))
+        .to.emit(proofMarketplace, "BidCreated")
         .withArgs(askIdToBeGenerated, true, "0x2345", "0x21")
         .to.emit(mockToken, "Transfer")
         .withArgs(await prover.getAddress(), await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward));
 
-      expect((await proofMarketplace.listOfAsk(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
+      expect((await proofMarketplace.listOfBid(askIdToBeGenerated)).state).to.equal(1); // 1 means create state
     });
 
-    // it()
+    it("should register prover", async () => {
+      console.log("hello");
+    });
   });
 });

@@ -1,16 +1,23 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-
-import { MockEnclave, MockGeneratorPCRS, generatorFamilyId } from "../helpers";
+import { expect } from 'chai';
+import { Signer } from 'ethers';
 import {
-  Error,
-  Error__factory,
+  ethers,
+  upgrades,
+} from 'hardhat';
+
+import {
+  MockEnclave,
+  MockProverPCRS,
+  proverFamilyId,
+} from '../helpers';
+import {
   EntityKeyRegistry,
   EntityKeyRegistry__factory,
-  MockAttestationVerifier__factory,
+  Error,
+  Error__factory,
   MockAttestationVerifier,
-} from "../typechain-types";
+  MockAttestationVerifier__factory,
+} from '../typechain-types';
 
 describe("Entity key registry tests", () => {
   let signers: Signer[];
@@ -53,14 +60,14 @@ describe("Entity key registry tests", () => {
   });
 
   it("Update key", async () => {
-    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
+    const prover_enclave = new MockEnclave(MockProverPCRS);
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(proverFamilyId(1), prover_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
         0,
-        generator_enclave.getUncompressedPubkey(),
-        await generator_enclave.getVerifiedAttestation(generator_enclave),
+        prover_enclave.getUncompressedPubkey(),
+        await prover_enclave.getVerifiedAttestation(prover_enclave),
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -69,14 +76,14 @@ describe("Entity key registry tests", () => {
 
   it("Remove key", async () => {
     // Adding key to registry
-    const generator_enclave = new MockEnclave(MockGeneratorPCRS);
-    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(generatorFamilyId(1), generator_enclave.getPcrRlp());
+    const prover_enclave = new MockEnclave(MockProverPCRS);
+    await entityKeyRegistry.connect(admin).whitelistImageUsingPcrs(proverFamilyId(1), prover_enclave.getPcrRlp());
     await expect(
       entityKeyRegistry.updatePubkey(
         randomUser.getAddress(),
         8,
-        generator_enclave.getUncompressedPubkey(),
-        await generator_enclave.getVerifiedAttestation(generator_enclave),
+        prover_enclave.getUncompressedPubkey(),
+        await prover_enclave.getVerifiedAttestation(prover_enclave),
       ),
     )
       .to.emit(entityKeyRegistry, "UpdateKey")
@@ -84,7 +91,7 @@ describe("Entity key registry tests", () => {
 
     // Checking key in registry
     const pub_key = await entityKeyRegistry.pub_key(randomUser.getAddress(), 8);
-    expect(pub_key).to.eq(generator_enclave.getUncompressedPubkey());
+    expect(pub_key).to.eq(prover_enclave.getUncompressedPubkey());
 
     // Removing key from registry
     await expect(entityKeyRegistry.removePubkey(randomUser.getAddress(), 9))

@@ -57,6 +57,7 @@ library Error {
 
     // Task and Request Errors
     error CannotAssignExpiredTasks();
+    error ExceedsMaximumMatchtime();
     error InvalidInputs();
     error ArityMismatch();
     error OnlyMatchingEngineCanAssign();
@@ -74,7 +75,7 @@ library Error {
     error ShouldBeInAssignedState(uint256 bidId);
     error OnlyProverCanDiscardRequest(uint256 bidId);
 
-    // ProverRegistry
+    // ProverManager
     error ZeroProverDataLength();
     error ZeroComputeToIncrease();
     error ZeroComputeToReduce();
@@ -86,7 +87,9 @@ library Error {
     // ProofMarketplace
     error InvalidProverRewardShare();
     error NotSlashableBidId(uint256 bidId);
-
+    error InvalidProverProposedTime();
+    error InvalidTimeForProofGeneration();
+    
     // Staking
     error InsufficientStakeAmount();
     error NoStakeTokenAvailableToLock();
@@ -96,8 +99,12 @@ library Error {
     // StakingManager
     error InvalidPool();
     error PoolAlreadyExists();
+    error PoolDoesNotExist();
     error InvalidLength();
     error InvalidShares();
+    error ZeroRewardShare();
+    error PoolAlreadyEnabled();
+    error PoolAlreadyDisabled();
     
     // Symbiotic Staking
     error InvalidSlashResultBlockRange();
@@ -106,6 +113,7 @@ library Error {
     error NotRegisteredTransmitter();
     error SubmissionAlreadyCompleted();
     error InvalidIndex();
+    error InvalidNumOfTxs();
     error ZeroNumOfTxs();
     error InvalidCaptureTimestamp();
     error CooldownPeriodNotPassed();
@@ -125,6 +133,7 @@ library Error {
     error TokenAlreadyExists();
     error TokenDoesNotExist();
     error InvalidComissionRate();
+    error NoConfirmedTimestamp();
 
     // Native Staking
     error OnlyProverCanStake();
@@ -135,6 +144,7 @@ library Error {
     error InvalidWithdrawalAmount();
     error TokenNotSupported();
     error InvalidWithdrawalDuration();
+    error ZeroAmount();
 
     // SymbioticStakingReward
     error OnlyStakingManager();
@@ -142,7 +152,12 @@ library Error {
     error ZeroSymbioticStakingAddress();
 
     // Contract Address
-    error InvalidStakingManager();
+    error InvalidAdmin();
     error InvalidFeeToken();
+    error InvalidAttestationVerifier();
+    error InvalidProofMarketplace();
+    error InvalidProverManager();
     error InvalidSymbioticStaking();
+    error InvalidStakingManager();
+    error InvalidRewardDistributor();
 }

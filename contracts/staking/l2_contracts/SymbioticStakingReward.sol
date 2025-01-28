@@ -34,26 +34,17 @@ contract SymbioticStakingReward is
 
     //---------------------------------------- Constant start ----------------------------------------//
 
-    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE");
+    bytes32 public constant SYMBIOTIC_STAKING_ROLE = keccak256("SYMBIOTIC_STAKING_ROLE"); // 0x10a5972a598c4264843f7322e2775a07694fac8a54ef3e471a9e82ed2af9bb58
 
     //---------------------------------------- Constant end ----------------------------------------//
 
     //---------------------------------------- State Variable start ----------------------------------------//
 
-    // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
     address public proofMarketplace;
     address public symbioticStaking;
-
     address public feeRewardToken;
-
-    // gaps in case we new vars in same file
-    uint256[500] private __gap_1;
-
-    //---------------------------------------- State Variable end ----------------------------------------//
-
-    //---------------------------------------- Mapping start ----------------------------------------//
 
     // rewardTokens amount per stakeToken
     mapping(address stakeToken => mapping(address rewardToken => mapping(address prover => uint256 rewardPerToken)))
@@ -69,7 +60,9 @@ contract SymbioticStakingReward is
     // reward accrued that the vault can claim
     mapping(address rewardToken => mapping(address vault => uint256 amount)) public rewardAccrued;
 
-    //---------------------------------------- Mapping end ----------------------------------------//
+    uint256[500] private __gap_1;
+
+    //---------------------------------------- State Variable end ----------------------------------------//
 
     //---------------------------------------- Init start ----------------------------------------//
 
@@ -102,10 +95,10 @@ contract SymbioticStakingReward is
     //---------------------------------------- Init end ----------------------------------------//
 
     //---------------------------------------- Reward Claim start ----------------------------------------//
-    
+
     // TODO: Vault -> Claimer address
-    /// @notice vault can claim reward calling this function
-    function claimReward(address _prover) external nonReentrant {
+    /// @notice vault can claim reward accrued
+    function claimReward(address _prover) external whenNotPaused nonReentrant {
         address[] memory stakeTokenList = _getStakeTokenList();
 
         // update rewardPerTokenPaid and rewardAccrued for each vault
@@ -144,10 +137,7 @@ contract SymbioticStakingReward is
             emit RewardDistributed(_stakeToken, _prover, _rewardAmount);
 
             emit RewardPerTokenUpdated(
-                _stakeToken,
-                feeRewardToken,
-                _prover,
-                rewardPerTokenStored[_stakeToken][feeRewardToken][_prover]
+                _stakeToken, feeRewardToken, _prover, rewardPerTokenStored[_stakeToken][feeRewardToken][_prover]
             );
         }
     }
@@ -236,14 +226,13 @@ contract SymbioticStakingReward is
 
     //---------------------------------------- DEFAULT_ADMIN_ROLE end ----------------------------------------//
 
+    //---------------------------------------- Override start ----------------------------------------//
 
-    //---------------------------------------- override start ----------------------------------------//
-
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
-    //---------------------------------------- override end ----------------------------------------//
+    //---------------------------------------- Override end ----------------------------------------//
 }

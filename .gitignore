@@ -145,3 +145,9 @@ addresses/31337.json
 
 # Foundry
 broadcast
+
+# VSCode
+.vscode
+
+venv
+venv/*

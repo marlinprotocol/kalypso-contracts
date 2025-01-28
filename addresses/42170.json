@@ -4,7 +4,7 @@
     "staking_token": "0x57044769E5aa95590E4f99C174D9b90e9D7300F8",
     "generator_registry": "0x5f23d4eC6607fb381759151B02795187815b0487",
     "attestation_verifier": "0x90201271eD789Ed395ae2F1Cf5b0DC7FD3053176",
-    "entity_registry": "0x9d3b60F3527f3c07bC0Afd15Bc842D191fCD5c6D",
+    "entitykey_registry": "0x9d3b60F3527f3c07bC0Afd15Bc842D191fCD5c6D",
     "proof_market_place": "0x2F1A3149D2798cA9Dfd7445B3cb713B4CD416b7d",
     "transfer_verifier_wrapper": "0x158E4B78f26A38978BdA2fC6F5326711D3b7a9D6",
     "zkb_verifier_wrapper": "0x0f782039EBDaba3D6f260298DFce5A35129BC716",

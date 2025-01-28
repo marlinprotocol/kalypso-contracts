@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 /* Contracts */
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ProofMarketplace} from "../../ProofMarketplace.sol";
 
@@ -12,7 +13,6 @@ import {IStakingManager} from "../../interfaces/staking/IStakingManager.sol";
 import {ISymbioticStaking} from "../../interfaces/staking/ISymbioticStaking.sol";
 import {ISymbioticStakingReward} from "../../interfaces/staking/ISymbioticStakingReward.sol";
 import {IAttestationVerifier} from "../../periphery/interfaces/IAttestationVerifier.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /* Libraries */
@@ -28,8 +28,9 @@ import {Struct} from "../../lib/Struct.sol";
 
 contract SymbioticStaking is
     AccessControlUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable,
     ISymbioticStaking
 {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -38,8 +39,8 @@ contract SymbioticStaking is
     //---------------------------------- Constant/Immutable start ----------------------------------//
 
     /* Submission Type */
-    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE");
-    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE");
+    bytes32 public constant STAKE_SNAPSHOT_TYPE = keccak256("STAKE_SNAPSHOT_TYPE"); // 0x1333028fe2c67747e7c1ef0a711cbd0288f29c0059f66b8560d4ee5c6792b4a3
+    bytes32 public constant SLASH_RESULT_TYPE = keccak256("SLASH_RESULT_TYPE"); // 0xc89837a6ea06308d6a2f41007d2d0af18fc34c85ac214bc95f0f56c191db8707
 
     /* Submission Status */
     bytes32 public constant STAKE_SNAPSHOT_DONE = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -47,8 +48,8 @@ contract SymbioticStaking is
     bytes32 public constant SUBMISSION_COMPLETE = 0x0000000000000000000000000000000000000000000000000000000000000011;
 
     /* Roles */
-    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE");
-    bytes32 public constant BRIDGE_ENCLAVE_UPDATES_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATES_ROLE");
+    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER_ROLE"); // 0xa6b5d83d32632203555cb9b2c2f68a8d94da48cadd9266ac0d17babedb52ea5b
+    bytes32 public constant BRIDGE_ENCLAVE_UPDATER_ROLE = keccak256("BRIDGE_ENCLAVE_UPDATER_ROLE"); // 0x86e48cde700dd7fd18603644944b13787cc9ae42d34a21f8bfb69bc2eab7ede1
 
     uint256 public constant SIGNATURE_LENGTH = 65;
 
@@ -56,11 +57,10 @@ contract SymbioticStaking is
 
     //---------------------------------- State Variable start ----------------------------------//
 
-    // gaps in case we new vars in same file
     uint256[500] private __gap_0;
 
     /* Config */
-    uint256 public submissionCooldown; // 18 decimal (in seconds)
+    uint256 public submissionCooldown; // in seconds
     uint256 public baseTransmitterComissionRate; // 18 decimal (in percentage)
 
     /* Stake Token */
@@ -73,16 +73,8 @@ contract SymbioticStaking is
     address public rewardDistributor;
     address public attestationVerifier;
 
-    /* RewardToken */
-    address public feeRewardToken;
-
     /* Submission */
-    uint256 public lastSlashResultBlock;
     Struct.ConfirmedTimestamp[] public confirmedTimestamps; // timestamp is added once all types of partial txs are received
-
-    //---------------------------------- State Variable end ----------------------------------//
-
-    //---------------------------------- Mapping start ----------------------------------//
 
     /* Config */
     mapping(address stakeToken => uint256 amount) public amountToLock;
@@ -107,55 +99,51 @@ contract SymbioticStaking is
     mapping(uint256 bidId => Struct.SymbioticStakingLock lockInfo) public lockInfo; // note: this does not actually affect L1 Symbiotic stake
     mapping(address stakeToken => mapping(address prover => uint256 locked)) public proverLockedAmounts;
 
-    // transmitter and block number
-    // once a certain captureTimestamp has been submitted, the transmitter and block number will be set and cannot be overwritten
-    mapping(uint256 captureTimestamp => Struct.CaptureTimestampInfo captureTimestampInfo) public captureTimestampInfo; 
+    // once a certain captureTimestamp is submitted, transmitter and block number will be set and cannot be overwritten
+    // once the captureTimestamp is confirmed, this will be stored in `confirmedTimestamps`
+    mapping(uint256 captureTimestamp => Struct.CaptureTimestampInfo) public captureTimestampInfo;
 
     mapping(bytes32 imageId => Struct.EnclaveImage) public enclaveImages;
 
-    //---------------------------------- Mapping end ----------------------------------//
+    //---------------------------------- State Variable end ----------------------------------//
 
-    // gaps in case we new vars in same file
     uint256[500] private __gap_1;
 
     //---------------------------------- Init start ----------------------------------//
 
-    /// @custom:oz-upgrades-unsafe-allow constructor    
-    constructor() {}
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(
         address _admin,
         address _attestationVerifier,
         address _proofMarketplace,
         address _stakingManager,
-        address _rewardDistributor,
-        address _feeRewardToken
+        address _rewardDistributor
     ) public initializer {
         __AccessControl_init_unchained();
-        __UUPSUpgradeable_init_unchained();
         __ReentrancyGuard_init_unchained();
+        __Pausable_init_unchained();
+        __UUPSUpgradeable_init_unchained();
 
+        // Note: BRIDGE_ENCLAVE_ROLE should be set manaully
+
+        require(_admin != address(0), Error.InvalidAdmin());
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
 
-        require(_attestationVerifier != address(0), Error.CannotBeZero());
-        attestationVerifier = _attestationVerifier;
-        emit AttestationVerifierSet(_attestationVerifier);
+        require(_attestationVerifier != address(0), Error.InvalidAttestationVerifier());
+        _setAttestationVerifier(_attestationVerifier);
 
-        require(_stakingManager != address(0), Error.CannotBeZero());
-        stakingManager = _stakingManager;
-        emit StakingManagerSet(_stakingManager);
+        require(_proofMarketplace != address(0), Error.InvalidProofMarketplace());
+        _setProofMarketplace(_proofMarketplace);
 
-        require(_proofMarketplace != address(0), Error.CannotBeZero());
-        proofMarketplace = _proofMarketplace;
-        emit ProofMarketplaceSet(_proofMarketplace);
+        require(_stakingManager != address(0), Error.InvalidStakingManager());
+        _grantRole(STAKING_MANAGER_ROLE, _stakingManager);
 
-        require(_rewardDistributor != address(0), Error.CannotBeZero());
-        rewardDistributor = _rewardDistributor;
-        emit RewardDistributorSet(_rewardDistributor);
-
-        require(_feeRewardToken != address(0), Error.CannotBeZero());
-        feeRewardToken = _feeRewardToken;
-        emit FeeRewardTokenSet(_feeRewardToken);
+        require(_rewardDistributor != address(0), Error.InvalidRewardDistributor());
+        _setRewardDistributor(_rewardDistributor);
     }
 
     //---------------------------------- Init end ----------------------------------//
@@ -169,7 +157,7 @@ contract SymbioticStaking is
         bytes32 _imageId,
         bytes calldata _vaultSnapshotData,
         bytes calldata _proof
-    ) external {
+    ) external whenNotPaused {
         Struct.VaultSnapshot[] memory _vaultSnapshots = abi.decode(_vaultSnapshotData, (Struct.VaultSnapshot[]));
 
         _checkCaptureTimestampInfo(_captureTimestamp, msg.sender, 0);
@@ -189,7 +177,9 @@ contract SymbioticStaking is
             submissionStatus[_captureTimestamp][msg.sender] |= STAKE_SNAPSHOT_DONE;
         }
 
-        emit VaultSnapshotSubmitted(msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof);
+        emit VaultSnapshotSubmitted(
+            msg.sender, _captureTimestamp, _index, _numOfTxs, _imageId, _vaultSnapshotData, _proof
+        );
 
         // when all chunks of Snapshots are submitted
         if (submissionStatus[_captureTimestamp][msg.sender] == SUBMISSION_COMPLETE) {
@@ -197,18 +187,34 @@ contract SymbioticStaking is
         }
     }
 
+    function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
+        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
+            Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
+
+            // update vault staked amount
+            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot.prover]
+            = _vaultSnapshot.stakeAmount;
+
+            // update prover staked amount
+            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
+                _vaultSnapshot.stakeAmount;
+
+            ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(_vaultSnapshot.vault, _vaultSnapshot.prover);
+        }
+    }
+
     function submitSlashResult(
         uint256 _index,
         uint256 _numOfTxs, // number of total transactions
         uint256 _captureTimestamp,
-        // TODO: how to gaurantee this matches with given captureTimestamp
         uint256 _lastBlockNumber, // last block number of the range
         bytes32 _imageId,
         bytes calldata _slashResultData,
         bytes calldata _proof
-    ) external {
+    ) external whenNotPaused {
         require(_lastBlockNumber > 0, Error.CannotBeZero());
-        require(_lastBlockNumber >= captureTimestampInfo[_captureTimestamp].blockNumber + 1, Error.InvalidLastBlockNumber());
+        // the range must include at least one block after the block number of the latest confirmed block
+        require(_lastBlockNumber > latestConfirmedTimestampBlockNumber(), Error.InvalidLastBlockNumber());
 
         Struct.TaskSlashed[] memory _taskSlashed;
         if (_slashResultData.length > 0) {
@@ -219,6 +225,7 @@ contract SymbioticStaking is
 
         _checkValidity(_index, _numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
 
+        // TODO: Should include latestBlockNumber
         _verifyProof(_imageId, SLASH_RESULT_TYPE, _index, _numOfTxs, _captureTimestamp, _slashResultData, _proof);
 
         _updateTxCountInfo(_numOfTxs, _captureTimestamp, SLASH_RESULT_TYPE);
@@ -226,16 +233,53 @@ contract SymbioticStaking is
         // there could be no operator slashed
         if (_taskSlashed.length > 0) IStakingManager(stakingManager).onSlashResultSubmission(_taskSlashed);
 
-        if(_index == _numOfTxs - 1) {
+        if (_index == _numOfTxs - 1) {
             submissionStatus[_captureTimestamp][msg.sender] |= SLASH_RESULT_DONE;
         }
 
-        emit SlashResultSubmitted(_msgSender(), _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof);
+        emit SlashResultSubmitted(
+            _msgSender(), _captureTimestamp, _index, _numOfTxs, _imageId, _slashResultData, _proof
+        );
 
         // when all chunks of Snapshots are submitted
         if (submissionStatus[_captureTimestamp][msg.sender] == SUBMISSION_COMPLETE) {
             _completeSubmission(_captureTimestamp);
         }
+    }
+
+    function _checkCaptureTimestampInfo(uint256 _captureTimestamp, address _transmitter, uint256 _blockNumber)
+        internal
+    {
+        address registeredTransmitter = captureTimestampInfo[_captureTimestamp].transmitter;
+        if (registeredTransmitter == address(0)) {
+            // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
+            captureTimestampInfo[_captureTimestamp].transmitter = _transmitter;
+        } else {
+            require(registeredTransmitter == _transmitter, Error.NotRegisteredTransmitter());
+        }
+
+        if (_blockNumber != 0) {
+            uint256 registeredBlockNumber = captureTimestampInfo[_captureTimestamp].blockNumber;
+            if (registeredBlockNumber == 0) {
+                captureTimestampInfo[_captureTimestamp].blockNumber = _blockNumber;
+            } else {
+                require(registeredBlockNumber == _blockNumber, Error.NotRegisteredBlockNumber());
+            }
+        }
+    }
+
+    function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
+        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][_type];
+
+        // update length if 0
+        if (_snapshot.numOfTxs == 0) {
+            txCountInfo[_captureTimestamp][_type].numOfTxs = _numOfTxs;
+        } else {
+            require(_snapshot.numOfTxs == _numOfTxs, Error.InvalidNumOfTxs());
+        }
+
+        // increase count by 1
+        txCountInfo[_captureTimestamp][_type].idxToSubmit += 1;
     }
 
     //---------------------------------- Submission end ----------------------------------//
@@ -245,7 +289,6 @@ contract SymbioticStaking is
     function lockStake(uint256 _bidId, address _prover) external onlyRole(STAKING_MANAGER_ROLE) {
         address _stakeToken = _selectStakeToken(_prover);
         uint256 _amountToLock = amountToLock[_stakeToken];
-        require(getProverActiveStakeAmount(_stakeToken, _prover) >= _amountToLock, Error.InsufficientStakeAmount());
 
         lockInfo[_bidId] = Struct.SymbioticStakingLock(_stakeToken, _amountToLock);
         proverLockedAmounts[_stakeToken][_prover] += _amountToLock;
@@ -253,10 +296,14 @@ contract SymbioticStaking is
         emit StakeLocked(_bidId, _prover, _stakeToken, _amountToLock);
     }
 
-    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount) external onlyRole(STAKING_MANAGER_ROLE) {
+    function onTaskCompletion(uint256 _bidId, address _prover, uint256 _feeRewardAmount)
+        external
+        onlyRole(STAKING_MANAGER_ROLE)
+    {
         Struct.SymbioticStakingLock memory lock = lockInfo[_bidId];
 
         // distribute fee reward
+        // Note: initially all the reward will be sent to prover, so _feeRewardAmount will be 0
         if (_feeRewardAmount > 0) {
             uint256 currentTimestampIdx = latestConfirmedTimestampIdx();
             uint256 transmitterComission =
@@ -268,15 +315,16 @@ contract SymbioticStaking is
                 confirmedTimestamps[currentTimestampIdx].transmitter, transmitterComission
             );
 
-            // distribute the remaining fee reward
+            // distribute the remaining fee reward  
             ISymbioticStakingReward(rewardDistributor).updateFeeReward(lock.stakeToken, _prover, feeRewardRemaining);
         }
 
         // unlock the stake locked during task assignment
+        uint256 lockedAmount = lock.amount;
+        proverLockedAmounts[lock.stakeToken][_prover] -= lockedAmount;
         delete lockInfo[_bidId];
-        proverLockedAmounts[lock.stakeToken][_prover] -= amountToLock[lock.stakeToken];
 
-        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, amountToLock[lock.stakeToken]);
+        emit StakeUnlocked(_bidId, _prover, lock.stakeToken, lockedAmount);
     }
 
     //------------------------------------- Stake lock/unlock end ------------------------------------//
@@ -289,7 +337,7 @@ contract SymbioticStaking is
             Struct.SymbioticStakingLock memory lock = lockInfo[_slashedTasks[i].bidId];
 
             uint256 lockedAmount = lock.amount;
-            if(lockedAmount == 0) continue; // if already slashed
+            if (lockedAmount == 0) continue; // if already slashed
 
             // unlock the stake locked during task assignment
             proverLockedAmounts[lock.stakeToken][_slashedTasks[i].prover] -= lockedAmount;
@@ -298,65 +346,15 @@ contract SymbioticStaking is
             emit TaskSlashed(_slashedTasks[i].bidId, _slashedTasks[i].prover, lock.stakeToken, lockedAmount);
         }
     }
-
-    //------------------------------- Internal start ----------------------------//
-
-    function _checkCaptureTimestampInfo(uint256 _captureTimestamp, address _transmitter, uint256 _blockNumber) internal {
-        address regiseredTransmitter = captureTimestampInfo[_captureTimestamp].transmitter;
-        if (captureTimestampInfo[_captureTimestamp].transmitter == address(0)) {
-            // once transmitter is registered, other transmitters cannot submit the snapshot for the same capturetimestamp
-            captureTimestampInfo[_captureTimestamp].transmitter = _transmitter;
-        } else {
-            require(regiseredTransmitter == _transmitter, Error.NotRegisteredTransmitter());
-        }
-
-        if(_blockNumber != 0) {
-            uint256 registerdBlockNumber = captureTimestampInfo[_captureTimestamp].blockNumber;
-            if(registerdBlockNumber == 0) {
-                captureTimestampInfo[_captureTimestamp].blockNumber = _blockNumber;
-            } else {
-                require(registerdBlockNumber == _blockNumber, Error.NotRegisteredBlockNumber());
-            }
-        }
-    }
-
-    function _updateTxCountInfo(uint256 _numOfTxs, uint256 _captureTimestamp, bytes32 _type) internal {
-        Struct.SnapshotTxCountInfo memory _snapshot = txCountInfo[_captureTimestamp][_type];
-
-        // update length if 0
-        if (_snapshot.numOfTxs == 0) {
-            txCountInfo[_captureTimestamp][_type].numOfTxs = _numOfTxs;
-        }
-
-        // increase count by 1
-        txCountInfo[_captureTimestamp][_type].idxToSubmit += 1;
-    }
-
-    function _submitVaultSnapshot(uint256 _captureTimestamp, Struct.VaultSnapshot[] memory _vaultSnapshots) internal {
-        for (uint256 i = 0; i < _vaultSnapshots.length; i++) {
-            Struct.VaultSnapshot memory _vaultSnapshot = _vaultSnapshots[i];
-
-            // update vault staked amount
-            vaultStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.vault][_vaultSnapshot
-                .prover] = _vaultSnapshot.stakeAmount;
-
-            // update prover staked amount
-            proverStakeAmounts[_captureTimestamp][_vaultSnapshot.stakeToken][_vaultSnapshot.prover] +=
-                _vaultSnapshot.stakeAmount;
-
-            ISymbioticStakingReward(rewardDistributor).onSnapshotSubmission(
-                _vaultSnapshot.vault, _vaultSnapshot.prover
-            );
-        }
-    }
-
-    //------------------------------- Internal end ----------------------------//
+    
+    //----------------------------------------- Slash end ------------------------------------------//
 
     function _completeSubmission(uint256 _captureTimestamp) internal {
         uint256 transmitterComission = _calcTransmitterComissionRate(_captureTimestamp);
 
-        Struct.ConfirmedTimestamp memory confirmedTimestamp =
-            Struct.ConfirmedTimestamp(_captureTimestamp, captureTimestampInfo[_captureTimestamp].blockNumber, msg.sender, transmitterComission);
+        Struct.ConfirmedTimestamp memory confirmedTimestamp = Struct.ConfirmedTimestamp(
+            _captureTimestamp, captureTimestampInfo[_captureTimestamp].blockNumber, msg.sender, transmitterComission
+        );
         confirmedTimestamps.push(confirmedTimestamp);
 
         emit SnapshotConfirmed(msg.sender, _captureTimestamp);
@@ -370,11 +368,14 @@ contract SymbioticStaking is
     }
 
     function latestConfirmedTimestampBlockNumber() public view returns (uint256) {
-        return confirmedTimestamps[latestConfirmedTimestampIdx()].blockNumber;
+        uint256 len = confirmedTimestamps.length;
+        return len > 0 ? confirmedTimestamps[len - 1].blockNumber : 0;
     }
 
     function latestConfirmedTimestampInfo() external view returns (Struct.ConfirmedTimestamp memory) {
-        return confirmedTimestamps[latestConfirmedTimestampIdx()];
+        uint256 len = confirmedTimestamps.length;
+        require(len > 0, Error.NoConfirmedTimestamp());
+        return confirmedTimestamps[len - 1];
     }
 
     function confirmedTimestampInfo(uint256 _idx) public view returns (Struct.ConfirmedTimestamp memory) {
@@ -391,7 +392,11 @@ contract SymbioticStaking is
     }
 
     /// @notice this can return 0 if nothing was submitted at the timestamp
-    function getProverStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address prover) public view returns (uint256) {
+    function getProverStakeAmountAt(uint256 _captureTimestamp, address _stakeToken, address prover)
+        public
+        view
+        returns (uint256)
+    {
         return proverStakeAmounts[_captureTimestamp][_stakeToken][prover];
     }
 
@@ -425,6 +430,10 @@ contract SymbioticStaking is
         return submissionStatus[_captureTimestamp][_transmitter];
     }
 
+    function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(PCR0, PCR1, PCR2));
+    }
+
     //------------------------------- Getter end ----------------------------//
 
     //------------------------------ Internal View start -----------------------------//
@@ -433,7 +442,9 @@ contract SymbioticStaking is
         internal
         view
     {
-        require(submissionStatus[_captureTimestamp][msg.sender] != SUBMISSION_COMPLETE, Error.SubmissionAlreadyCompleted());
+        require(
+            submissionStatus[_captureTimestamp][msg.sender] != SUBMISSION_COMPLETE, Error.SubmissionAlreadyCompleted()
+        );
 
         require(_index < _numOfTxs, Error.InvalidIndex()); // here we assume enclave submis the correct data
         require(_numOfTxs > 0, Error.ZeroNumOfTxs());
@@ -446,16 +457,16 @@ contract SymbioticStaking is
     }
 
     /**
-    * @dev Internal function to verify the proof.
-    * The function performs the following steps:
-    * - Decodes the proof into the signature and attestation data.
-    * - Verifies the signature over the provided data using the enclave key.
-    * - Verifies the attestation to ensure the enclave key is valid.
-    * - Ensures the enclave key used to sign the data matches the one in the attestation.
-    * @param _data The parameters used for slashing.
-    * @param _proof  The proof that contains the signature on the parameters used for slashing and 
-        attestation data which proves that the key used for signing is securely generated within the enclave.
-    */
+     * @dev Internal function to verify the proof.
+     * The function performs the following steps:
+     * - Decodes the proof into the signature and attestation data.
+     * - Verifies the signature over the provided data using the enclave key.
+     * - Verifies the attestation to ensure the enclave key is valid.
+     * - Ensures the enclave key used to sign the data matches the one in the attestation.
+     * @param _data The parameters used for slashing.
+     * @param _proof  The proof that contains the signature on the parameters used for slashing and
+     *     attestation data which proves that the key used for signing is securely generated within the enclave.
+     */
     function _verifyProof(
         bytes32 _imageId,
         bytes32 _type,
@@ -471,10 +482,8 @@ contract SymbioticStaking is
         require(_signature.length == SIGNATURE_LENGTH, Error.InvalidSignatureLength());
         address _enclaveKey = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(dataToSign)), _signature);
 
-        (bytes memory attestationSig, IAttestationVerifier.Attestation memory attestation) = abi.decode(
-            _attestationData, 
-            (bytes, IAttestationVerifier.Attestation)
-        );
+        (bytes memory attestationSig, IAttestationVerifier.Attestation memory attestation) =
+            abi.decode(_attestationData, (bytes, IAttestationVerifier.Attestation));
         IAttestationVerifier(attestationVerifier).verify(attestationSig, attestation);
 
         address _verifiedKey = _pubKeyToAddress(attestation.enclavePubKey);
@@ -487,37 +496,7 @@ contract SymbioticStaking is
         return address(uint160(uint256(keccak256(_pubKey))));
     }
 
-    function _addEnclaveImage(bytes memory _PCRs) internal {
-        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
-        bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
-        require(enclaveImages[imageId].PCR0.length == 0, Error.ImageAlreadyExists());
-        require(PCR0.length == 48, Error.InvalidPCR0Length());
-        require(PCR1.length == 48, Error.InvalidPCR1Length());
-        require(PCR2.length == 48, Error.InvalidPCR2Length());
-
-        Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
-        enclaveImages[imageId] = enclaveImage;
-
-        emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
-    }
-
-    function _removeEnclaveImage(bytes32 _imageId) internal {
-        delete enclaveImages[_imageId];
-
-        emit EnclaveImageRemoved(_imageId);
-    }
-
-    function _setAttestationVerifier(address _attestationVerifier) internal {
-        attestationVerifier = _attestationVerifier;
-        emit AttestationVerifierSet(_attestationVerifier);
-    }
-
-    function getImageId(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) public pure returns (bytes32) {
-        return keccak256(abi.encode(PCR0, PCR1, PCR2));
-    }
-
-
-    function _calcTransmitterComissionRate(uint256 /* _confirmedTimestamp */) internal view returns (uint256) {
+    function _calcTransmitterComissionRate(uint256 /* _confirmedTimestamp */ ) internal view returns (uint256) {
         // TODO: (block.timestamp - _lastConfirmedTimestamp) * X
         return baseTransmitterComissionRate;
     }
@@ -578,39 +557,65 @@ contract SymbioticStaking is
             weightSum -= weights[i];
             tokens[i] = tokens[idx - 1];
             weights[i] = weights[idx - 1];
-            idx--; // 배열 크기를 줄임
+            idx--; // reduce the array size
         }
 
         // this should be returned
         return address(0);
     }
 
-    function _transmitterComissionRate(uint256 /* _lastConfirmedTimestamp */) internal view returns (uint256) {
-        // TODO: implement logic
-        return baseTransmitterComissionRate;
-    }
-
-    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE start ----------------------------------//
+    //------------------------------ Internal View end -----------------------------//
 
 
-    function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE start ----------------------------------//
+
+    function addEnclaveImage(bytes memory PCR0, bytes memory PCR1, bytes memory PCR2)
+        external
+        onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE)
+    {
         _addEnclaveImage(abi.encode(PCR0, PCR1, PCR2));
     }
 
-    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function addEnclaveImage(bytes memory PCRs) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _addEnclaveImage(PCRs);
     }
 
-    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function _addEnclaveImage(bytes memory _PCRs) internal {
+        (bytes memory PCR0, bytes memory PCR1, bytes memory PCR2) = abi.decode(_PCRs, (bytes, bytes, bytes));
+        bytes32 imageId = getImageId(PCR0, PCR1, PCR2);
+        require(enclaveImages[imageId].PCR0.length == 0, Error.ImageAlreadyExists());
+        require(PCR0.length == 48, Error.InvalidPCR0Length());
+        require(PCR1.length == 48, Error.InvalidPCR1Length());
+        require(PCR2.length == 48, Error.InvalidPCR2Length());
+
+        Struct.EnclaveImage memory enclaveImage = Struct.EnclaveImage(PCR0, PCR1, PCR2);
+        enclaveImages[imageId] = enclaveImage;
+
+        emit EnclaveImageAdded(imageId, PCR0, PCR1, PCR2);
+    }
+
+    function removeEnclaveImage(bytes32 _imageId) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _removeEnclaveImage(_imageId);
     }
 
-    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATES_ROLE) {
+    function _removeEnclaveImage(bytes32 _imageId) internal {
+        delete enclaveImages[_imageId];
+
+        emit EnclaveImageRemoved(_imageId);
+    }
+
+    function setAttestationVerifier(address _attestationVerifier) external onlyRole(BRIDGE_ENCLAVE_UPDATER_ROLE) {
         _setAttestationVerifier(_attestationVerifier);
     }
 
-    //---------------------------------- BRIDGE_ENCLAVE_UPDATES_ROLE end ----------------------------------//
-    
+    function _setAttestationVerifier(address _attestationVerifier) internal {
+        require(_attestationVerifier != address(0), Error.CannotBeZero());
+        attestationVerifier = _attestationVerifier;
+        emit AttestationVerifierSet(_attestationVerifier);
+    }
+
+    //---------------------------------- BRIDGE_ENCLAVE_UPDATER_ROLE end ----------------------------------//
+
     //---------------------------------- Admin start ----------------------------------//
 
     function addStakeToken(address _stakeToken, uint256 _weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -661,27 +666,36 @@ contract SymbioticStaking is
     }
 
     function setStakingManager(address _stakingManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setStakingManager(_stakingManager);
+    }
+
+    function _setStakingManager(address _stakingManager) internal {
+        require(_stakingManager != address(0), Error.CannotBeZero());
         stakingManager = _stakingManager;
 
         emit StakingManagerSet(_stakingManager);
     }
 
     function setProofMarketplace(address _proofMarketplace) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setProofMarketplace(_proofMarketplace);
+    }
+
+    function _setProofMarketplace(address _proofMarketplace) internal {
+        require(_proofMarketplace != address(0), Error.CannotBeZero());
         proofMarketplace = _proofMarketplace;
 
         emit ProofMarketplaceSet(_proofMarketplace);
     }
 
     function setRewardDistributor(address _rewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setRewardDistributor(_rewardDistributor);
+    }
+
+    function _setRewardDistributor(address _rewardDistributor) internal {
+        require(_rewardDistributor != address(0), Error.CannotBeZero());
         rewardDistributor = _rewardDistributor;
 
         emit RewardDistributorSet(_rewardDistributor);
-    }
-
-    function setFeeRewardToken(address _feeRewardToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        feeRewardToken = _feeRewardToken;
-
-        emit FeeRewardTokenSet(_feeRewardToken);
     }
 
     function emergencyWithdraw(address _token, address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -693,17 +707,10 @@ contract SymbioticStaking is
 
     //---------------------------------- Admin end ----------------------------------//
 
-
     //---------------------------------- Override start ----------------------------------//
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId);
     }
 
     function _authorizeUpgrade(address /*account*/ ) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {}

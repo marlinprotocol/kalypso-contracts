@@ -10,6 +10,8 @@ import {
 } from 'hardhat';
 
 import {
+  AttestationVerifier,
+  AttestationVerifier__factory,
   EntityKeyRegistry,
   EntityKeyRegistry__factory,
   Error,
@@ -25,15 +27,14 @@ import {
   PriorityLog__factory,
   ProofMarketplace,
   ProofMarketplace__factory,
-  ProverRegistry,
-  ProverRegistry__factory,
+  ProverManager,
+  ProverManager__factory,
   StakingManager,
   StakingManager__factory,
   SymbioticStaking,
   SymbioticStaking__factory,
   SymbioticStakingReward,
   SymbioticStakingReward__factory,
-  USDC,
   USDC__factory,
   WETH,
   WETH__factory,
@@ -46,11 +47,12 @@ import { Bid } from './structTypes';
 
 interface SetupTemplate {
   mockToken: MockToken;
-  proverRegistry: ProverRegistry;
+  proverManager: ProverManager;
   proofMarketplace: ProofMarketplace;
   priorityLog: PriorityLog;
   errorLibrary: Error;
   entityKeyRegistry: EntityKeyRegistry;
+  attestationVerifier: AttestationVerifier;
 
   /* Staking Contracts */
   stakingManager: StakingManager;
@@ -77,18 +79,18 @@ export const createTask = async (
 };
 
 export const createBid = async (
-  prover: Signer,
+  requester: Signer,
   tokenHolder: Signer,
   bid: Bid,
   setupTemplate: SetupTemplate,
   secretType: number,
 ): Promise<string> => {
-  await setupTemplate.mockToken.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
+  await setupTemplate.mockToken.connect(tokenHolder).transfer(await requester.getAddress(), bid.reward.toString());
 
-  await setupTemplate.mockToken.connect(prover).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
+  await setupTemplate.mockToken.connect(requester).approve(await setupTemplate.proofMarketplace.getAddress(), bid.reward.toString());
 
   const bidId = await setupTemplate.proofMarketplace.bidCounter();
-  await setupTemplate.proofMarketplace.connect(prover).createBid(bid, secretType, "0x", "0x");
+  await setupTemplate.proofMarketplace.connect(requester).createBid(bid, secretType, "0x", "0x", "0x");
 
   return bidId.toString();
 };
@@ -114,6 +116,7 @@ export const rawSetup = async (
   totalComputeAllocation: BigNumber,
   computeToNewMarket: BigNumber,
   godEnclave?: MockEnclave,
+  bridgeEnclave?: MockEnclave,
 ): Promise<SetupTemplate> => {
   //-------------------------------- Contract Deployment --------------------------------//
 
@@ -131,7 +134,7 @@ export const rawSetup = async (
 
   // AttestationVerifier
   const AttestationVerifierContract = await ethers.getContractFactory("AttestationVerifier");
-  const attestationVerifier = await upgrades.deployProxy(
+  const attestationVerifierProxy = await upgrades.deployProxy(
     AttestationVerifierContract,
     [[godEnclave.pcrs], [godEnclave.getUncompressedPubkey()], await admin.getAddress()],
     {
@@ -139,6 +142,11 @@ export const rawSetup = async (
       constructorArgs: [],
     },
   );
+  const attestationVerifier = AttestationVerifier__factory.connect(await attestationVerifierProxy.getAddress(), admin);
+  if (bridgeEnclave) {
+    await attestationVerifier.whitelistEnclaveImage(bridgeEnclave.pcrs[0], bridgeEnclave.pcrs[1], bridgeEnclave.pcrs[2]);
+    await attestationVerifier.whitelistEnclaveKey(bridgeEnclave.getUncompressedPubkey(), bridgeEnclave.getImageId());
+  }
 
   // EntityKeyRegistry
   const EntityKeyRegistryContract = await ethers.getContractFactory("EntityKeyRegistry");
@@ -157,26 +165,18 @@ export const rawSetup = async (
   });
   const stakingManager = StakingManager__factory.connect(await stakingManagerProxy.getAddress(), admin);
 
-  // ProverRegistry
-  const ProverRegistryContract = await ethers.getContractFactory("ProverRegistry");
-  const proverProxy = await upgrades.deployProxy(ProverRegistryContract, [], {
+  // ProverManager
+  const ProverManagerContract = await ethers.getContractFactory("ProverManager");
+  const proverManagerProxy = await upgrades.deployProxy(ProverManagerContract, [], {
     kind: "uups",
-    constructorArgs: [await entityKeyRegistry.getAddress(), await stakingManager.getAddress()],
     initializer: false,
   });
-  const proverRegistry = ProverRegistry__factory.connect(await proverProxy.getAddress(), admin);
+  const proverManager = ProverManager__factory.connect(await proverManagerProxy.getAddress(), admin);
 
   // ProofMarketplace
   const ProofMarketplace = await ethers.getContractFactory("ProofMarketplace");
   const proxy = await upgrades.deployProxy(ProofMarketplace, [], {
     kind: "uups",
-    constructorArgs: [
-      await mockToken.getAddress(),
-      marketCreationCost.toFixed(),
-      treasury,
-      await proverRegistry.getAddress(),
-      await entityKeyRegistry.getAddress(),
-    ],
     initializer: false,
   });
   const proofMarketplace = ProofMarketplace__factory.connect(await proxy.getAddress(), admin);
@@ -185,7 +185,6 @@ export const rawSetup = async (
   const NativeStakingContract = await ethers.getContractFactory("NativeStaking");
   const nativeStakingProxy = await upgrades.deployProxy(NativeStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const nativeStaking = NativeStaking__factory.connect(await nativeStakingProxy.getAddress(), admin);
@@ -194,7 +193,6 @@ export const rawSetup = async (
   const SymbioticStakingContract = await ethers.getContractFactory("SymbioticStaking");
   const symbioticStakingProxy = await upgrades.deployProxy(SymbioticStakingContract, [], {
     kind: "uups",
-    constructorArgs: [await proverRegistry.getAddress()],
     initializer: false,
   });
   const symbioticStaking = SymbioticStaking__factory.connect(await symbioticStakingProxy.getAddress(), admin);
@@ -210,16 +208,29 @@ export const rawSetup = async (
 
   //-------------------------------- Contract Init --------------------------------//
 
-  // Initialize ProverRegistry
-  await proverRegistry.initialize(await admin.getAddress(), await proofMarketplace.getAddress(), await stakingManager.getAddress()); // TODO
+  // Initialize ProverManager
+  await proverManager.initialize(
+    await admin.getAddress(),
+    await proofMarketplace.getAddress(),
+    await stakingManager.getAddress(),
+    await entityKeyRegistry.getAddress(),
+  );
 
   // Initialize ProofMarketplace
-  await proofMarketplace.initialize(await admin.getAddress());
+  await proofMarketplace.initialize(
+    await admin.getAddress(),
+    await mockToken.getAddress(),
+    treasury,
+    await proverManager.getAddress(),
+    await entityKeyRegistry.getAddress(),
+    marketCreationCost.toFixed(),
+  );
 
   // Initialize StakingManager
   await stakingManager.initialize(
     await admin.getAddress(),
     await proofMarketplace.getAddress(),
+    await proverManager.getAddress(),
     await symbioticStaking.getAddress(),
     await mockToken.getAddress(),
   );
@@ -228,8 +239,7 @@ export const rawSetup = async (
   await nativeStaking.initialize(
     await admin.getAddress(),
     await stakingManager.getAddress(),
-    stakingContractConfig.WITHDRAWAL_DURATION.toFixed(),
-    await mockToken.getAddress(),
+    stakingContractConfig.WITHDRAWAL_DURATION.toFixed()
   );
 
   // Initialize SymbioticStaking
@@ -238,9 +248,14 @@ export const rawSetup = async (
     await attestationVerifier.getAddress(),
     await proofMarketplace.getAddress(),
     await stakingManager.getAddress(),
-    await symbioticStakingReward.getAddress(),
-    await mockToken.getAddress(),
+    await symbioticStakingReward.getAddress()
   );
+
+  let arr = [];
+
+  type arrType = [number, number, string];
+
+  "https://<api-url/login/2"
 
   // Initialize SymbioticStakingReward
   await symbioticStakingReward.initialize(
@@ -252,16 +267,20 @@ export const rawSetup = async (
 
   await proofMarketplace.grantRole(await proofMarketplace.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
 
-  // Grant `PROVER_REGISTRY_ROLE` to StakingManager
-  await stakingManager.grantRole(await stakingManager.PROVER_REGISTRY_ROLE(), await proverRegistry.getAddress());
-
-  // Grant `STAKING_MANAGER_ROLE` to SymbioticStaking
+  // `StakingManager.PROVER_MANAGER_ROLE` -> `ProverManager`
+  await stakingManager.grantRole(await stakingManager.PROVER_MANAGER_ROLE(), await proverManager.getAddress());
+  // `SymbioticStaking.STAKING_MANAGER_ROLE` -> `StakingManager`
   await symbioticStaking.grantRole(await symbioticStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
-
-  // Grant `KEY_REGISTER_ROLE` to ProverRegistry, ProofMarketplace
-  const register_role = await entityKeyRegistry.KEY_REGISTER_ROLE();
-  await entityKeyRegistry.grantRole(register_role, await proverRegistry.getAddress());
-  await entityKeyRegistry.grantRole(register_role, await proofMarketplace.getAddress());
+  // `SymbioticStaking.BRIDGE_ENCLAVE_UPDATES_ROLE` -> admin
+  await symbioticStaking.grantRole(await symbioticStaking.BRIDGE_ENCLAVE_UPDATER_ROLE(), await admin.getAddress());
+  // `SymbioticStakingReward.SYMBIOTIC_STAKING_ROLE` -> `SymbioticStaking`
+  await symbioticStakingReward.grantRole(await symbioticStakingReward.SYMBIOTIC_STAKING_ROLE(), await symbioticStaking.getAddress());
+  // `NativeStaking.STAKING_MANAGER_ROLE` -> `StakingManager`
+  await nativeStaking.grantRole(await nativeStaking.STAKING_MANAGER_ROLE(), await stakingManager.getAddress());
+  // `EntityKeyRegistry.KEY_REGISTER_ROLE` -> `ProverManager`
+  await entityKeyRegistry.grantRole(await entityKeyRegistry.KEY_REGISTER_ROLE(), await proverManager.getAddress());
+  // `EntityKeyRegistry.KEY_REGISTER_ROLE` -> `ProofMarketplace`
+  await entityKeyRegistry.grantRole(await entityKeyRegistry.KEY_REGISTER_ROLE(), await proofMarketplace.getAddress());
 
   // Transfer marketCreationCost to ProofMarketplace
   await mockToken.connect(tokenHolder).transfer(await marketCreator.getAddress(), marketCreationCost.toFixed());
@@ -284,23 +303,22 @@ export const rawSetup = async (
 
   await proofMarketplace
     .connect(marketCreator)
-    .createMarketplace(
+    .createMarket(
       marketSetupBytes,
       await iverifier.getAddress(),
-      proverSlashingPenalty.toFixed(0),
       proverEnclave.getPcrRlp(),
       ivsEnclave.getPcrRlp(),
     );
 
   await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), proverStakingAmount.toFixed());
 
-  await mockToken.connect(prover).approve(await proverRegistry.getAddress(), proverStakingAmount.toFixed());
+  await mockToken.connect(prover).approve(await proverManager.getAddress(), proverStakingAmount.toFixed());
 
   const marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-  await proverRegistry
+  await proverManager
     .connect(prover)
-    .register(await prover.getAddress(), totalComputeAllocation.toFixed(0), /*  proverStakingAmount.toFixed(0),  */ proverData);
+    .register(await prover.getAddress(), totalComputeAllocation.toFixed(0), proverData);
 
   {
     let proverAttestationBytes = await proverEnclave.getVerifiedAttestation(godEnclave);
@@ -314,13 +332,14 @@ export const rawSetup = async (
     let digest = ethers.keccak256(encoded);
     let signature = await proverEnclave.signMessage(ethers.getBytes(digest));
 
-    await proverRegistry
+    await proverManager
       .connect(prover)
       .joinMarketplace(
         marketId,
         computeToNewMarket.toFixed(0),
         minRewardForProver.toFixed(),
         100,
+        new BigNumber(10).pow(18).multipliedBy(0.1).toFixed(0), // 10%
         true,
         proverAttestationBytes,
         signature,
@@ -332,11 +351,12 @@ export const rawSetup = async (
   const errorLibrary = await new Error__factory(admin).deploy();
   return {
     mockToken,
-    proverRegistry,
+    proverManager,
     proofMarketplace,
     priorityLog,
     errorLibrary,
     entityKeyRegistry,
+    attestationVerifier,
     /* Staking Contracts */
     stakingManager,
     nativeStaking,
@@ -346,9 +366,8 @@ export const rawSetup = async (
 };
 
 interface StakingTokens {
-  POND: POND;
-  WETH: WETH;
-  USDC: USDC;
+  pond: POND;
+  weth: WETH;
 }
 
 export const stakingSetup = async (
@@ -372,30 +391,26 @@ export const stakingSetup = async (
 
   /*-------------------------------- StakingTokens Deployment --------------------------------*/
 
-  const POND = await new POND__factory(admin).deploy(await admin.getAddress());
-  const WETH = await new WETH__factory(admin).deploy(await admin.getAddress());
-  const USDC = await new USDC__factory(admin).deploy(await admin.getAddress());
+  const pond = await new POND__factory(admin).deploy(await admin.getAddress());
+  const weth = await new WETH__factory(admin).deploy(await admin.getAddress());
+  const usdc = await new USDC__factory(admin).deploy(await admin.getAddress());
 
   /*-------------------------------- StakingManager Config --------------------------------*/
 
-  // Add StakingPools
-  await stakingManager.connect(admin).addStakingPool(await symbioticStaking.getAddress());
-  await stakingManager.connect(admin).addStakingPool(await nativeStaking.getAddress());
+    // NativeStaking 0%, SymbioticStaking 100%
+    const nativeStakingShare = new BigNumber(10).pow(18).multipliedBy(0); // 0 %
+    const symbioticStakingShare = new BigNumber(10).pow(18).multipliedBy(1); // 100%
 
-  // NativeStaking 0%, SymbioticStaking 100%
-  const nativeStakingShare = new BigNumber(10).pow(18).multipliedBy(0); // 0 %
-  const symbioticStakingShare = new BigNumber(10).pow(18).multipliedBy(1); // 100%
-  await stakingManager.connect(admin).setPoolRewardShare(
-    [await nativeStaking.getAddress(), await symbioticStaking.getAddress()],
-    [nativeStakingShare.toFixed(0), symbioticStakingShare.toFixed(0)],
-  );
+  // Add StakingPools
+  await stakingManager.connect(admin).addStakingPool(await nativeStaking.getAddress(), nativeStakingShare.toFixed(0));
+  await stakingManager.connect(admin).addStakingPool(await symbioticStaking.getAddress(), symbioticStakingShare.toFixed(0));
 
   // Enable pools
-  await stakingManager.connect(admin).setEnabledPool(
+  await stakingManager.connect(admin).setPoolEnabled(
     await nativeStaking.getAddress(),
     true
   )
-  await stakingManager.connect(admin).setEnabledPool(
+  await stakingManager.connect(admin).setPoolEnabled(
     await symbioticStaking.getAddress(),
     true
   )
@@ -404,12 +419,12 @@ export const stakingSetup = async (
 
   // Add POND to NativeStaking
   await nativeStaking.connect(admin).addStakeToken(
-    await POND.getAddress(),
+    await pond.getAddress(),
     HUNDRED_PERCENT, // 100% weight for selection
   );
   // Amount to lock
-  await nativeStaking.connect(admin).setAmountToLock(
-    await POND.getAddress(),
+  await nativeStaking.connect(admin).setStakeAmountToLock(
+    await pond.getAddress(),
     new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
   );
 
@@ -417,11 +432,11 @@ export const stakingSetup = async (
   
   // Stake Tokens and weights
   await symbioticStaking.connect(admin).addStakeToken(
-    await POND.getAddress(),
+    await pond.getAddress(),
     SIXTY_PERCENT, // 60% weight for selection
   );
   await symbioticStaking.connect(admin).addStakeToken(
-    await WETH.getAddress(),
+    await weth.getAddress(),
     FORTY_PERCENT, // 40% weight for selection
   );
 
@@ -431,20 +446,19 @@ export const stakingSetup = async (
 
   // amount to lock
   await symbioticStaking.connect(admin).setAmountToLock(
-    await POND.getAddress(),
+    await pond.getAddress(),
     new BigNumber(10).pow(18).multipliedBy(2).toFixed(0), // 2 POND locked per job creation
   );
   await symbioticStaking.connect(admin).setAmountToLock(
-    await WETH.getAddress(),
-    new BigNumber(10).pow(18).multipliedBy(0.2).toFixed(0), // 0.2 WETH locked per job creation
+    await weth.getAddress(),
+    new BigNumber(10).pow(18).multipliedBy(3).toFixed(0), // 3 WETH locked per job creation
   );
 
   /*-------------------------------- SymbioticStakingReward Config --------------------------------*/
   
   return {
-    POND,
-    WETH,
-    USDC,
+    pond,
+    weth,
   };
 };
 
@@ -472,33 +486,126 @@ export interface VaultSnapshot {
   stakeAmount: BigNumberish;
 }
 
-export const submitVaultSnapshot = async(
-  transmitter: Signer,
-  symbioticStaking: SymbioticStaking,
-  snapshotData: VaultSnapshot[],
-) => {
-  const timestamp = new BigNumber((await ethers.provider.getBlock('latest'))?.timestamp ?? 0).toFixed(0);
-  const blockNumber = (await ethers.provider.getBlock('latest'))?.number ?? 0;
+export interface TaskSlashed {
+  bidId: number;
+  prover: string;
+  rewardAddress: string;
+}
 
-  // submit snapshot
+export const toEthSignedMessageHash = (messageHash: string): string => {
+  const prefix = "\x19Ethereum Signed Message:\n32";
+  const prefixBytes = ethers.toUtf8Bytes(prefix);
+  const messageHashBytes = ethers.toBeArray(messageHash);
+  const combined = ethers.concat([prefixBytes, messageHashBytes]);
+  return ethers.keccak256(combined);
+}
+
+export interface SubmitVaultSnapshotParams {
+  index: number;
+  numOfTxs: number;
+  captureTimestamp: BigNumberish;
+  imageId: string;
+  snapshotData: VaultSnapshot[],
+}
+
+export const submitVaultSnapshot = async (
+  symbioticStaking: SymbioticStaking,
+  bridgeEnclave: MockEnclave,
+  transmitter: Signer,
+  params: SubmitVaultSnapshotParams
+) => {
+  const abiCoder = new ethers.AbiCoder();
+  
+  const vaultSnapshotData = encodeSnapshotData(params.snapshotData);
+  const STAKE_SNAPSHOT_TYPE = await symbioticStaking.STAKE_SNAPSHOT_TYPE();
+  const dataToSign = abiCoder.encode(
+    ["bytes32", "uint256", "uint256", "uint256", "bytes"], // _type, _index, _numOfTxs, _captureTimestamp, _data
+    [STAKE_SNAPSHOT_TYPE, params.index, params.numOfTxs, params.captureTimestamp, vaultSnapshotData]
+  );
+
+  const messageHash = toEthSignedMessageHash(ethers.keccak256(dataToSign));
+  const signature = await bridgeEnclave.signMessageWithoutPrefix(messageHash);
+  const attestation = await bridgeEnclave.getMockAttestation();
+  const proof = abiCoder.encode(
+    ["bytes", "bytes"],
+    [signature, attestation]
+  );
+
   await symbioticStaking.connect(transmitter).submitVaultSnapshot(
-    0,
-    1,
-    timestamp,
-    new ethers.AbiCoder().encode(
-      [
-        "tuple(address prover, address vault, address stakeToken, uint256 stakeAmount)[]"
-      ],
-      [snapshotData]
-    ),
-    "0x"
+    params.index,
+    params.numOfTxs,
+    params.captureTimestamp,
+    params.imageId,
+    vaultSnapshotData,
+    proof
+  );
+};
+
+export interface SubmitSlashResultParams {
+  index: number;
+  numOfTxs: number;
+  captureTimestamp: BigNumberish;
+  lastBlockNumber: BigNumberish;
+  imageId: string;
+  slashResultData: TaskSlashed[],
+}
+
+export const submitSlashResult = async (
+  symbioticStaking: SymbioticStaking,
+  bridgeEnclave: MockEnclave,
+  transmitter: Signer,
+  params: SubmitSlashResultParams
+) => {
+  const abiCoder = new ethers.AbiCoder();
+
+  const slashResultData = encodeSlashResultData(params.slashResultData);
+  const SLASH_RESULT_TYPE = await symbioticStaking.SLASH_RESULT_TYPE();
+  const dataToSign = abiCoder.encode(
+    ["bytes32", "uint256", "uint256", "uint256", "bytes"], // _type, _index, _numOfTxs, _captureTimestamp, _data
+    [SLASH_RESULT_TYPE, params.index, params.numOfTxs, params.captureTimestamp, slashResultData]
+  );
+  const messageHash = toEthSignedMessageHash(ethers.keccak256(dataToSign));
+  const signature = await bridgeEnclave.signMessageWithoutPrefix(messageHash);
+  const attestation = await bridgeEnclave.getMockAttestation();
+  const proof = abiCoder.encode(
+    ["bytes", "bytes"],
+    [signature, attestation]
   );
 
   await symbioticStaking.connect(transmitter).submitSlashResult(
-    0,
-    1,
-    timestamp,
-    "0x",
-    "0x"
+    params.index,
+    params.numOfTxs,
+    params.captureTimestamp,
+    params.lastBlockNumber,
+    params.imageId,
+    slashResultData,
+    proof
   );
 }
+
+const encodeSnapshotData = (vaultSnapshots: VaultSnapshot[]) => {
+  const abiCoder = new ethers.AbiCoder();
+  return abiCoder.encode(
+    ["tuple(address, address, address, uint256)[]"],
+    [vaultSnapshots.map(snapshot => [
+      snapshot.prover,
+      snapshot.vault,
+      snapshot.stakeToken,
+      snapshot.stakeAmount
+    ])]
+  );
+};
+
+const encodeSlashResultData = (taskSlashed: TaskSlashed[]) => {
+  const abiCoder = new ethers.AbiCoder();
+  return abiCoder.encode(
+    ["tuple(uint256, address, address)[]"],
+    [taskSlashed.map(slash => [
+      slash.bidId,
+      slash.prover,
+      slash.rewardAddress
+    ])]
+  );
+};
+
+

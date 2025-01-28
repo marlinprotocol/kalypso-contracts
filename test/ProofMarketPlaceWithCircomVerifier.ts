@@ -1,44 +1,46 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
+import { Signer } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
-  ProverRegistry,
+  GodEnclavePCRS,
+  MarketData,
+  marketDataToBytes,
+  MockEnclave,
+  MockIVSPCRS,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  setup,
+  skipBlocks,
+} from '../helpers';
+import * as circom_verifier_inputs
+  from '../helpers/sample/circomVerifier/input.json';
+import * as circom_verifier_proof
+  from '../helpers/sample/circomVerifier/proof.json';
+import {
+  AttestationVerifier,
+  EntityKeyRegistry,
+  Error,
   IVerifier,
   IVerifier__factory,
   MockToken,
-  ProofMarketplace,
-  XorVerifier__factory,
-  Xor2_verifier_wrapper__factory,
-  PriorityLog,
-  Error,
-  EntityKeyRegistry,
   NativeStaking,
+  PriorityLog,
+  ProofMarketplace,
+  ProverManager,
   StakingManager,
   SymbioticStaking,
   SymbioticStakingReward,
-} from "../typechain-types";
-
-import {
-  ProverData,
-  GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockProverPCRS,
-  MockIVSPCRS,
-  MockMEPCRS,
-  proverDataToBytes,
-  marketDataToBytes,
-  setup,
-  skipBlocks,
-} from "../helpers";
-
-import * as circom_verifier_inputs from "../helpers/sample/circomVerifier/input.json";
-import * as circom_verifier_proof from "../helpers/sample/circomVerifier/proof.json";
+  Xor2_verifier_wrapper__factory,
+  XorVerifier__factory,
+} from '../typechain-types';
 
 describe("Proof Market Place for Circom Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
@@ -47,7 +49,7 @@ describe("Proof Market Place for Circom Verifier", () => {
   let nativeStaking: NativeStaking;
   let symbioticStaking: SymbioticStaking;
   let symbioticStakingReward: SymbioticStakingReward;
-
+  let attestationVerifier: AttestationVerifier;
   let signers: Signer[];
   let admin: Signer;
   let tokenHolder: Signer;
@@ -142,8 +144,9 @@ describe("Proof Market Place for Circom Verifier", () => {
       computeGivenToNewMarket,
       godEnclave,
     );
+    attestationVerifier = data.attestationVerifier;
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
@@ -157,18 +160,21 @@ describe("Proof Market Place for Circom Verifier", () => {
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
   it("Check circom verifier", async () => {
     let abiCoder = new ethers.AbiCoder();
 
     let inputBytes = abiCoder.encode(["uint[1]"], [[circom_verifier_inputs[0]]]);
     // console.log({ inputBytes });
-    const latestBlock = await ethers.provider.getBlockNumber();
+    
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
+
     let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    let timeForProofGeneration = 10000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
     const bidId = await setup.createBid(
       prover,
@@ -177,18 +183,19 @@ describe("Proof Market Place for Circom Verifier", () => {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: assignmentExpiry + latestBlock.toString(),
-        timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-        deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,
@@ -203,10 +210,11 @@ describe("Proof Market Place for Circom Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        proverRegistry,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        attestationVerifier,
         stakingManager,
         nativeStaking,
         symbioticStaking,

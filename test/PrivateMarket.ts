@@ -1,49 +1,55 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { Provider, Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
 import {
-  Error,
-  ProverRegistry,
-  MockToken,
-  PriorityLog,
-  ProofMarketplace,
-  TransferVerifier__factory,
-  EntityKeyRegistry,
-  Transfer_verifier_wrapper__factory,
-  IVerifier__factory,
-  IVerifier,
-  SymbioticStakingReward,
-  SymbioticStaking,
-  NativeStaking,
-  StakingManager,
-} from "../typechain-types";
+  Provider,
+  Signer,
+} from 'ethers';
+import { ethers } from 'hardhat';
 
 import {
-  ProverData,
   GodEnclavePCRS,
+  ivsFamilyId,
   MarketData,
+  marketDataToBytes,
   MockEnclave,
-  MockProverPCRS,
   MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
   proverDataToBytes,
   proverFamilyId,
-  ivsFamilyId,
-  marketDataToBytes,
   setup,
   skipBlocks,
-} from "../helpers";
-
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
+import {
+  AttestationVerifier,
+  EntityKeyRegistry,
+  Error,
+  IVerifier,
+  IVerifier__factory,
+  MockToken,
+  NativeStaking,
+  PriorityLog,
+  ProofMarketplace,
+  ProverManager,
+  StakingManager,
+  SymbioticStaking,
+  SymbioticStakingReward,
+  Transfer_verifier_wrapper__factory,
+  TransferVerifier__factory,
+} from '../typechain-types';
 
 describe("Checking Case where prover and ivs image is same", () => {
   let proofMarketplace: ProofMarketplace;
-  let proverRegistry: ProverRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let attestationVerifier: AttestationVerifier;
   let iverifier: IVerifier;
 
   let stakingManager: StakingManager;
@@ -171,11 +177,12 @@ describe("Checking Case where prover and ivs image is same", () => {
     );
 
     proofMarketplace = data.proofMarketplace;
-    proverRegistry = data.proverRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    attestationVerifier = data.attestationVerifier;
     stakingManager = data.stakingManager;
     nativeStaking = data.nativeStaking;
     symbioticStaking = data.symbioticStaking;
@@ -183,8 +190,8 @@ describe("Checking Case where prover and ivs image is same", () => {
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
   it("Add new images for provers and ivs", async () => {
@@ -268,17 +275,19 @@ describe("Checking Case where prover and ivs image is same", () => {
       let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
       // use any enclave to get verfied attestation as mockAttesationVerifier is used here
-      await expect(proverRegistry.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
-        .to.emit(proverRegistry, "IvKeyAdded")
+      await expect(proverManager.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
+        .to.emit(proverManager, "IvKeyAdded")
         .withArgs(marketId, ivsEnclave.getAddress());
     };
 
     beforeEach(async () => {
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+
       let abiCoder = new ethers.AbiCoder();
       let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
-      const latestBlock = await ethers.provider.getBlockNumber();
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       let inputBytes = abiCoder.encode(
         ["uint256[5]"],
@@ -300,18 +309,19 @@ describe("Checking Case where prover and ivs image is same", () => {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: (assignmentExpiry + latestBlock).toString(),
-          timeTakenForProofGeneration: timeTakenForProofGeneration.toString(),
-          deadline: (latestBlock + maxTimeForProofGeneration).toString(),
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         },
         {
           mockToken: tokenToUse,
           proofMarketplace,
-          proverRegistry,
+          proverManager,
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
           stakingManager,
           nativeStaking,
           symbioticStaking,
@@ -326,10 +336,11 @@ describe("Checking Case where prover and ivs image is same", () => {
         {
           mockToken: tokenToUse,
           proofMarketplace,
-          proverRegistry,
+          proverManager,
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
           stakingManager,
           nativeStaking,
           symbioticStaking,
@@ -391,8 +402,8 @@ describe("Checking Case where prover and ivs image is same", () => {
       let signature = await newProverImage.signMessage(ethers.getBytes(digest));
 
       await expect(
-        proverRegistry.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature),
-      ).to.be.revertedWithCustomError(proverRegistry, "IncorrectImageId");
+        proverManager.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature),
+      ).to.be.revertedWithCustomError(proverManager, "IncorrectImageId");
     });
 
     it("Can't add same extra image twice", async () => {
@@ -434,7 +445,7 @@ describe("Checking Case where prover and ivs image is same", () => {
       let digest = ethers.keccak256(encoded);
       let signature = await newProverImage.signMessage(ethers.getBytes(digest));
 
-      await expect(proverRegistry.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature))
+      await expect(proverManager.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature))
         .to.emit(entityKeyRegistry, "UpdateKey")
         .withArgs(await generator.getAddress(), marketId);
     });

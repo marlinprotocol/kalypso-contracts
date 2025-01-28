@@ -4,6 +4,9 @@ import '@nomicfoundation/hardhat-chai-matchers';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-tracer';
+import * as tenderly from "@tenderly/hardhat-tenderly";
+
+// tenderly.setup();
 
 import BigNumber from 'bignumber.js';
 import { config as dotenvConfig } from 'dotenv';
@@ -66,7 +69,7 @@ const config: HardhatUserConfig = {
     ],
   },
   gasReporter: {
-    enabled: false,
+    enabled: (process.env.REPORT_GAS == "true") ? true : false,
     gasPrice: 1,
     coinmarketcap: process.env.COIN_MARKET_CAP,
   },
@@ -74,6 +77,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       arbSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`,
+      arbitrumOne: `${process.env.ARBISCAN_API_KEY}`,
       holesky: `${process.env.ETHERSCAN_API_KEY}`,
     },
     customChains: [
@@ -115,7 +119,18 @@ const config: HardhatUserConfig = {
       accounts: [
         `${process.env.ARBITRUM_SEPOLIA_ADMIN_KEY}`,
       ],
+      forking: {
+        url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
+      },
+      chainId: 421614, 
     },
+    arbOne: {
+      url: `${process.env.ARBITRUM_ONE_RPC_URL}`,
+      accounts: [
+        `${process.env.ARBITRUM_ONE_DEPLOYER}`,
+      ],
+      chainId: 42161,
+    }
     // sepolia: {
     //   url: `${process.env.SEPOLIA_RPC_URL}`,
     //   // NOTE: don't change the order of elements in the array, add new elements at the last.

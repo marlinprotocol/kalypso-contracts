@@ -9,7 +9,6 @@ library Struct {
     struct Market {
         address verifier; // verifier address for the market place
         bytes32 proverImageId; // use bytes32(0) for public market
-        uint256 slashingPenalty;
         bytes32 ivsImageId;
         address creator;
         bytes marketmetadata;
@@ -17,15 +16,14 @@ library Struct {
     struct Bid {
         uint256 marketId;
         uint256 reward;
-        // the block number by which the bid should be assigned by matching engine
-        uint256 expiry;
-        uint256 timeTakenForProofGeneration;
+        uint256 expiry; // block.timestamp by which the bid should be assigned by matching engine
+        uint256 timeForProofGeneration;
         uint256 deadline;
         address refundAddress;
         bytes proverData;
     }
 
-struct BidWithState {
+    struct BidWithState {
         Bid bid;
         Enum.BidState state;
         address requester;
@@ -40,6 +38,7 @@ struct BidWithState {
     }
 
     /*========================= Prover Registry =========================*/
+    
     struct Prover {
         address rewardAddress;
         uint256 sumOfComputeAllocations;
@@ -62,7 +61,7 @@ struct BidWithState {
     /*========================= Staking Manager ===========================*/
 
     struct PoolConfig {
-        uint256 share;
+        uint256 rewardShare;
         bool enabled;
     }
 
