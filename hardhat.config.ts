@@ -78,6 +78,7 @@ const config: HardhatUserConfig = {
       mainnet: `${process.env.ETHERSCAN_API_KEY}`,
       arbSepolia: `${process.env.ARB_SEPOLIA_API_KEY}`,
       arbitrumOne: `${process.env.ARBISCAN_API_KEY}`,
+      holesky: `${process.env.ETHERSCAN_API_KEY}`,
     },
     customChains: [
       {
@@ -88,12 +89,31 @@ const config: HardhatUserConfig = {
           browserURL: "https://sepolia.arbiscan.io/",
         },
       },
+      {
+        network: "holesky",
+        chainId: 17000,
+        urls: {
+          apiURL: "https://api-holesky.etherscan.io/api",
+          browserURL: "https://holesky.etherscan.io/",
+        },
+      }
     ],
   },
   networks: {
     hardhat: {
       blockGasLimit: 500000000000,
     },
+    mainnet: {
+      url: `${process.env.MAINNET_RPC_URL}`,
+      accounts: [
+        `${process.env.MAINNET_DEPLOYER}`,
+      ],
+    },
+    holesky: {
+      url: `${process.env.HOLESKY_RPC_URL}`,
+      accounts: [
+        `${process.env.HOLESKY_ADMIN}`,
+        `${process.env.HOLESKY_DEPLOYER}`,
     arbSepolia: {
       url: `${process.env.ARBITRUM_SEPOLIA_RPC_URL}`,
       accounts: [
