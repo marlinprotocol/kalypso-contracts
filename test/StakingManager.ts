@@ -1,10 +1,10 @@
-import BigNumber from 'bignumber.js';
+import BigNumber from "bignumber.js";
+import { expect } from "chai";
 import {
   BytesLike,
   Signer,
-  Wallet,
-} from 'ethers';
-import { ethers } from 'hardhat';
+} from "ethers";
+import { ethers } from "hardhat";
 
 import {
   BridgeEnclavePCRS,
@@ -18,12 +18,10 @@ import {
   ProverData,
   proverDataToBytes,
   setup,
-} from '../helpers';
-import * as transfer_verifier_inputs
-  from '../helpers/sample/transferVerifier/transfer_inputs.json';
-import * as transfer_verifier_proof
-  from '../helpers/sample/transferVerifier/transfer_proof.json';
-import { stakingSetup, submitSlashResult, submitVaultSnapshot, TaskSlashed, VaultSnapshot, toEthSignedMessageHash } from '../helpers/setup';
+} from "../helpers";
+import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
+import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
+import { stakingSetup } from "../helpers/setup";
 import {
   AttestationVerifier,
   EntityKeyRegistry,
@@ -42,8 +40,7 @@ import {
   Transfer_verifier_wrapper__factory,
   TransferVerifier__factory,
   WETH,
-} from '../typechain-types';
-import { expect } from 'chai';
+} from "../typechain-types";
 
 describe("Staking", () => {
   let proofMarketplace: ProofMarketplace;
@@ -312,7 +309,7 @@ describe("Staking", () => {
             expect(poolConfig.enabled).to.be.equal(true);
           });
 
-          // TODO: fix to PoolDoesNotExist
+          // TODO: fix contract to PoolDoesNotExist
           it("should revert if pool does not exist", async () => {
             await expect(stakingManager.setPoolEnabled(pool2, true)).to.be.revertedWithCustomError(errorLibrary, "PoolDoesNotExist");
           });
@@ -416,6 +413,7 @@ describe("Staking", () => {
             await expect(stakingManager.setPoolRewardShare(pool1, pool1_weight_after)).to.emit(stakingManager, "PoolRewardShareSet").withArgs(pool1, pool1_weight_after);
           });
 
+          // TODO: fix contract
           it("should not affect poolRewardShareSum", async () => {
             const poolRewardShareSumBefore = new BigNumber((await stakingManager.poolRewardShareSum()).toString());
             await stakingManager.setPoolRewardShare(pool1, pool1_weight_after);
@@ -464,11 +462,11 @@ describe("Staking", () => {
           await expect(stakingManager.emergencyWithdraw(ethers.ZeroAddress, ethers.ZeroAddress)).to.be.revertedWithCustomError(errorLibrary, "ZeroTokenAddress");
         });
 
-        it("should revert if to address is zero", async () => {
-          await expect(stakingManager.emergencyWithdraw(ethers.ZeroAddress, ethers.ZeroAddress)).to.be.revertedWithCustomError(errorLibrary, "ZeroToAddress");
+        it("should revert if \'to\' address is zero", async () => {
+          await expect(stakingManager.emergencyWithdraw(await admin.getAddress(), ethers.ZeroAddress)).to.be.revertedWithCustomError(errorLibrary, "ZeroToAddress");
         });
 
-        it.only("should transfer all tokens to the to address", async () => {
+        it("should transfer all tokens to the to address", async () => {
           // transfer some tokens to the staking manager
           await usdc.connect(tokenHolder).transfer(stakingManager.getAddress(), new BigNumber(10).pow(18).multipliedBy(100).toString());
 
