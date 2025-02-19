@@ -114,6 +114,7 @@ const config: HardhatUserConfig = {
       accounts: [
         `${process.env.HOLESKY_ADMIN}`,
         `${process.env.HOLESKY_DEPLOYER}`,
+
       ]
     },
     arbSepolia: {
