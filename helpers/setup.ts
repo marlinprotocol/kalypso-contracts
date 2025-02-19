@@ -84,6 +84,7 @@ export const createBid = async (
   bid: Bid,
   setupTemplate: SetupTemplate,
   secretType: number,
+  extraData: BytesLike = "0x",
 ): Promise<string> => {
   await setupTemplate.mockToken.connect(tokenHolder).transfer(await requester.getAddress(), bid.reward.toString());
 

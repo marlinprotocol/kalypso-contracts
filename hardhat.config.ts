@@ -1,19 +1,17 @@
-import '@nomicfoundation/hardhat-toolbox';
-import '@openzeppelin/hardhat-upgrades';
-import '@nomicfoundation/hardhat-chai-matchers';
-import 'hardhat-gas-reporter';
-import 'solidity-coverage';
-import 'hardhat-tracer';
-import * as tenderly from "@tenderly/hardhat-tenderly";
+import "@nomicfoundation/hardhat-toolbox";
+import "@openzeppelin/hardhat-upgrades";
+import "@nomicfoundation/hardhat-chai-matchers";
+import "hardhat-gas-reporter";
+import "solidity-coverage";
+import "hardhat-tracer";
 
 // tenderly.setup();
-
-import BigNumber from 'bignumber.js';
-import { config as dotenvConfig } from 'dotenv';
+import BigNumber from "bignumber.js";
+import { config as dotenvConfig } from "dotenv";
 import {
   HardhatUserConfig,
   task,
-} from 'hardhat/config';
+} from "hardhat/config";
 
 dotenvConfig();
 

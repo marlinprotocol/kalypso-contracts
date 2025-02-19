@@ -1,21 +1,13 @@
-import * as fs from 'fs';
+import * as fs from "fs";
 import {
   ethers,
   upgrades,
-} from 'hardhat';
+} from "hardhat";
 
 import {
   checkFileExists,
   createFileIfNotExists,
-} from '../helpers';
-import * as transfer_verifier_inputs
-  from '../helpers/sample/transferVerifier/transfer_inputs.json';
-import * as transfer_verifier_proof
-  from '../helpers/sample/transferVerifier/transfer_proof.json';
-import * as zkb_verifier_inputs
-  from '../helpers/sample/zkbVerifier/transfer_input.json';
-import * as zkb_verifier_proof
-  from '../helpers/sample/zkbVerifier/transfer_proof.json';
+} from "../helpers";
 import {
   AttestationVerifier__factory,
   Dispute__factory,
@@ -25,10 +17,7 @@ import {
   MockToken__factory,
   PriorityLog__factory,
   ProverManager__factory,
-  Transfer_verifier_wrapper__factory,
-  TransferVerifier__factory,
-  ZkbVerifier__factory,
-} from '../typechain-types';
+} from "../typechain-types";
 
 const abiCoder = new ethers.AbiCoder();
 
@@ -196,86 +185,6 @@ async function main(): Promise<string> {
     const prover_registry = ProverManager__factory.connect(addresses.proxy.prover_registry, admin);
     tx = await prover_registry.initialize(await admin.getAddress(), addresses.proxy.proof_market_place);
     await tx.wait();
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.transfer_verifier_wrapper) {
-    const TransferVerifer = await new TransferVerifier__factory(admin).deploy();
-    await TransferVerifer.waitForDeployment();
-
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [
-        [
-          transfer_verifier_inputs[0],
-          transfer_verifier_inputs[1],
-          transfer_verifier_inputs[2],
-          transfer_verifier_inputs[3],
-          transfer_verifier_inputs[4],
-        ],
-      ],
-    );
-
-    let proofBytes = abiCoder.encode(
-      ["uint256[8]"],
-      [
-        [
-          transfer_verifier_proof.a[0],
-          transfer_verifier_proof.a[1],
-          transfer_verifier_proof.b[0][0],
-          transfer_verifier_proof.b[0][1],
-          transfer_verifier_proof.b[1][0],
-          transfer_verifier_proof.b[1][1],
-          transfer_verifier_proof.c[0],
-          transfer_verifier_proof.c[1],
-        ],
-      ],
-    );
-
-    const transfer_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-      await TransferVerifer.getAddress(),
-      inputBytes,
-      proofBytes,
-    );
-    await transfer_verifier_wrapper.waitForDeployment();
-    addresses.proxy.transfer_verifier_wrapper = await transfer_verifier_wrapper.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
-  }
-
-  addresses = JSON.parse(fs.readFileSync(path, "utf-8"));
-  if (!addresses.proxy.zkb_verifier_wrapper) {
-    const ZkbVerifier = await new ZkbVerifier__factory(admin).deploy();
-    await ZkbVerifier.waitForDeployment();
-
-    let inputBytes = abiCoder.encode(
-      ["uint256[5]"],
-      [[zkb_verifier_inputs[0], zkb_verifier_inputs[1], zkb_verifier_inputs[2], zkb_verifier_inputs[3], zkb_verifier_inputs[4]]],
-    );
-
-    let proofBytes = abiCoder.encode(
-      ["uint256[8]"],
-      [
-        [
-          zkb_verifier_proof.a[0],
-          zkb_verifier_proof.a[1],
-          zkb_verifier_proof.b[0][0],
-          zkb_verifier_proof.b[0][1],
-          zkb_verifier_proof.b[1][0],
-          zkb_verifier_proof.b[1][1],
-          zkb_verifier_proof.c[0],
-          zkb_verifier_proof.c[1],
-        ],
-      ],
-    );
-
-    const zkb_verifier_wrapper = await new Transfer_verifier_wrapper__factory(admin).deploy(
-      await ZkbVerifier.getAddress(),
-      inputBytes,
-      proofBytes,
-    );
-    await zkb_verifier_wrapper.waitForDeployment();
-    addresses.proxy.zkb_verifier_wrapper = await zkb_verifier_wrapper.getAddress();
-    fs.writeFileSync(path, JSON.stringify(addresses, null, 4), "utf-8");
   }
 
   addresses = JSON.parse(fs.readFileSync(path, "utf-8"));

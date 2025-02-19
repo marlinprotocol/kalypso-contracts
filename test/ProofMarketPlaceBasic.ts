@@ -1,12 +1,12 @@
-import { BigNumber } from 'bignumber.js';
-import { expect } from 'chai';
-import { Signer } from 'ethers';
+import { BigNumber } from "bignumber.js";
+import { expect } from "chai";
+import { Signer } from "ethers";
 import {
   ethers,
   upgrades,
-} from 'hardhat';
+} from "hardhat";
 
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
 import {
   BridgeEnclavePCRS,
@@ -19,8 +19,7 @@ import {
   MockMEPCRS,
   MockProverPCRS,
   skipBlocks,
-  skipTime,
-} from '../helpers';
+} from "../helpers";
 import {
   Dispute__factory,
   EntityKeyRegistry,
@@ -42,7 +41,7 @@ import {
   SymbioticStaking__factory,
   SymbioticStakingReward,
   SymbioticStakingReward__factory,
-} from '../typechain-types';
+} from "../typechain-types";
 
 describe("Proof market place", () => {
   let signers: Signer[];
@@ -527,6 +526,7 @@ describe("Proof market place", () => {
           "0x",
           "0x",
           "0x",
+          "0x",
         ),
       ).to.be.revertedWithPanic(0x32); // 0x32 mean array out of bounds // market is not created
     });
@@ -831,6 +831,7 @@ describe("Proof market place", () => {
             "0x",
             "0x",
             "0x",
+            "0x",
           );
 
           await proverManager.connect(prover).register(await prover.getAddress(), computeUnitsRequired, proverData);
@@ -923,6 +924,7 @@ describe("Proof market place", () => {
               refundAddress: await prover.getAddress(),
             },
             0,
+            "0x",
             "0x",
             "0x",
             "0x",

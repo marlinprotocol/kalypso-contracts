@@ -71,6 +71,12 @@ async function main() {
     address: addresses.proxy.tee_verifier_deployer,
   });
 
+  verificationResult = await run("verify:verify", {
+    address: addresses.proxy.attestation_verifier_ZK,
+    constructorArguments: [addresses.proxy.RiscZeroGroth16Verifier],
+  });
+  console.log({ verificationResult });
+
   return "String";
 }
 

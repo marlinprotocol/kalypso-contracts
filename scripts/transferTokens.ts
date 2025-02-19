@@ -22,7 +22,7 @@ async function main(): Promise<string> {
   // let generator = signers[4];
   // let matchingEngine = signers[5];
 
-  const transferTo = "0x26a1b8104374096d88E34Ab48ec276F6018E444D";
+  const transferTo = "0x4d85CEA118DcEaA3F187e97aDd84F265bF31b420";
   const path = `./addresses/${chainId}.json`;
   const addressesExists = checkFileExists(path);
 
@@ -40,8 +40,8 @@ async function main(): Promise<string> {
   }
 
   const ethBalance = await admin.provider.getBalance(transferTo);
-  if (new BigNumber(ethBalance.toString()).lt("100000000000000000")) {
-    (await treasury.sendTransaction({ to: transferTo, value: "100000000000000000" })).wait();
+  if (new BigNumber(ethBalance.toString()).lt("500000000000000000")) {
+    (await admin.sendTransaction({ to: transferTo, value: "500000000000000000" })).wait();
   }
 
   const payment_token = MockToken__factory.connect(addresses.proxy.payment_token, tokenHolder);
