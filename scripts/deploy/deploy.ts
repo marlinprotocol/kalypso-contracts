@@ -239,7 +239,11 @@ async function initialize(): Promise<string> {
 
   // Attestation Verifier
   if(!await attestationVerifier.hasRole(await attestationVerifier.DEFAULT_ADMIN_ROLE(), admin)) {
-    await attestationVerifier.initialize([], [], admin);
+    await attestationVerifier.initialize(
+      [config.attestationVerifier.whitelistedImage.PCRs], 
+      [config.attestationVerifier.whitelistedImage.enclaveKey], 
+      admin
+    );
     console.log("AttestationVerifier initialized");
   }
 
