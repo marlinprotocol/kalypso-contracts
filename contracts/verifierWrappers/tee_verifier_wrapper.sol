@@ -98,6 +98,7 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
     }
 
     error InvalidInputs();
+    error TeeVerifierEnclaveKeyNotVerified(bytes PCR0, bytes PCR1, bytes PCR2);
 
     function verify(bytes memory encodedData) public view override returns (bool) {
         (bytes memory proverData, bytes memory completeProof) = abi.decode(encodedData, (bytes, bytes));
@@ -161,7 +162,7 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
         // compute image id in proper way
         bool verificationResult = _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
         if (!verificationResult) {
-            revert Error.TeeVerifierEnclaveKeyNotVerified(PCR0, PCR1, PCR2);
+            revert TeeVerifierEnclaveKeyNotVerified(PCR0, PCR1, PCR2);
         }
     }
 }

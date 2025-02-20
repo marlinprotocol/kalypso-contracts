@@ -160,7 +160,4 @@ library Error {
     error InvalidSymbioticStaking();
     error InvalidStakingManager();
     error InvalidRewardDistributor();
-
-    // TeeVerifierWrapper
-    error TeeVerifierEnclaveKeyNotVerified(bytes PCR0, bytes PCR1, bytes PCR2);
 }
