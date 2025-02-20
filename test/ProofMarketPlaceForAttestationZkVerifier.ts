@@ -1,46 +1,53 @@
-import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { AbiCoder, Signer } from "ethers";
 import { BigNumber } from "bignumber.js";
+import { expect } from "chai";
 import {
-  AttestationVerifierZK__factory,
-  EntityKeyRegistry,
-  Error,
-  GeneratorRegistry,
-  IVerifier,
-  IVerifier__factory,
-  MockToken,
-  PriorityLog,
-  ProofMarketplace,
-  Risc0_attestation_verifier_wrapper__factory,
-  RiscZeroGroth16Verifier__factory,
-  RiscZeroVerifierEmergencyStop__factory,
-} from "../typechain-types";
+  AbiCoder,
+  Signer,
+} from "ethers";
+import { ethers } from "hardhat";
 
 import {
-  GeneratorData,
   GodEnclavePCRS,
   MarketData,
+  marketDataToBytes,
   MockEnclave,
-  MockGeneratorPCRS,
   MockIVSPCRS,
   MockMEPCRS,
-  generatorDataToBytes,
-  marketDataToBytes,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
   setup,
-  skipBlocks,
 } from "../helpers";
 // import * as attestation from "../helpers/sample/risc0/attestation_struct.json";
 import * as attestation from "../helpers/sample/risc0/attestation.json";
+import {
+  AttestationVerifier,
+  AttestationVerifierZK__factory,
+  EntityKeyRegistry,
+  Error,
+  IVerifier,
+  IVerifier__factory,
+  MockToken,
+  NativeStaking,
+  PriorityLog,
+  ProofMarketplace,
+  ProverManager,
+  Risc0_attestation_verifier_wrapper__factory,
+  RiscZeroGroth16Verifier__factory,
+  RiscZeroVerifierEmergencyStop__factory,
+  StakingManager,
+  SymbioticStaking,
+  SymbioticStakingReward,
+} from "../typechain-types";
 
 describe("Proof Market Place for Attestation Verifier", () => {
   let proofMarketplace: ProofMarketplace;
-  let generatorRegistry: GeneratorRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
-
+  let attestationVerifier: AttestationVerifier;
   let signers: Signer[];
   let admin: Signer;
   let tokenHolder: Signer;
@@ -48,29 +55,34 @@ describe("Proof Market Place for Attestation Verifier", () => {
   let prover: Signer;
   let generator: Signer;
 
+  let stakingManager: StakingManager;
+  let nativeStaking: NativeStaking;
+  let symbioticStaking: SymbioticStaking;
+  let symbioticStakingReward: SymbioticStakingReward;
+
   let marketCreator: Signer;
   let marketSetupData: MarketData;
   let marketId: string;
 
-  let generatorData: GeneratorData;
+  let proverData: ProverData;
 
   let iverifier: IVerifier;
 
   const ivsEnclave = new MockEnclave(MockIVSPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
-  const generatorEnclave = new MockEnclave(MockGeneratorPCRS);
+  const proverEnclave = new MockEnclave(MockProverPCRS);
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
   const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
   const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
-  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+  const proverComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
 
   const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
-  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
+  const minRewardByProver = new BigNumber(10).pow(18).multipliedBy(199);
 
   // TODO: save it somewhere latter
   let seal =
@@ -110,8 +122,8 @@ describe("Proof Market Place for Attestation Verifier", () => {
       inputOuputVerifierUrl: "this should be enclave url",
     };
 
-    generatorData = {
-      name: "some custom name for the generator",
+    proverData = {
+      name: "some custom name for the prover",
     };
 
     const riscZeroVerifier = await new RiscZeroGroth16Verifier__factory(admin).deploy(
@@ -148,27 +160,35 @@ describe("Proof Market Place for Attestation Verifier", () => {
       marketDataToBytes(marketSetupData),
       marketSetupData.inputOuputVerifierUrl,
       iverifier,
-      generator,
-      generatorDataToBytes(generatorData),
+      prover,
+      proverDataToBytes(proverData),
       ivsEnclave,
       matchingEngineEnclave,
-      generatorEnclave,
-      minRewardByGenerator,
-      generatorComputeAllocation,
+      proverEnclave,
+      minRewardByProver,
+      proverComputeAllocation,
       computeGivenToNewMarket,
       godEnclave,
     );
     proofMarketplace = data.proofMarketplace;
-    generatorRegistry = data.generatorRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    entityKeyRegistry = data.entityKeyRegistry;
+    attestationVerifier = data.attestationVerifier;
+
+    /* Staking Contracts */
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
   it.skip("Print function calldata", async () => {
@@ -178,31 +198,37 @@ describe("Proof Market Place for Attestation Verifier", () => {
   });
 
   it("Check risc0 attestation zk verifier", async () => {
-    const latestBlock = await ethers.provider.getBlockNumber();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const blockTimestamp = latestBlock?.timestamp ?? 0;
 
-    let assignmentExpiry = 100; // in blocks
-    let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-    let maxTimeForProofGeneration = 10000; // in blocks
+    let assignmentExpiry = 100; // in seconds
+    let timeForProofGeneration = 10000; // keep a large number, but only for tests
+    let maxTimeForProofGeneration = 60 * 60 * 24; // 1 day
 
-    const askId = await setup.createAsk(
+    const bidId = await setup.createBid(
       prover,
       tokenHolder,
       {
         marketId,
         proverData: inputBytes,
         reward: rewardForProofGeneration.toFixed(),
-        expiry: assignmentExpiry + latestBlock,
-        timeTakenForProofGeneration,
-        deadline: latestBlock + maxTimeForProofGeneration,
+        expiry: (assignmentExpiry + blockTimestamp).toString(),
+        timeForProofGeneration: timeForProofGeneration.toString(),
+        deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
         refundAddress: await prover.getAddress(),
       },
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        attestationVerifier,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
       1,
       extraData,
@@ -214,15 +240,20 @@ describe("Proof Market Place for Attestation Verifier", () => {
       {
         mockToken: tokenToUse,
         proofMarketplace,
-        generatorRegistry,
+        attestationVerifier,
+        proverManager,
         priorityLog,
         errorLibrary,
         entityKeyRegistry,
+        stakingManager,
+        nativeStaking,
+        symbioticStaking,
+        symbioticStakingReward,
       },
-      askId,
-      generator,
+      bidId,
+      prover,
     );
 
-    await expect(proofMarketplace.submitProof(askId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(askId, proofBytes);
+    await expect(proofMarketplace.submitProof(bidId, proofBytes)).to.emit(proofMarketplace, "ProofCreated").withArgs(bidId, proofBytes);
   });
 });

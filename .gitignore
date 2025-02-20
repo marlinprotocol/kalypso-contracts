@@ -103,7 +103,6 @@ dist
 
 # vuepress v2.x temp and cache directory
 .temp
-.cache
 
 # Docusaurus cache and generated files
 .docusaurus
@@ -122,6 +121,7 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+.vscode
 
 # yarn v2
 .yarn/cache
@@ -130,9 +130,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-node_modules
-.env
-coverage
 coverage.json
 typechain
 typechain-types
@@ -143,7 +140,15 @@ artifacts
 
 addresses/31337.json
 
-*backup*
+# Foundry
+broadcast
 
+# Openzeppelin
+.openzeppelin/
+
+# MacOS 
+**/.DS_Store
+
+# Python
 venv
 venv/*

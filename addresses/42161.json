@@ -1,8 +1,22 @@
 {
-    "proxy": {
-        "risc0_router": "0x0b144e07a0826182b6b59788c34b32bfa86fb711",
-        "attestation_zk_verifier": "0xfcCD297E4FCce471f633BB1998cc7e058903cc53",
-        "attestation_zk_verifier_wrapper": "0x0338C1C01d7A15988367182d5af9cC1C85F22e77"
-    },
-    "implementation": {}
+  "proxy": {
+    "stakingManager": "0xC141DE136254fD5954b779cC01b57f98Ee3A60E8",
+    "nativeStaking": "0xd96418F0507F992E2a33942e54FA832ba3d2287e",
+    "symbioticStaking": "0x356CBC9971867b71b904D38C620320589B489FE3",
+    "symbioticStakingReward": "0x934800EB0D5C18a269c91C0A09894789b1E4573E",
+    "attestationVerifier": "0x73621e72D012e043bB5F2B8A4A794564558369FA",
+    "proverManager": "0xEcF45b1272D3B0ed2eB2A3c85b1E4bBa8a3611D6",
+    "proofMarketplace": "0xE68A7457c0fd11CcBe96126Bf69B27a9064636a2",
+    "entityKeyRegistry": "0x9C0Da9ac6B563A87CAf6F5b49f58f3C6D8D9BDef"
+  },
+  "implementation": {
+    "stakingManager": "0x49a828CEa72DaBFd3a27f0313b57bC745ad2ed98",
+    "nativeStaking": "0x7F2586176ed24A045Cc2D769c64402f275D97DCF",
+    "symbioticStaking": "0xd5d5C09218f42C1DF636de57C4179Bff0CE74234",
+    "symbioticStakingReward": "0xecb11D0370178D566a62469A5e9Daf3ACab0f3aE",
+    "attestationVerifier": "0xc0306d11b3084B862332f2a77e66dF10DB7556a3",
+    "entityKeyRegistry": "0x6fA66dFf1c6f4413f117ec7f4D8807Ae54f47604",
+    "proverManager": "0xdf537d04a393496F74B884a71aEf7460060D0772",
+    "proofMarketplace": "0x2B828Bccf78957df65E625803E454f92fC86c008"
+  }
 }

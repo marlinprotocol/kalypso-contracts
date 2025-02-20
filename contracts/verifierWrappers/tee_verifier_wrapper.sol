@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
-import "../interfaces/IVerifier.sol";
-import "../lib/Error.sol";
-import "../lib/Helper.sol";
-import "../periphery/AttestationAuther.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
+import {IAttestationVerifier} from "../periphery/interfaces/IAttestationVerifier.sol";
+
+import {Error} from "../lib/Error.sol";
+import {HELPER} from "../lib/Helper.sol";
+import {AttestationAuther} from "../periphery/AttestationAuther.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Struct} from "../lib/Struct.sol";
+import {Enum} from "../lib/Enum.sol";   
 
 contract tee_verifier_wrapper_factory {
     event TeeVerifierWrapperCreated(tee_verifier_wrapper a);
@@ -93,6 +98,7 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
     }
 
     error InvalidInputs();
+    error TeeVerifierEnclaveKeyNotVerified(bytes PCR0, bytes PCR1, bytes PCR2);
 
     function verify(bytes memory encodedData) public view override returns (bool) {
         (bytes memory proverData, bytes memory completeProof) = abi.decode(encodedData, (bytes, bytes));
@@ -117,7 +123,7 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, proofSignature);
+        address signer = ECDSA.recover(ethSignedMessageHash, proofSignature);
         if (signer == address(0)) {
             revert Error.InvalidEnclaveSignature(signer);
         }
@@ -156,7 +162,7 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
         // compute image id in proper way
         bool verificationResult = _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
         if (!verificationResult) {
-            revert Error.TeeVerifierEnclaveKeyNotVerified(PCR0, PCR1, PCR2);
+            revert TeeVerifierEnclaveKeyNotVerified(PCR0, PCR1, PCR2);
         }
     }
 }

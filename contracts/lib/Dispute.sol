@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "../EntityKeyRegistry.sol";
-import "./Error.sol";
-import "./Helper.sol";
+import {EntityKeyRegistry} from "../EntityKeyRegistry.sol";
+import {Error} from "./Error.sol";
+import {HELPER} from "./Helper.sol";
 
 contract Dispute {
     using HELPER for bytes;
@@ -19,12 +19,12 @@ contract Dispute {
     }
 
     function checkDisputeUsingSignature(
-        uint256 askId,
+        uint256 bidId,
         bytes calldata proverData,
         bytes memory invalidProofSignature,
         bytes32 familyId
     ) internal view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encode(askId, proverData));
+        bytes32 messageHash = keccak256(abi.encode(bidId, proverData));
 
         bytes32 ethSignedMessageHash = messageHash.GET_ETH_SIGNED_HASHED_MESSAGE();
 
@@ -38,11 +38,11 @@ contract Dispute {
     }
 
     function checkDispute(
-        uint256 askId,
+        uint256 bidId,
         bytes calldata proverData,
         bytes calldata invalidProofSignature,
         bytes32 expectedFamilyId
     ) public view returns (bool) {
-        return checkDisputeUsingSignature(askId, proverData, invalidProofSignature, expectedFamilyId);
+        return checkDisputeUsingSignature(bidId, proverData, invalidProofSignature, expectedFamilyId);
     }
 }

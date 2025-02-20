@@ -1,46 +1,61 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { Provider, Signer } from "ethers";
-import { BigNumber } from "bignumber.js";
+import { BigNumber } from 'bignumber.js';
+import { expect } from 'chai';
 import {
-  Error,
-  GeneratorRegistry,
-  MockToken,
-  PriorityLog,
-  ProofMarketplace,
-  TransferVerifier__factory,
-  EntityKeyRegistry,
-  Transfer_verifier_wrapper__factory,
-  IVerifier__factory,
-  IVerifier,
-} from "../typechain-types";
+  Provider,
+  Signer,
+} from 'ethers';
+import { ethers } from 'hardhat';
 
 import {
-  GeneratorData,
   GodEnclavePCRS,
-  MarketData,
-  MockEnclave,
-  MockGeneratorPCRS,
-  MockMEPCRS,
-  generatorDataToBytes,
-  generatorFamilyId,
   ivsFamilyId,
+  MarketData,
   marketDataToBytes,
+  MockEnclave,
+  MockMEPCRS,
+  MockProverPCRS,
+  ProverData,
+  proverDataToBytes,
+  proverFamilyId,
   setup,
   skipBlocks,
-} from "../helpers";
+} from '../helpers';
+import * as transfer_verifier_inputs
+  from '../helpers/sample/transferVerifier/transfer_inputs.json';
+import * as transfer_verifier_proof
+  from '../helpers/sample/transferVerifier/transfer_proof.json';
+import {
+  AttestationVerifier,
+  EntityKeyRegistry,
+  Error,
+  IVerifier,
+  IVerifier__factory,
+  MockToken,
+  NativeStaking,
+  PriorityLog,
+  ProofMarketplace,
+  ProverManager,
+  StakingManager,
+  SymbioticStaking,
+  SymbioticStakingReward,
+  Transfer_verifier_wrapper__factory,
+  TransferVerifier__factory,
+} from '../typechain-types';
 
-import * as transfer_verifier_inputs from "../helpers/sample/transferVerifier/transfer_inputs.json";
-import * as transfer_verifier_proof from "../helpers/sample/transferVerifier/transfer_proof.json";
-
-describe("Checking Case where generator and ivs image is same", () => {
+describe("Checking Case where prover and ivs image is same", () => {
   let proofMarketplace: ProofMarketplace;
-  let generatorRegistry: GeneratorRegistry;
+  let proverManager: ProverManager;
   let tokenToUse: MockToken;
   let priorityLog: PriorityLog;
   let errorLibrary: Error;
   let entityKeyRegistry: EntityKeyRegistry;
+  let attestationVerifier: AttestationVerifier;
   let iverifier: IVerifier;
+
+  let stakingManager: StakingManager;
+  let nativeStaking: NativeStaking;
+  let symbioticStaking: SymbioticStaking;
+  let symbioticStakingReward: SymbioticStakingReward;
 
   let signers: Signer[];
   let admin: Signer;
@@ -53,23 +68,23 @@ describe("Checking Case where generator and ivs image is same", () => {
   let marketSetupData: MarketData;
   let marketId: string;
 
-  let generatorData: GeneratorData;
+  let proverData: ProverData;
 
-  const ivsAndGeneratorEnclaveCombined = new MockEnclave(MockGeneratorPCRS);
+  const ivsAndProverEnclaveCombined = new MockEnclave(MockProverPCRS);
   const matchingEngineEnclave = new MockEnclave(MockMEPCRS);
 
   const godEnclave = new MockEnclave(GodEnclavePCRS);
 
   const totalTokenSupply: BigNumber = new BigNumber(10).pow(24).multipliedBy(9);
-  const generatorStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
-  const generatorSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
+  const proverStakingAmount: BigNumber = new BigNumber(10).pow(18).multipliedBy(1000).multipliedBy(2).minus(1231); // use any random number
+  const proverSlashingPenalty: BigNumber = new BigNumber(10).pow(16).multipliedBy(93).minus(182723423); // use any random number
   const marketCreationCost: BigNumber = new BigNumber(10).pow(18).multipliedBy(1213).minus(23746287365); // use any random number
-  const generatorComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
+  const proverComputeAllocation = new BigNumber(10).pow(19).minus("12782387").div(123).multipliedBy(98);
 
   const computeGivenToNewMarket = new BigNumber(10).pow(19).minus("98897").div(9233).multipliedBy(98);
 
   const rewardForProofGeneration = new BigNumber(10).pow(18).multipliedBy(200);
-  const minRewardByGenerator = new BigNumber(10).pow(18).multipliedBy(199);
+  const minRewardByProver = new BigNumber(10).pow(18).multipliedBy(199);
 
   beforeEach(async () => {
     signers = await ethers.getSigners();
@@ -89,11 +104,11 @@ describe("Checking Case where generator and ivs image is same", () => {
       inputOuputVerifierUrl: "this should be nclave url",
     };
 
-    generatorData = {
-      name: "some custom name for the generator",
+    proverData = {
+      name: "some custom name for the prover",
     };
 
-    await admin.sendTransaction({ to: ivsAndGeneratorEnclaveCombined.getAddress(), value: "1000000000000000000" });
+    await admin.sendTransaction({ to: ivsAndProverEnclaveCombined.getAddress(), value: "1000000000000000000" });
     await admin.sendTransaction({ to: matchingEngineEnclave.getAddress(), value: "1000000000000000000" });
 
     const transferVerifier = await new TransferVerifier__factory(admin).deploy();
@@ -142,8 +157,8 @@ describe("Checking Case where generator and ivs image is same", () => {
       admin,
       tokenHolder,
       totalTokenSupply,
-      generatorStakingAmount,
-      generatorSlashingPenalty,
+      proverStakingAmount,
+      proverSlashingPenalty,
       treasuryAddress,
       marketCreationCost,
       marketCreator,
@@ -151,31 +166,36 @@ describe("Checking Case where generator and ivs image is same", () => {
       marketSetupData.inputOuputVerifierUrl,
       iverifier,
       generator,
-      generatorDataToBytes(generatorData),
-      ivsAndGeneratorEnclaveCombined, // USED AS IVS HERE
+      proverDataToBytes(proverData),
+      ivsAndProverEnclaveCombined, // USED AS IVS HERE
       matchingEngineEnclave,
-      ivsAndGeneratorEnclaveCombined, // USED AS GENERATOR HERE
-      minRewardByGenerator,
-      generatorComputeAllocation,
+      ivsAndProverEnclaveCombined, // USED AS GENERATOR HERE
+      minRewardByProver,
+      proverComputeAllocation,
       computeGivenToNewMarket,
       godEnclave,
     );
 
     proofMarketplace = data.proofMarketplace;
-    generatorRegistry = data.generatorRegistry;
+    proverManager = data.proverManager;
     tokenToUse = data.mockToken;
     priorityLog = data.priorityLog;
     errorLibrary = data.errorLibrary;
     entityKeyRegistry = data.entityKeyRegistry;
+    attestationVerifier = data.attestationVerifier;
+    stakingManager = data.stakingManager;
+    nativeStaking = data.nativeStaking;
+    symbioticStaking = data.symbioticStaking;
+    symbioticStakingReward = data.symbioticStakingReward;
 
     marketId = new BigNumber((await proofMarketplace.marketCounter()).toString()).minus(1).toFixed();
 
-    let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
-    await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
+    // let marketActivationDelay = await proofMarketplace.MARKET_ACTIVATION_DELAY();
+    // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
   });
 
-  it("Add new images for generators and ivs", async () => {
-    const newGeneratorImages = [MockEnclave.someRandomPcrs(), MockEnclave.someRandomPcrs(), MockEnclave.someRandomPcrs()].map(
+  it("Add new images for provers and ivs", async () => {
+    const newProverImages = [MockEnclave.someRandomPcrs(), MockEnclave.someRandomPcrs(), MockEnclave.someRandomPcrs()].map(
       (a) => new MockEnclave(a),
     );
 
@@ -187,17 +207,18 @@ describe("Checking Case where generator and ivs image is same", () => {
       proofMarketplace,
       "OnlyMarketCreator",
     );
-    await expect(proofMarketplace.connect(marketCreator).addExtraImages(marketId, [], [])).to.not.be.reverted;
 
-    await proofMarketplace.connect(marketCreator).addExtraImages(
-      marketId,
-      newGeneratorImages.map((a) => a.getPcrRlp()),
-      newIvsImages.map((a) => a.getPcrRlp()),
-    );
+    await expect(
+      proofMarketplace.connect(marketCreator).addExtraImages(
+        marketId,
+        newProverImages.map((a) => a.getPcrRlp()),
+        newIvsImages.map((a) => a.getPcrRlp()),
+      ),
+    ).to.not.be.reverted;
 
-    for (let index = 0; index < newGeneratorImages.length; index++) {
-      const generator = newGeneratorImages[index];
-      const isAllowed = await entityKeyRegistry.isImageInFamily(generator.getImageId(), generatorFamilyId(marketId));
+    for (let index = 0; index < newProverImages.length; index++) {
+      const prover = newProverImages[index];
+      const isAllowed = await entityKeyRegistry.isImageInFamily(prover.getImageId(), proverFamilyId(marketId));
       expect(isAllowed).is.true;
     }
 
@@ -209,18 +230,18 @@ describe("Checking Case where generator and ivs image is same", () => {
   });
 
   it("Check events during adding and removing extra images", async () => {
-    const newGenerator = new MockEnclave(MockEnclave.someRandomPcrs());
+    const newProver = new MockEnclave(MockEnclave.someRandomPcrs());
     const newIvs = new MockEnclave(MockEnclave.someRandomPcrs());
 
-    await expect(proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newGenerator.getPcrRlp()], [newIvs.getPcrRlp()]))
+    await expect(proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newProver.getPcrRlp()], [newIvs.getPcrRlp()]))
       .to.emit(proofMarketplace, "AddExtraProverImage")
-      .withArgs(marketId, newGenerator.getImageId())
+      .withArgs(marketId, newProver.getImageId())
       .to.emit(proofMarketplace, "AddExtraIVSImage")
       .withArgs(marketId, newIvs.getImageId());
 
-    await expect(proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [newGenerator.getPcrRlp()], [newIvs.getPcrRlp()]))
+    await expect(proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [newProver.getPcrRlp()], [newIvs.getPcrRlp()]))
       .to.emit(proofMarketplace, "RemoveExtraProverImage")
-      .withArgs(marketId, newGenerator.getImageId())
+      .withArgs(marketId, newProver.getImageId())
       .to.emit(proofMarketplace, "RemoveExtraIVSImage")
       .withArgs(marketId, newIvs.getImageId());
   });
@@ -232,15 +253,15 @@ describe("Checking Case where generator and ivs image is same", () => {
     );
 
     await expect(
-      proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [ivsAndGeneratorEnclaveCombined.getPcrRlp()], []),
+      proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [ivsAndProverEnclaveCombined.getPcrRlp()], []),
     ).to.revertedWithCustomError(proofMarketplace, "CannotRemoveDefaultImageFromMarket");
     await expect(
-      proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [], [ivsAndGeneratorEnclaveCombined.getPcrRlp()]),
+      proofMarketplace.connect(marketCreator).removeExtraImages(marketId, [], [ivsAndProverEnclaveCombined.getPcrRlp()]),
     ).to.revertedWithCustomError(proofMarketplace, "CannotRemoveDefaultImageFromMarket");
   });
 
   describe("Submit Proof For invalid request", () => {
-    let askId: string;
+    let bidId: string;
     const updateIvsKey = async (ivsEnclave: MockEnclave) => {
       // use any enclave here as AV is mocked
       let ivsAttestationBytes = await ivsEnclave.getVerifiedAttestation(godEnclave); // means ivs should get verified attestation from noUseEnclave
@@ -254,17 +275,19 @@ describe("Checking Case where generator and ivs image is same", () => {
       let signature = await ivsEnclave.signMessage(ethers.getBytes(digest));
 
       // use any enclave to get verfied attestation as mockAttesationVerifier is used here
-      await expect(generatorRegistry.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
-        .to.emit(generatorRegistry, "AddIvsKey")
+      await expect(proverManager.connect(generator).addIvsKey(marketId, ivsAttestationBytes, signature))
+        .to.emit(proverManager, "IvKeyAdded")
         .withArgs(marketId, ivsEnclave.getAddress());
     };
 
     beforeEach(async () => {
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const blockTimestamp = latestBlock?.timestamp ?? 0;
+
       let abiCoder = new ethers.AbiCoder();
       let assignmentExpiry = 100; // in blocks
-      let timeTakenForProofGeneration = 100000000; // keep a large number, but only for tests
-      let maxTimeForProofGeneration = 10000; // in blocks
-      const latestBlock = await ethers.provider.getBlockNumber();
+      let timeForProofGeneration = 10000; // keep a large number, but only for tests
+      let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       let inputBytes = abiCoder.encode(
         ["uint256[5]"],
@@ -279,25 +302,30 @@ describe("Checking Case where generator and ivs image is same", () => {
         ],
       );
 
-      askId = await setup.createAsk(
+      bidId = await setup.createBid(
         prover,
         tokenHolder,
         {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
-          expiry: assignmentExpiry + latestBlock,
-          timeTakenForProofGeneration,
-          deadline: latestBlock + maxTimeForProofGeneration,
+          expiry: (assignmentExpiry + blockTimestamp).toString(),
+          timeForProofGeneration: timeForProofGeneration.toString(),
+          deadline: (blockTimestamp + maxTimeForProofGeneration).toString(),
           refundAddress: await prover.getAddress(),
         },
         {
           mockToken: tokenToUse,
           proofMarketplace,
-          generatorRegistry,
+          proverManager,
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
+          stakingManager,
+          nativeStaking,
+          symbioticStaking,
+          symbioticStakingReward,
         },
         1,
       );
@@ -308,83 +336,87 @@ describe("Checking Case where generator and ivs image is same", () => {
         {
           mockToken: tokenToUse,
           proofMarketplace,
-          generatorRegistry,
+          proverManager,
           priorityLog,
           errorLibrary,
           entityKeyRegistry,
+          attestationVerifier,
+          stakingManager,
+          nativeStaking,
+          symbioticStaking,
+          symbioticStakingReward,
         },
-        askId,
+        bidId,
         generator,
       );
     });
-    it("Submit proof for invalid requests directly from generator", async () => {
-      const askData = await proofMarketplace.listOfAsk(askId);
+    it("Submit proof for invalid requests directly from prover", async () => {
+      const bidData = await proofMarketplace.listOfBid(bidId);
       const types = ["uint256", "bytes"];
 
-      const values = [askId, askData.ask.proverData];
+      const values = [bidId, bidData.bid.proverData];
 
       const abicode = new ethers.AbiCoder();
       const encoded = abicode.encode(types, values);
       const digest = ethers.keccak256(encoded);
-      const signature = await ivsAndGeneratorEnclaveCombined.signMessage(ethers.getBytes(digest));
+      const signature = await ivsAndProverEnclaveCombined.signMessage(ethers.getBytes(digest));
 
-      await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
+      // TODO
+      // await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
-      await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
+      await expect(proofMarketplace.submitProofForInvalidInputs(bidId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
     });
 
     it("Submit proof for invalid requests directly from new generators added by market maker", async () => {
-      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      const newProverImage = new MockEnclave(MockEnclave.someRandomPcrs());
       await proofMarketplace
         .connect(marketCreator)
-        .addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]);
+        .addExtraImages(marketId, [newProverImage.getPcrRlp()], [newProverImage.getPcrRlp()]);
 
-      await updateIvsKey(newGeneratorImage);
+      await updateIvsKey(newProverImage);
 
-      const askData = await proofMarketplace.listOfAsk(askId);
+      const bidData = await proofMarketplace.listOfBid(bidId);
       const types = ["uint256", "bytes"];
 
-      const values = [askId, askData.ask.proverData];
+      const values = [bidId, bidData.bid.proverData];
 
       const abicode = new ethers.AbiCoder();
       const encoded = abicode.encode(types, values);
       const digest = ethers.keccak256(encoded);
-      const signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+      const signature = await newProverImage.signMessage(ethers.getBytes(digest));
 
-      await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
-
-      await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
+      await expect(proofMarketplace.submitProofForInvalidInputs(bidId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
     });
 
-    it("Should fail to ecies key when the generator image is not added by market creator", async () => {
-      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
-      let generatorAttestationBytes = await newGeneratorImage.getVerifiedAttestation(godEnclave);
+    it("Should fail to ecies key when the prover image is not added by market creator", async () => {
+      const newProverImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      let proverAttestationBytes = await newProverImage.getVerifiedAttestation(godEnclave);
 
       let types = ["bytes", "address"];
 
-      let values = [generatorAttestationBytes, await generator.getAddress()];
+      let values = [proverAttestationBytes, await prover.getAddress()];
 
       let abicode = new ethers.AbiCoder();
       let encoded = abicode.encode(types, values);
       let digest = ethers.keccak256(encoded);
-      let signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+      let signature = await newProverImage.signMessage(ethers.getBytes(digest));
 
       await expect(
-        generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature),
-      ).to.be.revertedWithCustomError(generatorRegistry, "IncorrectImageId");
+        proverManager.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature),
+      ).to.be.revertedWithCustomError(proverManager, "IncorrectImageId");
     });
 
     it("Can't add same extra image twice", async () => {
-      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+      const newProverImage = new MockEnclave(MockEnclave.someRandomPcrs());
       await proofMarketplace
         .connect(marketCreator)
-        .addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]);
+        .addExtraImages(marketId, [newProverImage.getPcrRlp()], [newProverImage.getPcrRlp()]);
 
       await expect(
-        proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]),
+        proofMarketplace.connect(marketCreator).addExtraImages(marketId, [newProverImage.getPcrRlp()], [newProverImage.getPcrRlp()]),
       )
         .to.be.revertedWithCustomError(proofMarketplace, "ImageAlreadyInFamily")
-        .withArgs(newGeneratorImage.getImageId(), generatorFamilyId(marketId));
+        .withArgs(newProverImage.getImageId(), proverFamilyId(marketId));
     });
 
     it("Can't add same extra ivs image twice", async () => {
@@ -396,24 +428,24 @@ describe("Checking Case where generator and ivs image is same", () => {
         .withArgs(newIvsImage.getImageId(), ivsFamilyId(marketId));
     });
 
-    it("Update Ecies key when the generator image is updated", async () => {
-      const newGeneratorImage = new MockEnclave(MockEnclave.someRandomPcrs());
+    it("Update Ecies key when the prover image is updated", async () => {
+      const newProverImage = new MockEnclave(MockEnclave.someRandomPcrs());
       await proofMarketplace
         .connect(marketCreator)
-        .addExtraImages(marketId, [newGeneratorImage.getPcrRlp()], [newGeneratorImage.getPcrRlp()]);
+        .addExtraImages(marketId, [newProverImage.getPcrRlp()], [newProverImage.getPcrRlp()]);
 
-      let generatorAttestationBytes = await newGeneratorImage.getVerifiedAttestation(godEnclave);
+      let proverAttestationBytes = await newProverImage.getVerifiedAttestation(godEnclave);
 
       let types = ["bytes", "address"];
 
-      let values = [generatorAttestationBytes, await generator.getAddress()];
+      let values = [proverAttestationBytes, await generator.getAddress()];
 
       let abicode = new ethers.AbiCoder();
       let encoded = abicode.encode(types, values);
       let digest = ethers.keccak256(encoded);
-      let signature = await newGeneratorImage.signMessage(ethers.getBytes(digest));
+      let signature = await newProverImage.signMessage(ethers.getBytes(digest));
 
-      await expect(generatorRegistry.connect(generator).updateEncryptionKey(marketId, generatorAttestationBytes, signature))
+      await expect(proverManager.connect(generator).updateEncryptionKey(marketId, proverAttestationBytes, signature))
         .to.emit(entityKeyRegistry, "UpdateKey")
         .withArgs(await generator.getAddress(), marketId);
     });
@@ -427,28 +459,30 @@ describe("Checking Case where generator and ivs image is same", () => {
       });
 
       it("Submit proof for invalid requests directly from if only new ivs added by market maker", async () => {
-        const askData = await proofMarketplace.listOfAsk(askId);
+        const bidData = await proofMarketplace.listOfBid(bidId);
         const types = ["uint256", "bytes"];
 
-        const values = [askId, askData.ask.proverData];
+        const values = [bidId, bidData.bid.proverData];
 
         const abicode = new ethers.AbiCoder();
         const encoded = abicode.encode(types, values);
         const digest = ethers.keccak256(encoded);
         const signature = await newIvsImage.signMessage(ethers.getBytes(digest));
 
-        await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
+        // TODO
+        // await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
-        await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
+        await expect(proofMarketplace.submitProofForInvalidInputs(bidId, signature)).to.emit(proofMarketplace, "InvalidInputsDetected");
       });
 
       it("Should Fail: can't submit proofs if signature os invalid", async () => {
         const signature =
           "0x0000111100001111000011110000111100001111000011110000111100001111000011110000111100001111000011110000111100001111000011110000ddddff";
 
-        await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
+        // TODO
+        // await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
-        await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.revertedWithCustomError(
+        await expect(proofMarketplace.submitProofForInvalidInputs(bidId, signature)).to.revertedWithCustomError(
           proofMarketplace,
           "ECDSAInvalidSignature",
         );
@@ -459,19 +493,20 @@ describe("Checking Case where generator and ivs image is same", () => {
           .to.emit(entityKeyRegistry, "EnclaveImageRemovedFromFamily")
           .withArgs(newIvsImage.getImageId(), ivsFamilyId(marketId));
 
-        const askData = await proofMarketplace.listOfAsk(askId);
+        const bidData = await proofMarketplace.listOfBid(bidId);
         const types = ["uint256", "bytes"];
 
-        const values = [askId, askData.ask.proverData];
+        const values = [bidId, bidData.bid.proverData];
 
         const abicode = new ethers.AbiCoder();
         const encoded = abicode.encode(types, values);
         const digest = ethers.keccak256(encoded);
         const signature = await newIvsImage.signMessage(ethers.getBytes(digest));
 
-        await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
+        // TODO
+        // await proofMarketplace.flush(await treasury.getAddress()); // remove anything if is already there
 
-        await expect(proofMarketplace.submitProofForInvalidInputs(askId, signature)).to.revertedWithCustomError(
+        await expect(proofMarketplace.submitProofForInvalidInputs(bidId, signature)).to.revertedWithCustomError(
           entityKeyRegistry,
           "AttestationAutherImageNotInFamily",
         );

@@ -1,17 +1,21 @@
-import { ethers } from "hardhat";
 import { expect } from "chai";
-import { AbiCoder, Signer, ZeroAddress } from "ethers";
+import {
+  AbiCoder,
+  Signer,
+  ZeroAddress,
+} from "ethers";
+import { ethers } from "hardhat";
+
 import * as attestation4533 from "../helpers/sample/risc0/attestation.json";
 import * as attestation4534 from "../helpers/sample/risc0/attestation4534.json";
-
 import {
-  RiscZeroGroth16Verifier__factory,
-  RiscZeroVerifierEmergencyStop,
-  RiscZeroVerifierEmergencyStop__factory,
   AttestationVerifierZK,
   AttestationVerifierZK__factory,
   IRiscZeroVerifierRouter__factory,
   Risc0_attestation_verifier_wrapper__factory,
+  RiscZeroGroth16Verifier__factory,
+  RiscZeroVerifierEmergencyStop,
+  RiscZeroVerifierEmergencyStop__factory,
 } from "../typechain-types";
 
 describe("Attestation verifier for RISC0, testing", () => {

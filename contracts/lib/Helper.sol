@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-import {ECDSA as ECDSAUpgradeable} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./Error.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Error} from "./Error.sol";
 
 pragma solidity ^0.8.0;
 
@@ -79,7 +79,7 @@ library HELPER {
         bytes32 messageHash = keccak256(abi.encode(attestationData, addressToVerify));
         bytes32 ethSignedMessageHash = GET_ETH_SIGNED_HASHED_MESSAGE(messageHash);
 
-        address signer = ECDSAUpgradeable.recover(ethSignedMessageHash, enclaveSignature);
+        address signer = ECDSA.recover(ethSignedMessageHash, enclaveSignature);
         if (signer != GET_ADDRESS(attestationData)) {
             revert Error.InvalidEnclaveSignature(signer);
         }
@@ -89,8 +89,8 @@ library HELPER {
         return keccak256(abi.encode(roleId));
     }
 
-    function GENERATOR_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
-        return keccak256(abi.encode("gen", marketId));
+    function PROVER_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
+        return keccak256(abi.encode("prov", marketId));
     }
 
     function IVS_FAMILY_ID(uint256 marketId) internal pure returns (bytes32) {
@@ -100,17 +100,4 @@ library HELPER {
     bytes32 internal constant NO_ENCLAVE_ID = 0xcd2e66bf0b91eeedc6c648ae9335a78d7c9a4ab0ef33612a824d91cdc68a4f21;
 
     uint256 internal constant ACCEPTABLE_ATTESTATION_DELAY = 60000; // 60 seconds, 60,000 milliseconds
-
-    function blockNumber() internal view returns (uint256) {
-        // return ArbSys(100).arbBlockNumber();
-        return block.number;
-    }
-}
-
-interface ArbSys {
-    /**
-     * @notice Get Arbitrum block number (distinct from L1 block number; Arbitrum genesis block has block number 0)
-     * @return block number as int
-     */
-    function arbBlockNumber() external view returns (uint256);
 }

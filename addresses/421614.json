@@ -4,26 +4,43 @@
     "staking_token": "0xdb69299dDE4A00c99b885D9f8748B2AeD1Fe4Ed4",
     "mock_attestation_verifier": "0x1dC40628443D93eA82945a9206e0b527BA3EA028",
     "attestation_verifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
-    "attestation_verifier_ZK": "0xbDB8F2Cc624625B80FCCaBEF04BC5420eF232dfB",
-    "RiscZeroGroth16Verifier": "0x84b943E31e7fAe6072ce5F75eb4694C7D5F9b0cF",
-    "entity_registry": "0x002064F4d224EA4F90e9A74B5fE3f3812886c6DF",
-    "generator_registry": "0x5ce3e1010028C4F5687356D721e3e2B6DcEA7C25",
-    "dispute": "0x41fD92A4Bc74F8B9f46e1fA0825C40aeD5AFDb92",
-    "proof_market_place": "0x0b6340a893B944BDc3B4F012e934b724c83abF97",
-    "priority_list": "0xfd94a9Aed9d5f8f00b70A1908378fcc1C4a04B4E",
-    "input_and_proof_format": "0xBcBaccBA21D0F2089029a3184BcB612e5aFF7911",
-    "transfer_verifier_wrapper": "0x62e13C7E3832038d11a7Dc5f5540D09EFe7B61cC",
-    "TransferVerifier": "0x69057542044abcA7047f3938DaE4E3e20D388D23",
-    "tee_verifier_deployer": "0x9a0B3529E3b10D2Fe1e93F0754c0CEee6B5F3a91",
-    "mock_verifier": "0x4B8d302A982D11d946255cA091F9C242491cDD31",
-    "risc0_verifier": "0xBE78405f7853A7642481fC7e556f6d318Db194A0",
-    "attestation_zk_verifier": "0x8975288764260b1877C60a87314b1eC20a85Dc79",
-    "attestation_zk_verifier_wrapper": "0x8C9B044F1c2c150a068012016836330250C67951",
-    "risc0_router": "0x0b144e07a0826182b6b59788c34b32bfa86fb711"
+    "dispute": "0x48b28BC18E9d9EcDFa7A2CF8b1DDa2668bC005b2",
+    "transfer_verifier_wrapper": "0x30A5fFf0D0d54fab407a409467835e56830a7471",
+    "zkb_verifier_wrapper": "0xeE89C22838a691d03fB3b6f47C387d06917C0bBD",
+    "priority_list": "0x138e29f7804Bfe8225E431c79764663620AEac54",
+    "input_and_proof_format": "0x43F4159c011f6d05957182748C1F2b77C74fFDB5",
+    "tee_verifier_deployer": "0x5acCC2F599045D13EA03e4c2b7b0Ed9F8C7Fb99C",
+    "proof_market_place": "0xfa2AAcA897C4AB956625B72ac678b3CB5450a154",
+    "symbiotic_staking": "0xE7136641cB2c94d318779c3B6BEb997dC5B2E574",
+    "native_staking": "0xe9d2Bcc597f943ddA9EDf356DAC7C6A713dDE113",
+    "generator_registry": "0xdC33E074d2b055171e56887D79678136B4505Dec",
+    "entity_key_registry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
+    "staking_manager": "0xCe75C0E25b2c70415b237273345105402aEbe79F",
+    "attestationVerifier": "0x63EEf1576b477Aa60Bfd7300B2C85b887639Ac1b",
+    "entityKeyRegistry": "0x457D42573096b339bA48Be576e9Db4Fc5F186091",
+    "stakingManager": "0xaf2ae7Ce949665ebA8a43A31DF73F4814252Cc84",
+    "nativeStaking": "0x5F1666aEB646439157e139FF37637302168e6bb9",
+    "symbioticStaking": "0x078B3f1504a4B5Bc08EB057cd2Fc8DD790459163",
+    "symbioticStakingReward": "0xEfDE9B92709187ef2f03CcCCD7e7E3B17Cee497D",
+    "proverManager": "0x4743a2c7a96C9FBED8b7eAD980aD01822F9711Db",
+    "proofMarketplace": "0xC05d689B341d84900f0d0CE36f35aDAbfB57F68d"
+  },
+  "mockToken": {
+    "usdc": "0x8230d71d809718132C2054704F5E3aF1b86B669C",
+    "pond": "0xB5570D4D39dD20F61dEf7C0d6846790360b89a18",
+    "weth": "0x854493FB9F844c8632140ffF9B66207B10027E8d"
   },
   "implementation": {
-    "entity_registry": "0xA7D1bFA053A8b474a153336Db7e0B31494155f9E",
-    "generator_registry": "0x571Bd65B8804B381EfcAf695309C1f43550256bE",
-    "proof_market_place": "0xA64665EdC5d17Be1Bf6ec7EA9D28c9AB09254D12"
+    "stakingManager": "0xFE379a4406367b61EB1405309539469cAB3d2Ab6",
+    "nativeStaking": "0xF1308AdD340906227Bd059cDB00071b5a9CD5c4C",
+    "symbioticStaking": "0x90dc640Cd760a087E3801a57e0EFB20697814fB2",
+    "symbioticStakingReward": "0x5468326b83639261B8424b0E4517addbB98c57D7",
+    "attestationVerifier": "0x3b3266cfa5cac075220BD115902D3C923476EC8a",
+    "entityKeyRegistry": "0x7AE71621312900e91EB5256654933ABE3eae34D3",
+    "proverManager": "0x4685121c18D19F39a20404EA327a97036BB88a05",
+    "proofMarketplace": "0xE5868093f293eEFdE2887b4a92caa9146485AB3b"
+  },
+  "wallet": {
+    "admin": "0x7C046645E21B811780Cf420021E6701A9E66935C"
   }
 }
