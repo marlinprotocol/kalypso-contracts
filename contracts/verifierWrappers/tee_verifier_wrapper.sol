@@ -159,6 +159,9 @@ contract tee_verifier_wrapper is AttestationAuther, IVerifier {
         ) = abi.decode(data, (bytes, bytes, bytes, bytes, bytes, uint256));
 
         // compute image id in proper way
-        _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
+        bool verificationResult = _verifyEnclaveKey(attestation, IAttestationVerifier.Attestation(enclaveKey, PCR0, PCR1, PCR2, timestamp));
+        if (!verificationResult) {
+            revert Error.TeeVerifierEnclaveKeyNotVerified(PCR0, PCR1, PCR2);
+        }
     }
 }

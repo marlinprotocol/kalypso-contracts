@@ -97,6 +97,9 @@ const config: HardhatUserConfig = {
       }
     ],
   },
+  mocha: {
+    timeout: 120000,
+  },
   networks: {
     hardhat: {
       blockGasLimit: 500000000000,
@@ -125,6 +128,18 @@ const config: HardhatUserConfig = {
       },
       chainId: 421614, 
     },
+    // kalypso: {
+    //   url: `${process.env.KALYPSO_RPC_URL}`,
+    //   accounts: [
+    //     `${process.env.SEPOLIA_ADMIN}`,
+    //     `${process.env.SEPOLIA_TOKEN_HOLDER}`,
+    //     `${process.env.SEPOLIA_TREASURY}`,
+    //     `${process.env.SEPOLIA_MARKET_CREATOR}`,
+    //     `${process.env.SEPOLIA_GENERATOR}`,
+    //     `${process.env.SEPOLIA_MATCHING_ENGINE}`,
+    //     `${process.env.SEPOLIA_PROOF_REQUESTOR}`,
+    //   ],
+    // },
     arbOne: {
       url: `${process.env.ARBITRUM_ONE_RPC_URL}`,
       accounts: [

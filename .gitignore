@@ -103,7 +103,6 @@ dist
 
 # vuepress v2.x temp and cache directory
 .temp
-.cache
 
 # Docusaurus cache and generated files
 .docusaurus
@@ -131,9 +130,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-node_modules
-.env
-coverage
 coverage.json
 typechain
 typechain-types
@@ -147,14 +143,11 @@ addresses/31337.json
 # Foundry
 broadcast
 
-# VSCode
-.vscode
-
 # Openzeppelin
 .openzeppelin/
 
 # MacOS 
-.DS_Store
+**/.DS_Store
 
 # Python
 venv
