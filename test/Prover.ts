@@ -523,7 +523,7 @@ describe("Checking Prover's multiple compute", () => {
       let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index >= parseInt(max_asks)) {
-        const ask = {
+        const bid = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
@@ -533,13 +533,13 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
 
-        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), bid.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
-        await proofMarketplace.connect(prover).createBid(ask, marketId, "0x", "0x", "0x");
+        await proofMarketplace.connect(prover).createBid(bid, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
@@ -719,7 +719,7 @@ describe("Checking Prover's multiple compute", () => {
       let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index > MAX_PARALLEL_REQUESTS.toNumber()) {
-        const ask = {
+        const bid = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
@@ -729,13 +729,13 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
 
-        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), bid.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
-        await proofMarketplace.connect(prover).createBid(ask, marketId, "0x", "0x", "0x");
+        await proofMarketplace.connect(prover).createBid(bid, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 
@@ -822,7 +822,7 @@ describe("Checking Prover's multiple compute", () => {
       let maxTimeForProofGeneration = 24 * 60 * 60; // 1 day
 
       if (index >= max_restricted_requests_by_stake) {
-        const ask = {
+        const bid = {
           marketId,
           proverData: inputBytes,
           reward: rewardForProofGeneration.toFixed(),
@@ -832,13 +832,13 @@ describe("Checking Prover's multiple compute", () => {
           refundAddress: await prover.getAddress(),
         };
 
-        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), ask.reward.toString());
+        await usdc.connect(tokenHolder).transfer(await prover.getAddress(), bid.reward.toString());
 
-        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), ask.reward.toString());
+        await usdc.connect(prover).approve(await proofMarketplace.getAddress(), bid.reward.toString());
 
         const bidId = await proofMarketplace.bidCounter();
 
-        await proofMarketplace.connect(prover).createBid(ask, marketId, "0x", "0x", "0x");
+        await proofMarketplace.connect(prover).createBid(bid, marketId, "0x", "0x", "0x");
 
         const matchingEngine: Signer = new ethers.Wallet(matchingEngineEnclave.getPrivateKey(true), admin.provider);
 

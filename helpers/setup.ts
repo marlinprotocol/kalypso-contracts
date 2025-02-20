@@ -1,13 +1,13 @@
-import BigNumber from 'bignumber.js';
+import BigNumber from "bignumber.js";
 import {
   BigNumberish,
   Provider,
   Signer,
-} from 'ethers';
+} from "ethers";
 import {
   ethers,
   upgrades,
-} from 'hardhat';
+} from "hardhat";
 
 import {
   AttestationVerifier,
@@ -38,12 +38,12 @@ import {
   USDC__factory,
   WETH,
   WETH__factory,
-} from '../typechain-types';
+} from "../typechain-types";
 import {
   GodEnclavePCRS,
   MockEnclave,
-} from './';
-import { Bid } from './structTypes';
+} from "./";
+import { Bid } from "./structTypes";
 
 interface SetupTemplate {
   mockToken: MockToken;

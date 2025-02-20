@@ -358,7 +358,7 @@ describe("Proof market place", () => {
     );
   });
 
-  describe("Ask: Private Market", () => {
+  describe("Bid: Private Market", () => {
     let prover: Signer;
     let reward = new BigNumber(10).pow(20).multipliedBy(3);
     let marketId: string;
@@ -391,14 +391,14 @@ describe("Proof market place", () => {
       // await skipBlocks(ethers, ONE_DAY_IN_BLOCKS);
     });
 
-    it("Create Ask Request", async () => {
+    it("Create Bid Request", async () => {
       const latestBlock = await ethers.provider.getBlock("latest");
       const blockTimestamp = latestBlock?.timestamp ?? 0;
 
       const bidIdToBeGenerated = await proofMarketplace.bidCounter();
 
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const askRequest = {
+      const bidRequest = {
         marketId,
         proverData: proverBytes,
         reward: reward.toFixed(),
@@ -414,14 +414,14 @@ describe("Proof market place", () => {
       await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
       await proofMarketplace.connect(admin).updateCostPerBytes(1, 1000);
 
-      const platformFee = await proofMarketplace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
+      const platformFee = await proofMarketplace.getPlatformFee(1, bidRequest, secretInfo, aclInfo);
       await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
 
       await mockToken
         .connect(prover)
         .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
 
-      await expect(proofMarketplace.connect(prover).createBid(askRequest, 1, secretInfo, aclInfo, "0x"))
+      await expect(proofMarketplace.connect(prover).createBid(bidRequest, 1, secretInfo, aclInfo, "0x"))
         .to.emit(proofMarketplace, "BidCreated")
         .withArgs(bidIdToBeGenerated, true, "0x2345", "0x21", "0x")
         .to.emit(mockToken, "Transfer")
@@ -430,7 +430,7 @@ describe("Proof market place", () => {
       expect((await proofMarketplace.listOfBid(bidIdToBeGenerated)).state).to.equal(1); // 1 means create state
     });
   });
-  describe("Ask: Public Market", () => {
+  describe("Bid: Public Market", () => {
     let prover: Signer;
     let reward = new BigNumber(10).pow(20).multipliedBy(3);
     let marketId: string;
@@ -462,14 +462,14 @@ describe("Proof market place", () => {
       // await skipBlocks(ethers, new BigNumber(marketActivationDelay.toString()).toNumber());
     });
 
-    it("Create Ask Request", async () => {
+    it("Create Bid Request", async () => {
       const latestBlock = await ethers.provider.getBlock("latest");
       const blockTimestamp = latestBlock?.timestamp ?? 0;
 
       const bidIdToBeGenerated = await proofMarketplace.bidCounter();
 
       const proverBytes = "0x" + bytesToHexString(await generateRandomBytes(1024 * 1)); // 1 MB
-      const askRequest = {
+      const bidRequest = {
         marketId,
         proverData: proverBytes,
         reward: reward.toFixed(),
@@ -485,14 +485,14 @@ describe("Proof market place", () => {
       await proofMarketplace.connect(admin).grantRole(await proofMarketplace.UPDATER_ROLE(), await admin.getAddress());
       await proofMarketplace.connect(admin).updateCostPerBytes(1, 1000);
 
-      const platformFee = await proofMarketplace.getPlatformFee(1, askRequest, secretInfo, aclInfo);
+      const platformFee = await proofMarketplace.getPlatformFee(1, bidRequest, secretInfo, aclInfo);
       await mockToken.connect(tokenHolder).transfer(await prover.getAddress(), platformFee);
 
       await mockToken
         .connect(prover)
         .approve(await proofMarketplace.getAddress(), new BigNumber(platformFee.toString()).plus(reward).toFixed());
 
-      await expect(proofMarketplace.connect(prover).createBid(askRequest, 1, secretInfo, aclInfo, "0x"))
+      await expect(proofMarketplace.connect(prover).createBid(bidRequest, 1, secretInfo, aclInfo, "0x"))
         .to.emit(proofMarketplace, "BidCreated")
         .withArgs(bidIdToBeGenerated, false, "0x", "0x", "0x")
         .to.emit(mockToken, "Transfer")
@@ -523,7 +523,6 @@ describe("Proof market place", () => {
             refundAddress: await prover.getAddress(),
           },
           0,
-          "0x",
           "0x",
           "0x",
           "0x",
@@ -831,7 +830,6 @@ describe("Proof market place", () => {
             "0x",
             "0x",
             "0x",
-            "0x",
           );
 
           await proverManager.connect(prover).register(await prover.getAddress(), computeUnitsRequired, proverData);
@@ -927,7 +925,6 @@ describe("Proof market place", () => {
             "0x",
             "0x",
             "0x",
-            "0x",
           );
 
           await expect(
@@ -935,14 +932,14 @@ describe("Proof market place", () => {
           ).to.be.revertedWithCustomError(errorLibrary, "AssignOnlyToIdleProvers");
         });
 
-        it("Should fail: Matching engine will not be able to assign task if ask is expired", async () => {
+        it("Should fail: Matching engine will not be able to assign task if bid is expired", async () => {
           await mine(assignmentExpiry);
           await expect(
             proofMarketplace.connect(matchingEngineSigner).assignTask(bidId.toString(), await prover.getAddress(), "0x"),
           ).to.be.revertedWithCustomError(errorLibrary, "ShouldBeInCreateState");
         });
 
-        it("Can cancel ask once the ask is expired", async () => {
+        it("Can cancel bid once the bid is expired", async () => {
           await mine(assignmentExpiry);
           await expect(proofMarketplace.connect(admin).cancelBid(bidId.toString()))
             .to.emit(proofMarketplace, "BidCancelled")
