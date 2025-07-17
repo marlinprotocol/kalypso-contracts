@@ -133,10 +133,8 @@ const config: HardhatUserConfig = {
     },
     arbone: {
       url: `${process.env.ARB_ONE_RPC_URL}`,
-      accounts: [
-        `${process.env.ARB_ONE_ADMIN}`,
-      ],
-    }
+      accounts: [`${process.env.ARB_ONE_ADMIN}`],
+    },
   },
 };
 

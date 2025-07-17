@@ -1,8 +1,8 @@
 {
-    "proxy": {
-        "risc0_router": "0x0b144e07a0826182b6b59788c34b32bfa86fb711",
-        "attestation_zk_verifier": "0xfcCD297E4FCce471f633BB1998cc7e058903cc53",
-        "attestation_zk_verifier_wrapper": "0x0338C1C01d7A15988367182d5af9cC1C85F22e77"
-    },
-    "implementation": {}
+  "proxy": {
+    "risc0_router": "0x0b144e07a0826182b6b59788c34b32bfa86fb711",
+    "attestation_zk_verifier": "0xfcCD297E4FCce471f633BB1998cc7e058903cc53",
+    "attestation_zk_verifier_wrapper": "0x0338C1C01d7A15988367182d5af9cC1C85F22e77"
+  },
+  "implementation": {}
 }
